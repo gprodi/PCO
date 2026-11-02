@@ -1,0 +1,216 @@
+titre: "IA agentique — de la chatbot à l'agent"
+fiche:
+  titre: "Du chatbot à règles à l'agent autonome : comprendre l'évolution pour bien choisir"
+  resume: >-
+    L'histoire du NLP explique les outils actuels. Des années 1960 à 1990, les chatbots à règles (ELIZA)
+    suivent un script sans rien comprendre. De 1990 à 2010, le NLP statistique apprend sur de grands corpus
+    (TF-IDF, n-grammes, SVM) ; NLTK devient la boîte à outils de référence. En 2013, les embeddings
+    (Word2Vec) représentent les mots par des vecteurs qui capturent le sens (roi − homme + femme ≈ reine).
+    En 2017, le Transformer et son mécanisme d'attention relient chaque mot à tous les autres et traitent le
+    texte en parallèle : c'est la base de BERT, GPT et de tous les LLM. Un LLM seul est sans état : il oublie
+    tout entre deux requêtes. Un chatbot lui réinjecte l'historique ; le RAG (2023) le connecte à une base de
+    connaissances pour répondre sur des données fraîches ou privées et limiter les hallucinations ; un agent
+    lui donne des outils (API, code, SQL) et une boucle de décision (planifier, agir, observer, corriger),
+    éventuellement à plusieurs (multi-agents). LangChain assemble ces briques, LangGraph gère les cycles,
+    l'état et la persistance.
+  objectifs:
+    - Situer les grandes étapes du NLP, des règles aux agents
+    - Expliquer l'attention et le rôle du Transformer en termes simples
+    - Distinguer LLM sans état, chatbot avec historique, chatbot RAG et agent avec outils
+    - Choisir le niveau d'architecture adapté à un besoin (et ne pas faire un agent quand un RAG suffit)
+  notions:
+    - { terme: "Chatbot à règles", definition: "Correspondances de mots-clés et scripts écrits à la main (ELIZA, 1966) ; aucune compréhension." }
+    - { terme: "Embedding", definition: "Vecteur dense qui représente un mot ou un texte ; des sens proches donnent des vecteurs proches." }
+    - { terme: "Attention", definition: "Mécanisme qui calcule, pour chaque mot, l'importance de tous les autres mots du contexte." }
+    - { terme: "Têtes d'attention", definition: "Plusieurs « regards » en parallèle qui captent différents liens (syntaxe, pronoms, temps)." }
+    - { terme: "LLM sans état", definition: "Chaque appel est indépendant : le modèle ne se souvient de rien sans qu'on lui renvoie le contexte." }
+    - { terme: "RAG", definition: "Retrieval-Augmented Generation : on cherche des passages pertinents dans une base, puis le LLM répond en s'appuyant dessus." }
+    - { terme: "Agent", definition: "LLM « cerveau » doté d'outils et d'une boucle raisonner → agir → observer, jusqu'à la réponse." }
+    - { terme: "Multi-agents", definition: "Plusieurs agents spécialisés qui collaborent, en pair à pair ou sous un superviseur." }
+  points_cles:
+    - "Chaque étape ajoute une capacité : mémoire (historique), savoir (RAG), action (outils), autonomie (boucle et réflexion)."
+    - "Le RAG réduit les hallucinations sur les données métier parce que la réponse s'appuie sur des passages cités."
+    - "La mémoire d'un chatbot coûte des tokens : l'historique est renvoyé à chaque message, il faut le résumer ou le tronquer."
+    - "Un agent est plus puissant mais plus imprévisible et plus cher : on ne l'utilise que si la tâche exige de choisir des actions."
+    - "Articles fondateurs à citer : Word2Vec (2013), Attention Is All You Need (2017), RAG (2020), ReAct (2022), Toolformer (2023)."
+  code:
+    - titre: "Sans état vs avec historique"
+      lang: python
+      code: |
+        historique: list[dict] = [{"role": "system", "content": "Tu es un assistant concis."}]
+
+        def appeler_llm(messages: list[dict]) -> str:
+            """Remplacer par un vrai appel (Ollama, passerelle LLM). Ici : réponse simulée."""
+            dernier = messages[-1]["content"]
+            connu = any("Gaël" in m["content"] for m in messages[:-1])
+            return "Tu t'appelles Gaël." if "comment je m'appelle" in dernier.lower() and connu else "Je ne sais pas."
+
+        def chat(question: str) -> str:
+            historique.append({"role": "user", "content": question})
+            reponse = appeler_llm(historique)            # tout l'historique est renvoyé
+            historique.append({"role": "assistant", "content": reponse})
+            return reponse
+
+        print(appeler_llm([{"role": "user", "content": "Comment je m'appelle ?"}]))   # sans état
+        chat("Je m'appelle Gaël.")
+        print(chat("Comment je m'appelle ?"))                                          # avec historique
+      explication: "La « mémoire » d'un chatbot n'est que l'historique renvoyé à chaque appel."
+    - titre: "Le « R » de RAG en 10 lignes"
+      lang: python
+      code: |
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+
+        passages = [
+            "Le capteur DHT22 mesure la température et l'humidité.",
+            "Le servo SG90 se commande en PWM à 50 Hz.",
+            "Le module HC-SR04 mesure une distance par ultrasons.",
+        ]
+        vect = TfidfVectorizer().fit(passages)
+        question = "Quel capteur pour l'humidité ?"
+        scores = cosine_similarity(vect.transform([question]), vect.transform(passages))[0]
+        meilleur = passages[scores.argmax()]
+        prompt = f"Réponds uniquement avec ce contexte :\n{meilleur}\n\nQuestion : {question}"
+        print(prompt)
+      explication: "En production, des embeddings et une base vectorielle remplacent TF-IDF ; le principe reste : chercher, puis répondre avec le contexte."
+  pieges:
+    - "Croire qu'un LLM « se souvient » : sans historique renvoyé, chaque requête repart de zéro."
+    - "Construire un agent pour une tâche qui n'a qu'un chemin possible : un pipeline ou un RAG est plus fiable et moins cher."
+    - "Laisser l'historique grossir sans limite : coût, lenteur et dépassement de la fenêtre de contexte."
+    - "Faire confiance à un RAG sans citations : impossible de vérifier d'où vient la réponse."
+  aller_plus_loin:
+    - titre: "Lire les articles fondateurs"
+      contenu: "Survole l'introduction et les figures de « Attention Is All You Need », « ReAct » et l'article RAG : savoir les citer et expliquer leur idée en une phrase fait une excellente impression en veille (C6)."
+      lien: "https://arxiv.org/abs/1706.03762"
+    - titre: "Visualiser l'attention"
+      contenu: "Des outils comme BertViz affichent les poids d'attention d'un modèle sur une phrase : on voit concrètement quel mot « regarde » lequel (ex. un pronom vers son antécédent)."
+      lien: "https://github.com/jessevig/bertviz"
+    - titre: "Choisir son architecture"
+      contenu: "Défi : pour trois besoins (FAQ sur des documents internes, assistant qui réserve une salle, résumé d'un rapport), choisis entre LLM seul, chatbot, RAG et agent, et justifie par la fiabilité, le coût et le risque."
+  jury: >-
+    **E2 (C6, C7)** : veille et benchmark de services d'IA ; **E3 (C10)** : intégration d'un LLM. Révisions DevIA
+    implémente un RAG avec citations (`revision/src/revision/rag.py` : recherche dans un index vectoriel puis
+    réponse limitée aux passages), et MicroForge passe par une passerelle LLM locale d'abord (Ollama, puis
+    Gemini gratuit). Sache justifier pourquoi un RAG suffit là où un agent serait superflu.
+  competences: [C6, C7, C10]
+  sources: []
+qcm:
+  - question: "Quelle innovation de 2017 est à l'origine des LLM modernes ?"
+    choix: ["Word2Vec", "Le Transformer et le mécanisme d'attention", "Les SVM", "ELIZA"]
+    bonne: 1
+    explication: "« Attention Is All You Need » (Vaswani et al.)."
+    difficulte: 1
+  - question: "Pourquoi dit-on qu'un LLM est « sans état » ?"
+    choix: ["Il n'a pas de paramètres", "Chaque appel est indépendant : il ne garde rien entre deux requêtes", "Il ne fonctionne qu'en local", "Il ne sait pas compter"]
+    bonne: 1
+    explication: "La mémoire vient de l'historique qu'on lui renvoie."
+    difficulte: 1
+  - question: "Quel est l'apport principal du RAG ?"
+    choix: ["Accélérer le modèle", "Répondre à partir de connaissances externes (fraîches ou privées) et limiter les hallucinations", "Réduire la taille du modèle", "Remplacer les embeddings"]
+    bonne: 1
+    explication: "Chercher, puis générer avec le contexte trouvé."
+    difficulte: 1
+  - question: "Qu'est-ce qui distingue un agent d'un chatbot RAG ?"
+    choix: ["Il parle plus vite", "Il dispose d'outils et décide lui-même des actions à mener dans une boucle", "Il n'utilise pas de LLM", "Il n'a pas de mémoire"]
+    bonne: 1
+    explication: "Raisonner, agir, observer, recommencer."
+    difficulte: 1
+  - question: "Que permet un embedding que TF-IDF ne permet pas ?"
+    choix: ["Compter les mots", "Rapprocher des mots de sens proche même s'ils s'écrivent différemment", "Supprimer les stop words", "Traduire"]
+    bonne: 1
+    explication: "« navire » et « bateau » ont des vecteurs proches."
+    difficulte: 2
+  - question: "À quoi servent les têtes d'attention multiples ?"
+    choix: ["À paralléliser les GPU", "À analyser le texte sous plusieurs angles à la fois (syntaxe, références…)", "À stocker l'historique", "À compresser le modèle"]
+    bonne: 1
+    explication: "Chaque tête apprend un type de relation."
+    difficulte: 2
+  - question: "Rôle de LangGraph par rapport à LangChain ?"
+    choix: ["Il remplace les LLM", "Il gère les cycles, l'état et la persistance des agents sous forme de graphe", "Il entraîne les modèles", "Il héberge les données"]
+    bonne: 1
+    explication: "LangChain assemble les briques ; LangGraph orchestre les boucles."
+    difficulte: 2
+  - question: "Pour une FAQ sur des documents internes, la meilleure première approche est :"
+    choix: ["Un agent multi-outils", "Un chatbot RAG avec citations", "Un LLM sans contexte", "Un chatbot à règles"]
+    bonne: 1
+    explication: "Le besoin est de retrouver et citer, pas d'agir."
+    difficulte: 2
+flashcards:
+  - { recto: "ELIZA", verso: "Chatbot à règles (1966) : mots-clés et scripts, aucune compréhension." }
+  - { recto: "Word2Vec", verso: "2013, Mikolov : embeddings appris du contexte des mots." }
+  - { recto: "Attention Is All You Need", verso: "2017 : architecture Transformer fondée sur l'attention." }
+  - { recto: "Transformer, ingrédients", verso: "Têtes d'attention, encodage positionnel, couches denses, connexions résiduelles." }
+  - { recto: "LLM vs chatbot", verso: "Le chatbot = LLM + historique réinjecté à chaque message." }
+  - { recto: "RAG en une phrase", verso: "Chercher des passages pertinents, puis générer la réponse à partir d'eux (avec citations)." }
+  - { recto: "Agent en une phrase", verso: "LLM + outils + boucle de décision (raisonner, agir, observer)." }
+  - { recto: "ReAct", verso: "Reason + Act : alterner pensée, action (outil) et observation (2022)." }
+  - { recto: "Toolformer", verso: "Article où un LLM apprend lui-même à appeler des outils (2023)." }
+  - { recto: "Multi-agents", verso: "Agents spécialisés en pair à pair ou coordonnés par un superviseur." }
+  - { recto: "Coût de la mémoire", verso: "L'historique est renvoyé à chaque appel : tokens, latence, limite de contexte." }
+  - { recto: "LangChain vs LangGraph", verso: "LangChain : assembler briques et outils. LangGraph : cycles, état, persistance." }
+exercices:
+  - titre: "Classer des architectures"
+    niveau: 1
+    enonce: "Pour chaque besoin, propose l'architecture la plus simple qui convient : (a) reformuler un texte ; (b) répondre sur le règlement intérieur de l'école ; (c) commander des composants manquants chez un fournisseur ; (d) converser en se souvenant du prénom de l'utilisateur."
+    corrige: |
+      (a) LLM seul (sans état) ; (b) chatbot RAG avec citations ; (c) agent avec outils (API fournisseur, panier) et validation humaine avant paiement ; (d) chatbot avec historique.
+  - titre: "Mini-RAG avec citation"
+    niveau: 2
+    enonce: "Étends le code « Le R de RAG » : renvoie les 2 meilleurs passages avec leur numéro, et construis un prompt qui oblige la réponse à citer [n]. Si le meilleur score est inférieur à 0,1, réponds « je ne sais pas » sans appeler le LLM."
+    corrige: |
+      ```python
+      from sklearn.feature_extraction.text import TfidfVectorizer
+      from sklearn.metrics.pairwise import cosine_similarity
+
+      MOTS_VIDES = ["le", "la", "les", "un", "une", "des", "du", "de", "est", "et", "quel", "quelle", "pour"]
+
+      def rag_prompt(question: str, passages: list[str], k: int = 2, seuil: float = 0.1) -> str | None:
+          vect = TfidfVectorizer(stop_words=MOTS_VIDES).fit(passages)
+          scores = cosine_similarity(vect.transform([question]), vect.transform(passages))[0]
+          meilleurs = scores.argsort()[::-1][:k]
+          if scores[meilleurs[0]] < seuil:
+              return None                          # « je ne sais pas » : rien de pertinent
+          contexte = "\n".join(f"[{i}] {passages[i]}" for i in meilleurs)
+          return ("Réponds uniquement à partir des passages ci-dessous et cite-les sous la forme [n].\n"
+                  f"{contexte}\n\nQuestion : {question}")
+
+      passages = ["Le DHT22 mesure température et humidité.", "Le SG90 est un servomoteur."]
+      print(rag_prompt("Quel capteur pour l'humidité ?", passages))
+      print(rag_prompt("Quelle est la capitale du Pérou ?", passages))   # None
+      ```
+      Sans la liste de mots vides, la question sur le Pérou obtient un score non nul (le mot « est » est commun avec un passage) et un contexte hors sujet est envoyé au LLM : c'est pour cela qu'on retire les mots vides et qu'on fixe un seuil — et qu'on préfère des embeddings en production.
+mindmap: |
+  # IA agentique 2026
+  ## Histoire
+  - Règles (ELIZA)
+  - Statistique (TF-IDF, NLTK)
+  - Embeddings (Word2Vec)
+  - Transformer (2017)
+  - LLM (GPT, ChatGPT)
+  ## Attention
+  - Lier chaque mot à tous les autres
+  - Têtes multiples
+  ## Niveaux
+  - LLM sans état
+  - Chatbot (historique)
+  - RAG (savoir)
+  - Agent (outils, boucle)
+  - Multi-agents
+  ## Outils
+  - LangChain
+  - LangGraph
+  ## Choisir
+  - Le plus simple qui suffit
+  - Coût, fiabilité, risque
+podcast_titre: "Soixante ans de chatbots en dix minutes"
+podcast:
+  - { voix: A, texte: "Karim, ChatGPT, c'est sorti de nulle part en 2022 ?" }
+  - { voix: B, texte: "Pas du tout. En 1966, ELIZA répondait déjà avec des règles et des mots-clés, sans rien comprendre. Puis le NLP statistique, puis les embeddings en 2013 : les mots deviennent des vecteurs." }
+  - { voix: A, texte: "Et le grand tournant ?" }
+  - { voix: B, texte: "2017, le Transformer. L'attention relie chaque mot à tous les autres, d'un coup. Tout part de là : BERT, GPT, les LLM actuels." }
+  - { voix: A, texte: "Pourquoi mon LLM oublie ce que je lui ai dit juste avant ?" }
+  - { voix: B, texte: "Parce qu'il est sans état. Un chatbot lui renvoie tout l'historique à chaque message. Ça a un coût : plus la conversation est longue, plus tu paies de tokens." }
+  - { voix: A, texte: "Et pour qu'il connaisse mes documents ?" }
+  - { voix: B, texte: "Le RAG : on cherche les passages pertinents dans ta base, et le LLM répond à partir d'eux, en les citant. Mon outil de révision fait exactement ça avec tes cours." }
+  - { voix: A, texte: "Et un agent ?" }
+  - { voix: B, texte: "On lui donne des outils : appeler une API, lancer du code, interroger une base. Il décide lui-même quoi faire, observe le résultat, recommence. Puissant, mais à n'utiliser que si la tâche l'exige vraiment." }

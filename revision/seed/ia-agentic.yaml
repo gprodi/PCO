@@ -1,0 +1,276 @@
+titre: "IA agentique — LangChain, LangGraph, RAG, MCP"
+fiche:
+  titre: "Construire des agents avec LangChain et LangGraph : sorties structurées, RAG, outils, garde-fous, MCP"
+  resume: >-
+    Ce cours construit un agent pas à pas. D'abord la mémoire (stateless puis stateful) et l'abstraction
+    LangChain : une chaîne LCEL assemble prompt | modèle | parseur. Avec with_structured_output et un modèle
+    Pydantic, le LLM renvoie des objets typés et validés plutôt que du texte libre : c'est la base du
+    function calling. On optimise la mémoire (comptage des tokens, fenêtre glissante, résumé), on diffuse les
+    réponses en streaming (y compris via FastAPI), puis on persiste le savoir dans une base vectorielle
+    (Chroma en local, pgvector sur PostgreSQL) pour faire du RAG : découper, vectoriser, rechercher les
+    passages les plus proches et répondre avec eux (LangChain + Chroma ou LlamaIndex + FAISS). Un agent
+    reçoit ensuite des outils (@tool, dont la docstring explique l'usage au LLM) : dans LangGraph, un
+    StateGraph relie un nœud agent et un ToolNode par une arête conditionnelle (boucle ReAct). On ajoute des
+    nœuds d'évaluation (juge), un garde-fou contre l'injection de prompt (défense en profondeur), une
+    validation humaine avec checkpoints et retour dans le temps, des architectures multi-agents (pair à pair,
+    superviseur), le monitoring avec Langfuse, et enfin MCP pour exposer ses outils à n'importe quel client.
+  objectifs:
+    - Obtenir des sorties structurées et valides d'un LLM avec Pydantic
+    - Mettre en place un RAG avec une base vectorielle et des citations
+    - Construire un agent ReAct avec LangGraph (nœuds, arêtes conditionnelles, outils)
+    - Protéger un agent (garde-fous, injection de prompt, validation humaine) et le superviser
+    - Exposer et consommer des outils via MCP
+  notions:
+    - { terme: "LCEL", definition: "LangChain Expression Language : composition par | (prompt | llm | parseur) en une chaîne invocable." }
+    - { terme: "Structured output", definition: "llm.with_structured_output(Modele) : la réponse est un objet Pydantic validé." }
+    - { terme: "Base vectorielle", definition: "Stockage d'embeddings avec recherche par similarité (Chroma, FAISS, pgvector)." }
+    - { terme: "Chunking", definition: "Découpage des documents en passages (avec recouvrement) avant vectorisation." }
+    - { terme: "@tool", definition: "Décorateur qui transforme une fonction en outil ; sa signature et sa docstring décrivent l'outil au LLM." }
+    - { terme: "StateGraph / MessagesState", definition: "Graphe d'états de LangGraph ; MessagesState accumule les messages échangés entre nœuds." }
+    - { terme: "tools_condition", definition: "Routeur prêt à l'emploi : vers « tools » si le dernier message demande un outil, sinon vers END." }
+    - { terme: "Checkpointer", definition: "Sauvegarde de l'état du graphe à chaque étape : reprise, validation humaine (interrupt) et retour dans le temps." }
+    - { terme: "Injection de prompt", definition: "Entrée (directe ou cachée dans des documents RAG) qui tente de détourner les consignes de l'agent." }
+    - { terme: "MCP", definition: "Model Context Protocol : standard ouvert pour exposer des outils à tout client IA (« l'USB-C des outils »)." }
+  points_cles:
+    - "Un agent n'est fiable que si ses sorties sont structurées : Pydantic valide ce que le code va exécuter."
+    - "Les petits modèles locaux (< 7 B) sont instables en sortie structurée : format=\"json\" côté Ollama ou modèle plus gros."
+    - "La docstring d'un outil est une partie du prompt : elle doit dire quand l'utiliser et ce qu'il renvoie."
+    - "Boucle ReAct dans LangGraph : START → agent → (outil ? → tools → agent) → END."
+    - "Défense en profondeur contre l'injection : validation d'entrée, prompt système robuste, classifieur garde-fou, données RAG traitées comme non fiables."
+    - "Toute action irréversible (paiement, suppression, envoi) passe par une validation humaine (interrupt + checkpointer)."
+  code:
+    - titre: "Agent ReAct avec LangGraph"
+      lang: python
+      code: |
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from langchain_core.tools import tool
+        from langchain_ollama import ChatOllama
+        from langgraph.graph import START, MessagesState, StateGraph
+        from langgraph.prebuilt import ToolNode, tools_condition
+
+        @tool
+        def prix_ttc(prix_ht: float) -> float:
+            """Calcule le prix TTC à partir d'un prix HT (TVA 20 %). À utiliser pour tout calcul de prix."""
+            return round(prix_ht * 1.20, 2)
+
+        outils = [prix_ttc]
+        llm = ChatOllama(model="qwen3:8b", temperature=0).bind_tools(outils)
+
+        def agent(state: MessagesState):
+            return {"messages": [llm.invoke(state["messages"])]}
+
+        graphe = StateGraph(MessagesState)
+        graphe.add_node("agent", agent)
+        graphe.add_node("tools", ToolNode(outils))
+        graphe.add_edge(START, "agent")
+        graphe.add_conditional_edges("agent", tools_condition)   # outil demandé -> tools, sinon END
+        graphe.add_edge("tools", "agent")
+        app = graphe.compile()
+
+        reponse = app.invoke({"messages": [
+            SystemMessage("Utilise toujours l'outil prix_ttc pour les calculs de prix."),
+            HumanMessage("Combien coûtent 10 capteurs à 3,50 € HT, TTC ?"),
+        ]})
+        print(reponse["messages"][-1].content)
+      explication: "L'agent demande l'outil, ToolNode l'exécute, le résultat revient à l'agent qui rédige la réponse finale."
+    - titre: "Sortie structurée et serveur MCP"
+      lang: python
+      code: |
+        from pydantic import BaseModel, Field
+
+        try:
+            from mcp.server.mcpserver import MCPServer               # mcp >= 2 (nouveau nom)
+        except ImportError:
+            from mcp.server.fastmcp import FastMCP as MCPServer      # mcp 1.x (version du cours)
+
+        class Composant(BaseModel):
+            reference: str = Field(description="Référence exacte, ex. DHT22")
+            quantite: int = Field(ge=0, description="Nombre de pièces")
+
+        # llm.with_structured_output(Composant).invoke("J'ai trois DHT22 dans mon tiroir")
+        # -> Composant(reference='DHT22', quantite=3)
+
+        mcp = MCPServer("StockTools")
+
+        @mcp.tool()
+        def quantite_en_stock(reference: str) -> int:
+            """Renvoie la quantité en stock d'un composant à partir de sa référence exacte."""
+            stock = {"DHT22": 3, "SG90": 2}
+            return stock.get(reference.upper(), 0)
+
+        if __name__ == "__main__":
+            mcp.run(transport="stdio")       # ou "streamable-http"
+      explication: "Comme FastAPI : un décorateur, une fonction typée, une docstring qui sert de documentation au LLM. FastMCP a été renommé MCPServer dans mcp 2 (vérifié avec mcp 2.3) : l'import en deux temps marche avec les deux versions."
+  pieges:
+    - "Parser le texte libre d'un LLM avec des expressions régulières au lieu d'une sortie structurée validée."
+    - "Outil sans docstring claire : le LLM ne sait pas quand l'appeler, ou l'appelle à tort."
+    - "Traiter le contenu des documents RAG comme des instructions : injection indirecte (un document « ignore tes consignes »)."
+    - "Donner à un agent un outil qui supprime ou paie sans validation humaine."
+    - "Historique jamais tronqué : coût en tokens croissant et dépassement de contexte."
+    - "Copier un tutoriel MCP sans regarder la version : FastMCP n'existe plus sous ce nom dans mcp 2 (MCPServer) ; épingler la version dans pyproject."
+    - "Sur un petit modèle local, plusieurs agents qui parlent en même temps mélangent leurs rôles : superviseur et contexte réduit par agent."
+  aller_plus_loin:
+    - titre: "Évaluer un RAG"
+      contenu: "Mesure la qualité de la recherche (le bon passage est-il dans le top 3 ?) et de la réponse (fidèle aux passages, pertinente) sur un jeu de questions de référence. Des outils comme Ragas automatisent ces métriques ; un nœud « juge » dans LangGraph peut aussi noter chaque réponse."
+      lien: "https://docs.ragas.io/"
+    - titre: "Observabilité des agents avec Langfuse"
+      contenu: "Langfuse trace chaque appel (prompt, réponse, tokens, coût, latence, outils appelés) et permet de rejouer une conversation problématique : c'est le monitoring (C11/C20) appliqué aux LLM."
+      lien: "https://langfuse.com/docs"
+    - titre: "OWASP Top 10 pour les applications LLM"
+      contenu: "Injection de prompt, divulgation d'informations, agence excessive, consommation non bornée : un cadre pour auditer ton agent. Défi : écris trois tests qui prouvent que ton garde-fou bloque une injection directe et une injection cachée dans un document."
+      lien: "https://genai.owasp.org/llm-top-10/"
+  jury: >-
+    **E2 (C7, C8)** et **E3 (C9, C10)** : paramétrer un service d'IA et l'intégrer. Le brief HorRAGor (trois
+    parties) applique ce cours de bout en bout. Révisions DevIA contient un RAG avec citations et un oral
+    blanc (`revision/rag.py`) ; MicroForge utilise des sorties structurées validées par Pydantic via sa
+    passerelle LLM. Aucun des deux projets n'utilise encore LangGraph : sache dire quand ce serait justifié.
+  competences: [C7, C8, C9, C10]
+  sources: []
+qcm:
+  - question: "Que fait llm.with_structured_output(MonModele) ?"
+    choix: ["Accélère le modèle", "Force une réponse sous forme d'objet Pydantic validé", "Traduit la réponse", "Stocke la réponse en base"]
+    bonne: 1
+    explication: "On obtient un objet typé au lieu de texte libre."
+    difficulte: 1
+  - question: "Comment un LLM sait-il à quoi sert un outil @tool ?"
+    choix: ["Par le nom du fichier", "Par la signature typée et la docstring de la fonction", "Il le devine au hasard", "Par un fichier de configuration"]
+    bonne: 1
+    explication: "La docstring fait partie de la description envoyée au modèle."
+    difficulte: 1
+  - question: "Dans le graphe ReAct, que fait tools_condition ?"
+    choix: ["Exécute l'outil", "Route vers « tools » si le dernier message demande un outil, sinon vers END", "Crée les outils", "Résume l'historique"]
+    bonne: 1
+    explication: "C'est l'arête conditionnelle de la boucle."
+    difficulte: 2
+  - question: "Étapes d'un RAG :"
+    choix: ["Entraîner un modèle sur les documents", "Découper, vectoriser, rechercher les passages proches, répondre avec eux", "Traduire les documents", "Supprimer les stop words puis répondre"]
+    bonne: 1
+    explication: "Le modèle n'est pas réentraîné : on lui fournit le contexte."
+    difficulte: 1
+  - question: "Une injection indirecte de prompt, c'est :"
+    choix: ["Une question agressive de l'utilisateur", "Une consigne malveillante cachée dans des données lues par l'agent (document, page web)", "Un bug du modèle", "Une erreur de tokenisation"]
+    bonne: 1
+    explication: "Les données RAG doivent être traitées comme non fiables."
+    difficulte: 2
+  - question: "À quoi sert un checkpointer dans LangGraph ?"
+    choix: ["À compter les tokens", "À sauvegarder l'état à chaque étape (reprise, validation humaine, retour dans le temps)", "À chiffrer les messages", "À choisir le modèle"]
+    bonne: 1
+    explication: "Indispensable pour interrompre avant une action et reprendre après validation."
+    difficulte: 2
+  - question: "Qu'apporte MCP par rapport à des outils LangChain codés en dur ?"
+    choix: ["Des modèles plus gros", "Un format standard : les outils exposés sont utilisables par n'importe quel client compatible", "Un RAG automatique", "Le streaming"]
+    bonne: 1
+    explication: "« USB-C des outils IA »."
+    difficulte: 1
+  - question: "Petit modèle local instable en sortie structurée. Que faire ?"
+    choix: ["Abandonner Pydantic", "Forcer format=\"json\" côté Ollama ou utiliser un modèle plus gros pour cette tâche", "Augmenter la température", "Supprimer la docstring"]
+    bonne: 1
+    explication: "Solutions données dans le cours."
+    difficulte: 2
+flashcards:
+  - { recto: "Chaîne LCEL", verso: "chaine = prompt | llm | parser ; chaine.invoke({...})" }
+  - { recto: "Sortie structurée", verso: "llm.with_structured_output(ModelePydantic).invoke(question)" }
+  - { recto: "Déclarer un outil", verso: "@tool sur une fonction typée avec une docstring explicite." }
+  - { recto: "Donner les outils au LLM", verso: "llm.bind_tools(outils)" }
+  - { recto: "Graphe ReAct minimal", verso: "StateGraph(MessagesState) ; nœuds agent + ToolNode ; START→agent ; conditional_edges(agent, tools_condition) ; tools→agent" }
+  - { recto: "Bases vectorielles du cours", verso: "Chroma (local), FAISS (LlamaIndex), pgvector (PostgreSQL)." }
+  - { recto: "Streaming", verso: "for morceau in llm.stream(...) ; StreamingResponse côté FastAPI." }
+  - { recto: "Optimiser la mémoire", verso: "Compter les tokens, fenêtre glissante, résumé de l'historique." }
+  - { recto: "Défense en profondeur (injection)", verso: "Validation d'entrée, prompt système robuste, LLM classifieur garde-fou, données RAG isolées." }
+  - { recto: "Validation humaine", verso: "Checkpointer + interrupt avant le nœud sensible, puis reprise." }
+  - { recto: "Multi-agents", verso: "Pair à pair ou superviseur central qui route vers des agents spécialisés." }
+  - { recto: "Serveur MCP minimal", verso: "mcp = MCPServer(\"Nom\") (FastMCP avant mcp 2) ; @mcp.tool() ; mcp.run(transport=\"stdio\")" }
+exercices:
+  - titre: "Extraire un inventaire structuré"
+    niveau: 1
+    enonce: "Définis un modèle Pydantic `Inventaire` (liste de `Composant` avec référence et quantité ≥ 0) et explique comment l'obtenir d'un LLM à partir de « 3 DHT22, deux servos SG90 et une LED rouge »."
+    corrige: |
+      ```python
+      from pydantic import BaseModel, Field
+
+      class Composant(BaseModel):
+          reference: str = Field(description="Référence ou nom normalisé du composant")
+          quantite: int = Field(ge=0)
+
+      class Inventaire(BaseModel):
+          composants: list[Composant]
+
+      # inventaire = llm.with_structured_output(Inventaire).invoke(
+      #     "Extrais les composants et quantités : 3 DHT22, deux servos SG90 et une LED rouge")
+      # -> composants=[Composant('DHT22', 3), Composant('SG90', 2), Composant('LED rouge', 1)]
+      ```
+      La validation Pydantic refuse une quantité négative ; le code reçoit un objet exploitable directement (insertion en base, calcul de projets réalisables).
+  - titre: "Tester un graphe d'agent sans LLM"
+    niveau: 3
+    enonce: "Écris un test du graphe ReAct du cours qui remplace le LLM par un faux modèle : au premier appel il demande l'outil prix_ttc(3.5), au second il répond « 4,20 € ». Vérifie que l'outil a bien été exécuté."
+    indices: ["AIMessage(content='', tool_calls=[{'name': ..., 'args': ..., 'id': ...}])", "Remplacer la fonction agent par une version qui lit une liste de réponses"]
+    corrige: |
+      ```python
+      from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+      from langchain_core.tools import tool
+      from langgraph.graph import START, MessagesState, StateGraph
+      from langgraph.prebuilt import ToolNode, tools_condition
+
+      @tool
+      def prix_ttc(prix_ht: float) -> float:
+          """Calcule le prix TTC (TVA 20 %)."""
+          return round(prix_ht * 1.20, 2)
+
+      def test_boucle_react():
+          reponses = iter([
+              AIMessage(content="", tool_calls=[{"name": "prix_ttc", "args": {"prix_ht": 3.5}, "id": "1"}]),
+              AIMessage(content="Le prix TTC est de 4,20 €."),
+          ])
+
+          def agent(state: MessagesState):
+              return {"messages": [next(reponses)]}
+
+          g = StateGraph(MessagesState)
+          g.add_node("agent", agent)
+          g.add_node("tools", ToolNode([prix_ttc]))
+          g.add_edge(START, "agent")
+          g.add_conditional_edges("agent", tools_condition)
+          g.add_edge("tools", "agent")
+          sortie = g.compile().invoke({"messages": [HumanMessage("Prix TTC de 3,50 € HT ?")]})
+
+          outils = [m for m in sortie["messages"] if isinstance(m, ToolMessage)]
+          assert outils and outils[0].content == "4.2"
+          assert sortie["messages"][-1].content == "Le prix TTC est de 4,20 €."
+      ```
+      Le câblage du graphe et l'outil sont testés de façon déterministe, sans GPU ni réseau.
+mindmap: |
+  # IA agentique — pratique
+  ## Bases
+  - Stateless / stateful
+  - LCEL (prompt | llm | parser)
+  - Sortie structurée (Pydantic)
+  - Streaming
+  ## Savoir (RAG)
+  - Chunking, embeddings
+  - Chroma, FAISS, pgvector
+  - Citations
+  ## Action
+  - @tool, bind_tools
+  - StateGraph, ToolNode
+  - Boucle ReAct
+  ## Contrôle
+  - Nœud juge
+  - Garde-fous, injection de prompt
+  - Validation humaine (checkpoint)
+  - Time travel
+  ## Échelle
+  - Multi-agents (pair à pair, superviseur)
+  - Langfuse
+  - MCP (FastMCP)
+podcast_titre: "Donner des bras à un LLM sans perdre le contrôle"
+podcast:
+  - { voix: A, texte: "Karim, mon LLM me répond en phrases. Comment j'en fais quelque chose d'exploitable par mon code ?" }
+  - { voix: B, texte: "Sortie structurée : tu définis un modèle Pydantic et tu appelles with structured output. Tu récupères un objet validé, pas du texte à découper." }
+  - { voix: A, texte: "Et pour qu'il connaisse mes documents ?" }
+  - { voix: B, texte: "Un RAG : tu découpes tes documents, tu les vectorises dans Chroma ou pgvector, et à chaque question tu récupères les passages proches pour les donner au modèle." }
+  - { voix: A, texte: "Et pour qu'il agisse ?" }
+  - { voix: B, texte: "Tu lui donnes des outils avec arobase tool. La docstring est essentielle : c'est elle qui dit au modèle quand s'en servir. Avec LangGraph, un nœud agent, un nœud outils, et une arête conditionnelle : c'est la boucle ReAct." }
+  - { voix: A, texte: "Ça ne devient pas dangereux ?" }
+  - { voix: B, texte: "Si. L'injection de prompt peut venir de l'utilisateur ou d'un document lu par l'agent. On empile les défenses, et toute action irréversible passe par une validation humaine grâce au checkpointer." }
+  - { voix: A, texte: "Et MCP, j'en entends parler partout." }
+  - { voix: B, texte: "C'est l'USB-C des outils : tu exposes tes outils une fois avec FastMCP, et n'importe quel client compatible peut les utiliser. Si tu sais faire une API FastAPI, tu sais faire un serveur MCP." }

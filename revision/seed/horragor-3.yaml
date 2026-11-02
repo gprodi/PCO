@@ -1,0 +1,248 @@
+titre: "HorRAGor 3 — sécuriser le cluster d'agents"
+fiche:
+  titre: "HorRAGor partie 3 : multi-agents LangGraph, Langfuse et industrialisation sécurisée"
+  resume: >-
+    Un agent unique montre vite ses limites en production : contexte saturé (prompt drowning), conflits de
+    décisions et narration diluée au milieu des logs techniques. La partie 3 découpe HorRAGor en trois agents
+    spécialisés qui partagent un état commun (State) et se passent le relais, sans chef central (pair à
+    pair) : l'agent RAG cherche d'abord dans la base locale (FAISS), un routeur décide si la récolte suffit,
+    l'agent Scraper n'est sollicité qu'en cas de manque, et l'agent de Narration, isolé de la plomberie
+    technique (context trimming), transforme la synthèse en récit gothique. Le code sépare nodes.py (la
+    logique de chaque agent, une fonction qui prend l'état et renvoie les modifications), router.py (les
+    fonctions d'aiguillage qui renvoient le nom du nœud suivant, testables seules) et pipeline.py (le câblage
+    du StateGraph puis compile). Langfuse trace tokens, latence par nœud et appels d'outils. L'épilogue
+    industrialise : microservices conteneurisés, base derrière sa propre API dans un réseau privé
+    inaccessible de l'extérieur, CI/CD, couverture de tests d'au moins 80 %, Loguru, et supervision Prometheus,
+    Grafana, Uptime Kuma et Langfuse.
+  objectifs:
+    - Découper un agent monolithique en agents spécialisés partageant un état
+    - Organiser le code en nœuds, routeurs et câblage, et tester les routeurs unitairement
+    - Isoler le contexte de chaque agent pour éviter la collision de tokens sur des LLM locaux
+    - Superviser les agents avec Langfuse et industrialiser l'ensemble (réseau privé, CI/CD, tests, monitoring)
+  notions:
+    - { terme: "Prompt drowning", definition: "Contexte si chargé (outils, données brutes, consignes) que le modèle perd les instructions importantes." }
+    - { terme: "State partagé", definition: "Objet typé (TypedDict) que tous les nœuds lisent et enrichissent : messages, résultats du RAG, besoin de scraping…" }
+    - { terme: "Pair à pair", definition: "Agents enchaînés directement, sans superviseur central ; le routage est porté par des arêtes conditionnelles." }
+    - { terme: "Routeur", definition: "Fonction qui lit l'état et renvoie le nom du prochain nœud (ex. « narration » ou « scraper »)." }
+    - { terme: "Context trimming", definition: "Ne transmettre à un agent que ce dont il a besoin (ex. une synthèse, pas les logs d'outils)." }
+    - { terme: "Langfuse", definition: "Plateforme open source de traçage des applications LLM : coûts, latence par étape, arbre des appels." }
+    - { terme: "Réseau privé Docker", definition: "Réseau interne (internal: true) : les services s'y parlent mais ne sont pas joignables de l'extérieur." }
+  points_cles:
+    - "Un nœud ne sait ni qui l'a précédé ni qui le suit : il lit l'état et renvoie un dictionnaire de modifications."
+    - "Les routeurs sont des fonctions pures : on les teste avec un état fabriqué, sans LLM."
+    - "L'agent de narration ne reçoit qu'une synthèse : moins de tokens, meilleure plume, pas de fuite de données techniques."
+    - "Sur un petit LLM local, plusieurs rôles dans le même contexte se mélangent : isoler et raccourcir."
+    - "Exposition minimale : seul le front (ou un reverse proxy) est publié, la base et les API internes restent dans le réseau privé."
+  code:
+    - titre: "State, nœuds et routeur"
+      lang: python
+      code: |
+        from typing import TypedDict
+
+        from langgraph.graph import END, START, StateGraph
+
+        class EtatHorRAGor(TypedDict, total=False):
+            question: str
+            trouvailles: list[str]
+            complements_web: list[str]
+            recit: str
+
+        def rag_node(etat: EtatHorRAGor) -> dict:
+            base = {"alien": "Alien (1979), Ridley Scott : un xénomorphe à bord du Nostromo."}
+            cle = next((k for k in base if k in etat["question"].lower()), None)
+            return {"trouvailles": [base[cle]] if cle else []}
+
+        def scraper_node(etat: EtatHorRAGor) -> dict:
+            return {"complements_web": [f"Résultat web pour : {etat['question']}"]}
+
+        def narration_node(etat: EtatHorRAGor) -> dict:
+            synthese = " ".join(etat.get("trouvailles", []) + etat.get("complements_web", []))
+            return {"recit": f"Dans l'obscurité, une rumeur circule… {synthese}"}
+
+        def doit_scraper(etat: EtatHorRAGor) -> str:
+            return "narration" if etat.get("trouvailles") else "scraper"
+
+        g = StateGraph(EtatHorRAGor)
+        g.add_node("rag", rag_node)
+        g.add_node("scraper", scraper_node)
+        g.add_node("narration", narration_node)
+        g.add_edge(START, "rag")
+        g.add_conditional_edges("rag", doit_scraper, {"narration": "narration", "scraper": "scraper"})
+        g.add_edge("scraper", "narration")
+        g.add_edge("narration", END)
+        app = g.compile()
+
+        print(app.invoke({"question": "Parle-moi d'Alien"})["recit"])
+        print(app.invoke({"question": "Parle-moi de Midsommar"})["complements_web"])
+      explication: "Les nœuds sont simulés ici sans LLM : le câblage et le routage se vérifient de façon déterministe."
+    - titre: "Réseau privé et exposition minimale"
+      lang: yaml
+      code: |
+        services:
+          front:
+            build: ./front
+            ports: ["8501:8501"]                 # seul service publié
+            networks: [public, interne]
+          api_agents:
+            build: ./api_agents
+            environment:
+              API_DATA_URL: http://api_data:8001
+              LANGFUSE_HOST: http://langfuse:3000
+            networks: [interne]
+          api_data:
+            build: ./api_data
+            environment:
+              DATABASE_URL: ${DATABASE_URL}
+            networks: [interne]
+          db:
+            image: pgvector/pgvector:pg17
+            volumes: [db_data:/var/lib/postgresql/data]
+            networks: [interne]
+        networks:
+          public:
+          interne:
+            internal: true                       # aucune sortie ni entrée depuis l'extérieur
+        volumes:
+          db_data:
+      explication: "Base et API internes ne sont joignables que par les services du réseau interne."
+  pieges:
+    - "Router dans un nœud qui appelle aussi le LLM : impossible de tester la logique de décision isolément."
+    - "Transmettre tout l'historique et les sorties d'outils à l'agent de narration : collision de tokens et récit pollué."
+    - "Exposer la base ou l'API de données « pour déboguer » et oublier de refermer."
+    - "Clés Langfuse ou de base dans le code ; Langfuse lui-même laissé ouvert sur Internet."
+    - "Mesurer la couverture sans tester les routeurs, qui portent pourtant l'intelligence du graphe."
+  aller_plus_loin:
+    - titre: "Superviseur central"
+      contenu: "Variante du cours : un nœud superviseur décide à chaque tour quel agent appeler. Plus souple, mais plus coûteux et plus difficile à tester que le pair à pair : compare les deux sur les mêmes questions (latence, tokens, qualité)."
+      lien: "https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/"
+    - titre: "Évaluer les agents dans Langfuse"
+      contenu: "Associe des scores aux traces (juge LLM, retour utilisateur 👍/👎) et compare deux versions du graphe sur un même jeu de questions : c'est le monitoring du modèle (C11) appliqué aux agents."
+      lien: "https://langfuse.com/docs/scores/overview"
+    - titre: "Tests de sécurité du cluster"
+      contenu: "Un test d'intégration qui vérifie depuis l'extérieur que la base et l'API de données ne répondent pas (connexion refusée), et que le front répond. Ajoute-le à la CI après un `docker compose up`."
+  jury: >-
+    **E4/E5 (C15, C18, C19, C20, C21)** : architecture justifiée, tests automatisés (≥ 80 %), livraison continue,
+    supervision et sécurité. MicroForge applique déjà plusieurs de ces exigences (porte de couverture à 80 %,
+    gitleaks, Prometheus/Grafana/Uptime Kuma, interfaces d'admin limitées à 127.0.0.1) ; le réseau Docker
+    interne pour la base est une amélioration à présenter.
+  competences: [C15, C18, C19, C20, C21]
+  sources: []
+qcm:
+  - question: "Qu'est-ce que le « prompt drowning » ?"
+    choix: ["Un modèle trop petit", "Un contexte si chargé que le modèle perd les consignes importantes", "Une panne réseau", "Un prompt trop court"]
+    bonne: 1
+    explication: "D'où le découpage en agents spécialisés."
+    difficulte: 1
+  - question: "Dans le graphe pair à pair de HorRAGor 3, quand l'agent Scraper intervient-il ?"
+    choix: ["Toujours en premier", "Seulement si le routeur juge la récolte locale insuffisante", "Jamais", "Après la narration"]
+    bonne: 1
+    explication: "RAG → routeur → (scraper ?) → narration."
+    difficulte: 1
+  - question: "Que doit renvoyer une fonction de routage LangGraph ?"
+    choix: ["Un message pour l'utilisateur", "Le nom (chaîne) du prochain nœud", "Un nouvel état complet", "Rien"]
+    bonne: 1
+    explication: "Elle ne modifie pas l'état : elle aiguille."
+    difficulte: 1
+  - question: "Pourquoi isoler l'agent de narration du reste ?"
+    choix: ["Pour économiser de la RAM", "Pour éviter la collision de tokens et lui donner seulement une synthèse utile", "Parce qu'il n'utilise pas de LLM", "Pour qu'il scrape"]
+    bonne: 1
+    explication: "Context trimming."
+    difficulte: 2
+  - question: "Intérêt de séparer nodes.py, router.py et pipeline.py ?"
+    choix: ["Aucun", "Tester séparément la logique métier, les décisions de routage et le câblage", "Accélérer Python", "Obligation de LangGraph"]
+    bonne: 1
+    explication: "Les routeurs se testent sans LLM."
+    difficulte: 2
+  - question: "Que trace Langfuse ?"
+    choix: ["Les commits Git", "Tokens, coûts, latence par nœud et appels d'outils des agents", "Les métriques CPU uniquement", "Les e-mails"]
+    bonne: 1
+    explication: "Observabilité dédiée aux applications LLM."
+    difficulte: 1
+  - question: "Comment rendre la base inaccessible de l'extérieur avec Compose ?"
+    choix: ["Changer son mot de passe", "La placer uniquement sur un réseau internal: true et ne publier aucun port", "La mettre en lecture seule", "Utiliser SQLite"]
+    bonne: 1
+    explication: "Seuls les services du réseau interne la joignent."
+    difficulte: 2
+  - question: "Couverture de tests exigée dans l'épilogue ?"
+    choix: ["50 %", "Au moins 80 % pour les deux API et l'interface", "100 %", "Aucune"]
+    bonne: 1
+    explication: "Comme la porte de qualité de MicroForge."
+    difficulte: 1
+flashcards:
+  - { recto: "Les 3 agents de HorRAGor 3", verso: "RAG (chercheur local), Scraper (enquêteur web), Narration (écrivain gothique)." }
+  - { recto: "Pair à pair vs superviseur", verso: "Pair à pair : chaîne directe + routeurs. Superviseur : un nœud central choisit l'agent à chaque tour." }
+  - { recto: "Règle d'or d'un nœud", verso: "Prend l'état, renvoie un dict de modifications ; ignore qui précède et qui suit." }
+  - { recto: "Règle d'or d'un routeur", verso: "Lit l'état, renvoie le nom du nœud suivant (str)." }
+  - { recto: "Câblage", verso: "add_node, add_edge, add_conditional_edges(source, routeur, {valeur: nœud}), compile()" }
+  - { recto: "State typé", verso: "class Etat(TypedDict, total=False): question: str ; trouvailles: list[str] ..." }
+  - { recto: "Context trimming", verso: "Ne passer à un agent que la synthèse nécessaire." }
+  - { recto: "Langfuse", verso: "Traçage open source des LLM : tokens, coûts, latence, arbre des appels (port 3000 en local)." }
+  - { recto: "Réseau privé Compose", verso: "networks: interne: internal: true ; aucun ports: sur la base." }
+  - { recto: "Supervision complète", verso: "Prometheus, Grafana, Uptime Kuma (3 composants) + Langfuse (agents)." }
+  - { recto: "Exigences de l'épilogue", verso: "Microservices, réseau privé, CI/CD, ≥ 80 % de couverture, Loguru, monitoring 360°." }
+  - { recto: "Tester un routeur", verso: "assert doit_scraper({\"trouvailles\": []}) == \"scraper\"" }
+exercices:
+  - titre: "Tester les routeurs"
+    niveau: 1
+    enonce: "Écris les tests pytest de `doit_scraper` : sans trouvailles → « scraper » ; avec au moins une trouvaille → « narration »."
+    corrige: |
+      ```python
+      def doit_scraper(etat: dict) -> str:
+          return "narration" if etat.get("trouvailles") else "scraper"
+
+      def test_sans_trouvaille():
+          assert doit_scraper({"question": "Midsommar", "trouvailles": []}) == "scraper"
+
+      def test_avec_trouvaille():
+          assert doit_scraper({"trouvailles": ["Alien (1979)"]}) == "narration"
+      ```
+  - titre: "Tester le graphe complet sans LLM"
+    niveau: 2
+    enonce: "Avec le graphe du cours, vérifie qu'une question connue ne passe pas par le scraper et qu'une question inconnue y passe, en inspectant l'état final."
+    corrige: |
+      ```python
+      def test_question_connue_sans_scraping():
+          etat = app.invoke({"question": "Parle-moi d'Alien"})
+          assert etat["trouvailles"] and "complements_web" not in etat
+          assert etat["recit"].startswith("Dans l'obscurité")
+
+      def test_question_inconnue_avec_scraping():
+          etat = app.invoke({"question": "Parle-moi de Midsommar"})
+          assert etat["trouvailles"] == [] and etat["complements_web"]
+      ```
+      Les nœuds simulés rendent le test déterministe ; en production, on remplace le LLM par un faux modèle de la même façon.
+mindmap: |
+  # HorRAGor 3
+  ## Pourquoi multi-agents
+  - Prompt drowning
+  - Conflits de décision
+  - Narration diluée
+  ## Agents
+  - RAG (FAISS)
+  - Scraper (web)
+  - Narration (isolée)
+  ## Code
+  - state.py
+  - nodes.py
+  - router.py
+  - pipeline.py
+  ## Supervision
+  - Langfuse
+  ## Industrialisation
+  - Microservices
+  - Réseau privé
+  - CI/CD, ≥ 80 %
+  - Loguru
+  - Prometheus, Grafana, Uptime Kuma
+podcast_titre: "Trois agents valent mieux qu'un"
+podcast:
+  - { voix: A, texte: "Karim, mon agent unique fonctionnait. Pourquoi le découper en trois ?" }
+  - { voix: B, texte: "Parce qu'en production, un seul agent finit noyé : les outils, les données brutes, les consignes… Le modèle perd le fil et la narration devient plate." }
+  - { voix: A, texte: "Comment se répartissent les rôles ?" }
+  - { voix: B, texte: "L'agent RAG cherche d'abord en local. Un routeur regarde s'il a trouvé assez. Sinon, l'agent Scraper va sur le web. Et l'agent de Narration écrit, avec seulement la synthèse." }
+  - { voix: A, texte: "Dans le code, ça donne quoi ?" }
+  - { voix: B, texte: "Trois fichiers : nodes pour ce que font les agents, router pour les décisions, pipeline pour le câblage. Les routeurs sont de simples fonctions : tu les testes sans aucun LLM." }
+  - { voix: A, texte: "Et pour savoir ce que coûte chaque agent ?" }
+  - { voix: B, texte: "Langfuse : tokens, latence par nœud, appels d'outils. Tu vois immédiatement quel agent est lent ou bavard." }
+  - { voix: A, texte: "Et l'épilogue sur la sécurité ?" }
+  - { voix: B, texte: "Tout en conteneurs, la base derrière son API dans un réseau privé, seul le front exposé, CI/CD, quatre-vingts pour cent de couverture et une supervision complète. C'est quasiment la checklist du jury E4 et E5." }

@@ -1,0 +1,328 @@
+{
+  "slug": "horragor-2",
+  "titre": "HorRAGor 2 — agent ReAct",
+  "theme": "projets",
+  "fiche": {
+    "titre": "HorRAGor partie 2 : un agent ReAct avec outils, pgvector, FAISS, FastAPI et Streamlit",
+    "resume": "La partie 2 construit le « cerveau » de HorRAGor : un agent autonome fondé sur ReAct (raisonner, agir, observer) qui interroge son savoir structuré et vectoriel, calcule l'âge des œuvres, recommande des films proches et, si besoin, va chercher des détails sur le web. L'architecture est strictement découplée : un front Streamlit ou Gradio (st.chat_input, st.chat_message, indicateur de chargement, thème sombre dans .streamlit/config.toml) qui ne contient aucune logique métier et appelle une API FastAPI ; l'API expose POST /chat, typée avec Pydantic, pilote le graphe LangGraph jusqu'au verdict d'un nœud juge et garde seule les clés Supabase. Un index FAISS en mémoire associe nom de film et identifiant pour valider rapidement qu'un film existe. Les outils sont précis et sûrs : requêtes SQL écrites à l'avance (jamais de SQL généré par le LLM), recommandation par similarité cosinus avec pgvector, scraping à la demande, calcul d'âge, et un simulateur de survie ludique. Prefect peut orchestrer en option l'ingestion de la partie 1.",
+    "objectifs": [
+      "Concevoir une architecture découplée front / API / agent / base",
+      "Écrire des outils sûrs pour un agent (SQL paramétré, similarité pgvector, scraping ciblé)",
+      "Router rapidement les entités avec un index FAISS en mémoire",
+      "Exposer l'agent par une API FastAPI typée et une interface de chat Streamlit"
+    ],
+    "notions": [
+      {
+        "terme": "ReAct",
+        "definition": "Boucle Reason + Act : pensée, appel d'outil, observation, jusqu'à la réponse finale."
+      },
+      {
+        "terme": "Découplage",
+        "definition": "Le front capture et affiche ; l'API porte toute la logique (LLM, graphe, base, clés)."
+      },
+      {
+        "terme": "FAISS",
+        "definition": "Bibliothèque d'index vectoriels en mémoire, très rapide ; ici un routeur nom de film → identifiant."
+      },
+      {
+        "terme": "pgvector",
+        "definition": "Extension PostgreSQL qui stocke des vecteurs et calcule des distances (<=> cosinus) directement en SQL."
+      },
+      {
+        "terme": "Outil SQL sûr",
+        "definition": "Fonction Python qui exécute une requête paramétrée écrite à l'avance ; le LLM ne fournit que des paramètres."
+      },
+      {
+        "terme": "Nœud juge",
+        "definition": "Nœud du graphe qui évalue la réponse (pertinence, sources) avant de la renvoyer."
+      },
+      {
+        "terme": "Supabase",
+        "definition": "PostgreSQL hébergé avec API, authentification et extension pgvector."
+      }
+    ],
+    "points_cles": [
+      "Le LLM ne génère jamais de SQL brut : il choisit un outil et fournit des paramètres validés.",
+      "Similarité de films : ORDER BY embedding <=> (SELECT embedding FROM films WHERE id = :id) LIMIT k.",
+      "FAISS en RAM sert de vérification rapide avant les appels lourds (base, web).",
+      "Les clés (Supabase, TMDB) ne vivent que dans l'API ; le front ne parle qu'à l'API.",
+      "Le scraping à la demande n'est déclenché que si l'information manque en base : coût et latence."
+    ],
+    "code": [
+      {
+        "titre": "Outils sûrs : métadonnées SQL et films similaires (pgvector)",
+        "lang": "python",
+        "code": "from datetime import date\n\nfrom langchain_core.tools import tool\nfrom sqlalchemy import create_engine, text\n\nengine = create_engine(\"postgresql+psycopg://...\")   # URL lue dans l'environnement en vrai\n\n@tool\ndef query_movie_metadata(film_id: int) -> dict:\n    \"\"\"Renvoie titre, année, réalisateur, genre et note d'un film à partir de son identifiant.\"\"\"\n    sql = text(\"SELECT titre, annee, realisateur, genre, note FROM films WHERE id = :id\")\n    with engine.connect() as c:\n        ligne = c.execute(sql, {\"id\": film_id}).mappings().first()\n    return dict(ligne) if ligne else {\"erreur\": \"film inconnu\"}\n\n@tool\ndef find_similar_horror_movies(film_id: int, k: int = 5) -> list[str]:\n    \"\"\"Recommande les k films d'horreur au synopsis le plus proche (similarité cosinus pgvector).\"\"\"\n    sql = text(\"\"\"\n        SELECT titre FROM films\n        WHERE id <> :id\n        ORDER BY embedding <=> (SELECT embedding FROM films WHERE id = :id)\n        LIMIT :k\"\"\")\n    with engine.connect() as c:\n        return [r.titre for r in c.execute(sql, {\"id\": film_id, \"k\": min(k, 20)})]\n\n@tool\ndef calculate_movie_age(annee: int) -> int:\n    \"\"\"Calcule l'âge d'un film à partir de son année de sortie.\"\"\"\n    return date.today().year - annee\n",
+        "explication": "Requêtes paramétrées, k borné : le LLM ne peut ni injecter de SQL ni demander 10 000 lignes."
+      },
+      {
+        "titre": "API /chat et front découplé",
+        "lang": "python",
+        "code": "# api.py — seul composant qui connaît le graphe et les clés\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel, Field\n\nclass Question(BaseModel):\n    message: str = Field(min_length=1, max_length=2000)\n    session_id: str\n\nclass Reponse(BaseModel):\n    reponse: str\n    sources: list[str] = []\n    verdict_juge: str\n\napi = FastAPI()\n\n@api.post(\"/chat\", response_model=Reponse)\nasync def chat(q: Question) -> Reponse:\n    # etat = await agent_app.ainvoke({\"messages\": [(\"user\", q.message)]},\n    #                                {\"configurable\": {\"thread_id\": q.session_id}})\n    return Reponse(reponse=\"…\", sources=[], verdict_juge=\"valide\")\n\n# front.py — aucune logique métier\n# import httpx, streamlit as st\n# if prompt := st.chat_input(\"Pose ta question d'horreur…\"):\n#     with st.spinner(\"HorRAGor réfléchit…\"):\n#         r = httpx.post(f\"{API}/chat\", json={\"message\": prompt, \"session_id\": sid}, timeout=60)\n#     st.chat_message(\"assistant\").write(r.json()[\"reponse\"])\n",
+        "explication": "thread_id relie les messages d'une même session (mémoire du graphe via checkpointer)."
+      }
+    ],
+    "pieges": [
+      "Laisser le LLM écrire du SQL : injection, requêtes destructrices, fuite de données.",
+      "Mettre la clé Supabase dans le front Streamlit : elle devient visible et réutilisable.",
+      "Pas de limite sur k ou sur la longueur des questions : coût et lenteur incontrôlés.",
+      "Scraper à chaque question au lieu de seulement en cas de manque : lent et risqué.",
+      "Pas de spinner ni de blocage pendant la réflexion : l'utilisateur envoie trois fois la même question."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Index HNSW dans pgvector",
+        "contenu": "`CREATE INDEX ON films USING hnsw (embedding vector_cosine_ops);` accélère fortement la recherche de voisins sur des dizaines de milliers de films, au prix d'une recherche approchée. Mesure le temps de requête avant/après.",
+        "lien": "https://github.com/pgvector/pgvector#hnsw"
+      },
+      {
+        "titre": "Recherche hybride",
+        "contenu": "Combine la similarité vectorielle (sens) et la recherche plein texte PostgreSQL (mots exacts, titres) avec une fusion des rangs (RRF) : plus robuste pour les noms propres et les titres.",
+        "lien": "https://github.com/pgvector/pgvector-python"
+      },
+      {
+        "titre": "Streaming de la réponse",
+        "contenu": "Renvoie les tokens au fur et à mesure (StreamingResponse côté FastAPI, st.write_stream côté Streamlit) : l'utilisateur voit la réponse se construire au lieu d'attendre.",
+        "lien": "https://docs.streamlit.io/develop/api-reference/write-magic/st.write_stream"
+      }
+    ],
+    "jury": "**E3 (C9, C10)** et **E2 (C8)** : exposer et intégrer un service d'IA paramétré, avec une architecture découplée et des outils sûrs. MicroForge reprend ce découpage (Streamlit → `api_ia` → passerelle LLM) et son copilote RAG (en cours d'ajout) s'appuiera sur pgvector, déjà présent dans l'image PostgreSQL de la stack (`pgvector/pgvector:pg17`).",
+    "competences": [
+      "C8",
+      "C9",
+      "C10"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Pourquoi le LLM ne doit-il jamais générer de SQL brut ?",
+        "choix": [
+          "C'est trop lent",
+          "Risque d'injection, de requêtes destructrices et de fuite de données",
+          "Le SQL est obsolète",
+          "Les LLM ne connaissent pas SQL"
+        ],
+        "bonne": 1,
+        "explication": "On expose des fonctions à requêtes paramétrées écrites à l'avance.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment pgvector trouve-t-il les films proches ?",
+        "choix": [
+          "Par ordre alphabétique",
+          "En triant par distance entre embeddings (opérateur <=> pour le cosinus)",
+          "Avec un LIKE sur le titre",
+          "Avec Selenium"
+        ],
+        "bonne": 1,
+        "explication": "ORDER BY embedding <=> :vecteur LIMIT k.",
+        "difficulte": 2
+      },
+      {
+        "question": "Rôle de l'index FAISS en mémoire dans HorRAGor 2 ?",
+        "choix": [
+          "Stocker toute la base",
+          "Valider rapidement qu'un film existe et récupérer son identifiant avant les actions lourdes",
+          "Remplacer le LLM",
+          "Gérer les utilisateurs"
+        ],
+        "bonne": 1,
+        "explication": "Un routeur rapide nom → ID.",
+        "difficulte": 2
+      },
+      {
+        "question": "Où doivent se trouver les clés Supabase ?",
+        "choix": [
+          "Dans le front Streamlit",
+          "Uniquement dans l'API back-end (variables d'environnement)",
+          "Dans le README",
+          "Dans le navigateur"
+        ],
+        "bonne": 1,
+        "explication": "Le front ne parle qu'à l'API.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quand déclencher l'outil de scraping à la demande ?",
+        "choix": [
+          "À chaque question",
+          "Seulement si l'information demandée manque en base",
+          "Jamais",
+          "Au démarrage"
+        ],
+        "bonne": 1,
+        "explication": "Coût, latence et respect des sites.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que garantit la validation Pydantic de la route /chat ?",
+        "choix": [
+          "Que la réponse est vraie",
+          "Que les entrées et sorties ont le format attendu (longueurs, champs obligatoires)",
+          "Que le LLM est rapide",
+          "Que la base est à jour"
+        ],
+        "bonne": 1,
+        "explication": "Typage strict des requêtes et des réponses.",
+        "difficulte": 1
+      },
+      {
+        "question": "À quoi sert le paramètre thread_id passé au graphe ?",
+        "choix": [
+          "À choisir le modèle",
+          "À rattacher les messages à une session (mémoire via checkpointer)",
+          "À limiter les tokens",
+          "À chiffrer"
+        ],
+        "bonne": 1,
+        "explication": "Chaque session a son historique.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel élément d'interface est demandé pour éviter les doubles soumissions ?",
+        "choix": [
+          "Un captcha",
+          "Un indicateur d'activité (spinner) pendant la réflexion",
+          "Un rechargement de page",
+          "Un mot de passe"
+        ],
+        "bonne": 1,
+        "explication": "Retour visuel pendant que l'agent travaille.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Les 5 outils de HorRAGor 2",
+        "verso": "query_movie_metadata, find_similar_horror_movies, scrape_detailed_synopsis, calculate_movie_age, horror_survival_simulator (option).",
+        "tags": []
+      },
+      {
+        "recto": "Recherche de voisins pgvector",
+        "verso": "ORDER BY embedding <=> :v LIMIT k (cosinus) ; <-> = L2 ; <#> = produit scalaire négatif.",
+        "tags": []
+      },
+      {
+        "recto": "Activer pgvector",
+        "verso": "CREATE EXTENSION IF NOT EXISTS vector; colonne embedding vector(768)",
+        "tags": []
+      },
+      {
+        "recto": "FAISS",
+        "verso": "Index vectoriel en mémoire, très rapide (routeur nom → ID).",
+        "tags": []
+      },
+      {
+        "recto": "Front découplé",
+        "verso": "Streamlit capture et affiche ; toute la logique est dans l'API.",
+        "tags": []
+      },
+      {
+        "recto": "Composants de chat Streamlit",
+        "verso": "st.chat_input, st.chat_message, st.spinner",
+        "tags": []
+      },
+      {
+        "recto": "Thème sombre Streamlit",
+        "verso": ".streamlit/config.toml, section [theme] (versionné).",
+        "tags": []
+      },
+      {
+        "recto": "Route de l'agent",
+        "verso": "POST /chat, entrée et sortie Pydantic, verdict du juge inclus.",
+        "tags": []
+      },
+      {
+        "recto": "Outil SQL sûr",
+        "verso": "Requête paramétrée écrite à l'avance ; le LLM ne donne que des paramètres.",
+        "tags": []
+      },
+      {
+        "recto": "Mémoire par session",
+        "verso": "config={\"configurable\": {\"thread_id\": session_id}} + checkpointer",
+        "tags": []
+      },
+      {
+        "recto": "Orchestration de l'ingestion",
+        "verso": "Prefect : 4 extractions en parallèle, Spark, réconciliation, persistance.",
+        "tags": []
+      },
+      {
+        "recto": "Index rapide pgvector",
+        "verso": "CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Table films avec pgvector",
+        "niveau": 1,
+        "enonce": "Écris le SQL qui active pgvector, crée la table films (id, titre, annee, synopsis, embedding de dimension 768) et l'index HNSW cosinus, puis la requête des 5 films les plus proches du film 42.",
+        "indices": [],
+        "corrige": "```sql\nCREATE EXTENSION IF NOT EXISTS vector;\n\nCREATE TABLE films (\n    id        SERIAL PRIMARY KEY,\n    titre     TEXT NOT NULL,\n    annee     INT,\n    synopsis  TEXT,\n    embedding vector(768)\n);\n\nCREATE INDEX ON films USING hnsw (embedding vector_cosine_ops);\n\nSELECT titre, 1 - (embedding <=> (SELECT embedding FROM films WHERE id = 42)) AS similarite\nFROM films\nWHERE id <> 42\nORDER BY embedding <=> (SELECT embedding FROM films WHERE id = 42)\nLIMIT 5;\n```\n"
+      },
+      {
+        "titre": "Tester un outil sans base",
+        "niveau": 2,
+        "enonce": "Teste l'outil `calculate_movie_age` et vérifie qu'un appel de l'outil SQL avec un identifiant inconnu renvoie un message d'erreur, en remplaçant le moteur par une base SQLite en mémoire.",
+        "indices": [],
+        "corrige": "```python\nfrom datetime import date\n\nfrom sqlalchemy import create_engine, text\n\ndef test_age():\n    assert calculate_movie_age.invoke({\"annee\": 1980}) == date.today().year - 1980\n\ndef test_film_inconnu(monkeypatch):\n    moteur = create_engine(\"sqlite://\")\n    with moteur.begin() as c:\n        c.execute(text(\"CREATE TABLE films (id INT, titre TEXT, annee INT, realisateur TEXT, genre TEXT, note REAL)\"))\n    monkeypatch.setitem(query_movie_metadata.func.__globals__, \"engine\", moteur)\n    assert query_movie_metadata.invoke({\"film_id\": 999}) == {\"erreur\": \"film inconnu\"}\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# HorRAGor 2\n## Architecture\n- Front Streamlit/Gradio\n- API FastAPI POST /chat\n- Graphe LangGraph + juge\n- Supabase (clés côté API)\n## Mémoire\n- FAISS (routeur nom → ID)\n- pgvector (similarité)\n## Outils\n- SQL paramétré\n- Films similaires (cosinus)\n- Scraping à la demande\n- Âge du film\n- Simulateur de survie\n## Option\n- Prefect pour l'ingestion\n"
+  },
+  "podcast": {
+    "titre": "Le cerveau de HorRAGor",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, dans HorRAGor 2, le front Streamlit ne fait presque rien. C'est voulu ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Complètement. Il capture la question, l'envoie à l'API et affiche la réponse. Le LLM, le graphe, les clés de la base : tout reste côté API."
+      },
+      {
+        "voix": "A",
+        "texte": "Et l'agent, il peut interroger la base comme il veut ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Surtout pas en écrivant du SQL lui-même. On lui donne des outils : des fonctions Python avec des requêtes paramétrées écrites à l'avance. Il ne choisit que l'outil et les paramètres."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment il recommande des films proches ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Avec pgvector : chaque synopsis a un embedding dans PostgreSQL, et on trie par distance cosinus avec l'opérateur flèche. Une requête SQL, et tu as les cinq films les plus proches."
+      },
+      {
+        "voix": "A",
+        "texte": "Et FAISS, alors ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Un petit index en mémoire, ultra rapide, pour vérifier qu'un film existe et retrouver son identifiant avant d'aller plus loin."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si la base ne sait pas tout ?"
+      },
+      {
+        "voix": "B",
+        "texte": "L'outil de scraping, seulement à la demande. Puis un nœud juge vérifie la réponse avant de la renvoyer. Le même découpage sert pour le copilote de MicroForge."
+      }
+    ]
+  },
+  "origine": "seed"
+}

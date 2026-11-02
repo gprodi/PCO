@@ -1,0 +1,331 @@
+{
+  "slug": "projet-5-forge-mlops",
+  "titre": "Brief — la Forge MLOps (K8s, KEDA, observabilité)",
+  "theme": "projets",
+  "fiche": {
+    "titre": "La Forge MLOps : d'une application asynchrone à un cluster Kubernetes autoscalé et observable",
+    "resume": "Le brief part d'une application de prédiction asynchrone (FastAPI, Streamlit, Celery, RabbitMQ) et l'industrialise en quatre étapes. Étape 1, la qualité en local : logs structurés Loguru à la place des print, tests pytest (API qui répond 200, worker qui reçoit les tâches) et couverture d'au moins 80 % pour autoriser la construction de l'image. Étape 2, un docker-compose.full.yml « tout-en-un » : api, front, worker, rabbitmq, redis, flower, MLflow (le worker charge le modèle @production avec pyfunc), MinIO, Prometheus (qui scrape l'API et le plugin Prometheus de RabbitMQ sur le port 15692), Grafana et Uptime Kuma. Étape 3, la migration vers Kubernetes en dossiers ordonnés : 01-core (broker, redis, api, worker, front), 02-ml-ops (PostgreSQL, MinIO, MLflow avec volume persistant), 03-scaling (KEDA ScaledObject branché sur la file RabbitMQ, cooldownPeriod ajustée) et 04-monitoring. Étape 4, la démonstration : auto-réparation d'un pod supprimé, mise à jour progressive (rolling update) et boucle fermée où 50 prédictions font monter la file et apparaître de nouveaux workers.",
+    "objectifs": [
+      "Mettre en place les garde-fous de qualité (logs structurés, tests, couverture ≥ 80 %)",
+      "Valider l'interopérabilité de toute la stack dans Docker Compose",
+      "Décrire les ressources Kubernetes (Deployment, Service, PersistentVolume, ScaledObject) d'une application ML",
+      "Démontrer auto-réparation, rolling update et autoscaling KEDA avec le monitoring"
+    ],
+    "notions": [
+      {
+        "terme": "Pod / Deployment",
+        "definition": "Le pod exécute un ou plusieurs conteneurs ; le Deployment maintient le nombre voulu de pods et gère les mises à jour."
+      },
+      {
+        "terme": "Service",
+        "definition": "Adresse stable et DNS interne (metadata.name) devant un ensemble de pods : http://mlflow-service:5000."
+      },
+      {
+        "terme": "PersistentVolume(Claim)",
+        "definition": "Stockage qui survit aux pods : indispensable pour MLflow, PostgreSQL, MinIO."
+      },
+      {
+        "terme": "Self-healing",
+        "definition": "Un pod supprimé ou en échec est recréé automatiquement pour respecter le nombre de réplicas."
+      },
+      {
+        "terme": "Rolling update",
+        "definition": "Remplacement progressif des pods : l'ancienne version n'est arrêtée que quand la nouvelle est prête."
+      },
+      {
+        "terme": "KEDA ScaledObject",
+        "definition": "Règle d'autoscaling événementiel : nombre de workers selon la longueur de la file RabbitMQ, avec cooldownPeriod."
+      },
+      {
+        "terme": "Probes",
+        "definition": "readinessProbe (prêt à recevoir du trafic) et livenessProbe (encore vivant) qui pilotent le trafic et les redémarrages."
+      }
+    ],
+    "points_cles": [
+      "Ordre de déploiement : broker et cache d'abord, sinon API et worker redémarrent en boucle.",
+      "Dans Kubernetes, le nom du Service devient l'URL : les variables d'environnement pointent vers http://<service>:<port>.",
+      "MLflow, sa base et son stockage d'artefacts doivent être persistants, sinon le registre disparaît au redémarrage.",
+      "KEDA : minReplicaCount, maxReplicaCount, seuil par worker, et un cooldownPeriod assez long pour ne pas éteindre les workers trop tôt.",
+      "Le rolling update ne fonctionne bien qu'avec une readinessProbe fiable (/health).",
+      "La démonstration en boucle fermée relie charge (Front), file (Grafana), workers (Flower/kubectl) et disponibilité (Uptime Kuma)."
+    ],
+    "code": [
+      {
+        "titre": "Deployment + Service de l'API",
+        "lang": "yaml",
+        "code": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\nspec:\n  replicas: 2\n  selector:\n    matchLabels: {app: api}\n  template:\n    metadata:\n      labels: {app: api}\n    spec:\n      containers:\n        - name: api\n          image: moncompte/forge-api:1.4.0\n          ports: [{containerPort: 8000}]\n          env:\n            - {name: CELERY_BROKER_URL, value: \"amqp://user:pass@rabbitmq:5672//\"}\n            - {name: MLFLOW_TRACKING_URI, value: \"http://mlflow-service:5000\"}\n          readinessProbe:\n            httpGet: {path: /health, port: 8000}\n            periodSeconds: 5\n          resources:\n            limits: {memory: 512Mi, cpu: \"500m\"}\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api\nspec:\n  selector: {app: api}\n  ports: [{port: 8000, targetPort: 8000}]\n",
+        "explication": "Changer image: puis kubectl apply déclenche un rolling update ; la readinessProbe garantit que le trafic ne va qu'aux pods prêts. (En vrai, le mot de passe du broker vient d'un Secret.)"
+      },
+      {
+        "titre": "KEDA : workers selon la file RabbitMQ",
+        "lang": "yaml",
+        "code": "apiVersion: keda.sh/v1alpha1\nkind: ScaledObject\nmetadata:\n  name: worker-scaler\nspec:\n  scaleTargetRef:\n    name: worker                 # le Deployment des workers Celery\n  minReplicaCount: 1\n  maxReplicaCount: 10\n  cooldownPeriod: 120            # secondes avant de redescendre\n  triggers:\n    - type: rabbitmq\n      metadata:\n        queueName: celery\n        mode: QueueLength\n        value: \"5\"               # 1 worker pour 5 messages en attente\n      authenticationRef:\n        name: rabbitmq-auth      # TriggerAuthentication qui lit l'URL dans un Secret\n",
+        "explication": "50 prédictions en file → jusqu'à 10 workers ; quand la file se vide, retour à 1 après le cooldown."
+      }
+    ],
+    "pieges": [
+      "Déployer l'API avant RabbitMQ et Redis : CrashLoopBackOff en série.",
+      "MLflow sans PersistentVolume : modèles et registre perdus au redémarrage du pod.",
+      "Identifiants du broker en clair dans les manifests au lieu de Secrets.",
+      "cooldownPeriod trop court : les workers s'éteignent entre deux rafales et l'on paie sans cesse le démarrage.",
+      "Image en :latest dans un Deployment : le rolling update ne se déclenche pas (le manifeste ne change pas) et la version servie est inconnue.",
+      "Pas de readinessProbe : le trafic arrive sur des pods qui chargent encore le modèle."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Helm ou Kustomize",
+        "contenu": "Plutôt que dupliquer les manifests par environnement, un chart Helm (valeurs par environnement) ou Kustomize (bases + overlays) produit dev, préprod et prod à partir d'une même source.",
+        "lien": "https://kustomize.io/"
+      },
+      {
+        "titre": "GitOps avec Argo CD",
+        "contenu": "Le cluster se synchronise automatiquement sur un dépôt Git de manifests : un merge déploie, un revert fait le rollback. C'est la livraison continue (C19) poussée jusqu'au cluster.",
+        "lien": "https://argo-cd.readthedocs.io/"
+      },
+      {
+        "titre": "Tester localement avec kind ou k3d",
+        "contenu": "Un cluster Kubernetes dans Docker (kind, k3d) permet de répéter toute la démonstration sur un portable, et même de la lancer dans la CI GitHub Actions.",
+        "lien": "https://kind.sigs.k8s.io/"
+      }
+    ],
+    "jury": "**E5 (C19, C20, C21)** et **E3 (C13)** : livraison continue, supervision et résolution d'incidents d'une application d'IA. La démonstration « je supprime un pod, il revient ; je mets à jour, aucune coupure ; je charge la file, les workers montent » est une preuve très parlante. MicroForge reste sur Docker Compose (serveur unique) : sache justifier ce choix et décrire le passage à Kubernetes.",
+    "competences": [
+      "C13",
+      "C19",
+      "C20",
+      "C21"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Couverture minimale exigée pour autoriser la construction de l'image ?",
+        "choix": [
+          "50 %",
+          "70 %",
+          "80 %",
+          "100 %"
+        ],
+        "bonne": 2,
+        "explication": "Porte de qualité de l'étape 1.",
+        "difficulte": 1
+      },
+      {
+        "question": "Dans Kubernetes, comment l'API joint-elle MLflow ?",
+        "choix": [
+          "Par l'IP du pod",
+          "Par le nom du Service (http://mlflow-service:5000)",
+          "Par localhost",
+          "Par Docker Hub"
+        ],
+        "bonne": 1,
+        "explication": "Le nom du Service fournit un DNS stable.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que démontre le « self-healing » ?",
+        "choix": [
+          "La sécurité des mots de passe",
+          "Qu'un pod supprimé est recréé automatiquement sans perte de service",
+          "Que le modèle s'améliore seul",
+          "Que la base se sauvegarde"
+        ],
+        "bonne": 1,
+        "explication": "Le Deployment maintient le nombre de réplicas.",
+        "difficulte": 1
+      },
+      {
+        "question": "Qu'est-ce qu'un rolling update ?",
+        "choix": [
+          "Un redémarrage complet",
+          "Le remplacement progressif des pods, l'ancienne version n'étant arrêtée que quand la nouvelle est prête",
+          "Une sauvegarde",
+          "Un rollback automatique"
+        ],
+        "bonne": 1,
+        "explication": "Pas de coupure de service si les probes sont bien configurées.",
+        "difficulte": 1
+      },
+      {
+        "question": "Sur quoi KEDA s'appuie-t-il ici pour ajouter des workers ?",
+        "choix": [
+          "Le CPU de l'API",
+          "La longueur de la file RabbitMQ",
+          "L'heure de la journée",
+          "Le nombre d'utilisateurs connectés"
+        ],
+        "bonne": 1,
+        "explication": "Autoscaling événementiel (ScaledObject de type rabbitmq).",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi régler la cooldownPeriod ?",
+        "choix": [
+          "Pour accélérer le démarrage",
+          "Pour éviter d'éteindre les workers trop vite entre deux rafales",
+          "Pour limiter la RAM",
+          "Pour chiffrer la file"
+        ],
+        "bonne": 1,
+        "explication": "Évite les va-et-vient coûteux.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi MLflow a-t-il besoin d'un PersistentVolume ?",
+        "choix": [
+          "Pour être plus rapide",
+          "Pour ne pas perdre registre et modèles quand le pod redémarre",
+          "Pour le DNS",
+          "Ce n'est pas nécessaire"
+        ],
+        "bonne": 1,
+        "explication": "Le système de fichiers d'un pod est éphémère.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel ordre de déploiement est conseillé ?",
+        "choix": [
+          "Front d'abord",
+          "Broker et Redis d'abord, puis API et worker",
+          "Monitoring d'abord",
+          "Peu importe"
+        ],
+        "bonne": 1,
+        "explication": "Sinon API et worker plantent en boucle.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Les 4 étapes de la Forge",
+        "verso": "Qualité locale, Compose tout-en-un, migration Kubernetes, démonstration (self-healing, rolling update, KEDA).",
+        "tags": []
+      },
+      {
+        "recto": "Dossiers k8s",
+        "verso": "01-core, 02-ml-ops, 03-scaling, 04-monitoring.",
+        "tags": []
+      },
+      {
+        "recto": "Deployment vs Service",
+        "verso": "Deployment : gère les pods. Service : adresse stable devant les pods.",
+        "tags": []
+      },
+      {
+        "recto": "Supprimer un pod pour tester",
+        "verso": "kubectl delete pod <nom> puis kubectl get pods -w",
+        "tags": []
+      },
+      {
+        "recto": "Mettre à jour une image",
+        "verso": "Modifier image: puis kubectl apply -f 03_api.yaml (ou kubectl set image).",
+        "tags": []
+      },
+      {
+        "recto": "Suivre un déploiement",
+        "verso": "kubectl rollout status deployment/api ; kubectl rollout undo deployment/api",
+        "tags": []
+      },
+      {
+        "recto": "ScaledObject KEDA",
+        "verso": "scaleTargetRef, min/maxReplicaCount, cooldownPeriod, trigger rabbitmq QueueLength.",
+        "tags": []
+      },
+      {
+        "recto": "Port des métriques RabbitMQ",
+        "verso": "15692 (plugin Prometheus de RabbitMQ).",
+        "tags": []
+      },
+      {
+        "recto": "Probes",
+        "verso": "readinessProbe : prêt pour le trafic ; livenessProbe : redémarrer si bloqué.",
+        "tags": []
+      },
+      {
+        "recto": "Secrets Kubernetes",
+        "verso": "kind: Secret, référencé par env.valueFrom.secretKeyRef ; jamais en clair dans le manifeste.",
+        "tags": []
+      },
+      {
+        "recto": "Dashboard attendu",
+        "verso": "Messages en attente, workers actifs, temps de réponse de l'API.",
+        "tags": []
+      },
+      {
+        "recto": "Sondes Uptime Kuma",
+        "verso": "http://api:8000/health et http://front:8501/healthz",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Ordonner le déploiement",
+        "niveau": 1,
+        "enonce": "Range dans l'ordre d'application : 03_api.yaml, 01_rabbitmq.yaml, 01_keda-autoscaler.yaml, 02_minio.yaml, 01_postgresql.yaml, 04_worker.yaml, 03_mlflow.yaml, 05_front.yaml, 01_redis.yaml, 02_grafana.yaml.",
+        "indices": [],
+        "corrige": "1. `01_rabbitmq.yaml`, `01_redis.yaml` (broker et cache)\n2. `01_postgresql.yaml`, `02_minio.yaml`, `03_mlflow.yaml` (registre et stockage)\n3. `03_api.yaml`, `04_worker.yaml`, `05_front.yaml` (application)\n4. `01_keda-autoscaler.yaml` (mise à l'échelle des workers existants)\n5. `02_grafana.yaml` (et le reste de la supervision)\n\nRègle : on déploie d'abord ce dont les autres dépendent.\n"
+      },
+      {
+        "titre": "Scénario de démonstration",
+        "niveau": 2,
+        "enonce": "Écris le déroulé (commandes + ce qu'on montre) d'une démonstration de 5 minutes prouvant l'auto-réparation, le rolling update et l'autoscaling.",
+        "indices": [],
+        "corrige": "1. **Auto-réparation** : `kubectl get pods` ; `kubectl delete pod api-xxxx` ; `kubectl get pods -w` montre un nouveau pod ; Uptime Kuma reste vert.\n2. **Rolling update** : passer l'image de l'API de 1.4.0 à 1.5.0 dans `03_api.yaml`, `kubectl apply -f`, `kubectl rollout status deployment/api` ; les requêtes continuent pendant la mise à jour.\n3. **Autoscaling** : lancer 50 prédictions depuis le front ; Grafana montre la file RabbitMQ qui monte ; `kubectl get pods -l app=worker -w` (ou Flower) montre les workers passer de 1 à N ; après le cooldown, retour à 1.\n4. **Conclusion** : relier chaque observation à une compétence (C19, C20, C21).\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Forge MLOps\n## Étape 1 — qualité\n- Loguru\n- pytest\n- Couverture ≥ 80 %\n## Étape 2 — Compose\n- api, front, worker\n- rabbitmq, redis, flower\n- MLflow + MinIO\n- Prometheus, Grafana, Uptime Kuma\n## Étape 3 — Kubernetes\n- 01-core\n- 02-ml-ops (PV)\n- 03-scaling (KEDA)\n- 04-monitoring\n## Étape 4 — démonstration\n- Self-healing\n- Rolling update\n- Boucle fermée (charge → file → workers)\n"
+  },
+  "podcast": {
+    "titre": "Supprimer un pod devant le jury, sans trembler",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, la Forge MLOps, c'est passer de Docker Compose à Kubernetes ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui, mais dans l'ordre. D'abord la qualité : des logs propres, des tests et quatre-vingts pour cent de couverture, sinon pas d'image."
+      },
+      {
+        "voix": "A",
+        "texte": "Puis le Compose complet ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Tout-en-un : API, front, worker, RabbitMQ, Redis, Flower, MLflow, MinIO et le monitoring. Quand tout se parle, on passe à Kubernetes, dossier par dossier."
+      },
+      {
+        "voix": "A",
+        "texte": "Qu'est-ce que Kubernetes apporte de plus ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Trois choses à montrer. Tu supprimes un pod : il revient tout seul. Tu changes la version de l'image : il remplace les pods un par un, sans coupure. Et tu envoies cinquante prédictions : KEDA ajoute des workers parce que la file s'allonge."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si les workers s'éteignent trop vite ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Tu allonges le cooldown. Et n'oublie pas les volumes persistants pour MLflow, sinon ton registre disparaît au premier redémarrage."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour le jury ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Tu racontes la démonstration en reliant chaque image à une compétence : livraison continue, surveillance, incident. C'est très convaincant."
+      }
+    ]
+  },
+  "origine": "seed"
+}

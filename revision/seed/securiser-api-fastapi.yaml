@@ -49,7 +49,7 @@ fiche:
 
         SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(32)   # en prod : fail-closed
         ALGO, AUDIENCE = "HS256", "api-predictions"
-        hasher = PasswordHash.recommended()            # argon2
+        hasher = PasswordHash.recommended()            # argon2 : uv add "pwdlib[argon2]"
 
         def creer_token(sub: str, type_: str, duree: timedelta) -> tuple[str, str]:
             maintenant = datetime.now(timezone.utc)

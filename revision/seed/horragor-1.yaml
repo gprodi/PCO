@@ -1,0 +1,225 @@
+titre: "HorRAGor 1 — pipeline de données multi-sources"
+fiche:
+  titre: "HorRAGor partie 1 : collecter, réconcilier et persister une base de connaissances « Gold » pour un RAG"
+  resume: >-
+    HorRAGor est un agent conversationnel spécialisé dans l'horreur ; pour éviter les hallucinations, il doit
+    s'appuyer sur une base de connaissances riche et propre. La partie 1 valide le bloc E1 : un pipeline
+    d'ingestion qui collecte en parallèle cinq sources hétérogènes — scraping dynamique (Selenium) de Rotten
+    Tomatoes, API REST TMDB, fichiers CSV Kaggle traités avec Polars, base SQLite IMDB (jointure
+    title_basics/title_ratings, genre Horror, numVotes ≥ 1000) et données massives IMDB traitées avec PySpark.
+    La fusion suit une logique de gestion des données de référence (MDM) : TMDB est la source maîtresse,
+    les autres enrichissent par priorité décroissante, et la réconciliation se fait par identifiant (tmdb_id,
+    puis imdb_id) ou, à défaut, par correspondance approximative sur titre + année (distance de Levenshtein).
+    Les données sont filtrées (horreur uniquement), normalisées (dates ISO 8601, textes nettoyés, échelles de
+    scores documentées), dédoublonnées, complétées par repli sur la source suivante, puis persistées dans une
+    base relationnelle conçue avec Merise (MCD, MLD, MPD), conforme au RGPD et accessible via SQLAlchemy.
+  objectifs:
+    - Automatiser l'extraction depuis cinq types de sources (web, API, fichiers, SQL, big data)
+    - Réconcilier des entités entre sources par identifiants puis par fuzzy matching
+    - Normaliser, filtrer et dédoublonner pour obtenir une donnée « Gold »
+    - Concevoir et documenter la base cible (Merise, RGPD) et la persister avec SQLAlchemy
+  notions:
+    - { terme: "Scraping dynamique", definition: "Extraction depuis des pages générées en JavaScript à l'aide d'un navigateur piloté (Selenium, Playwright)." }
+    - { terme: "MDM", definition: "Master Data Management : une source maîtresse fait foi, les autres enrichissent selon une priorité définie." }
+    - { terme: "Réconciliation", definition: "Associer les enregistrements d'une même entité venant de sources différentes." }
+    - { terme: "Fuzzy matching", definition: "Correspondance approximative de chaînes (Levenshtein, ratio de similarité) quand aucun identifiant commun n'existe." }
+    - { terme: "Polars", definition: "Bibliothèque de DataFrames très rapide, alternative à pandas pour les gros volumes, avec exécution paresseuse." }
+    - { terme: "PySpark", definition: "API Python de Spark : traitement distribué de très gros volumes (ici les fichiers IMDB)." }
+    - { terme: "Donnée Gold", definition: "Donnée finale filtrée, normalisée, dédoublonnée et documentée, prête à l'usage (ici, le RAG)." }
+  points_cles:
+    - "Ordre de réconciliation : tmdb_id exact, puis imdb_id exact, puis titre + année approximatif avec un seuil de similarité."
+    - "Une date seulement annuelle devient le 1er janvier (YYYY-01-01) : à documenter, car c'est une approximation."
+    - "Les scores de Rotten Tomatoes (pourcentage de critiques positives) ne sont pas convertis en note sur 10 : ce n'est pas la même mesure."
+    - "Le repli de source (si TMDB n'a pas de synopsis, prendre le suivant) doit tracer l'origine de chaque champ."
+    - "Respecter les conditions d'utilisation des sites et API (robots.txt, quotas, clé API dans .env)."
+    - "RGPD : ne stocker que le nécessaire, aucune donnée personnelle de critiques identifiables sans base légale."
+  code:
+    - titre: "Réconciliation à trois niveaux"
+      lang: python
+      code: |
+        from rapidfuzz import fuzz, process
+
+        def reconcilier(film: dict, reference: list[dict], seuil: int = 90) -> dict | None:
+            """Trouve le film de référence (TMDB) correspondant à un enregistrement d'une autre source."""
+            for cle in ("tmdb_id", "imdb_id"):                         # niveaux 1 et 2 : identifiants
+                if film.get(cle):
+                    trouve = next((r for r in reference if r.get(cle) == film[cle]), None)
+                    if trouve:
+                        return trouve
+            candidats = [r for r in reference if r.get("annee") == film.get("annee")]   # niveau 3
+            meilleur = process.extractOne(film["titre"], [c["titre"] for c in candidats],
+                                          scorer=fuzz.token_sort_ratio)
+            if meilleur and meilleur[1] >= seuil:
+                return candidats[meilleur[2]]
+            return None
+
+        tmdb = [{"tmdb_id": 694, "imdb_id": "tt0081505", "titre": "The Shining", "annee": 1980}]
+        print(reconcilier({"titre": "Shining, The", "annee": 1980}, tmdb))   # retrouvé par fuzzy
+      explication: "On ne compare les titres qu'entre films de la même année : moins de faux positifs et calcul plus rapide."
+    - titre: "Normalisation avec Polars"
+      lang: python
+      code: |
+        import polars as pl
+
+        kaggle = pl.DataFrame({
+            "title": ["  Halloween ", "Halloween", "Alien"],
+            "release_date": ["1978-10-25", "1978-10-25", "1979"],
+            "genre": ["Horror", "Horror", "Horror|Sci-Fi"],
+        })
+        propre = (
+            kaggle
+            .with_columns(
+                pl.col("title").str.strip_chars().str.replace_all(r"\s+", " "),
+                pl.when(pl.col("release_date").str.len_chars() == 4)
+                  .then(pl.col("release_date") + "-01-01")
+                  .otherwise(pl.col("release_date"))
+                  .str.to_date("%Y-%m-%d").alias("release_date"),
+            )
+            .filter(pl.col("genre").str.contains("Horror"))
+            .unique(subset=["title", "release_date"], keep="first")
+        )
+        print(propre)
+      explication: "Espaces nettoyés, années seules complétées en ISO 8601, filtre thématique, doublons supprimés sur titre + date."
+  pieges:
+    - "Fuzzy matching sans contrainte d'année ni seuil : « Halloween » (1978) fusionné avec son remake de 2018."
+    - "Clé API TMDB écrite dans le code ou commitée."
+    - "Scraper sans pause ni respect des règles du site : blocage d'IP et problème juridique."
+    - "Écraser silencieusement un champ de la source maîtresse par une source moins fiable."
+    - "Charger tout IMDB en pandas en mémoire au lieu de Spark ou Polars en mode paresseux."
+  aller_plus_loin:
+    - titre: "Orchestrer le pipeline avec Prefect"
+      contenu: "Quatre extractions en parallèle (submit), la tâche Spark, puis la réconciliation qui attend toutes les autres, et la persistance : exactement le DAG proposé en partie 2. Ajoute des retries sur les sources réseau."
+      lien: "https://docs.prefect.io/v3/develop/write-flows"
+    - titre: "Préparer le RAG dès la persistance"
+      contenu: "Ajoute une colonne vecteur (pgvector) avec l'embedding du synopsis : la recherche de films similaires de la partie 2 devient une simple requête SQL `ORDER BY embedding <=> :v LIMIT 5`."
+      lien: "https://github.com/pgvector/pgvector"
+    - titre: "Qualité de données mesurée"
+      contenu: "Publie un rapport par exécution : nombre d'enregistrements par source, taux de réconciliation par niveau, champs manquants. Défi : fais échouer le pipeline si le taux de réconciliation passe sous 80 %."
+  jury: >-
+    **E1 (C1 à C5)** : extraction automatisée de 5 types de sources, requêtes SQL, agrégation et nettoyage,
+    base conforme RGPD, API de mise à disposition. MicroForge suit le même schéma dans `data_pipeline/`
+    (sources web, API, fichiers, base, big data Spark/BigQuery) avec réconciliation par rapidfuzz et import
+    en base : c'est le cœur du rapport E1.
+  competences: [C1, C2, C3, C4, C5]
+  sources: []
+qcm:
+  - question: "Quel est le rôle de TMDB dans la stratégie de fusion ?"
+    choix: ["Une source d'enrichissement secondaire", "La source maîtresse qui fait foi pour les identifiants et titres", "Une source ignorée", "Le stockage final"]
+    bonne: 1
+    explication: "Les autres sources enrichissent par priorité décroissante."
+    difficulte: 1
+  - question: "Dans quel ordre réconcilier les enregistrements ?"
+    choix: ["Fuzzy d'abord", "tmdb_id, puis imdb_id, puis titre + année approximatif", "Par ordre alphabétique", "Au hasard"]
+    bonne: 1
+    explication: "Du plus fiable au moins fiable."
+    difficulte: 1
+  - question: "Pourquoi contraindre le fuzzy matching à la même année ?"
+    choix: ["Pour aller plus vite uniquement", "Pour éviter de fusionner un film et son remake portant le même titre", "Parce que Levenshtein l'exige", "Ce n'est pas utile"]
+    bonne: 1
+    explication: "Halloween 1978 et Halloween 2018 ont le même titre."
+    difficulte: 2
+  - question: "Une source ne donne que l'année 1979. Quelle date ISO stocker ?"
+    choix: ["1979", "1979-01-01 (règle documentée)", "Rien", "1979-12-31"]
+    bonne: 1
+    explication: "Règle du brief, à documenter comme approximation."
+    difficulte: 1
+  - question: "Pourquoi ne pas convertir le score Rotten Tomatoes en note sur 10 ?"
+    choix: ["C'est interdit", "Il mesure un pourcentage de critiques positives, pas une note moyenne", "Il est déjà sur 10", "Pour économiser de la place"]
+    bonne: 1
+    explication: "Deux métriques différentes ne se mélangent pas."
+    difficulte: 2
+  - question: "Quel outil pour traiter le volume massif des fichiers IMDB ?"
+    choix: ["Excel", "PySpark (ou Polars en mode paresseux)", "Selenium", "Streamlit"]
+    bonne: 1
+    explication: "Traitement distribué ou paresseux des gros volumes."
+    difficulte: 1
+  - question: "Que faire si TMDB n'a pas de synopsis pour un film ?"
+    choix: ["Supprimer le film", "Basculer sur la source suivante par priorité, en traçant l'origine du champ", "Inventer un synopsis", "Laisser vide sans le signaler"]
+    bonne: 1
+    explication: "Repli automatique documenté."
+    difficulte: 1
+  - question: "Quels livrables de conception pour la base ?"
+    choix: ["Un fichier CSV", "MCD, MLD et MPD (Merise) + documentation RGPD", "Un notebook", "Une capture d'écran"]
+    bonne: 1
+    explication: "Exigé par le brief et par l'épreuve E1."
+    difficulte: 1
+flashcards:
+  - { recto: "Les 5 sources de HorRAGor 1", verso: "Scraping (Rotten Tomatoes), API (TMDB), fichiers (Kaggle/Polars), base (SQLite IMDB), big data (PySpark)." }
+  - { recto: "MDM", verso: "Master Data Management : source maîtresse + enrichissements par priorité." }
+  - { recto: "3 niveaux de réconciliation", verso: "tmdb_id, imdb_id, puis titre + année en fuzzy matching." }
+  - { recto: "Fuzzy matching en Python", verso: "rapidfuzz.process.extractOne(titre, choix, scorer=fuzz.token_sort_ratio)" }
+  - { recto: "Seuil qualité IMDB", verso: "numVotes >= 1000 pour écarter les films obscurs." }
+  - { recto: "Normalisation des dates", verso: "ISO 8601 ; année seule → YYYY-01-01." }
+  - { recto: "Nettoyage des textes", verso: "Trim, espaces normalisés, UTF-8, suppression des balises HTML." }
+  - { recto: "Dédoublonnage Polars", verso: "df.unique(subset=[\"title\", \"release_date\"])" }
+  - { recto: "Donnée Gold", verso: "Filtrée, normalisée, dédoublonnée, documentée, prête pour le RAG." }
+  - { recto: "Clé API TMDB", verso: "Dans .env, lue par os.getenv, jamais commitée." }
+  - { recto: "Persistance", verso: "Base relationnelle (Supabase/PostgreSQL) via SQLAlchemy ORM, conçue avec Merise." }
+  - { recto: "Lien avec le référentiel", verso: "Bloc 1 / épreuve E1 : C1 à C5." }
+exercices:
+  - titre: "Requête d'extraction IMDB"
+    niveau: 1
+    enonce: "Écris la requête SQL qui extrait des tables title_basics et title_ratings les films d'horreur ayant au moins 1 000 votes, avec titre, année, note et nombre de votes, triés par note décroissante."
+    corrige: |
+      ```sql
+      SELECT b.tconst, b.primaryTitle, b.startYear, r.averageRating, r.numVotes
+      FROM title_basics AS b
+      JOIN title_ratings AS r ON r.tconst = b.tconst
+      WHERE b.titleType = 'movie'
+        AND b.genres LIKE '%Horror%'
+        AND r.numVotes >= 1000
+      ORDER BY r.averageRating DESC;
+      ```
+  - titre: "Fusion avec traçabilité"
+    niveau: 2
+    enonce: "Écris `fusionner(ref, enrichissements)` : pour chaque champ manquant (None) de l'enregistrement de référence, prendre la première valeur disponible parmi les sources dans l'ordre de priorité, et noter dans `origine[champ]` la source utilisée."
+    corrige: |
+      ```python
+      def fusionner(ref: dict, enrichissements: list[tuple[str, dict]]) -> dict:
+          resultat = dict(ref)
+          origine = {k: "tmdb" for k, v in ref.items() if v is not None}
+          for nom_source, donnees in enrichissements:          # déjà triées par priorité
+              for champ, valeur in donnees.items():
+                  if resultat.get(champ) is None and valeur is not None:
+                      resultat[champ] = valeur
+                      origine[champ] = nom_source
+          resultat["origine"] = origine
+          return resultat
+
+      film = fusionner({"titre": "Alien", "synopsis": None},
+                       [("rotten", {"tomatometer": 98}), ("kaggle", {"synopsis": "Dans l'espace…"})])
+      print(film["origine"])   # {'titre': 'tmdb', 'tomatometer': 'rotten', 'synopsis': 'kaggle'}
+      ```
+mindmap: |
+  # HorRAGor 1
+  ## Sources
+  - Scraping Selenium (Rotten Tomatoes)
+  - API TMDB
+  - Kaggle CSV (Polars)
+  - SQLite IMDB (SQL)
+  - Big data IMDB (PySpark)
+  ## Fusion (MDM)
+  - TMDB maître
+  - Priorités d'enrichissement
+  - Réconciliation : tmdb_id, imdb_id, fuzzy
+  ## Qualité
+  - Filtre horreur
+  - Dates ISO, textes propres
+  - Dédoublonnage
+  - Repli de source
+  ## Persistance
+  - Merise (MCD, MLD, MPD)
+  - RGPD
+  - SQLAlchemy, Supabase
+podcast_titre: "Nourrir un bot d'horreur sans lui donner d'hallucinations"
+podcast:
+  - { voix: A, texte: "Karim, HorRAGor partie 1, c'est un chatbot ? Je ne vois que des données." }
+  - { voix: B, texte: "Justement : un bon RAG commence par une bonne base. Cinq sources, chacune avec son format : scraping, API, CSV, SQLite et big data." }
+  - { voix: A, texte: "Et quand le même film apparaît partout, avec des titres un peu différents ?" }
+  - { voix: B, texte: "Réconciliation. D'abord par identifiant TMDB, puis IMDB. Sinon, titre plus année avec un fuzzy matching, et un seuil élevé." }
+  - { voix: A, texte: "Pourquoi l'année ?" }
+  - { voix: B, texte: "Parce qu'Halloween de 1978 et le remake de 2018 portent le même titre. Sans l'année, tu fusionnes deux films." }
+  - { voix: A, texte: "Et qui gagne quand deux sources ne sont pas d'accord ?" }
+  - { voix: B, texte: "TMDB est la source maîtresse. Les autres complètent seulement ce qui manque, et on garde la trace de l'origine de chaque champ." }
+  - { voix: A, texte: "C'est vraiment utile pour le jury ?" }
+  - { voix: B, texte: "C'est l'épreuve E1 entière : extraction de cinq sources, SQL, nettoyage, base conforme au RGPD et API. MicroForge fait exactement pareil avec les composants électroniques." }
