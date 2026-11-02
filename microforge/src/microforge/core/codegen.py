@@ -118,7 +118,8 @@ class FirmwareGenerator:
                 if a.gpio is None:
                     continue
                 if a.role in BUS_ROLES:
-                    const = f"PIN_{a.net}"
+                    # Préfixe BUS_ : PIN_SPI_MOSI, PIN_WIRE_SDA… sont déjà des macros du cœur Arduino AVR.
+                    const = f"BUS_{a.net}"
                     bus_constants[const] = (
                         f"const uint8_t {const} = {_pin_value(board, a.gpio, a.board_label)};"
                         f"  // {a.board_label} (bus partagé)"

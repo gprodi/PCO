@@ -25,6 +25,16 @@ typedef bool boolean;
 #define A5 19
 #define A6 20
 #define A7 21
+// Macros réelles du cœur AVR (variants/standard/pins_arduino.h) : un firmware qui déclare
+// une constante du même nom ne compile pas. On les reproduit pour détecter ces collisions.
+#ifdef ARDUINO_ARCH_AVR
+#define PIN_SPI_SS (10)
+#define PIN_SPI_MOSI (11)
+#define PIN_SPI_MISO (12)
+#define PIN_SPI_SCK (13)
+#define PIN_WIRE_SDA (18)
+#define PIN_WIRE_SCL (19)
+#endif
 using std::isnan;
 using std::abs;
 // Comme arduino-esp32 / arduino-pico (sur AVR ce sont des macros) : mêmes types obligatoires des deux côtés
