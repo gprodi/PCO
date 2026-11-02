@@ -41,6 +41,10 @@ using std::abs;
 using std::min;
 using std::max;
 void pinMode(uint8_t, uint8_t);
+#define MSBFIRST 1
+#define LSBFIRST 0
+void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
+uint8_t shiftIn(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder);
 void digitalWrite(uint8_t, uint8_t);
 int digitalRead(uint8_t);
 int analogRead(uint8_t);

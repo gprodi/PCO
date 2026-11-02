@@ -97,7 +97,7 @@ sections:
   Modèle Physique des Données > Définition:
     - "Le MPD est l'implémentation dans le SGBD choisi : types PostgreSQL, contraintes, index, script DDL. Il est produit par les modèles SQLModel (api_data/db.py) et versionné par migrations Alembic."
   MPD:
-    - "[À COMPLÉTER : extrait du DDL généré (alembic upgrade head --sql)]"
+    - "Le DDL PostgreSQL complet est produit sans base par : cd microforge && MF_DATABASE_URL=postgresql://utilisateur@hote/microforge uv run alembic upgrade head --sql (14 CREATE TABLE + table de version)."
   Tests:
     - "Les tests d'intégration créent une base SQLite temporaire, appliquent le schéma, insèrent des données et vérifient contraintes, droits et cascade de suppression (tests/test_api_data.py)."
 
@@ -105,9 +105,9 @@ sections:
     - "| Critère | PostgreSQL 17 | SQLite | MongoDB |\n|---|---|---|---|\n| Données relationnelles | ++ | + | − |\n| Accès concurrents, rôles | ++ | − | + |\n| Vecteurs (datasheets) | pgvector | − | Atlas (cloud) |\n| Coût / sobriété | libre, une seule base | libre | libre |"
     - "Choix : PostgreSQL 17 + pgvector en production, SQLite pour le développement et les tests."
   Créer la base de données et implémenter le schéma de données:
-    - "Schéma défini dans api_data/db.py (15 tables, noms en français), créé par Alembic ; procédure : docker compose --profile core up puis alembic upgrade head."
+    - "Schéma défini dans api_data/db.py (14 tables, noms en français) et versionné par Alembic (microforge/migrations/, migration initiale 0001) ; un test vérifie que les migrations produisent exactement le schéma des modèles et que le retour arrière fonctionne."
   Documenter le processus d'installation et le script d'import des données:
-    - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/compose.yml --profile core up -d\nuv run alembic upgrade head\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
+    - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/compose.yml --profile core up -d\ncd microforge && uv run alembic upgrade head && cd ..\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
     - "L'import (load/importer.py) est idempotent (upsert sur la clé d'unification) et trace chaque exécution dans execution_collecte. Documentation : docs/installation.md."
   Mettre en œuvre les mesures nécessaires pour assurer la conformité au RGPD (registre des traitements, procédures de tri, etc.):
     - "| Traitement | Finalité | Base légale | Données | Conservation |\n|---|---|---|---|---|\n| Comptes | accès au service | contrat | pseudo, e-mail chiffré, ville facultative | jusqu'à suppression, inactifs 24 mois |\n| Photos de stock | inventaire | contrat | image sans EXIF/GPS | 30 jours après traitement |\n| Photos pour entraînement | amélioration du modèle | consentement | découpes anonymes | jusqu'au retrait du consentement |\n| Journaux | sécurité | intérêt légitime | identifiant haché, route, statut | 6 mois |"

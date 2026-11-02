@@ -561,7 +561,8 @@ def test_cli_lists_libraries_per_board():
     ids = templates_for_board(CAT, uno)
     assert "alarme-porte" in ids and all(not CAT.templates[t].requires_wifi for t in ids)
     out = CliRunner().invoke(app, ["libs", "--fqbn", "arduino:avr:uno"]).output
-    assert "IRremote" in out and "LedControl" in out and "ESP32Servo" not in out
+    assert "IRremote" in out and "ESP32Servo" not in out
+    assert "LedControl" not in out  # pilote MAX7219 intégré (incompatible ESP32 3.x)
 
 
 def test_cli_sketch_dir_ignores_wokwi_folder(tmp_path):
@@ -573,3 +574,15 @@ def test_cli_sketch_dir_ignores_wokwi_folder(tmp_path):
         write_project(BUILDER, r, tmp_path / tid)
         d = sketch_dir(tmp_path / tid)
         assert d.name != "wokwi" and (d / f"{d.name}.ino").exists()
+
+
+def test_no_avr_only_header_outside_avr_variants():
+    """Régression CI ESP32 : un en-tête <avr/...> ne peut apparaître que dans une variante avr."""
+    import re
+
+    for comp in CAT.components.values():
+        for family, tpl in comp.code.items():
+            text = "\n".join(tpl.includes) + tpl.globals + tpl.setup + tpl.api
+            if re.search(r"#include\s*<avr/", text):
+                assert family == "avr", f"{comp.id} ({family}) inclut un en-tête AVR"
+            assert "LedControl" not in tpl.libraries, comp.id
