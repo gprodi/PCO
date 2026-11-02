@@ -1,0 +1,207 @@
+WORKFLOW I
+Antony Schutz
+1
+
+Compte google pro
+Accès aux outils essentiels : De GitHub pour gérer vos projets de code à d'autres logiciels que nous utiliserons pendant la formation, une adresse email professionnelle vous permettra de vous connecter en toute simplicité et de rester organisé.
+Crédibilité professionnelle : Une adresse email en votre nom ou au nom de votre projet renforce votre image professionnelle et vous distingue des adresses email personnelles.
+Organisation optimale : Séparez vos communications personnelles et professionnelles pour une meilleure gestion de votre temps et de vos priorités.
+NOM.PRENOM.PRO.GMAIL.COM ou NOM_PRENOM_PRO.GMAIL.COM un truc comme ça
+2
+
+VSCCODE
+Éditeur de code polyvalent et puissant
+Gratuit, open-source et multiplateforme
+Support d'une multitude de langages
+Extensions pour toutes les tâches
+IntelliSense pour une complétion de code intelligente
+Débogueur intégré
+Intégration de Git
+Terminal intégré
+Personnalisable
+3
+https://code.visualstudio.com/download
+
+Anaconda est une distribution open-source de Python et R, particulièrement populaire pour la science des données et le machine learning. Elle simplifie l'installation et la gestion de packages, bibliothèques et environnements, fournissant un environnement complet pour vos projets. Anaconda inclut également des outils comme Jupyter Notebook et Spyder pour faciliter le développement et l'analyse de données.
+4
+https://www.anaconda.com/download
+Cliquer add to path
+Fermer Anaconda, on l’a installé juste pour avoir une distribution python complète
+
+Git et Github
+Git est un système de contrôle de version décentralisé. Il enregistre toutes les modifications apportées à vos fichiers au fil du temps, vous permettant de revenir à des versions antérieures si nécessaire. Git facilite également la collaboration, car plusieurs personnes peuvent travailler sur le même projet en même temps, en fusionnant leurs modifications de manière ordonnée.
+GitHub est une plateforme en ligne qui héberge des dépôts Git. Il offre une interface conviviale pour gérer vos projets, collaborer avec d'autres développeurs, et partager votre code avec le monde. GitHub propose également de nombreuses fonctionnalités supplémentaires, telles que le suivi des problèmes, les demandes de fusion (pull requests) pour examiner les modifications avant de les intégrer, et des outils de gestion de projet.
+
+5
+https://github.com/
+Créer un compte
+
+GitHub et Vscode
+cliquer sur Publish to Github, il va vous être proposé d’installer GIT. Une fois installé il faudra surement configurer VSCode avec les informations de votre compte GitHub.
+6
+
+Ouvrez un terminal deux possibilité (le terminale est déjà ouvert et on en veut un autre ou en passant par le menu Terminal)
+7
+
+github - configuration VSCODE
+Créer un compte github et bien faire attention à son pseudo (posture professionnelle) et bien enregistrer son mot de passe et login (faire simple) avec son compte .pro.gmail
+Probablement installation de git
+git config --global user.email EMAIL
+git config --global user.name "USERNAME"
+
+
+8
+Config git en local, à faire dans un git bash : git config -l
+Configurer VSCode
+
+.gitignore
+Le fichier .gitignore permet d'ignorer certain fichier que l’on ne veut pas envoyer sur git/github:
+fichier contenant des informations importantes
+fichier volumineux
+.venv
+9
+
+Environnement virtuel
+Avoir un environnement propre et contrôlé pour coder et partager
+Pour chaque projet je vous conseil de créer un environnement virtuel, c’est un python “propre” et vide qui ne contiendra que ce dont vous avez besoin.
+Sous windows : 
+
+python -m venv .venv .venv/Scripts/activate
+
+
+
+
+Sous linux/mac : 
+
+python3 -m venv .venv 
+source .venv/bin/activate 
+
+Set-ExecutionPolicy RemoteSigned
+10
+
+Environnement virtuel
+11
+Un environnement virtuel protège votre projet Python des dépendances et des packages du système global. 
+Vous pouvez travailler dans votre propre espace isolé.
+La commande pip freeze vous permet de générer une liste des packages Python installés dans votre environnement virtuel, y compris leurs versions. Vous pouvez rediriger cette liste vers un fichier texte, généralement appelé requirements.txt en tapant dans un terminal la commande:
+pip freeze > requirements.txt
+package1==1.0.0 
+package2==2.1.0 
+package3==3.2.1
+11
+
+Petit résumé:
+création environnement virtuel (.venv)
+connection à l’environnement virtuel (déconnexion avec deactivate)
+création du .gitignore dans lequel on ignore le dossier .venv
+Les fichiers qui commencent avec un point sont des fichiers cachés
+12
+
+MARKDOWN
+Veille technologique de Markdown
+le langage lui même
+les extensions VSCODE
+Qu’est ce qu’un README.md 
+comment l’organiser?
+13
+
+MARKDOWN - VSCODE Extension
+Les extensions de VSCODE se trouve dans l’onglet, je vous conseil les plugins suivant:
+black formatter : pour python
+et pour Markdown
+14
+
+Python - Installer une librairie	
+15
+Commandes pip courantes:
+pip install <nom_du_paquet>: Installe un paquet.
+pip install -r requirements.txt: Installe tous les paquets listés dans un fichier requirements.txt.
+pip uninstall <nom_du_paquet>: Désinstalle un paquet.
+pip list: Affiche la liste des paquets installés.
+pip show <nom_du_paquet>: Affiche des informations sur un paquet installé.
+pip freeze > requirements.txt: Génère un fichier requirements.txt avec la liste des paquets installés et leurs versions.
+
+Bibliothèques courante
+16
+NumPy: Fondation pour le calcul scientifique en Python, fournissant des tableaux multidimensionnels et des fonctions mathématiques.
+Pyplot: Module Matplotlib pour créer des visualisations statiques, interactives et animées en Python.
+Pandas: Outil d'analyse et de manipulation de données, offrant des structures de données performantes et flexibles comme les DataFrames.
+Seaborn: Bibliothèque de visualisation de données basée sur Matplotlib, fournissant une interface haut niveau pour créer des graphiques statistiques attrayants.
+FastAPI: Framework web moderne et performant pour construire des API avec Python, axé sur la rapidité et la facilité d'utilisation.
+Uvicorn: Serveur web ASGI rapide et léger, souvent utilisé pour déployer des applications FastAPI.
+SQLAlchemy: Boîte à outils SQL complète et puissante pour Python, permettant d'interagir avec les bases de données relationnelles de manière objet.
+Streamlit: Bibliothèque open-source pour créer des applications web interactives pour le machine learning et la science des données.
+Flask: Microframework web léger et flexible pour Python, permettant de créer rapidement des applications web.
+Scikit-learn: Bibliothèque de machine learning pour Python, fournissant des algorithmes et des outils pour la classification, la régression, le clustering, etc.
+Keras: API de réseaux de neurones de haut niveau, permettant de créer et d'entraîner facilement des modèles de deep learning.
+
+demo pip install
+et pip freeze > requirements.txt   
+17
+
+notebook jupyter versus script python
+18
+Les notebooks Jupyter et les scripts Python sont tous deux utilisés pour écrire et exécuter du code Python, mais ils ont des objectifs et des fonctionnalités différents.
+Notebooks Jupyter (fichier .ipynb):
+Orientés vers l'exploration interactive, la visualisation et le partage de code.
+Permettent de combiner du code, du texte enrichi, des équations et des visualisations dans un seul document.
+Idéal pour l'expérimentation, l'analyse de données et la création de rapports.
+Moins adapté aux applications complexes et à la production.
+Scripts Python (fichier .py):
+Conçus pour créer des programmes et des applications autonomes.
+Exécutés de manière séquentielle et peuvent être importés en tant que modules.
+Mieux adaptés aux tâches d'automatisation, aux applications web et aux logiciels complexes.
+Offrent une meilleure organisation du code et une maintenance plus facile pour les grands projets.
+
+notebook jupyter (JUlia PYthon R)
+Permet d’alterner en cellule markdown et python
+Exécution des Cellules une par une.
+Affichage au fur et à mesure
+
+Créer un fichier mon_notebook.ipynb et importer nympy
+import numpy as np
+19
+
+Importer une bibliothèque pour s’en servir
+En Python, import est le mot-clé magique pour accéder aux trésors des bibliothèques ! Il vous permet d'intégrer du code pré-écrit dans vos propres programmes, ajoutant des fonctionnalités et évitant de réinventer la roue.
+Voici comment utiliser import :
+import nom_de_la_bibliotheque: Importe la bibliothèque entière.
+from nom_de_la_bibliotheque import module: Importe un module spécifique de la bibliothèque.
+import nom_de_la_bibliotheque as alias: Importe la bibliothèque avec un nom plus court.
+
+20
+
+21
+Importer une bibliothèque pour s’en servir
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import fastapi
+import uvicorn
+import sqlalchemy
+import streamlit as st
+import flask
+import sklearn
+import keras
+from numpy import array, linspace
+from matplotlib.pyplot import plot, show
+from pandas import DataFrame
+from seaborn import scatterplot
+from fastapi import FastAPI
+from uvicorn import run
+from sqlalchemy import create_engine
+from streamlit import title, slider
+from flask import Flask
+from sklearn.model_selection import train_test_split
+from keras.layers import Dense
+
+Envoyer le code sur github avec VSCODE
+La première fois on Publish to GitHub
+Puis si on travaille sur un seul ordinateur et tout seul
+
+
+22
+
+23
+$env:PATH = "C:\Users\anton\AppData\Local\Programs\Python\Python312;" + $env:PATH

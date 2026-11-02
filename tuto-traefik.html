@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy, reverse proxy et Traefik</title>
+<style>
+  :root{
+    /* --- Couleurs officielles Traefik ---------------------------------- */
+    --accent:#24A1C1;        /* cyan du logo Traefik Proxy */
+    --accent-lift:#5CC8E4;   /* survol, liens, accents clairs */
+    --accent-deep:#17798F;   /* aplats, filets appuyés */
+    --navy:#06162B;          /* fond de page */
+    --surface:#0C2138;       /* cartes, widgets */
+    --tint:#0A1C30;          /* blocs de code */
+    --hair:#1E3A57;          /* filets */
+    --ink:#EAF3F8; --ink2:#B4C6D4; --muted:#7A93A8;
+    --ok:#3DBE8B; --warn:#E2A03F; --danger:#E4586A;
+    --serif:Cambria,Georgia,"Times New Roman",serif;
+    --sans:"Segoe UI",Calibri,system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--navy);color:var(--ink2);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+  /* barre de progression */
+  #topbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:50;background:rgba(30,58,87,.6)}
+  #progress{height:100%;width:0;background:var(--accent);transition:width .3s;box-shadow:0 0 10px rgba(36,161,193,.7)}
+  /* la feuille */
+  #deck{max-width:1240px;margin:0 auto 118px;padding:44px 56px 64px;
+        background:radial-gradient(1100px 420px at 50% -140px, rgba(36,161,193,.15), transparent 72%)}
+  .slide{display:none;animation:fade .4s ease}
+  .slide.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  /* surtitre */
+  .kicker{display:flex;align-items:center;gap:.55em;color:var(--accent);font-weight:700;
+          letter-spacing:.16em;text-transform:uppercase;font-size:.72rem;margin:0 0 1rem}
+  .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;
+                  box-shadow:0 0 8px rgba(36,161,193,.9)}
+  .center .kicker{justify-content:center}
+  /* titres */
+  h1{font-family:var(--serif);font-weight:700;font-size:2.7rem;line-height:1.1;letter-spacing:-.01em;margin:.1rem 0 1.1rem;color:var(--ink)}
+  h2{font-family:var(--serif);font-weight:700;font-size:2rem;line-height:1.16;margin:.1rem 0 1.3rem;color:var(--ink)}
+  h3{font-family:var(--serif);font-weight:700;font-size:1.24rem;margin:1.3rem 0 .5rem;color:var(--ink)}
+  p,li{font-size:1.02rem;color:var(--ink2)}
+  p{margin:.6rem 0}
+  ul{padding-left:0;list-style:none;margin:.7rem 0}
+  ul li{position:relative;padding-left:1.35rem;margin:.42rem 0}
+  ul li::before{content:"–";position:absolute;left:0;color:var(--accent);font-weight:700}
+  ol{padding-left:1.3rem;margin:.7rem 0}
+  ol li{margin:.42rem 0}
+  b,strong{color:var(--ink);font-weight:700}
+  .muted{color:var(--muted)}
+  .center{text-align:center}
+  a{color:var(--accent-lift)}
+  /* étiquettes */
+  .pill{display:inline-block;border:1px solid var(--hair);border-radius:2px;padding:.32rem .72rem;
+        font-size:.8rem;margin:.2rem .25rem;color:var(--ink2);letter-spacing:.01em;background:var(--surface)}
+  /* deux colonnes */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2.8rem;margin:.5rem 0}
+  .card h3{margin-top:0}
+  .tag{font-family:var(--sans);display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;
+       letter-spacing:.1em;margin:0 0 .25rem;color:var(--muted)}
+  .tag.a{color:var(--accent-lift)} .tag.b{color:var(--ok)} .tag.w{color:var(--warn)} .tag.d{color:var(--danger)}
+  /* tableaux : réglés, sans boîtes */
+  table{border-collapse:collapse;width:100%;margin:1.1rem 0;font-size:.96rem}
+  th,td{padding:.58rem .4rem;text-align:left;border-bottom:1px solid var(--hair);vertical-align:top}
+  th{font-family:var(--sans);font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;
+     color:var(--muted);font-weight:700;border-bottom:1.5px solid var(--accent-deep)}
+  td{color:var(--ink2)}
+  .tablewrap{overflow-x:auto}
+  /* code */
+  code.inline{font-family:var(--mono);font-size:.88em;background:rgba(36,161,193,.12);color:var(--accent-lift);
+              padding:.07em .38em;border-radius:3px;border:1px solid rgba(36,161,193,.2)}
+  .codewrap{position:relative;margin:.95rem 0}
+  pre{background:var(--tint);border:1px solid var(--hair);border-radius:5px;padding:18px 20px;overflow-x:auto;margin:0}
+  pre code{font-family:var(--mono);font-size:.85rem;line-height:1.55;white-space:pre;color:var(--ink2);display:block}
+  pre code[data-lang="plain"]{line-height:1.35;color:var(--muted)}
+  .copybtn{position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--hair);
+           color:var(--muted);border-radius:4px;padding:.25rem .6rem;font-size:.75rem;cursor:pointer;font-family:var(--sans)}
+  .copybtn:hover{color:var(--accent);border-color:var(--accent)}
+  .tok-com{color:#5F7A93;font-style:italic}
+  .tok-str{color:#8FD69C}
+  .tok-key{color:#5CC8E4}
+  .tok-num{color:#E2A03F}
+  .tok-opt{color:#F09A6B}
+  .tok-bt{color:#FFD37E}
+  .tok-cmd{color:var(--ink);font-weight:700}
+  .tok-bool{color:#C79BF0}
+  .tok-tf{color:#4FB6D4}
+  .tok-url{color:#8FD69C;text-decoration:underline;text-decoration-color:rgba(143,214,156,.35)}
+  /* navigation */
+  #nav{position:fixed;bottom:0;left:0;right:0;background:rgba(6,22,43,.92);border-top:1px solid var(--hair);
+       display:flex;align-items:center;justify-content:space-between;padding:10px 20px;backdrop-filter:blur(8px);z-index:40}
+  #nav .btn{background:var(--surface);border:1px solid var(--hair);color:var(--ink2);border-radius:3px;
+            padding:.5rem 1rem;cursor:pointer;font-size:.92rem;font-family:var(--sans)}
+  #nav .btn:hover{border-color:var(--accent);color:var(--accent)}
+  #nav .btn:disabled{opacity:.3;cursor:default}
+  #counter{color:var(--muted);font-size:.88rem}
+  #menuToggle{cursor:pointer;color:var(--ink2);font-size:.88rem;border:1px solid var(--hair);
+              border-radius:3px;padding:.5rem .8rem;background:var(--surface)}
+  #menuToggle:hover{border-color:var(--accent);color:var(--accent)}
+  /* sommaire */
+  #menu{position:fixed;inset:0;background:rgba(6,22,43,.975);z-index:60;display:none;padding:48px;overflow:auto;backdrop-filter:blur(4px)}
+  #menu.open{display:block}
+  #menu h3{font-family:var(--serif);color:var(--ink);font-size:1.5rem;margin:0 0 1rem}
+  #menu ol{columns:2;column-gap:34px;list-style:none;padding:0}
+  #menu li{padding:.45rem .6rem;border-radius:4px;cursor:pointer;color:var(--ink2)}
+  #menu li:hover{background:var(--surface);color:var(--accent)}
+  #menu .close{position:absolute;top:24px;right:34px;font-size:1.7rem;cursor:pointer;color:var(--muted)}
+  /* widgets */
+  .widget{background:var(--surface);border:1px solid var(--hair);border-radius:6px;padding:18px;margin:1rem 0}
+  input[type=text]{width:100%;background:var(--tint);border:1px solid var(--hair);border-radius:4px;color:var(--ink);
+        font-family:var(--mono);font-size:.9rem;padding:10px}
+  input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.3rem;font-weight:700}
+  button.act{background:var(--accent);color:#04121F;border:none;border-radius:4px;padding:.55rem 1.1rem;
+             font-weight:700;cursor:pointer;font-family:var(--sans)}
+  button.act:hover{background:var(--accent-lift)}
+  button.ghost{background:transparent;border:1px solid var(--hair);color:var(--ink2);border-radius:4px;
+               padding:.55rem 1.1rem;cursor:pointer;font-family:var(--sans)}
+  button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .ex{display:inline-block;border:1px solid var(--hair);background:var(--tint);border-radius:3px;
+      padding:.25rem .6rem;margin:.2rem .25rem .2rem 0;font-family:var(--mono);font-size:.78rem;
+      color:var(--ink2);cursor:pointer}
+  .ex:hover{border-color:var(--accent);color:var(--accent-lift)}
+  .switch{display:flex;align-items:center;gap:.5rem;margin:.8rem 0;color:var(--ink2);font-size:.92rem;cursor:pointer}
+  .switch input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+  /* simulateur de routage */
+  .simline{display:flex;flex-wrap:wrap;gap:.4rem 1.6rem;margin:.6rem 0;font-family:var(--mono);font-size:.86rem}
+  .simline span.k{color:var(--muted)}
+  .routes{width:100%;font-size:.84rem;font-family:var(--mono);margin:.7rem 0}
+  .routes td,.routes th{padding:.35rem .4rem}
+  .routes tr.miss{opacity:.42}
+  .routes tr.win td{color:var(--ink);background:rgba(36,161,193,.1)}
+  .routes .yes{color:var(--ok);font-weight:700}
+  .routes .no{color:var(--danger)}
+  .verdict{border-radius:5px;padding:13px 16px;margin-top:.8rem;border:1px solid var(--hair);background:var(--tint)}
+  .verdict.ok{border-color:var(--ok);background:rgba(61,190,139,.09)}
+  .verdict.ko{border-color:var(--danger);background:rgba(228,88,106,.09)}
+  .verdict b{color:var(--ink)}
+  /* animation de flux */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;margin:.9rem 0}
+  .actor{background:var(--tint);border:1px solid var(--hair);border-radius:5px;padding:12px;font-weight:600;color:var(--ink2);font-size:.95rem}
+  .actor.hl{border-color:var(--accent);color:var(--accent-lift);box-shadow:inset 0 0 0 1px var(--accent),0 0 14px rgba(36,161,193,.25)}
+  .flowmsg{background:var(--tint);border:1px solid var(--hair);border-radius:5px;padding:13px 15px;margin:.6rem 0;min-height:52px;color:var(--ink2)}
+  .stepno{display:inline-block;background:var(--accent);color:#04121F;border-radius:50%;width:24px;height:24px;
+          line-height:24px;text-align:center;font-weight:700;margin-right:.55rem;font-size:.82rem}
+  /* quiz */
+  .quiz .opt{display:block;width:100%;text-align:left;background:var(--tint);border:1px solid var(--hair);border-radius:5px;
+        padding:.7rem 1rem;margin:.45rem 0;cursor:pointer;color:var(--ink2);font-size:1rem;font-family:var(--sans)}
+  .quiz .opt:hover{border-color:var(--accent);color:var(--ink)}
+  .quiz .opt.correct{border-color:var(--ok);background:rgba(61,190,139,.13);color:var(--ink)}
+  .quiz .opt.wrong{border-color:var(--danger);background:rgba(228,88,106,.13);color:var(--ink)}
+  .quiz .feedback{margin-top:.6rem;font-weight:700;min-height:1.4rem}
+  /* encadrés */
+  .hintbox,.warnbox,.dangerbox{border-radius:5px;padding:13px 16px;margin:.85rem 0;font-size:.98rem;
+        border:1px solid var(--hair);background:var(--tint);color:var(--ink2)}
+  .hintbox{border-left:3px solid var(--accent)}
+  .warnbox{background:rgba(226,160,63,.09);border-color:rgba(226,160,63,.3);border-left:3px solid var(--warn)}
+  .dangerbox{background:rgba(228,88,106,.09);border-color:rgba(228,88,106,.3);border-left:3px solid var(--danger)}
+  .hintbox b,.warnbox b,.dangerbox b{color:var(--ink)}
+  kbd{background:var(--surface);border:1px solid var(--hair);border-bottom-width:2px;border-radius:4px;
+      padding:.05rem .4rem;font-size:.8rem;font-family:var(--mono);color:var(--ink2)}
+  /* carte du parcours */
+  .carte{position:relative;display:flex;margin:2rem 0 1.6rem}
+  .carte::before{content:"";position:absolute;top:2.35rem;left:9%;right:9%;height:1px;background:var(--hair)}
+  .carte .et{flex:1;text-align:center;color:var(--muted);font-size:.84rem;line-height:1.3}
+  .carte .et .n{display:block;font-family:var(--serif);font-weight:700;font-size:1.05rem;
+                height:1.5rem;line-height:1.5rem;margin-bottom:.45rem}
+  .carte .et .pt{position:relative;display:block;width:14px;height:14px;margin:0 auto .6rem}
+  .carte .et .pt::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                        width:9px;height:9px;border-radius:50%;background:var(--muted);
+                        box-shadow:0 0 0 3px var(--navy)}
+  .carte .et.on{color:var(--ink);font-weight:700}
+  .carte .et.on .n{color:var(--accent-lift);font-size:1.25rem}
+  .carte .et.on .pt::after{width:13px;height:13px;background:var(--accent);box-shadow:0 0 0 3px var(--navy),0 0 12px rgba(36,161,193,.8)}
+  /* logo d'accueil */
+  .logo{display:block;margin:0 auto 1.4rem}
+  @media(max-width:900px){
+    .flow{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:760px){
+    #deck{padding:40px 22px;margin:14px auto 120px}
+    .grid2{grid-template-columns:1fr;gap:1.5rem}
+    .flow{grid-template-columns:1fr}
+    #menu ol{columns:1}
+    h1{font-size:1.95rem} h2{font-size:1.6rem}
+    .carte{flex-direction:column;gap:.7rem}
+    .carte::before{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="topbar"><div id="progress"></div></div>
+
+<div id="deck">
+<!-- =========================================================================
+     CONTENU DES SLIDES — du HTML ordinaire, à corriger directement ici.
+
+     Une slide        <section class="slide" data-titre="titre du sommaire">
+                      Le data-titre alimente le sommaire, la numérotation et le
+                      compteur. L'ordre des sections est l'ordre de passage.
+
+     Un bloc de code  <script type="text/plain" data-lang="bash">
+                      data-lang : yaml, bash, python, json, ou plain (schémas
+                      ASCII, sans coloration). Rien n'est interprété dans ce
+                      conteneur : accents graves, antislashs de continuation,
+                      chevrons et esperluettes s'écrivent tels quels, comme dans
+                      un terminal. Seule séquence à éviter, la balise fermante
+                      d'un script. Le bloc s'affiche colonne par colonne, tel
+                      qu'il est écrit : on le laisse donc collé à la marge, et
+                      les schémas ASCII gardent leur alignement.
+
+     La progression   <div data-carte="3"></div>
+                      Carte des 6 étapes, la n-ième allumée (0 = la première).
+     ========================================================================= -->
+
+<!-- ======================= INTRODUCTION ======================= -->
+<section class="slide" data-titre="Accueil">
+  <div class="center" style="padding-top:5vh">
+    <svg class="logo" width="86" height="86" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+      <path d="M50 8 L50 40" stroke="#24A1C1" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="13" stroke="#24A1C1" stroke-width="5"/>
+      <path d="M40 60 L18 84 M50 63 L50 90 M60 60 L82 84" stroke="#5CC8E4" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="50" cy="8" r="5" fill="#24A1C1"/>
+      <circle cx="18" cy="88" r="5" fill="#5CC8E4"/><circle cx="50" cy="94" r="5" fill="#5CC8E4"/><circle cx="82" cy="88" r="5" fill="#5CC8E4"/>
+    </svg>
+    <div class="kicker">Simplon &bull; Développeur en Intelligence Artificielle</div>
+    <h1><span style="color:var(--accent)">Traefik</span></h1>
+    <p class="muted" style="max-width:700px;margin:0 auto">Comprendre le <b>point d'entrée unique</b> d'une architecture conteneurisée, et voir Traefik <b>router automatiquement</b> vers plusieurs services Docker — sans jamais le redémarrer.</p>
+    <p class="muted" style="margin-top:2rem;font-size:.9rem">Navigue avec les flèches <kbd>←</kbd> <kbd>→</kbd> du clavier, ou les boutons en bas. <kbd>M</kbd> = sommaire.</p>
+  </div>
+</section>
+<section class="slide" data-titre="De quoi parle-t-on ?">
+  <div class="kicker">Introduction</div><h2>De quoi parle-t-on ?</h2>
+  <p>Quand on lance plusieurs applications dans des conteneurs, chacune veut son port.</p>
+  <p>Très vite, on se retrouve avec <code class="inline">localhost:3000</code>, <code class="inline">localhost:4444</code>, <code class="inline">localhost:8080</code>...</p>
+  <p>Le <b>reverse proxy</b> organise : <b>une seule porte d'entrée</b>, des adresses lisibles, et les applications cachées derrière.</p>
+  <ul>
+    <li><b>Proxy</b> — un intermédiaire placé du côté du <b>client</b>.</li>
+    <li><b>Reverse proxy</b> — un intermédiaire placé du côté du <b>serveur</b>, qui reçoit les visiteurs et les aiguille vers la bonne application.</li>
+    <li><b>Traefik</b> — un reverse proxy qui <b>découvre tout seul</b> les conteneurs Docker et crée les routes correspondantes, sans fichier de configuration à recharger.</li>
+  </ul>
+</section>
+<!-- ======================= MODULE 1 — LE PROBLÈME ======================= -->
+<section class="slide" data-titre="M1 · L'architecture naïve">
+  <div class="kicker">Module 1</div><h2>Un port par service</h2>
+  <p>Le fichier <code class="inline">docker-compose.step1.yml</code> pour montrer le problème que Traefik résout.</p>
+  <p>Ni Traefik, ni label, ni réseau déclaré : la configuration « de départ ».</p>
+  <script type="text/plain" data-lang="plain">
+                      Navigateur
+                       /       \
+                      /         \
+            :3333    v           v    :4444
+            +----------+    +----------+
+            | FRONTEND |    |   API    |
+            +----------+    +----------+
+  </script>
+  <script type="text/plain" data-lang="yaml">
+services:
+  frontend:
+    build: { context: ./frontend }
+    ports:
+      # "port sur MA MACHINE : port DANS LE CONTENEUR"
+      # nginx écoute sur 80 dans le conteneur ; on le publie sur 3333.
+      - "3333:80"
+
+  api:
+    ports:
+      # uvicorn écoute sur 8000 dans le conteneur ; on le publie sur 4444.
+      - "4444:8000"
+  </script>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.step1.yml up -d
+  </script>
+  <div class="hintbox"><b>Rappel</b> : « hôte:conteneur ».
+  <p>Le premier nombre est celui qu'on tape dans le navigateur ; le second est celui sur lequel l'application écoute à l'intérieur du conteneur.</p>
+  </div>
+</section>
+<section class="slide" data-titre="M1 · Ce qu'on voit">
+  <div class="kicker">Module 1</div><h2>A l'écran</h2>
+  <div class="tablewrap"><table>
+    <tr><th>URL</th><th>Ce qu'on voit</th></tr>
+    <tr><td><code class="inline">http://localhost:3333</code></td><td>la page du frontend</td></tr>
+    <tr><td><code class="inline">http://localhost:4444/</code></td><td>le JSON de l'API</td></tr>
+  </table></div>
+  <p>Dans la réponse de l'API :</p>
+  <script type="text/plain" data-lang="json">
+{
+  "passe_par_un_reverse_proxy": false,
+  "en_tetes_ajoutes_par_le_proxy": {}
+}
+  </script>
+  <p>Rien n'a relayé la requête : le navigateur a parlé <b>directement</b> à l'application.</p>
+  <p>Le dictionnaire d'en-têtes est <b>vide</b>.</p>
+  <h3>« Qu'est-ce qui nous gêne dans cette situation ? »</h3>
+  <ul>
+    <li>il faut retenir un <b>numéro de port par service</b> ;</li>
+    <li><code class="inline">localhost:4444</code> ne dit <b>rien</b> de ce qu'il y a derrière ;</li>
+    <li>avec quinze microservices, ça devient <b>ingérable</b> ;</li>
+    <li>chaque port ouvert est <b>une porte de plus</b> sur la machine ;</li>
+    <li>si un autre projet utilise déjà le port, <b>tout casse</b>.</li>
+  </ul>
+</section>
+<!-- ======================= MODULE 2 — LES NOTIONS ======================= -->
+<section class="slide" data-titre="M2 · Un proxy">
+  <div class="kicker">Module 2</div><h2>Un proxy (ou <i>forward proxy</i>)</h2>
+  <p>Un intermédiaire placé du côté du <b>client</b>. Au lieu de contacter directement un site, le client demande au proxy d'y aller à sa place.</p>
+  <script type="text/plain" data-lang="plain">
+   Client              Proxy                    Internet
+  +--------+         +-------+                 +---------+
+  | Poste  | ──────► | Proxy | ──────────────► | Site web|
+  +--------+         +-------+                 +---------+
+
+  « Va chercher       Le site voit l'adresse
+    cette page         du PROXY, pas celle
+    pour moi »         du poste
+  </script>
+  <div class="grid2">
+    <div class="card"><span class="tag a">Qui le met en place ?</span><p>L'organisation qui possède les <b>clients</b> : une entreprise, une école, un fournisseur d'accès.</p></div>
+    <div class="card"><span class="tag a">À quoi ça sert ?</span><ul style="margin-top:.2rem">
+      <li>filtrer les sites autorisés</li>
+      <li>garder en <b>cache</b> les pages consultées souvent</li>
+      <li>masquer l'identité des postes (un VPN relève de la même logique)</li>
+      <li>journaliser les accès sortants</li>
+    </ul></div>
+  </div>
+  <div class="hintbox"><b>À retenir</b> : le proxy <b>connaît les clients et travaille pour eux</b>. Le serveur de destination, lui, ignore tout de leur existence.</div>
+</section>
+<section class="slide" data-titre="M2 · Un reverse proxy">
+  <div class="kicker">Module 2</div><h2>Un reverse proxy (« proxy inverse »)</h2>
+  <p>Un intermédiaire placé du côté du <b>serveur</b>. Les visiteurs croient parler au site ; en réalité ils parlent au reverse proxy, qui transmet à l'application appropriée.</p>
+  <script type="text/plain" data-lang="plain">
+   Visiteurs                Reverse proxy            Applications
+  +----------+              +-----------+          +-------------+
+  |Navigateur| ───────────► |  TRAEFIK  | ───────► | Frontend    |
+  +----------+              +-----------+     │    +-------------+
+                                              └──► | API         |
+                                                   +-------------+
+  « Je veux app.localhost »    Il décide           Elles ne sont
+                               où envoyer          joignables que
+                                                   par lui
+  </script>
+  <div class="grid2">
+    <div class="card"><span class="tag b">Qui le met en place ?</span><p>Celui qui <b>héberge les applications</b>.</p></div>
+    <div class="card"><span class="tag b">Exemples</span><p><b>Traefik</b>, nginx, HAProxy, Caddy.</p></div>
+  </div>
+  <div class="hintbox"><b>À retenir</b> : le reverse proxy <b>connaît les serveurs et travaille pour eux</b>. Le visiteur, lui, ignore tout de ce qu'il y a derrière.</div>
+</section>
+<section class="slide" data-titre="M2 · La différence">
+  <div class="kicker">Module 2</div><h2>La différence, en une phrase</h2>
+  <p style="font-size:1.18rem;border-left:3px solid var(--accent);padding-left:1rem;margin:1.2rem 0">Le <b>proxy</b> protège et dessert le <b style="color:var(--accent-lift)">client</b> ; le <b>reverse proxy</b> protège et expose le <b style="color:var(--accent-lift)">serveur</b>.</p>
+  <p>Techniquement, les deux font la même chose — relayer une requête HTTP. Ce qui change, c'est <b>de quel côté</b> ils sont placés et <b>pour qui</b> ils travaillent.</p>
+  <div class="tablewrap"><table>
+    <tr><th></th><th>Proxy</th><th>Reverse proxy</th></tr>
+    <tr><td class="muted">Placé du côté</td><td>du client</td><td>du serveur</td></tr>
+    <tr><td class="muted">Mis en place par</td><td>l'entreprise, l'école, le FAI</td><td>l'hébergeur du site</td></tr>
+    <tr><td class="muted">Sait qui est le client</td><td>oui</td><td>oui, mais le protège du serveur</td></tr>
+    <tr><td class="muted">Le client sait qu'il existe</td><td>oui, il est configuré pour l'utiliser</td><td><b>non</b>, c'est transparent</td></tr>
+    <tr><td class="muted">Exemples</td><td>Squid, proxy d'entreprise, VPN</td><td><b>Traefik</b>, nginx, HAProxy, Caddy</td></tr>
+  </table></div>
+</section>
+<section class="slide" data-titre="M2 · Pourquoi ?">
+  <div class="kicker">Module 2</div><h2>Pourquoi utiliser un reverse proxy ?</h2>
+  <div class="grid2">
+    <div class="card"><span class="tag a">a &bull; Une seule porte d'entrée</span><p>Un seul port ouvert au lieu d'un par service. Toute la surveillance, la journalisation et le filtrage se font <b>au même endroit</b>.</p></div>
+    <div class="card"><span class="tag a">b &bull; Des adresses lisibles</span><p><code class="inline">app.localhost</code> plutôt que <code class="inline">localhost:3333</code>. Personne n'a à mémoriser de numéros de ports.</p></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><span class="tag b">c &bull; Les applications restent cachées</span><p>Les conteneurs n'exposent <b>aucun</b> port : ils sont totalement injoignables depuis l'extérieur. Réduire la surface exposée est un principe de sécurité fondamental.</p></div>
+    <div class="card"><span class="tag b">d &bull; Fin des problèmes de CORS</span><p>En exposant l'API sous <code class="inline">app.localhost/api</code>, tout se passe en <b>même origine</b> : le problème disparaît sans une ligne de configuration côté application.</p></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><span class="tag w">e &bull; Les préoccupations transverses sont mutualisées</span><p>HTTPS, authentification, limitation de débit, compression, redirections : traités <b>une fois</b> dans le reverse proxy, au lieu d'être réimplémentés dans chaque service.</p></div>
+    <div class="card"><span class="tag w">f &bull; La répartition de charge</span><p>Plusieurs exemplaires d'un service peuvent se cacher derrière une même adresse, le reverse proxy distribuant les requêtes.</p></div>
+  </div>
+</section>
+<section class="slide" data-titre="Quiz 1">
+  <div class="kicker">Quiz éclair</div><h2>Proxy ou reverse proxy ?</h2>
+  <div class="widget quiz" data-correct="1">
+    <p><b>1.</b> Une école installe un serveur par lequel passent tous les postes des élèves, pour bloquer certains sites. C'est…</p>
+    <button class="opt">un reverse proxy</button>
+    <button class="opt">un proxy (forward proxy)</button>
+    <button class="opt">ni l'un ni l'autre, c'est un pare-feu</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="2">
+    <p><b>2.</b> Quelle affirmation est vraie à propos du <b>reverse</b> proxy ?</p>
+    <button class="opt">Le visiteur doit configurer son navigateur pour l'utiliser</button>
+    <button class="opt">Il travaille pour le client et masque son adresse au serveur</button>
+    <button class="opt">Il est transparent : le visiteur ignore ce qu'il y a derrière</button>
+    <div class="feedback"></div>
+  </div>
+</section>
+<!-- ======================= MODULE 3 — LE VOCABULAIRE ======================= -->
+<section class="slide" data-titre="M3 · L'architecture cible">
+  <div class="kicker">Module 3</div><h2>L'architecture cible</h2>
+  <script type="text/plain" data-lang="plain">
+                          Navigateur
+                               │
+                               │   un SEUL port publié : 1111
+                               ▼
+                        ┌─────────────┐
+                        │   TRAEFIK   │  lit les labels des conteneurs
+                        └─────────────┘  via le socket Docker
+                         ╱      │      ╲
+        app.localhost   ╱       │       ╲   hello.localhost
+                       ╱        │        ╲
+              ┌──────────┐ ┌─────────┐ ┌─────────┐
+              │ FRONTEND │ │   API   │ │  HELLO  │
+              │  nginx   │ │ FastAPI │ │ Python  │
+              │   :80    │ │  :8000  │ │  :8080  │
+              └──────────┘ └─────────┘ └─────────┘
+                    ports INTERNES, non publiés
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>URL</th><th>Service</th></tr>
+    <tr><td><code class="inline">http://app.localhost:1111</code></td><td>Frontend</td></tr>
+    <tr><td><code class="inline">http://api.localhost:1111/</code></td><td>API — JSON détaillant la requête reçue</td></tr>
+    <tr><td><code class="inline">http://api.localhost:1111/health</code></td><td>API — état du service</td></tr>
+    <tr><td><code class="inline">http://api.localhost:1111/docs</code></td><td>API — documentation générée par FastAPI</td></tr>
+    <tr><td><code class="inline">http://app.localhost:1111/api/</code></td><td>API via le frontend, <b>en même origine</b></td></tr>
+    <tr><td><code class="inline">http://traefik.localhost:1111</code></td><td>Dashboard Traefik — <code class="inline">demo</code> / <code class="inline">demo</code></td></tr>
+  </table></div>
+  <div class="warnbox"><b>Le port fait partie de l'adresse.</b> <code class="inline">http://app.localhost</code> seul ne fonctionne pas. C'est l'oubli le plus fréquent de la séance.</div>
+</section>
+<section class="slide" data-titre="M3 · Les cinq mots">
+  <div class="kicker">Module 3</div><h2>Le vocabulaire de Traefik</h2>
+  <p>Quatre notions suffisent à lire n'importe quelle configuration — chacune répond à une question :</p>
+  <div class="tablewrap"><table>
+    <tr><th>Notion</th><th>Question à laquelle elle répond</th><th>Exemple</th></tr>
+    <tr><td><b>EntryPoint</b></td><td>par où ça rentre ?</td><td><code class="inline">:80</code></td></tr>
+    <tr><td><b>Router</b></td><td>cette requête est-elle pour moi ?</td><td><code class="inline">Host(...)</code></td></tr>
+    <tr><td><b>Service</b></td><td>où l'envoyer ?</td><td>le port <b>interne</b></td></tr>
+    <tr><td><b>Middleware</b></td><td>que faire entre les deux ?</td><td><code class="inline">stripprefix</code>, <code class="inline">basicauth</code></td></tr>
+  </table></div>
+  <h3>Et un cinquième : le Provider</h3>
+  <p>La <b>source</b> de configuration — l'endroit d'où Traefik apprend l'existence des services. Ici, Docker lui-même :</p>
+  <script type="text/plain" data-lang="yaml">
+--providers.docker=true
+  </script>
+  <p>Traefik se connecte au moteur Docker, s'abonne à ses événements et lit les labels des conteneurs. Il en existe d'autres : fichiers YAML/TOML, Kubernetes, Consul, Redis…</p>
+</section>
+<section class="slide" data-titre="M3 · Le Router">
+  <div class="kicker">Module 3</div><h2>Router — « cette requête est-elle pour moi ? »</h2>
+  <p>Une règle d'aiguillage. Elle examine la requête et décide si elle la prend en charge.</p>
+  <script type="text/plain" data-lang="yaml">
+traefik.http.routers.frontend.rule=Host(`app.localhost`)
+  </script>
+  <h3>Les règles les plus courantes</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Règle</th><th>Correspond à</th></tr>
+    <tr><td><code class="inline">Host(`app.localhost`)</code></td><td>le nom de domaine demandé — <b>le port est ignoré</b></td></tr>
+    <tr><td><code class="inline">PathPrefix(`/api`)</code></td><td>les URL commençant par <code class="inline">/api</code></td></tr>
+    <tr><td><code class="inline">Path(`/health`)</code></td><td>exactement cette URL</td></tr>
+    <tr><td><code class="inline">Method(`GET`)</code></td><td>la méthode HTTP</td></tr>
+    <tr><td><code class="inline">Header(`X-Cle`, `valeur`)</code></td><td>la présence d'un en-tête</td></tr>
+  </table></div>
+  <p>Elles se combinent avec <code class="inline">&amp;&amp;</code> (et), <code class="inline">||</code> (ou) et <code class="inline">!</code> (non).</p>
+  <div class="hintbox"><b>Quand plusieurs règles correspondent</b>, Traefik retient la plus <b>longue</b>, donc la plus spécifique. C'est pourquoi <code class="inline">Host(`app.localhost`) &amp;&amp; PathPrefix(`/api`)</code> l'emporte sur <code class="inline">Host(`app.localhost`)</code> sans qu'on ait à intervenir.</div>
+</section>
+<section class="slide" data-titre="M3 · Service &amp; Middleware">
+  <div class="kicker">Module 3</div><h2>Service et Middleware</h2>
+  <h3>Service — « où j'envoie »</h3>
+  <p>La destination : le conteneur et son port <b>interne</b>.</p>
+  <script type="text/plain" data-lang="yaml">
+traefik.http.services.api.loadbalancer.server.port=8000
+  </script>
+  <p>Ce numéro est toujours celui sur lequel l'application écoute <b>dans</b> le conteneur — jamais un port publié sur la machine. Se tromper ici produit un <code class="inline">502 Bad Gateway</code>.</p>
+  <p class="muted">Le mot <code class="inline">loadbalancer</code> est là même avec un seul conteneur : Traefik répartit automatiquement si plusieurs exemplaires du même service existent.</p>
+  <h3>Middleware — « ce qui se passe entre les deux »</h3>
+  <script type="text/plain" data-lang="plain">
+Requête ──► Router ──► Middleware(s) ──► Service
+  </script>
+  <ul>
+    <li><b>stripprefix</b> retire un préfixe d'URL. Le navigateur demande <code class="inline">/api/health</code>, l'API reçoit <code class="inline">/health</code>. Sans lui, l'API répondrait 404 puisqu'elle n'expose pas de route <code class="inline">/api/health</code>.</li>
+    <li><b>basicauth</b> exige un identifiant et un mot de passe avant de laisser passer. C'est ce qui protège le dashboard.</li>
+  </ul>
+  <p class="muted">Il en existe une trentaine : redirections, compression, limitation de débit, ajout d'en-têtes, liste d'adresses autorisées… Un routeur peut en enchaîner plusieurs, appliqués <b>dans l'ordre déclaré</b>.</p>
+</section>
+<section class="slide" data-titre="M3 · Anatomie d'un label">
+  <div class="kicker">Module 3</div><h2>Anatomie d'un label</h2>
+  <p>Toute la configuration du routage tient dans les <b>labels</b> des conteneurs : des étiquettes <code class="inline">clé=valeur</code> que Traefik lit sur chaque conteneur Docker.</p>
+  <script type="text/plain" data-lang="plain">
+traefik . http . routers . frontend . rule
+   │       │        │          │        │
+   │       │        │          │        └── la propriété
+   │       │        │          └─────────── le NOM du routeur (libre)
+   │       │        └────────────────────── on configure un routeur
+   │       └─────────────────────────────── le protocole (http, tcp, udp)
+   └─────────────────────────────────────── préfixe Traefik
+  </script>
+  <p>Les quatre labels du service <b>frontend</b>, à lire un par un :</p>
+  <script type="text/plain" data-lang="yaml">
+labels:
+  # 1. « J'accepte d'être exposé » — obligatoire, rien ne l'est par défaut
+  - "traefik.enable=true"
+
+  # 2. ROUTER — la règle : « cette requête est-elle pour moi ? »
+  - "traefik.http.routers.frontend.rule=Host(`app.localhost`)"
+
+  # 3. Sur quel point d'entrée ce routeur écoute
+  - "traefik.http.routers.frontend.entrypoints=web"
+
+  # 4. SERVICE — la destination : le port INTERNE du conteneur
+  - "traefik.http.services.frontend.loadbalancer.server.port=80"
+  </script>
+  <div class="hintbox">La distinction : <b>le router est la question, le service est la réponse.</b> On peut avoir <b>deux routers pour un seul service</b></div>
+</section>
+<section class="slide" data-titre="M3 · Simulateur de routage">
+  <div class="kicker">Module 3 &bull; Widget</div><h2>Simulateur : quelle route gagne ?</h2>
+  <p>Le simulateur applique les <b>règles</b> et montre quel routeur la prend, quel middleware s'applique, et quel chemin l'application reçoit réellement.</p>
+  <div class="widget">
+    <div class="lbl">URL demandée par le navigateur</div>
+    <input type="text" id="urlInput" spellcheck="false" autocomplete="off">
+    <div style="margin:.6rem 0 .2rem">
+      <span class="ex">http://app.localhost:1111/</span>
+      <span class="ex">http://api.localhost:1111/health</span>
+      <span class="ex">http://app.localhost:1111/api/health</span>
+      <span class="ex">http://traefik.localhost:1111/</span>
+      <span class="ex">http://hello.localhost:1111/</span>
+      <span class="ex">http://localhost:1111/</span>
+      <span class="ex">http://app.localhost:1111/apidocs</span>
+    </div>
+    <label class="switch"><input type="checkbox" id="helloOn" checked> le service <code class="inline">hello</code> est démarré <span class="muted">— décoche pour voir la route disparaître</span></label>
+    <div class="simline" id="simParts"></div>
+    <div class="tablewrap"><table class="routes" id="simRoutes"></table></div>
+    <div id="simVerdict"></div>
+  </div>
+  <div class="hintbox">Trois choses à vérifier soi-même ici :
+  <ul style="margin:.4rem 0 0">
+    <li><b>le port <code class="inline">:1111</code> n'entre jamais dans la décision</b> — <code class="inline">Host(...)</code> ne regarde que le nom d'hôte ;</li>
+    <li>sur <code class="inline">app.localhost/api/health</code>, <b>la règle la plus longue gagne</b> — la priorité par défaut d'un routeur <b>est</b> la longueur de sa règle ;</li>
+    <li>essaie <code class="inline">/apidocs</code> : <code class="inline">PathPrefix</code> compare une <b>chaîne</b>, pas des segments de chemin. <code class="inline">/apidocs</code> commence bien par <code class="inline">/api</code> — c'est un piège classique.</li>
+  </ul></div>
+</section>
+<section class="slide" data-titre="M3 · Le réseau Docker">
+  <div class="kicker">Module 3</div><h2>Le réseau Docker</h2>
+  <p>Dans notre cas tous les services partagent le réseau <code class="inline">tuto-traefik-net</code>, un couloir privé dans lequel les conteneurs se joignent <b>par leur nom de service</b>, sans qu'aucun port ne soit publié.</p>
+  <script type="text/plain" data-lang="plain">
+   Machine hôte
+   ┌──────────────────────────────────────────┐
+   │  port 1111 ─┐                            │
+   │             ▼                            │
+   │  ┌────────────────────────────────────┐  │
+   │  │  réseau tuto-traefik-net (privé)   │  │
+   │  │    traefik ──► frontend:80         │  │
+   │  │            └─► api:8000            │  │
+   │  │            └─► hello:8080          │  │
+   │  └────────────────────────────────────┘  │
+   └──────────────────────────────────────────┘
+  </script>
+  <ol>
+    <li>Traefik peut joindre <code class="inline">api:8000</code> alors que ce port n'est publié nulle part. Le seul port visible de la machine est le <b>1111</b>.</li>
+    <li><b>Un service absent de ce réseau est invisible pour Traefik.</b> C'est la cause la plus fréquente d'erreur 404 dans l'exercice.</li>
+  </ol>
+  <script type="text/plain" data-lang="yaml">
+--providers.docker.network=tuto-traefik-net
+  </script>
+  <p class="muted">Cette option indique à Traefik quelle adresse utiliser lorsqu'un conteneur appartient à <b>plusieurs</b> réseaux. Sans elle : des erreurs aléatoires, difficiles à diagnostiquer.</p>
+</section>
+<section class="slide" data-titre="M3 · La découverte auto">
+  <div class="kicker">Module 3</div><h2>Les labels et la découverte automatique</h2>
+  <p>Un <b>label</b> est une simple étiquette <code class="inline">clé=valeur</code> attachée à un conteneur. Docker n'en fait rien : ce sont des métadonnées. Mais Traefik, lui, les lit.</p>
+  <p>C'est ce qui rend cette configuration si particulière : <b>elle ne vit pas dans un fichier de configuration de Traefik, mais sur les conteneurs eux-mêmes.</b> Chaque service transporte sa propre description de routage.</p>
+  <script type="text/plain" data-lang="plain">
+1. docker compose up          → Docker crée le conteneur
+2. Docker émet un événement   → « conteneur X démarré »
+3. Traefik reçoit l'événement → via le socket Docker
+4. Traefik lit les labels     → « je dois router hello.localhost »
+5. La route existe            → sans redémarrage, en moins d'une seconde
+  </script>
+  <div class="grid2">
+    <div class="card"><span class="tag w">Configuration STATIQUE</span><p>Les options de démarrage de Traefik (<code class="inline">--entrypoints</code>, <code class="inline">--providers</code>). Les changer impose de <b>redémarrer</b> Traefik.</p></div>
+    <div class="card"><span class="tag b">Configuration DYNAMIQUE</span><p>Les <b>labels</b> des autres conteneurs. Relus <b>en permanence</b>, à chaud, sans redémarrage.</p></div>
+  </div>
+  <div class="dangerbox"><b>Piège rencontré en préparant ce tutoriel.</b> Les noms de routers et de services sont <b>globaux</b> : ils ne sont pas cloisonnés par projet Compose. Deux projets qui nomment tous deux un routeur <code class="inline">api</code> entrent en collision. La parade, déjà en place :<br>
+  <code class="inline">--providers.docker.constraints=Label(`com.docker.compose.project`,`tuto-traefik`)</code></div>
+</section>
+<section class="slide" data-titre="Quiz 2">
+  <div class="kicker">Quiz éclair</div><h2>Le vocabulaire Traefik</h2>
+  <div class="widget quiz" data-correct="2">
+    <p><b>1.</b> Dans <code class="inline">traefik.http.services.api.loadbalancer.server.port=8000</code>, que désigne <code class="inline">8000</code> ?</p>
+    <button class="opt">Le port à taper dans le navigateur</button>
+    <button class="opt">Le port publié par le conteneur sur la machine</button>
+    <button class="opt">Le port sur lequel l'application écoute DANS le conteneur</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="0">
+    <p><b>2.</b> Deux routers correspondent à la requête. Lequel Traefik retient-il par défaut ?</p>
+    <button class="opt">Celui dont la règle est la plus longue (la plus spécifique)</button>
+    <button class="opt">Celui déclaré en premier dans le docker-compose</button>
+    <button class="opt">Les deux : la requête est dupliquée</button>
+    <div class="feedback"></div>
+  </div>
+</section>
+<!-- ======================= MODULE 4 — LA DÉMONSTRATION ======================= -->
+<section class="slide" data-titre="Étape 1 · Le problème">
+  <div class="kicker">Démonstration &bull; Étape 1</div><h2>Identifier le besoin</h2>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.step1.yml up -d
+  </script>
+  <p>Ouvrir <b>deux onglets</b> : <code class="inline">http://localhost:3333</code> et <code class="inline">http://localhost:4444/</code>.</p>
+  <h3>À voir</h3>
+  <p>Dans la réponse de l'API, le champ <code class="inline">"passe_par_un_reverse_proxy": false</code> et le dictionnaire d'en-têtes <b>vide</b>. Personne n'a relayé la requête.</p>
+  <h3>À comprendre</h3>
+  <p class="muted">« Qu'est-ce qui vous gêne dans cette situation ? » <b> + deux ports = deux origines</b>, donc CORS (accès JS non fonctionnel).</p>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.step1.yml down
+  </script>
+</section>
+<section class="slide" data-titre="Étape 2 · Traefik entre en scène">
+  <div class="kicker">Démonstration &bull; Étape 2</div><h2>Traefik entre en scène</h2>
+  <script type="text/plain" data-lang="bash">
+docker compose up -d
+docker compose ps
+  </script>
+  <p><b>Vérifier</b> — le <code class="inline">docker-compose.yml</code>, sur les services <code class="inline">frontend</code> et <code class="inline">api</code> :</p>
+  <p style="font-size:1.1rem;border-left:3px solid var(--accent);padding-left:1rem">« Regardez ce qui a <b>disparu</b> : il n'y a plus aucune section <code class="inline">ports:</code>dans ces services. »</p>
+  <p>C'est le cœur de la démonstration. Les applications ne sont plus joignables depuis la machine. La preuve, en direct :</p>
+  <script type="text/plain" data-lang="bash">
+curl http://localhost:3333/     # échec : plus rien n'écoute
+  </script>
+  <p><b>La configuration de Traefik</b> :</p>
+  <script type="text/plain" data-lang="yaml">
+- --entrypoints.web.address=:80                # par où ça rentre
+- --providers.docker=true                      # où Traefik apprend l'existence des services
+- --providers.docker.exposedbydefault=false    # rien n'est exposé sans le demander
+  </script>
+  <p>Et le volume, à souligner :</p>
+  <script type="text/plain" data-lang="yaml">
+- /var/run/docker.sock:/var/run/docker.sock:ro
+  </script>
+  <p class="muted">« C'est la <b>fenêtre de Traefik sur Docker</b>. C'est ce qui lui permet de savoir, en temps réel, quels conteneurs existent. Nous verrons à la fin ce que cela coûte en termes de sécurité. »</p>
+  <div class="hintbox"><b>Notions introduites</b> : reverse proxy, EntryPoint, Provider, socket Docker.</div>
+</section>
+<section class="slide" data-titre="Étape 3 · Le routage">
+  <div class="kicker">Démonstration &bull; Étape 3 <span class="muted">(4 min)</span></div><h2>Le routage</h2>
+  <div class="tablewrap"><table>
+    <tr><th>URL</th><th>Résultat</th></tr>
+    <tr><td><code class="inline">http://app.localhost:1111</code></td><td>le frontend</td></tr>
+    <tr><td><code class="inline">http://api.localhost:1111/</code></td><td>l'API</td></tr>
+    <tr><td><code class="inline">http://api.localhost:1111/health</code></td><td><code class="inline">{"status":"ok"}</code></td></tr>
+  </table></div>
+  <p><b>Vérifier - le JSON de l'API a changé</b> par rapport à l'étape 1 :</p>
+  <script type="text/plain" data-lang="json">
+"passe_par_un_reverse_proxy": true,
+"en_tetes_ajoutes_par_le_proxy": {
+    "x-forwarded-host": "api.localhost:1111",
+    "x-forwarded-for": "172.28.0.1",
+    "x-forwarded-proto": "http"
+}
+  </script>
+  <p style="border-left:3px solid var(--accent);padding-left:1rem">« Ces en-têtes n'existaient pas à l'étape 1. Un navigateur ne les envoie <b>jamais</b> : c'est Traefik qui les ajoute en relayant. Voilà la <b>preuve</b> du passage par le reverse proxy. »</p>
+  <p><b>Vérifier - les labels du frontend</b>:</p>
+  <script type="text/plain" data-lang="yaml">
+- "traefik.enable=true"                                         # 1
+- "traefik.http.routers.frontend.rule=Host(`app.localhost`)"     # 2
+- "traefik.http.routers.frontend.entrypoints=web"                # 3
+- "traefik.http.services.frontend.loadbalancer.server.port=80"   # 4
+  </script>
+  <div class="hintbox"><b>Notions introduites</b> : Router, Service, labels Docker, en-têtes <code class="inline">X-Forwarded-*</code>.</div>
+</section>
+<section class="slide" data-titre="Étape 4a · CORS résolu">
+  <div class="kicker">Démonstration &bull; Étape 4a</div><h2>Le problème CORS, résolu par le routage</h2>
+  <p>Sur <code class="inline">http://app.localhost:1111</code>, cliquer sur <b>« Appeler l'API »</b>. Le JSON s'affiche dans la page du frontend.</p>
+  <p style="border-left:3px solid var(--accent);padding-left:1rem">« Cette page est sur <code class="inline">app.localhost</code>. Elle vient d'appeler l'API. Si elle avait appelé <code class="inline">http://api.localhost:1111</code>, le navigateur aurait <b>bloqué</b> la réponse : deux noms d'hôte différents, donc deux origines, donc CORS. »</p>
+  <p>En JavaScript une seule ligne compte :</p>
+  <script type="text/plain" data-lang="bash">
+const reponse = await fetch('/api/');   // chemin RELATIF, même origine
+  </script>
+  <p>Puis les labels correspondants sur le service <code class="inline">api</code> :</p>
+  <script type="text/plain" data-lang="yaml">
+- "traefik.http.routers.api.rule=Host(`api.localhost`)"                              # route 1
+- "traefik.http.routers.api-path.rule=Host(`app.localhost`) && PathPrefix(`/api`)"   # route 2
+- "traefik.http.routers.api-path.middlewares=api-strip"
+- "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
+- "traefik.http.services.api.loadbalancer.server.port=8000"                          # UN service
+  </script>
+  <p><b>Deux routers, un seul service.</b> La même application est atteignable par deux chemins différents.</p>
+  <script type="text/plain" data-lang="bash">
+curl http://app.localhost:1111/api/
+  </script>
+  <p>Le champ <code class="inline">"chemin_recu": "/"</code> — alors que le navigateur a demandé <code class="inline">/api/</code>.</p>
+  <script type="text/plain" data-lang="plain">
+Navigateur         Traefik              API
+/api/health  ──►  stripprefix  ──►     /health
+  </script>
+  <div class="hintbox">« Sans ce middleware, l'API recevrait <code class="inline">/api/health</code>, une route qu'elle n'expose pas : elle répondrait <b>404</b>. »</div>
+</section>
+<section class="slide" data-titre="Étape 4b · Le dashboard">
+  <div class="kicker">Démonstration &bull; Étape 4b</div><h2>Le dashboard, et ce qu'on n'y fait pas</h2>
+  <p><code class="inline">http://traefik.localhost:1111</code> — identifiants <b>demo / demo</b>.</p>
+  <p>Les <b>routers</b>, leurs règles, les <b>services</b>, les <b>middlewares</b> : tout ce qui vient d'être expliqué, sous forme visuelle.</p>
+  <p style="border-left:3px solid var(--accent);padding-left:1rem">« Remarquez que Traefik <b>se route lui-même</b> : son dashboard est déclaré avec des labels, exactement comme les autres services. »</p>
+  <h3>Niveau sécurité</h3>
+  <script type="text/plain" data-lang="yaml">
+# - --api.insecure=true
+# - "2222:8080"
+  </script>
+  <div class="dangerbox">« La plupart des tutoriels en ligne activent ces deux lignes : le dashboard devient accessible <b>sans mot de passe</b>. Il expose toute la topologie de l'infrastructure. Le nom de l'option est explicite — <i>insecure</i>. Ici on passe par un routeur et un middleware <code class="inline">basicauth</code>. »</div>
+  <div class="hintbox"><b>Notions introduites</b> : Middleware, priorité des routers, <code class="inline">api@internal</code>, sécurisation du dashboard.</div>
+</section>
+<section class="slide" data-titre="Étape 5 · Découverte auto">
+  <div class="kicker">Démonstration &bull; Étape 5</div><h2>A essayer</h2>
+  <p>Avant de lancer quoi que ce soit, noter <b>l'heure de démarrage de Traefik</b> :</p>
+  <script type="text/plain" data-lang="bash">
+docker inspect tuto-traefik-proxy --format '{{.State.StartedAt}}'
+  </script>
+  <p>Puis ajouter un troisième service, <b>sans toucher à Traefik</b> :</p>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.yml \
+               -f exercise/moyen/solution/docker-compose.hello.yml up -d
+  </script>
+  <p>Ouvrir <code class="inline">http://hello.localhost:1111</code> : le service répond. Enfin, <b>reposer la même commande</b> :</p>
+  <script type="text/plain" data-lang="bash">
+docker inspect tuto-traefik-proxy --format '{{.State.StartedAt}}'
+  </script>
+  <p style="font-size:1.1rem"><b>La date est identique.</b> Traefik n'a pas redémarré, sa configuration n'a pas été modifiée, et pourtant une route nouvelle existe.</p>
+  <p class="muted">« Docker a émis un événement "conteneur démarré". Traefik l'a reçu par le socket, a lu les labels du nouveau conteneur, et a créé la route. En moins d'une seconde. »</p>
+  <p>Idem à l'<b>inverse</b>:</p>
+  <script type="text/plain" data-lang="bash">
+docker compose stop hello     # la route disparaît d'elle-même
+docker compose start hello    # elle revient
+  </script>
+  <div class="hintbox"><b>Notions introduites</b> : configuration statique et dynamique, découverte automatique, cycle de vie des routes.</div>
+</section>
+<section class="slide" data-titre="Étape 5 · L'animation">
+  <div class="kicker">Démonstration &bull; Widget</div><h2>Ce qui se passe vraiment, pas à pas</h2>
+  <p>Le mécanisme complet, de la commande tapée à la route créée. Rien ici n'est simulé côté Traefik : c'est la séquence réelle.</p>
+  <div class="widget">
+    <div class="flow">
+      <div class="actor" id="acTerm">Terminal<br><span class="muted" style="font-size:.78rem">docker compose</span></div>
+      <div class="actor" id="acDocker">Docker<br><span class="muted" style="font-size:.78rem">le moteur</span></div>
+      <div class="actor" id="acTraefik">Traefik<br><span class="muted" style="font-size:.78rem">déjà démarré</span></div>
+      <div class="actor" id="acHello">hello<br><span class="muted" style="font-size:.78rem">le nouveau conteneur</span></div>
+    </div>
+    <div class="flowmsg" id="flowMsg"></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="act" onclick="flowStep(1)">Étape suivante</button>
+      <button class="ghost" onclick="flowStep(-1)">Précédente</button>
+      <button class="ghost" onclick="flowReset()">Recommencer</button>
+      <span class="muted" id="flowCount" style="font-size:.86rem"></span>
+    </div>
+  </div>
+  <div class="hintbox">Le point à retenir : à <b>aucun</b> moment Traefik n'a été redémarré, et <b>aucun</b> fichier de configuration n'a été modifié. C'est toute la différence avec nginx.</div>
+</section>
+<section class="slide" data-titre="Étape 6 · Conclusion">
+  <div class="kicker">Démonstration &bull; Étape 6</div><h2>Conclusion</h2>
+  <script type="text/plain" data-lang="bash">
+docker compose ps
+  </script>
+  <p style="font-size:1.1rem;border-left:3px solid var(--accent);padding-left:1rem">« Quatre noms de domaine, quatre services, <b>un seul port ouvert</b> sur la machine. Les applications elles-mêmes ne sont joignables par personne d'autre que Traefik. »</p>
+  <p class="muted">Cf les six objectifs de départ, correspond à l'exercice facile.</p>
+  <h3>Le scénario</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Temps</th><th>Séquence</th><th>Notion</th></tr>
+    <tr><td class="muted">0–2</td><td>Schéma proxy vs reverse proxy</td><td>sens du trafic, pour qui travaille l'intermédiaire</td></tr>
+    <tr><td class="muted">2–5</td><td>Étape 1 — deux onglets, <code class="inline">:3333</code> et <code class="inline">:4444</code></td><td>publication de ports, origines, le problème</td></tr>
+    <tr><td class="muted">5–8</td><td>Étape 2 — <code class="inline">up -d</code>, les <code class="inline">ports:</code> ont disparu</td><td>reverse proxy, EntryPoint, Provider, socket</td></tr>
+    <tr><td class="muted">8–12</td><td>Étape 3 — les URL, les <code class="inline">X-Forwarded-*</code>, les labels</td><td>Router, Service, labels</td></tr>
+    <tr><td class="muted">12–14</td><td>Étape 4a — « Appeler l'API », stripprefix</td><td>Middleware, même origine, 2 routers 1 service</td></tr>
+    <tr><td class="muted">14–16</td><td>Étape 4b — dashboard</td><td><code class="inline">api@internal</code>, sécurisation</td></tr>
+    <tr><td class="muted">16–19</td><td>Étape 5 — <code class="inline">hello</code> apparaît sans redémarrage</td><td>découverte automatique</td></tr>
+    <tr><td class="muted">19–20</td><td>Conclusion et exercice</td><td>—</td></tr>
+  </table></div>
+  <p class="muted">Pour remettre le projet dans l'état de départ de l'exercice moyen : <code class="inline">docker compose -f docker-compose.yml -f exercise/moyen/solution/docker-compose.hello.yml down</code> puis <code class="inline">docker compose up -d</code>.</p>
+</section>
+<!-- ======================= MODULE 5 — DÉPANNAGE ======================= -->
+<section class="slide" data-titre="D · Le réflexe">
+  <div class="kicker">Dépannage</div><h2>Le réflexe, avant tout</h2>
+  <script type="text/plain" data-lang="bash">
+docker compose ps            # les conteneurs tournent-ils ?
+docker compose logs traefik  # que dit Traefik ?
+./scripts/check.sh           # l'environnement est-il sain ?
+  </script>
+  <div class="warnbox" style="font-size:1.05rem"><b>Traefik ne plante presque jamais</b> : il démarre, puis <b>ignore silencieusement</b> ce qu'il ne comprend pas. Les logs sont donc la première source de vérité.</div>
+  <p>Deuxième source de vérité : <b>les routes que Traefik connaît réellement</b>.</p>
+  <script type="text/plain" data-lang="bash">
+curl -s -u demo:demo http://traefik.localhost:1111/api/http/routers \
+  | python3 -m json.tool | grep -E '"name"|"rule"'
+  </script>
+  <p class="muted">Si votre route n'apparaît pas ici, inutile de chercher côté navigateur : Traefik ne la connaît pas.</p>
+  <p>Troisième source, complémentaire : <b>les logs d'accès</b>(<code class="inline">--accesslog=true</code>), ils disent ce qui est <b>réellement arrivé</b> à chaque requête, là où les routes ne disent que ce que Traefik <b>sait</b> faire.</p>
+  <p>Accessible via docker compose logs api, docker compose logs frontend, docker compose logs hello.</p>
+  <script type="text/plain" data-lang="json">
+{"RouterName":"frontend@docker","ServiceName":"frontend@docker","RequestMethod":"GET","RequestPath":"/","DownstreamStatus":200,"Duration":1234000}
+  </script>
+  <p class="muted">Une ligne par requête. <code class="inline">RouterName</code>/<code class="inline">ServiceName</code> disent qui a traité la requête, <code class="inline">DownstreamStatus</code> ce que l'application a répondu, <code class="inline">Duration</code> le temps pris (en nanosecondes).</p>
+</section>
+<section class="slide" data-titre="D · Tout répond 404">
+  <div class="kicker">Dépannage &bull; Panne n°1</div><h2>Tout répond 404, dashboard compris</h2>
+  <p><b>Le cas le plus déroutant</b> : Traefik tourne, mais aucune route n'existe.</p>
+  <script type="text/plain" data-lang="bash">
+docker compose logs traefik | grep -i "too old"
+  </script>
+  <p>Si vous trouvez :</p>
+  <script type="text/plain" data-lang="plain">
+client version 1.24 is too old. Minimum supported API version is 1.44
+  </script>
+  <p><b>Cause.</b> Docker 29 a cessé d'accepter les anciennes versions de son API, alors que Traefik jusqu'à la v3.5 réclamait l'API 1.24. Traefik démarre normalement mais ne peut pas interroger Docker : il ne découvre aucun conteneur, donc ne crée <b>aucune</b> route.</p>
+  <p><b>Correctif.</b> Utiliser Traefik <b>v3.6 ou supérieur</b>, qui négocie automatiquement la version de l'API :</p>
+  <script type="text/plain" data-lang="yaml">
+image: traefik:v3.6   # et non v3.5 ou antérieur
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>Compatibilité vérifiée avec Docker 29.1.3</th><th>v3.4</th><th>v3.5</th><th>v3.6</th><th>v3.7</th></tr>
+    <tr><td class="muted">résultat</td><td><span class="tag d">✗</span></td><td><span class="tag d">✗</span></td><td><span class="tag b">✓</span></td><td><span class="tag b">✓</span></td></tr>
+  </table></div>
+  <div class="hintbox">Épingler la version, jamais <code class="inline">latest</code> : une démonstration doit donner le même résultat dans six mois.</div>
+</section>
+<section class="slide" data-titre="D · Collision de noms">
+  <div class="kicker">Dépannage &bull; Panne n°2</div><h2>404 ou « Gateway Timeout » sur une route pourtant correcte</h2>
+  <p>Symptôme trompeur : la route est bien écrite, le conteneur tourne, et pourtant elle échoue — ou pire, <b>elle fonctionnait avant de cesser sans raison</b>.</p>
+  <p><b>Diagnostic.</b> Regardez les routers réellement connus de Traefik :</p>
+  <script type="text/plain" data-lang="bash">
+curl -s -u demo:demo http://traefik.localhost:1111/api/http/routers \
+  | python3 -c "import sys,json; [print(r['name'],'|',r.get('rule')) for r in json.load(sys.stdin)]"
+  </script>
+  <p>Si vous voyez des routers <b>qui ne vous appartiennent pas</b>, ou si l'un des vôtres manque à l'appel, c'est une collision de noms.</p>
+  <p><b>Cause.</b> Les noms de routers et de services sont <b>globaux au provider Docker</b> : ils ne sont pas cloisonnés par projet Compose. Deux projets qui nomment tous deux un routeur <code class="inline">api</code> — un nom très courant — se marchent dessus. Selon le cas : <b>404</b> (votre routeur a été écrasé) ou <b>Gateway Timeout</b> (Traefik tente de joindre le conteneur de l'autre projet, sur un réseau inaccessible).</p>
+  <p><b>Correctif</b>, déjà en place dans ce projet :</p>
+  <script type="text/plain" data-lang="yaml">
+- --providers.docker.constraints=Label(`com.docker.compose.project`,`tuto-traefik`)
+  </script>
+  <p class="muted">Traefik ignore alors tout conteneur extérieur au projet. Le label <code class="inline">com.docker.compose.project</code> est posé automatiquement par Docker Compose : il n'y a rien à ajouter sur les services. Bénéfice secondaire : le dashboard n'affiche que nos propres routes.</p>
+</section>
+<section class="slide" data-titre="D · 404 sur un service">
+  <div class="kicker">Dépannage &bull; Panne n°3</div><h2>404 sur un seul service</h2>
+  <p><b>C'est LA panne de l'exercice.</b> Traefik répond, mais ne sait pas quoi faire de la requête. Quatre causes, <b>par ordre de fréquence</b>.</p>
+  <h3>1. Le label <code class="inline">traefik.enable=true</code> manque</h3>
+  <p>La configuration précise <code class="inline">exposedbydefault=false</code> : sans ce label, le conteneur est <b>ignoré</b>, et rien n'apparaît dans les logs.</p>
+  <script type="text/plain" data-lang="bash">
+docker inspect <conteneur> --format '{{json .Config.Labels}}' | grep traefik
+  </script>
+  <h3>2. Le service n'est pas sur le bon réseau</h3>
+  <script type="text/plain" data-lang="bash">
+docker inspect <conteneur> --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}'
+  </script>
+  <p><code class="inline">tuto-traefik-net</code> doit apparaître. Sinon, ajoutez la section <code class="inline">networks:</code> au service.</p>
+  <h3>3. Une faute de frappe dans la règle</h3>
+  <p>Les caractères entourant le nom d'hôte sont des <b>accents graves</b>, pas des apostrophes ni des guillemets :</p>
+  <script type="text/plain" data-lang="yaml">
+- "traefik.http.routers.hello.rule=Host(`hello.localhost`)"   # correct
+- "traefik.http.routers.hello.rule=Host('hello.localhost')"   # ignoré
+  </script>
+  <h3>4. Les noms ne concordent pas entre les lignes</h3>
+  <p><code class="inline">routers.hello.rule</code> et <code class="inline">routers.helo.entrypoints</code> ne configurent <b>pas le même routeur</b>.</p>
+</section>
+<section class="slide" data-titre="D · 502 Bad Gateway">
+  <div class="kicker">Dépannage &bull; Panne n°4</div><h2>502 Bad Gateway</h2>
+  <p>Traefik a <b>trouvé la route</b> mais ne parvient pas à joindre l'application. La différence avec le 404 est essentielle à comprendre.</p>
+  <h3>Cause n°1 — le mauvais port</h3>
+  <p><code class="inline">loadbalancer.server.port</code> doit être le port <b>interne</b> du conteneur, jamais un port publié sur la machine.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Service</th><th>Port à indiquer</th></tr>
+    <tr><td>frontend (nginx)</td><td><code class="inline">80</code></td></tr>
+    <tr><td>api (uvicorn)</td><td><code class="inline">8000</code></td></tr>
+    <tr><td>hello</td><td><code class="inline">8080</code></td></tr>
+  </table></div>
+  <h3>Cause n°2 — l'application n'écoute que sur 127.0.0.1</h3>
+  <p>Elle est alors joignable depuis l'intérieur du conteneur, mais <b>pas depuis Traefik</b>. Il faut écouter sur <code class="inline">0.0.0.0</code> :</p>
+  <script type="text/plain" data-lang="bash">
+uvicorn main:app --host 0.0.0.0    # correct
+uvicorn main:app                   # écoute 127.0.0.1 → 502
+  </script>
+  <p>Vérification :</p>
+  <script type="text/plain" data-lang="bash">
+docker exec <conteneur> python -c "import urllib.request; \
+  print(urllib.request.urlopen('http://127.0.0.1:8000/health').read())"
+  </script>
+  <div class="hintbox">Si cette commande répond mais que Traefik échoue, c'est bien le <b>port</b> ou l'<b>adresse d'écoute</b>.</div>
+</section>
+<section class="slide" data-titre="D · Les autres pannes">
+  <div class="kicker">Dépannage &bull; Le reste</div><h2>Les autres pannes, en accéléré</h2>
+  <h3><code class="inline">port is already allocated</code></h3>
+  <p>Un autre programme occupe déjà le port. <code class="inline">./scripts/check.sh</code> dit lequel, <code class="inline">ss -tlnp | grep :1111</code> dit qui. Correctif : changer la valeur dans <code class="inline">.env</code> — <b>aucun autre fichier à modifier</b>.</p>
+  <h3><code class="inline">app.localhost</code> ne s'ouvre pas</h3>
+  <p>Vérifier <b>d'abord le port</b>. Ensuite la résolution du nom : la plupart des systèmes dirigent automatiquement tout <code class="inline">*.localhost</code> vers la machine locale, <b>mais pas Windows</b>. Ajouter au fichier <code class="inline">hosts</code> :</p>
+  <script type="text/plain" data-lang="plain">
+127.0.0.1  app.localhost api.localhost hello.localhost traefik.localhost
+  </script>
+  <p>Contournement immédiat, sans toucher au système — utile en démonstration :</p>
+  <script type="text/plain" data-lang="bash">
+curl -H "Host: app.localhost" http://localhost:1111/
+  </script>
+  <p class="muted">L'en-tête <code class="inline">Host</code> est précisément ce que Traefik examine ; le DNS n'a servi qu'à trouver la machine.</p>
+  <h3>Le dashboard refuse <code class="inline">demo/demo</code></h3>
+  <p>Le hash <code class="inline">apr1</code> contient des <code class="inline">$</code>, que Docker Compose interprète comme des variables. Il faut <b>doubler chaque <code class="inline">$</code></b>. Vérification : <code class="inline">docker compose config | grep basicauth</code> — les <code class="inline">$$</code> doivent y apparaître comme des <code class="inline">$</code> simples.</p>
+  <h3>Une modification des labels reste sans effet</h3>
+  <p>Les labels sont lus <b>à la création</b> du conteneur. <code class="inline">docker compose restart</code> ne suffit pas : il redémarre le conteneur <b>existant</b> sans le recréer. Utiliser <code class="inline">docker compose up -d</code>, ou <code class="inline">--force-recreate</code> en cas de doute.</p>
+  <h3>Le navigateur affiche une ancienne page</h3>
+  <p>nginx et le navigateur mettent en cache : <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>, ou une fenêtre privée, ou <code class="inline">docker compose up -d --build frontend</code>.</p>
+  <h3><code class="inline">https://app.localhost</code> tombe sur autre chose</h3>
+  <p>Ce tutoriel ne gère <b>que HTTP</b> : aucun certificat TLS n'est configuré. Rester en <code class="inline">http://</code> explicite ; si le navigateur force HTTPS, passer en navigation privée (la redirection reste souvent en cache).</p>
+  <div class="hintbox"><b>En cas de blocage pendant la démo</b>, la parade universelle : <code class="inline">docker compose down && docker compose up -d</code>. Et pour repartir vraiment de zéro : <code class="inline">docker compose build --no-cache</code>.</div>
+</section>
+<section class="slide" data-titre="Quiz 3">
+  <div class="kicker">Quiz éclair</div><h2>Lire le code d'erreur</h2>
+  <div class="widget quiz" data-correct="1">
+    <p><b>1.</b> Votre nouveau service répond <b>502 Bad Gateway</b>. Qu'est-ce que cela vous apprend ?</p>
+    <button class="opt">Traefik ne connaît pas la route : le label est faux</button>
+    <button class="opt">Traefik connaît la route mais ne joint pas l'application : port ou adresse d'écoute</button>
+    <button class="opt">Le conteneur n'est pas démarré</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="0">
+    <p><b>2.</b> Vous ajoutez un service, il répond <b>404 page not found</b> et <b>rien</b> n'apparaît dans les logs de Traefik. La cause la plus probable ?</p>
+    <button class="opt">Le label <code class="inline">traefik.enable=true</code> manque — le conteneur est ignoré</button>
+    <button class="opt">L'application écoute sur 127.0.0.1</button>
+    <button class="opt">Le port publié sur la machine est déjà pris</button>
+    <div class="feedback"></div>
+  </div>
+</section>
+<!-- ======================= MODULE 6 — SÉCURITÉ ======================= -->
+<section class="slide" data-titre="S · Le socket Docker">
+  <div class="kicker">Sécurité</div><h2>Le socket Docker : le compromis central</h2>
+  <script type="text/plain" data-lang="yaml">
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock:ro
+  </script>
+  <p>C'est cette ligne qui permet toute la magie de la découverte automatique. C'est aussi <b>le point le plus sensible de l'architecture</b>.</p>
+  <div class="dangerbox">Le socket Docker est l'<b>interface de commande</b> du moteur Docker. Y avoir accès, c'est pouvoir créer des conteneurs — et un conteneur peut monter n'importe quel répertoire de la machine. <b>Un accès au socket Docker équivaut donc en pratique à un accès administrateur à la machine hôte.</b> Le <code class="inline">:ro</code> limite l'accès à la lecture, ce qui réduit le risque sans le supprimer.</div>
+  <p>Pour un tutoriel local, c'est parfaitement acceptable. En production, trois approches plus sûres :</p>
+  <ol>
+    <li><b>Un proxy de socket Docker</b> (par exemple <code class="inline">tecnativa/docker-socket-proxy</code>) placé devant, qui ne laisse passer que les requêtes de consultation dont Traefik a besoin.</li>
+    <li><b>Le provider « file »</b> : la configuration est écrite dans un fichier YAML, et Traefik n'a plus besoin d'accéder à Docker. On perd la découverte automatique.</li>
+    <li><b>Un socket en mode « rootless »</b>, ou l'API Docker exposée en TLS avec des certificats clients.</li>
+  </ol>
+  <div class="hintbox"><b>À retenir</b> : la découverte automatique n'est pas gratuite, elle se paie en <b>privilèges accordés au reverse proxy</b>.</div>
+</section>
+<section class="slide" data-titre="S · Ce n'est pas de la prod">
+  <div class="kicker">Sécurité</div><h2>Ce projet n'est pas une configuration de production</h2>
+  <p>Trois points le distinguent d'un déploiement réel :</p>
+  <ol>
+    <li><b>Le socket Docker est monté</b> dans Traefik. C'est ce qui permet la découverte automatique, mais cela équivaut en pratique à un accès administrateur.</li>
+    <li><b>Aucun HTTPS.</b> Tout est en clair, sur HTTP.</li>
+    <li><b>Le mot de passe du dashboard est <code class="inline">demo</code></b>, et il est versionné dans le dépôt.</li>
+  </ol>
+  <p class="muted">Le dashboard est en revanche protégé par authentification, et non exposé via <code class="inline">--api.insecure</code> — cette variante figure en commentaire dans le compose, précisément pour expliquer pourquoi on l'évite.</p>
+  <h3>Ce que ferait une vraie production</h3>
+  <div class="grid2">
+    <div class="card"><span class="tag b">HTTPS automatique</span><p>Traefik obtient et renouvelle les certificats <b>Let's Encrypt</b> tout seul, et les applications continuent de ne parler qu'en HTTP en interne. C'est l'un de ses grands arguments.</p></div>
+    <div class="card"><span class="tag w">Point de défaillance unique</span><p>Oui, Traefik en est un. En production, on en fait tourner <b>plusieurs exemplaires</b> derrière un répartiteur de charge. C'est le compromis assumé de toute architecture à point d'entrée unique.</p></div>
+  </div>
+  <div class="hintbox"><b>« nginx fait la même chose, non ? »</b> Oui, et très bien. La différence est la <b>découverte automatique</b> : avec nginx, ajouter un service impose d'éditer un fichier de configuration et de recharger le serveur.</div>
+</section>
+<section class="slide" data-titre="Les questions qui reviennent">
+  <div class="kicker">FAQ</div><h2>Les questions qui reviennent</h2>
+  <h3>« Pourquoi le port 1111 et pas 80 ? »</h3>
+  <p>Parce que 80 est souvent déjà pris et qu'en dessous de <b>1024</b> il faut des droits administrateur. En production, ce serait 80 et 443. Le numéro est un choix de configuration, pas une règle.</p>
+  <h3>« Est-ce que <code class="inline">.localhost</code> marche partout ? »</h3>
+  <p>Sur la plupart des systèmes oui, tout <code class="inline">*.localhost</code> pointe automatiquement vers la machine locale. Sous Windows, il faut parfois éditer le fichier <code class="inline">hosts</code>. Le DNS ne sert qu'à <b>trouver la machine</b> ; c'est l'en-tête HTTP <code class="inline">Host</code> que Traefik examine, ce que démontre :</p>
+  <script type="text/plain" data-lang="bash">
+curl -H "Host: app.localhost" http://localhost:1111/
+  </script>
+  <h3>« Et le HTTPS ? »</h3>
+  <p>Un des grands arguments : Traefik obtient et renouvelle les certificats Let's Encrypt automatiquement.</p>
+  <h3>« Traefik ne devient-il pas un point de défaillance unique ? »</h3>
+  <p>Si. En production, plusieurs exemplaires derrière un répartiteur de charge.</p>
+  <h3>« Où sont configurés les ports ? »</h3>
+  <p>Dans <code class="inline">.env</code>, et nulle part ailleurs :</p>
+  <script type="text/plain" data-lang="bash">
+TRAEFIK_PORT=1111     # le point d'entrée unique
+FRONTEND_PORT=3333    # étape 1 uniquement
+API_PORT=4444         # étape 1 uniquement
+  </script>
+</section>
+<!-- ======================= MODULE 7 — EXERCICE ======================= -->
+<section class="slide" data-titre="Exercice · La mission">
+  <div class="kicker">Exercice &bull; Niveau 2/3</div><h2>Ajouter un service derrière Traefik</h2>
+  <p class="muted">Trois niveaux d'exercice existent (<code class="inline">exercise/</code>) : un échauffement diagnostic avant celui-ci, une synthèse répliques/affinité/healthcheck après.</p>
+  <p>Ajouter un troisième service, nommé <code class="inline">hello</code>, accessible à l'adresse <code class="inline">http://hello.localhost:1111</code>, et répondant :</p>
+  <script type="text/plain" data-lang="plain">
+Hello depuis le troisième service !
+  </script>
+  <h3>Les six contraintes</h3>
+  <ol>
+    <li><b>Créer le service Docker</b> — un serveur HTTP minimal, dans le langage de votre choix, avec son <code class="inline">Dockerfile</code>.</li>
+    <li><b>L'ajouter au docker-compose</b> — soit dans <code class="inline">docker-compose.yml</code>, soit dans un fichier séparé empilé avec <code class="inline">-f</code>.</li>
+    <li><b>Le connecter au réseau</b> utilisé par Traefik.</li>
+    <li><b>Ajouter les labels Traefik</b> nécessaires.</li>
+    <li><b>Vérifier que la route fonctionne.</b></li>
+    <li><b>Vérifier que les routes existantes fonctionnent toujours</b> — un ajout ne doit rien casser.</li>
+  </ol>
+  <p>Un squelette Python, sans aucune dépendance :</p>
+  <script type="text/plain" data-lang="python">
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Hello depuis le troisieme service !")
+
+# 0.0.0.0 et non 127.0.0.1 : sinon Traefik ne pourra pas vous joindre
+HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+  </script>
+  <div class="hintbox"><b>Bonus</b> : ajouter une route <code class="inline">/health</code> ; afficher le nom du service dans la réponse ; retrouver votre service dans le dashboard ; ajouter un middleware simple (<code class="inline">addprefix</code>, <code class="inline">redirectregex</code>, ou une authentification sur <code class="inline">/health</code>).</div>
+</section>
+<section class="slide" data-titre="Exercice · Le diagnostic">
+  <div class="kicker">Exercice</div><h2>Les quatre questions à vous poser</h2>
+  <p>Si votre service ne répond pas, reprenez-les <b>dans l'ordre</b> :</p>
+  <ol>
+    <li><b>Traefik a-t-il le droit de voir mon conteneur ?</b> La configuration précise <code class="inline">exposedbydefault=false</code>. Qu'est-ce que cela implique ?</li>
+    <li><b>Mon conteneur est-il sur le bon réseau ?</b> Traefik ne route que vers les conteneurs qu'il peut joindre.</li>
+    <li><b>Quel port ai-je indiqué à Traefik ?</b> Celui sur lequel l'application écoute <b>dans</b> le conteneur, ou un port de ma machine ?</li>
+    <li><b>Mon application écoute-t-elle sur la bonne adresse ?</b> Une application qui n'écoute que sur <code class="inline">127.0.0.1</code> est injoignable depuis l'extérieur de son conteneur.</li>
+  </ol>
+  <script type="text/plain" data-lang="bash">
+docker compose ps                                      # mes conteneurs tournent-ils ?
+docker compose logs traefik                            # que dit Traefik ?
+docker inspect <conteneur> --format '{{json .Config.Labels}}' | grep traefik
+docker exec <conteneur> wget -qO- http://127.0.0.1:8080/   # répond-il de l'intérieur ?
+  </script>
+  <h3>Comment lire le code d'erreur</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Réponse</th><th>Signification</th></tr>
+    <tr><td><span class="tag d">404</span> page not found</td><td>Traefik <b>ne connaît pas</b> cette route — problème de label, de règle ou de réseau</td></tr>
+    <tr><td><span class="tag w">502</span> Bad Gateway</td><td>Traefik connaît la route mais <b>ne joint pas</b> l'application — port ou adresse d'écoute</td></tr>
+    <tr><td><span class="tag d">Connexion refusée</span></td><td>rien n'écoute sur le port 1111 — Traefik est-il démarré ?</td></tr>
+    <tr><td><span class="tag b">Le service répond</span></td><td>bravo</td></tr>
+  </table></div>
+</section>
+<section class="slide" data-titre="Exercice · La correction">
+  <div class="kicker">Exercice</div><h2>La correction, en quatre labels</h2>
+  <script type="text/plain" data-lang="yaml">
+services:
+  hello:
+    build:
+      context: ./exercise/moyen/solution/hello
+    container_name: tuto-traefik-hello
+    restart: unless-stopped
+
+    networks:
+      - traefik-net
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello.rule=Host(`hello.localhost`)"
+      - "traefik.http.routers.hello.entrypoints=web"
+      - "traefik.http.services.hello.loadbalancer.server.port=8080"
+
+networks:
+  traefik-net:
+    name: tuto-traefik-net
+  </script>
+  <p class="muted">Aucune section <code class="inline">ports:</code> — c'est tout l'intérêt du reverse proxy.</p>
+  <h3>Checklist d'auto-vérification</h3>
+  <ul>
+    <li><code class="inline">http://hello.localhost:1111</code> affiche le message attendu</li>
+    <li><code class="inline">http://app.localhost:1111</code> fonctionne toujours</li>
+    <li><code class="inline">http://api.localhost:1111/health</code> fonctionne toujours</li>
+    <li><code class="inline">http://app.localhost:1111/api/</code> fonctionne toujours</li>
+    <li>le routeur <code class="inline">hello</code> apparaît dans le dashboard</li>
+    <li><code class="inline">docker compose logs traefik</code> ne montre aucune erreur</li>
+    <li>après <code class="inline">down</code> puis <code class="inline">up -d</code>, tout fonctionne encore</li>
+    <li>mon service <b>ne publie aucun port</b> sur la machine</li>
+  </ul>
+</section>
+<section class="slide" data-titre="Pour aller plus loin">
+  <div class="kicker">Exercice</div><h2>Pour aller plus loin</h2>
+  <p>Une fois l'exercice réussi — ces quatre questions préparent la suite de la formation :</p>
+  <ol>
+    <li>Que se passe-t-il si vous nommez votre routeur <code class="inline">api</code> au lieu de <code class="inline">hello</code> ? Pourquoi ?<br><span class="muted">Indice : les noms de routers sont-ils cloisonnés par projet ?</span></li>
+    <li>Comment rendre <code class="inline">hello</code> accessible <b>à la fois</b> sur <code class="inline">hello.localhost</code> et sur <code class="inline">app.localhost/hello</code> ? Quel middleware faut-il ?</li>
+    <li>Si vous lancez <b>deux exemplaires</b> du service <code class="inline">hello</code>, que fait Traefik ?<br><span class="muted">Indice : relisez le mot <code class="inline">loadbalancer</code> dans les labels.</span></li>
+    <li>Comment protégeriez-vous <code class="inline">/health</code> par mot de passe, <b>sans modifier une seule ligne</b> du code de votre service ?</li>
+  </ol>
+  <div class="hintbox">Les trois premières réponses sont déjà dans ce support — la quatrième est un <code class="inline">basicauth</code>, exactement comme celui qui protège le dashboard. C'est là tout l'intérêt du reverse proxy : <b>on ajoute une préoccupation transverse sans toucher à l'application</b>.</div>
+</section>
+<!-- ======================= MODULE 8 — AU-DELÀ ======================= -->
+<section class="slide" data-titre="M8 · Où Traefik sert">
+  <div class="kicker">Module 8 &bull; Question 1</div><h2>Où Traefik sert, aujourd'hui</h2>
+  <p>Traefik est né en 2015 d'un constat : dans une infrastructure de conteneurs, <b>les adresses changent tout le temps</b>. Un proxy dont la configuration dort dans un fichier à recharger n'y suffit plus.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Terrain</th><th>Ce qu'il y apporte</th></tr>
+    <tr><td><b>Docker Compose</b>, homelab, auto-hébergement</td><td>le cas de ce tutoriel — le meilleur rapport bénéfice/effort</td></tr>
+    <tr><td><b>Kubernetes</b></td><td>Ingress Controller, et surtout la <b>Gateway API</b> qui remplace <code class="inline">Ingress</code></td></tr>
+    <tr><td><b>Préproductions éphémères</b> en CI</td><td>une route par branche, créée et détruite avec le conteneur</td></tr>
+    <tr><td><b>SaaS multi-locataires</b>, edge</td><td>routage par <code class="inline">Host</code>, certificat wildcard par DNS-01</td></tr>
+    <tr><td><b>Passerelle d'API</b></td><td>rate-limit, authentification déléguée, WAF — sans toucher au code</td></tr>
+    <tr><td><b>Passerelle IA</b></td><td>devant des modèles et des serveurs MCP <span class="tag a">écran suivant</span></td></tr>
+  </table></div>
+  <div class="warnbox"><b>Ce qu'il ne fait pas</b>, et qu'on croit souvent : il <b>ne sert pas de fichiers statiques</b> (aucune directive <code class="inline">root</code> — d'où le nginx de ce projet), il n'est pas un maillage de services (Istio, Linkerd), et il n'est pas le plus rapide (Go plutôt que C).</div>
+</section>
+<section class="slide" data-titre="M8 · AI Gateway &amp; MCP Gateway">
+  <div class="kicker">Module 8 &bull; Question 1</div><h2>Le terrain le plus récent : l'IA</h2>
+  <p>Deux produits sont apparus autour des agents:</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">AI Gateway</h3>
+      <p class="muted" style="margin-top:0">Un point d'entrée unique devant plusieurs fournisseurs de modèles.</p>
+      <ul>
+        <li>bascule automatique en cas de panne</li>
+        <li>quotas de jetons, suivi des coûts</li>
+        <li>garde-fous de sécurité (NVIDIA NIMs)</li>
+      </ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">MCP Gateway</h3>
+      <p class="muted" style="margin-top:0">La même logique devant des serveurs MCP.</p>
+      <ul>
+        <li><b>routage tenant compte des sessions</b></li>
+        <li>OAuth 2.1 en <i>resource server</i></li>
+        <li>contrôle d'accès par outil (TBAC)</li>
+        <li>traces OpenTelemetry par outil appelé</li>
+      </ul>
+    </div>
+  </div>
+  <div class="dangerbox">Ces deux passerelles sont dans <b>Traefik Hub</b>, l'offre <b>commerciale</b>. Elles ne sont pas dans le Traefik open source que nous utilisons.</div>
+</section>
+<section class="slide" data-titre="M8 · MCP : la session casse">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Pourquoi une session MCP casse derrière un proxy</h2>
+  <p><b>MCP</b> est le protocole par lequel un agent IA appelle des outils. Son transport HTTP actuel, <b>Streamable HTTP</b>, ouvre une <b>session</b> :</p>
+  <script type="text/plain" data-lang="plain">
+   Client MCP                            Serveur MCP
+      │  POST /mcp  {"method":"initialize"}
+      ├────────────────────────────────────────►
+      │                          crée la session EN MÉMOIRE
+      │  200  +  en-tête  Mcp-Session-Id: 982a74…
+      ◄────────────────────────────────────────┤
+      │  POST /mcp  {"method":"tools/call"}
+      │  en-tête    Mcp-Session-Id: 982a74…
+      ├────────────────────────────────────────►
+  </script>
+  <p>Cette session n'est pas une simple ligne dans un dictionnaire : elle contient des <b>flux SSE ouverts</b>, des tâches de fond, des canaux. On ne la sérialise pas, on ne la déplace pas.</p>
+  <p>Derrière <b>trois répliques</b> et un round-robin :</p>
+  <script type="text/plain" data-lang="plain">
+   initialize  ──►  réplique 2      la session naît ICI
+   tools/call  ──►  réplique 3      404  « session not found »
+   tools/call  ──►  réplique 1      404
+   tools/call  ──►  réplique 2      200  — par hasard
+  </script>
+  <div class="dangerbox"><b>Le symptôme, en une phrase :</b> ça marche avec <b>une</b> réplique, ça casse à <b>deux</b>. Et l'erreur (<code class="inline">404</code>, JSON-RPC <code class="inline">-32001</code>) ne dit rien du load balancer.</div>
+</section>
+<section class="slide" data-titre="M8 · Remède 1 : le cookie">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Remède 1 — le cookie collant</h2>
+  <p>Traefik <b>open source</b> sait épingler un client sur une réplique : il lui pose un cookie, le relit à chaque requête, et le ramène au même endroit.</p>
+  <script type="text/plain" data-lang="yaml">
+labels:
+  # Traefik pose « mcp_srv=<réplique> » à la première réponse
+  - "traefik.http.services.mcp.loadbalancer.sticky.cookie.name=mcp_srv"
+
+  # Le cookie n'a aucun usage côté client : on le cache au JavaScript
+  - "traefik.http.services.mcp.loadbalancer.sticky.cookie.httponly=true"
+
+  # Sans durée de vie, il meurt à la fermeture du navigateur
+  - "traefik.http.services.mcp.loadbalancer.sticky.cookie.maxage=3600"
+
+  # En HTTPS, deux lignes de plus :
+  #  - "...sticky.cookie.secure=true"
+  #  - "...sticky.cookie.samesite=none"
+  </script>
+  <div class="dangerbox"><b>La limite, et elle est sérieuse.</b> Ceci suppose un client qui <b>gère les cookies</b>. Un navigateur, oui. Un agent écrit en Python avec <code class="inline">httpx.post()</code> ou <code class="inline">requests.post()</code> sans session persistante, <b>non</b> — il ignore le cookie et reste cassé.</div>
+</section>
+<section class="slide" data-titre="M8 · Remède 2 : sans cookie">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Remède 2 — l'affinité sans cookie</h2>
+  <p>Plutôt que de <b>marquer</b> le client, on <b>calcule</b> sa destination à partir de son adresse IP :</p>
+  <script type="text/plain" data-lang="yaml">
+labels:
+  - "traefik.http.services.mcp.loadbalancer.strategy=hrw"
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>Stratégie</th><th>Comportement</th><th>Affinité</th></tr>
+    <tr><td><code class="inline">wrr</code> <span class="muted">(défaut)</span></td><td>round-robin pondéré</td><td class="muted">aucune</td></tr>
+    <tr><td><code class="inline">p2c</code></td><td>deux serveurs tirés au sort, le moins chargé gagne</td><td class="muted">aucune</td></tr>
+    <tr><td><code class="inline">hrw</code></td><td>hachage consistant sur l'IP du client</td><td><b style="color:var(--ok)">par IP</b></td></tr>
+    <tr><td><code class="inline">leasttime</code></td><td>le plus rapide à répondre</td><td class="muted">aucune</td></tr>
+  </table></div>
+  <p><b>Consistant</b> a un sens précis : si une réplique disparaît, seuls <b>ses</b> clients sont redistribués — là où un <code class="inline">IP modulo 3</code> rebattrait tout le monde.</p>
+  <div class="warnbox"><b>La limite, symétrique.</b> L'affinité tient à l'<b>adresse IP</b>, pas au client. Deux agents derrière un même NAT partagent une IP : même réplique, équilibrage dégradé.</div>
+</section>
+<section class="slide" data-titre="M8 · La démo, mesurée">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Ce que la démonstration mesure</h2>
+  <p>Le dépôt contient un serveur MCP réduit à l'essentiel, lancé en <b>trois exemplaires</b>. Huit appels d'outil par phase :</p>
+  <script type="text/plain" data-lang="bash">
+# 1. LE PROBLÈME — trois répliques, aucune affinité
+docker compose -f docker-compose.yml -f docker-compose.mcp.yml up -d --build
+./scripts/demo-sticky.sh
+
+# 2. LE REMÈDE PAR COOKIE          (on empile un 3e fichier)
+#    ... -f docker-compose.mcp-sticky.yml up -d
+
+# 3. LE REMÈDE PAR HACHAGE D'IP
+#    ... -f docker-compose.mcp-hrw.yml up -d
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>Configuration</th><th>Client <b>sans</b> cookies</th><th>Client <b>avec</b> cookies</th></tr>
+    <tr><td>aucune affinité</td><td style="color:var(--danger)">2/8 — 3 répliques</td><td style="color:var(--danger)">2/8 — 3 répliques</td></tr>
+    <tr><td>cookie collant</td><td style="color:var(--danger)">2/8 — 3 répliques</td><td style="color:var(--ok)"><b>8/8 — 1 réplique</b></td></tr>
+    <tr><td><code class="inline">strategy=hrw</code></td><td style="color:var(--ok)"><b>8/8 — 1 réplique</b></td><td style="color:var(--ok)"><b>8/8 — 1 réplique</b></td></tr>
+  </table></div>
+  <div class="hintbox">La <b>ligne du milieu</b> est la plus instructive, et tout le sujet tient dedans : <b>le cookie protège le navigateur, le hachage d'IP protège l'agent.</b></div>
+  <p class="muted">Mesures relevées sur ce dépôt avec <code class="inline">traefik:v3.6.25</code>. L'affinité idéale hacherait l'en-tête <code class="inline">Mcp-Session-Id</code> lui-même — Traefik open source ne sait pas le faire ; c'est ce que vend Hub.</p>
+</section>
+<section class="slide" data-titre="M8 · Quand une réplique meurt">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Répliquer ne suffit pas : et si l'une meurt ?</h2>
+  <p>L'affinité règle le problème des sessions. Elle ne dit rien d'un autre, plus banal : <b>Traefik ne vérifie rien par défaut</b>. Tant que le conteneur tourne, il reste dans la répartition — même s'il ne rend plus aucun service.</p>
+  <div class="hintbox">Un conteneur <b>vivant</b> peut très bien être <b>mort</b> : base injoignable, thread bloqué, mémoire saturée. Et <code class="inline">restart: unless-stopped</code> ne le relèvera pas, puisqu'il n'est pas tombé.</div>
+  <script type="text/plain" data-lang="yaml">
+# Trois lignes, sur le SERVICE
+- traefik.http.services.mcp.loadbalancer.healthcheck.path=/health
+- traefik.http.services.mcp.loadbalancer.healthcheck.interval=3s
+- traefik.http.services.mcp.loadbalancer.healthcheck.timeout=1s
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>Une réplique sur trois est en panne</th><th>12 requêtes</th></tr>
+    <tr><td>sans sonde — Traefik continue de la servir</td><td style="color:var(--danger)"><b>8/12</b> — une sur trois échoue, au hasard</td></tr>
+    <tr><td>avec sonde — retirée du pool en 3&nbsp;s</td><td style="color:var(--ok)"><b>12/12</b> — personne n'a rien vu</td></tr>
+  </table></div>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.yml -f docker-compose.mcp.yml up -d --build
+./scripts/demo-health.sh          # 8/12
+
+#    ... -f docker-compose.health.yml up -d
+./scripts/demo-health.sh          # 12/12
+  </script>
+  <p class="muted">À ne pas confondre avec le <code class="inline">healthcheck:</code> de Docker Compose : celui de Docker décide si le <b>conteneur</b> est sain, celui de Traefik s'il reste dans le <b>pool</b>. Seul le second influence le routage.</p>
+</section>
+<section class="slide" data-titre="M8 · Le streaming, et ce qui le casse">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Le streaming derrière un proxy</h2>
+  <p>Toute IA générative diffuse au fil de l'eau. Un proxy est un intermédiaire, et un intermédiaire peut <b>accumuler</b> avant de retransmettre. Un seul middleware suffit à tout annuler.</p>
+  <div class="tablewrap"><table>
+    <tr><th>La même API, la même route</th><th>Morceaux reçus</th><th>Premier morceau</th></tr>
+    <tr><td>sans middleware</td><td style="color:var(--ok)">16</td><td style="color:var(--ok)"><b>0,25 s</b></td></tr>
+    <tr><td>avec <code class="inline">buffering</code></td><td style="color:var(--danger)">1</td><td style="color:var(--danger)"><b>3,75 s</b></td></tr>
+  </table></div>
+  <div class="hintbox">La durée <b>totale</b> est identique : le serveur a travaillé aussi vite. C'est l'attente <b>perçue</b> qui change du tout au tout — écran vide pendant quatre secondes, puis tout d'un coup.</div>
+  <p>Le piège : on ajoute <code class="inline">buffering</code> pour une raison sans rapport — plafonner la taille des documents téléversés vers l'IA (<code class="inline">maxRequestBodyBytes</code>) — sans réaliser qu'on vient de mettre les <b>réponses</b> en tampon du même coup.</p>
+  <script type="text/plain" data-lang="bash">
+docker compose -f docker-compose.yml -f docker-compose.stream.yml up -d --build
+./scripts/demo-stream.sh
+  </script>
+</section>
+<section class="slide" data-titre="M8 · Deux idées reçues">
+  <div class="kicker">Module 8 &bull; Question 2</div><h2>Deux idées reçues, démenties par la mesure</h2>
+  <p>Elles circulent partout. Le script les met en défaut sous vos yeux, sur <code class="inline">traefik:v3.6</code>.</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0;color:var(--danger)">« Jamais <code class="inline">compress</code> sur du SSE »</h3>
+      <p class="muted" style="margin-top:0">Vrai pour nginx. Faux ici.</p>
+      <ul>
+        <li>le flux <b>est</b> compressé — <code class="inline">Content-Encoding: gzip</code> ;</li>
+        <li>et les jetons arrivent quand même <b>un par un</b> ;</li>
+        <li>le compresseur de Traefik transmet au fil de l'eau.</li>
+      </ul>
+      <p class="muted">Un héritage nginx recopié de billet en billet, sans jamais être revérifié.</p>
+    </div>
+    <div class="card"><h3 style="margin-top:0;color:var(--danger)">« Il faut <code class="inline">flushInterval=-1</code> »</h3>
+      <p class="muted" style="margin-top:0">Inutile dans la quasi-totalité des cas.</p>
+      <ul>
+        <li>Traefik est bâti sur le proxy inverse de <b>Go</b> ;</li>
+        <li>celui-ci transmet <b>immédiatement</b>, en ignorant le réglage, dès que la réponse n'annonce pas sa longueur ;</li>
+        <li>c'est le cas de <b>tout</b> vrai flux (<code class="inline">chunked</code>).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="hintbox">La démonstration le prouve dans les deux sens : un service réglé à <code class="inline">flushInterval=5s</code> laisse passer <code class="inline">/stream</code> sans le moindre retard, mais accumule tout pendant 4&nbsp;s sur <code class="inline">/stream-fixe</code> — la seule route à annoncer un <code class="inline">Content-Length</code>.</div>
+  <p class="muted">À retenir : si un streaming est saccadé derrière Traefik, ce n'est presque jamais <code class="inline">flushInterval</code> qu'il faut aller changer. <b>Le streaming ne se configure pas — il se préserve.</b></p>
+</section>
+<section class="slide" data-titre="M8 · Le paysage">
+  <div class="kicker">Module 8 &bull; Question 3</div><h2>À quoi comparer Traefik</h2>
+  <p>Opposer « Traefik et nginx » n'a qu'à moitié de sens : ils ne visent pas le même problème. <b>Trois familles</b> se distinguent.</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">1 · Proxies classiques</h3>
+      <p class="muted" style="margin-top:0">Configuration écrite à la main, rechargée explicitement.</p>
+      <ul><li><b>nginx</b> — omniprésent, rapide, sert le statique</li>
+      <li><b>HAProxy</b> — la référence du load-balancing</li>
+      <li><b>Caddy</b> — HTTPS automatique, config minimale</li></ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">2 · Cloud-native</h3>
+      <p class="muted" style="margin-top:0">Configuration déduite de l'état du cluster. La famille de Traefik.</p>
+      <ul><li><b>Traefik</b> — Docker et Kubernetes</li>
+      <li><b>Envoy</b> — le moteur d'Istio, très verbeux</li>
+      <li><b>Istio / Linkerd</b> — maillage complet</li></ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem"><h3 style="margin-top:0">3 · Passerelles d'API et services gérés</h3>
+    <p style="margin-bottom:0"><b>Kong</b>, <b>Tyk</b>, <b>APISIX</b> — cycle de vie des API : clés, quotas, portail développeur. <b>AWS ALB</b>, <b>Azure App Gateway</b> — zéro exploitation, adhérence au fournisseur. <b>Cloudflare Tunnel</b> — expose sans ouvrir de port : complémentaire, pas concurrent.</p>
+  </div>
+</section>
+<section class="slide" data-titre="M8 · Caddy vs Traefik">
+  <div class="kicker">Module 8 &bull; Question 4</div><h2>Caddy ou Traefik ?</h2>
+  <p>Tous deux en Go, binaire unique, HTTPS automatique. Ils divergent sur <b>l'origine de la configuration</b> — et tout le reste en découle.</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0;color:var(--ok)">Caddy — ses avantages</h3><ul>
+      <li>un site en HTTPS tient en <b>deux lignes</b></li>
+      <li>HTTPS automatique <b>y compris en local</b> (CA interne)</li>
+      <li><b>sert les fichiers statiques</b></li>
+      <li>excellent hors Docker, sur une VM classique</li>
+    </ul>
+    <h3 style="color:var(--danger)">Ses inconvénients</h3><ul>
+      <li>pas de découverte Docker en standard <span class="muted">(plugin tiers <code class="inline">caddy-docker-proxy</code>)</span></li>
+      <li>quasi absent de Kubernetes</li>
+      <li>ajouter un plugin impose de <b>recompiler</b> (<code class="inline">xcaddy</code>)</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0;color:var(--ok)">Traefik — ses avantages</h3><ul>
+      <li><b>découverte automatique</b> native (Docker, K8s, Consul, Nomad)</li>
+      <li>middlewares chaînables et réutilisables</li>
+      <li>Ingress + Gateway API, TCP/UDP</li>
+      <li>dashboard, Prometheus, OpenTelemetry d'origine</li>
+    </ul>
+    <h3 style="color:var(--danger)">Ses inconvénients</h3><ul>
+      <li>labels verbeux, quatre notions avant la première route</li>
+      <li>ruptures v1→v2→v3, documentation mouvante</li>
+      <li><b>ne sert pas le statique</b> ; socket Docker à assumer</li>
+      <li>WAF, AI et MCP Gateway <b>réservés à Hub</b> (payant)</li>
+    </ul></div>
+  </div>
+</section>
+<section class="slide" data-titre="M8 · Lequel choisir ?">
+  <div class="kicker">Module 8 &bull; Question 4</div><h2>Lequel choisir, et quand</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Situation</th><th>Choix</th></tr>
+    <tr><td>un VPS, une application, un site statique</td><td><b style="color:var(--accent-lift)">Caddy</b></td></tr>
+    <tr><td>du HTTPS en développement local, sans y penser</td><td><b style="color:var(--accent-lift)">Caddy</b></td></tr>
+    <tr><td>une stack Docker Compose qui bouge souvent</td><td><b style="color:var(--accent-lift)">Traefik</b></td></tr>
+    <tr><td>Kubernetes</td><td><b style="color:var(--accent-lift)">Traefik</b> <span class="muted">(ou Envoy via Istio)</span></td></tr>
+    <tr><td>microservices, préproductions éphémères</td><td><b style="color:var(--accent-lift)">Traefik</b></td></tr>
+    <tr><td>100 000 requêtes/seconde sur du statique</td><td class="muted">ni l'un ni l'autre : <b>nginx</b></td></tr>
+  </table></div>
+  <div class="hintbox">Et rien n'oblige à trancher : <b>Traefik en frontal</b> pour l'aiguillage et le TLS, <b>nginx ou Caddy derrière</b> pour servir les fichiers. C'est exactement l'architecture de ce tutoriel — notre <code class="inline">frontend</code> est un nginx.</div>
+</section>
+<section class="slide" data-titre="M8 · Sur un projet réel">
+  <div class="kicker">Module 8 &bull; Question 5</div><h2>Brancher Traefik sur un projet IA</h2>
+  <p>Une recette en <b>six étapes</b>, applicable à tout projet « API + front + base » :</p>
+  <div class="tablewrap"><table>
+    <tr><th>#</th><th>Étape</th><th>Le geste</th></tr>
+    <tr><td><b>1</b></td><td>Recenser les surfaces</td><td>pour chaque service : exposé ou privé ? <b>Privé est la règle</b></td></tr>
+    <tr><td><b>2</b></td><td>Découper les réseaux</td><td>un réseau frontal + un <code class="inline">internal: true</code> pour la donnée</td></tr>
+    <tr><td><b>3</b></td><td>Supprimer les <code class="inline">ports:</code></td><td>un seul port publié dans tout le projet : celui de Traefik</td></tr>
+    <tr><td><b>4</b></td><td>Poser les labels</td><td>les quatre du tutoriel, par service exposé</td></tr>
+    <tr><td><b>5</b></td><td>Le TLS</td><td>CA locale en dev ; ACME/Let's Encrypt en prod, DNS-01 si wildcard</td></tr>
+    <tr><td><b>6</b></td><td>Les middlewares</td><td><b>rate-limit</b>, en-têtes de sécurité, auth sur le monitoring</td></tr>
+  </table></div>
+  <div class="hintbox"><b>L'étape 6 est celle qui change devant une IA.</b> Une requête LLM coûte des secondes de GPU : sans <code class="inline">ratelimit</code>, dix clients suffisent à saturer le service. C'est le middleware le plus rentable du projet.</div>
+  <div class="warnbox"><b>Le piège du service à deux réseaux</b> — un conteneur sur deux réseaux a deux adresses IP, et Traefik peut choisir celle qu'il n'atteint pas. Symptôme : un <b>504</b> sur une configuration pourtant juste. Correctif : <code class="inline">--providers.docker.network=projet_front_net</code>.</div>
+</section>
+<section class="slide" data-titre="M8 · Limiter et chiffrer">
+  <div class="kicker">Module 8 &bull; Question 5</div><h2>Les deux réglages à ne pas remettre à plus tard</h2>
+  <h3><code class="inline">ratelimit</code> — la première protection devant une IA</h3>
+  <p>Une requête vers un modèle coûte des <b>secondes de GPU</b>. Sans limite, un script parti en boucle suffit à saturer le service pour tout le monde. À poser avant même l'authentification.</p>
+  <script type="text/plain" data-lang="yaml">
+- traefik.http.middlewares.limiteur.ratelimit.average=3   # débit permanent
+- traefik.http.middlewares.limiteur.ratelimit.burst=3     # tolérance à-coups
+- traefik.http.routers.api.middlewares=limiteur
+  </script>
+  <p class="muted">Mesuré : <span style="color:var(--ok)">200 200 200</span> puis <span style="color:var(--danger)">429 429 429…</span> — l'application n'a <b>jamais vu</b> les requêtes refusées.</p>
+  <h3>Le HTTPS, et un second <b>provider</b></h3>
+  <p>Un certificat n'appartient à aucun conteneur : il est global. <b>Aucun label Docker ne peut le déclarer</b> — c'est là que le provider <code class="inline">file</code> devient indispensable.</p>
+  <script type="text/plain" data-lang="bash">
+./scripts/make-certs.sh     # certificat auto-signé, aucune connexion requise
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#   https://app.localhost:4443     http://... redirigé en 301
+  </script>
+  <div class="hintbox">Les deux providers tournent <b>en même temps</b> et leurs configurations fusionnent — le dashboard affiche « Docker » et « File ». C'est aussi la réponse à la question de sécurité du module 6 : <b>on peut se passer du socket Docker</b>, en décrivant tout dans des fichiers. On y perd la découverte automatique, on y gagne de ne plus monter le socket.</div>
+</section>
+<section class="slide" data-titre="M8 · CORS par middleware">
+  <div class="kicker">Module 8 &bull; Question 5</div><h2>Quand le routage ne suffit plus : <code class="inline">headers</code></h2>
+  <p><b>Rappel</b> — CORS est une règle imposée par le <b>navigateur</b> : une page chargée depuis une origine (domaine + port + protocole) ne peut pas appeler par défaut une API sur une <b>autre</b> origine, sauf si le serveur appelé l'autorise explicitement via des en-têtes <code class="inline">Access-Control-*</code>.</p>
+  <p>Le module 2 a résolu ce problème <b>par le routage</b> : même origine, donc plus de CORS du tout. Mais ce n'est pas toujours possible — une application mobile, un widget embarqué chez un tiers, une API consommée depuis un autre domaine. Dans ces cas, c'est Traefik lui-même qui répond aux en-têtes CORS, via le middleware <code class="inline">headers</code> :</p>
+  <script type="text/plain" data-lang="yaml">
+- "traefik.http.middlewares.cors.headers.accesscontrolalloworiginlist=https://autre-site.exemple"
+- "traefik.http.middlewares.cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS"
+- "traefik.http.middlewares.cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
+- "traefik.http.routers.api.middlewares=cors"
+  </script>
+  <div class="hintbox">Le même middleware <code class="inline">headers</code> sert aussi, hors de tout contexte CORS, à poser des en-têtes de sécurité (<code class="inline">Strict-Transport-Security</code>, <code class="inline">X-Frame-Options</code>…) sur toutes les réponses d'un routeur.</div>
+  <div class="warnbox">Le même-origine (module 2) reste la solution par défaut, la plus simple et la plus sûre. <code class="inline">headers</code> est un correctif pour les cas où on ne maîtrise pas les deux origines.</div>
+</section>
+<section class="slide" data-titre="M8 · Déléguer l'authentification">
+  <div class="kicker">Module 8 &bull; Question 5</div><h2><code class="inline">forwardauth</code> — l'auth déléguée</h2>
+  <p><code class="inline">basicauth</code> protège le dashboard avec un couple identifiant/mot de passe. Mais un vrai projet a son propre système d'authentification (JWT, session, OAuth) — le réécrire dans chaque service à protéger ne passe pas à l'échelle.</p>
+  <p><code class="inline">forwardauth</code> inverse le problème : avant de transmettre la requête, Traefik interroge un service d'authentification avec les mêmes en-têtes. Une réponse <b>2xx</b> laisse passer la requête (enrichie des en-têtes renvoyés par le service d'auth, ex. <code class="inline">X-User-Id</code>) ; sinon, Traefik renvoie <b>directement</b> l'erreur du service d'auth, sans jamais atteindre le service protégé.</p>
+  <script type="text/plain" data-lang="plain">
+Client ──► Traefik ──► auth-service : « ce jeton est-il valide ? »
+                            │
+                  200 + en-têtes           401
+                       │                    │
+                       ▼                    ▼
+                   service                erreur
+                  (protégé)             renvoyée telle
+                                          quelle
+  </script>
+  <script type="text/plain" data-lang="yaml">
+- "traefik.http.middlewares.check-jwt.forwardauth.address=http://auth-service:8080/verify"
+- "traefik.http.middlewares.check-jwt.forwardauth.authResponseHeaders=X-User-Id,X-User-Role"
+- "traefik.http.routers.api.middlewares=check-jwt"
+  </script>
+  <div class="hintbox">C'est l'équivalent <b>open source</b> de ce que Traefik Hub vend comme « OAuth 2.1 en resource server » pour le MCP Gateway, vu plus haut dans ce module : la logique est identique, seulement moins packagée.</div>
+  <div class="warnbox">Le service d'auth devient un <b>point de passage obligé</b> pour chaque requête protégée : sa latence et sa disponibilité deviennent critiques pour tout ce qu'il protège.</div>
+</section>
+<section class="slide" data-titre="M8 · Ce que Traefik mesure">
+  <div class="kicker">Module 8 &bull; Bonus</div><h2>Ce que Traefik mesure de lui-même</h2>
+  <p>Chaque service applicatif peut déjà exposer ses propres métriques — un endpoint <code class="inline">/metrics</code> côté FastAPI, par exemple. Traefik peut <b>en plus</b> exposer les siennes : une vue <b>côté bord</b>, complémentaire à la vue applicative.</p>
+  <script type="text/plain" data-lang="yaml">
+- --metrics.prometheus=true
+- --metrics.prometheus.addEntryPointsLabels=true
+- --metrics.prometheus.addRoutersLabels=true
+- --metrics.prometheus.addServicesLabels=true
+  </script>
+  <div class="tablewrap"><table>
+    <tr><th>Métrique application</th><th>Métrique Traefik</th></tr>
+    <tr><td class="muted">durée d'une inférence, taille du contexte…</td><td>latence <b>totale</b> perçue par le client, requêtes par router/service, codes retour, retries</td></tr>
+  </table></div>
+  <p class="muted">Les deux se complètent, aucune ne remplace l'autre : l'application sait <b>ce qu'elle a fait</b>, Traefik sait <b>ce que le client a vécu</b>.</p>
+  <div class="hintbox">Le tracing distribué (<b>OpenTelemetry</b>) suit le même principe pour reconstituer le trajet d'une requête à travers plusieurs services.</div>
+</section>
+<section class="slide" data-titre="M8 · Ce qu'on n'a pas vu">
+  <div class="kicker">Module 8 &bull; Honnêteté</div><h2>Ce que ce tutoriel ne couvre pas</h2>
+  <p><b>A-t-on fait le tour de Traefik ?</b></p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0;color:var(--ok)">Démontré</h3>
+      <ul>
+        <li>provider Docker et provider <b>file</b></li>
+        <li>entrypoints HTTP et HTTPS, redirection</li>
+        <li><code class="inline">Host()</code>, <code class="inline">PathPrefix()</code>, priorité</li>
+        <li>répartition, <code class="inline">sticky</code>, <code class="inline">hrw</code>, <code class="inline">healthcheck</code></li>
+        <li><code class="inline">stripprefix</code>, <code class="inline">basicauth</code>, <code class="inline">ratelimit</code>, <code class="inline">compress</code>, <code class="inline">buffering</code>, <code class="inline">headers</code> (CORS/sécurité), <code class="inline">forwardauth</code></li>
+        <li>TLS, dashboard, logs d'accès, métriques Prometheus natives</li>
+      </ul>
+    </div>
+    <div class="card"><h3 style="margin-top:0">Cité</h3>
+      <p class="muted" style="margin-top:0">Kubernetes (Ingress, CRD, Gateway API), Consul, Nomad ; <code class="inline">circuitbreaker</code>, <code class="inline">retry</code> ; ACME et Let's Encrypt ; tracing OpenTelemetry ; plugins ; Traefik Hub.</p>
+      <h3 style="color:var(--danger)">Hors périmètre</h3>
+      <p class="muted" style="margin-top:0">Routeurs <b>TCP</b> et <b>UDP</b> ; services <code class="inline">weighted</code> (canari), <code class="inline">mirroring</code>, <code class="inline">failover</code> ; mTLS vers les services ; HTTP/3 ; gRPC/h2c ; WebSocket ; Docker Swarm ; les matchers à expression régulière.</p>
+    </div>
+  </div>
+  <div class="hintbox">Si vous ne deviez ajouter que trois choses à un projet réel, dans cet ordre : <b>1.</b> le TLS par ACME dès qu'un domaine public existe ; <b>2.</b> <code class="inline">ratelimit</code> sur toute route qui déclenche une inférence ; <b>3.</b> <code class="inline">healthcheck</code> dès la deuxième réplique.</div>
+</section>
+<section class="slide" data-titre="Quiz 4">
+  <div class="kicker">Quiz éclair</div><h2>L'affinité de session</h2>
+  <div class="widget quiz" data-correct="0">
+    <p><b>1.</b> Un serveur MCP tourne en <b>trois répliques</b> derrière Traefik, sans affinité. Un client ouvre une session, puis appelle un outil. Que se passe-t-il ?</p>
+    <button class="opt">Environ deux fois sur trois : 404 « session not found » — la session est née ailleurs</button>
+    <button class="opt">Traefik recopie la session sur les trois répliques</button>
+    <button class="opt">Rien de particulier : Traefik suit toujours le même conteneur</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="1">
+    <p><b>2.</b> Vous ajoutez un <b>cookie collant</b>. Votre agent, écrit en Python avec <code class="inline">httpx.post()</code> sans session persistante, fonctionne-t-il ?</p>
+    <button class="opt">Oui — Traefik épingle le client quoi qu'il arrive</button>
+    <button class="opt">Non — il ignore le cookie. Il faut une session persistante côté client, ou <code class="inline">strategy=hrw</code></button>
+    <button class="opt">Oui, à condition d'ouvrir la session en HTTPS</button>
+    <div class="feedback"></div>
+  </div>
+</section>
+<section class="slide" data-titre="Mémo">
+  <div class="kicker">Clôture</div><h2>Mémo</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">Les commandes</h3>
+      <script type="text/plain" data-lang="bash">
+docker compose up -d              # démarrer
+docker compose down               # arrêter et supprimer
+docker compose ps                 # état des conteneurs
+docker compose logs -f traefik    # suivre les logs en direct
+docker compose up -d --build      # reconstruire après modification
+  </script>
+    </div>
+    <div class="card"><h3 style="margin-top:0">Le diagnostic</h3>
+      <script type="text/plain" data-lang="bash">
+# les routes réellement connues (source de vérité)
+curl -s -u demo:demo \
+  http://traefik.localhost:1111/api/http/routers
+
+# les labels vus par Docker
+docker inspect tuto-traefik-api \
+  --format '{{json .Config.Labels}}'
+
+# tester sans dépendre du DNS
+curl -H "Host: app.localhost" http://localhost:1111/
+  </script>
+    </div>
+  </div>
+  <h3>Les quatre notions, une dernière fois</h3>
+  <div class="tablewrap"><table>
+    <tr><th>EntryPoint</th><th>Router</th><th>Service</th><th>Middleware</th></tr>
+    <tr><td>par où ça rentre ?</td><td>c'est pour moi ?</td><td>où l'envoyer ?</td><td>quoi entre les deux ?</td></tr>
+  </table></div>
+  <p class="center muted" style="margin-top:2rem">Quatre noms de domaine, quatre services, <b style="color:var(--accent-lift)">un seul port ouvert</b>.</p>
+</section>
+</div>
+
+<div id="menu">
+  <span class="close" onclick="toggleMenu()">&times;</span>
+  <h3>Sommaire</h3>
+  <ol id="menulist"></ol>
+</div>
+
+<div id="nav">
+  <button class="btn" id="prev" onclick="go(-1)">&larr; Précédent</button>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span id="menuToggle" onclick="toggleMenu()">☰ Sommaire</span>
+    <span id="counter"></span>
+  </div>
+  <button class="btn" id="next" onclick="go(1)">Suivant &rarr;</button>
+</div>
+
+<script>
+/* =========================================================================
+   MÉCANIQUE DU SUPPORT
+   Le contenu des slides est en HTML natif, plus haut dans la page — voir le
+   mode d'emploi en tête du bloc #deck. On trouve ici la fabrique des blocs de
+   code, la carte de progression, le moteur de navigation, la coloration
+   syntaxique et les widgets.
+   ========================================================================= */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* Un bloc de code : cadre, bouton « copier », coloration appliquée à l'affichage.
+   Le code s'affiche colonne par colonne, tel qu'il est écrit — seules la newline
+   d'ouverture et les blancs de fermeture sont retirés. C'est ce qui préserve
+   l'alignement des schémas ASCII, dont la marge de gauche est du contenu. */
+const bloc = (c,lang) =>
+  `<div class="codewrap"><button class="copybtn">copier</button><pre><code class="hl" data-lang="${lang}">${esc(c.replace(/^\n/,'').replace(/\s+$/,''))}</code></pre></div>`;
+
+/* Le fil conducteur : 6 étapes, redessinées à chaque charnière. */
+const ETAPES = [
+  ["Le problème :","des ports partout"],
+  ["Les notions :","proxy & reverse proxy"],
+  ["Le vocabulaire :","router, service…"],
+  ["La démo :","les 6 étapes"],
+  ["Durcir :","pièges & exercice"],
+  ["Au-delà :","usages & alternatives"],
+];
+const carte = (actif) => `<div class="carte">${ETAPES.map((e,i) =>
+  `<div class="et${i===actif?" on":""}"><span class="n">${i+1}</span><span class="pt"></span>${e[0]}<br>${e[1]}</div>`
+).join("")}</div>`;
+
+/* =========================================================================
+   HYDRATATION DU CONTENU
+   Les deux marqueurs d'édition deviennent leurs composants rendus :
+     script type="text/plain"  →  bloc de code encadré, coloré, copiable
+     div data-carte="n"        →  carte des 6 étapes, la n-ième allumée
+   ========================================================================= */
+function hydrate(){
+  document.querySelectorAll('#deck script[type="text/plain"]').forEach(s=>{
+    s.outerHTML = bloc(s.textContent, s.dataset.lang || 'plain');
+  });
+  document.querySelectorAll('#deck [data-carte]').forEach(d=>{
+    d.outerHTML = carte(parseInt(d.dataset.carte,10));
+  });
+}
+
+/* =========================================================================
+   MOTEUR DE PRÉSENTATION
+   ========================================================================= */
+let cur = 0;
+const sections = Array.from(document.querySelectorAll('#deck > .slide'));
+const menulist = document.getElementById('menulist');
+
+hydrate();
+
+sections.forEach((s,i)=>{
+  const li = document.createElement('li');
+  li.textContent = (i+1)+'. '+s.dataset.titre;
+  li.onclick = ()=>{ jump(i); toggleMenu(); };
+  menulist.appendChild(li);
+});
+
+function render(){
+  sections.forEach((s,i)=>s.classList.toggle('active', i===cur));
+  document.getElementById('counter').textContent = `${cur+1} / ${sections.length}`;
+  document.getElementById('progress').style.width = ((cur)/(sections.length-1)*100)+'%';
+  document.getElementById('prev').disabled = cur===0;
+  document.getElementById('next').disabled = cur===sections.length-1;
+  window.scrollTo(0,0);
+  highlightAll();
+  if(sections[cur].querySelector('#urlInput')) initRoute();
+  if(sections[cur].querySelector('#flowMsg')) flowReset();
+}
+function go(d){ const n=cur+d; if(n>=0&&n<sections.length){cur=n;render();} }
+function jump(i){ cur=i; render(); }
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;   // ne pas naviguer pendant la saisie
+  if(e.key==='ArrowRight'||e.key===' ') go(1);
+  else if(e.key==='ArrowLeft') go(-1);
+  else if(e.key==='m'||e.key==='M') toggleMenu();
+  else if(e.key==='Home') jump(0);
+  else if(e.key==='End') jump(sections.length-1);
+});
+function toggleMenu(){ document.getElementById('menu').classList.toggle('open'); }
+
+/* =========================================================================
+   COLORATION SYNTAXIQUE — yaml, bash, python, json (et "plain" : rien)
+   ========================================================================= */
+function hlYaml(code){
+  code = esc(code);
+  const re = new RegExp(
+      "(#[^\\n]*)"                                              /* 1 commentaire   */
+    + "|(`[^`\\n]*`)"                                           /* 2 accent grave  */
+    + "|(traefik(?:\\.[A-Za-z0-9_-]+)+)"                        /* 3 clé traefik   */
+    + "|(--[A-Za-z][A-Za-z0-9._-]*)"                            /* 4 option        */
+    + "|\\b(true|false)\\b"                                     /* 5 booléen       */
+    + "|(^[ \\t]*-?[ \\t]*)([A-Za-z_][A-Za-z0-9_./-]*)(?=:)"    /* 6-7 clé yaml    */
+    + "|\\b(\\d+)\\b"                                           /* 8 nombre        */
+    , "gm");
+  return code.replace(re,(m,com,bt,tf,opt,bool,pre,key,num)=>{
+    if(com) return `<span class="tok-com">${com}</span>`;
+    if(bt)  return `<span class="tok-bt">${bt}</span>`;
+    if(tf)  return `<span class="tok-tf">${tf}</span>`;
+    if(opt) return `<span class="tok-opt">${opt}</span>`;
+    if(bool)return `<span class="tok-bool">${bool}</span>`;
+    if(key) return `${pre}<span class="tok-key">${key}</span>`;
+    if(num) return `<span class="tok-num">${num}</span>`;
+    return m;
+  });
+}
+
+function hlBash(code){
+  code = esc(code);
+  const re = new RegExp(
+      "(#[^\\n]*)"                                                        /* 1 commentaire */
+    + "|(\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*')"           /* 2 chaîne      */
+    + "|(https?:\\/\\/[^\\s'\"|)]+)"                                      /* 3 URL         */
+    + "|(`[^`\\n]*`)"                                                     /* 4 accent grave*/
+    + "|(^[ \\t]*)([A-Za-z_./][A-Za-z0-9_./-]*)"                          /* 5-6 commande  */
+    + "|(\\s)(--?[A-Za-z][A-Za-z0-9-]*)"                                  /* 7-8 option    */
+    , "gm");
+  return code.replace(re,(m,com,str,url,bt,pre,cmd,sp,opt)=>{
+    if(com) return `<span class="tok-com">${com}</span>`;
+    if(str) return `<span class="tok-str">${str}</span>`;
+    if(url) return `<span class="tok-url">${url}</span>`;
+    if(bt)  return `<span class="tok-bt">${bt}</span>`;
+    if(cmd) return `${pre}<span class="tok-cmd">${cmd}</span>`;
+    if(opt) return `${sp}<span class="tok-opt">${opt}</span>`;
+    return m;
+  });
+}
+
+const PYKW = "def|class|return|import|from|if|elif|else|try|except|finally|raise|for|while|in|is|not|and|or|None|True|False|with|as|lambda|pass";
+function hlPython(code){
+  code = esc(code);
+  const re = new RegExp(
+      "(#[^\\n]*)"
+    + "|(\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*')"
+    + "|\\b(" + PYKW + ")\\b"
+    + "|\\b(\\d+)\\b"
+    + "|\\b([A-Za-z_]\\w*)(?=\\s*\\()"
+    , "g");
+  return code.replace(re,(m,com,str,kw,num,fn)=>{
+    if(com) return `<span class="tok-com">${com}</span>`;
+    if(str) return `<span class="tok-str">${str}</span>`;
+    if(kw)  return `<span class="tok-bool">${kw}</span>`;
+    if(num) return `<span class="tok-num">${num}</span>`;
+    if(fn)  return `<span class="tok-key">${fn}</span>`;
+    return m;
+  });
+}
+
+function hlJson(code){
+  code = esc(code);
+  return code.replace(/("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g,
+    (m,str,colon,bool,num)=>{
+      if(str) return colon ? `<span class="tok-key">${str}</span>${colon}`
+                           : `<span class="tok-str">${str}</span>`;
+      if(bool)return `<span class="tok-bool">${bool}</span>`;
+      if(num) return `<span class="tok-num">${num}</span>`;
+      return m;
+    });
+}
+
+const HL = {yaml:hlYaml, bash:hlBash, python:hlPython, json:hlJson, plain:esc};
+
+function highlightAll(){
+  sections[cur].querySelectorAll('code.hl').forEach(c=>{
+    if(c.dataset.done) return;
+    const f = HL[c.dataset.lang] || esc;
+    c.innerHTML = f(c.textContent);
+    c.dataset.done = "1";
+  });
+  sections[cur].querySelectorAll('.copybtn').forEach(b=>{
+    if(b.dataset.bound) return; b.dataset.bound="1";
+    b.onclick=()=>{
+      const code = b.parentElement.querySelector('code').textContent;
+      navigator.clipboard.writeText(code).then(()=>{
+        const old=b.textContent; b.textContent="copié ✓";
+        setTimeout(()=>b.textContent=old,1200);
+      });
+    };
+  });
+}
+
+/* =========================================================================
+   QUIZ
+   ========================================================================= */
+document.addEventListener('click',e=>{
+  if(!e.target.classList.contains('opt')) return;
+  const quiz = e.target.closest('.quiz');
+  const correct = parseInt(quiz.dataset.correct,10);
+  const opts = Array.from(quiz.querySelectorAll('.opt'));
+  const idx = opts.indexOf(e.target);
+  opts.forEach(o=>o.classList.remove('correct','wrong'));
+  const fb = quiz.querySelector('.feedback');
+  if(idx===correct){ e.target.classList.add('correct'); fb.textContent="Correct !"; fb.style.color="var(--ok)"; }
+  else { e.target.classList.add('wrong'); opts[correct].classList.add('correct');
+         fb.textContent="Pas tout à fait. La bonne réponse est surlignée."; fb.style.color="var(--danger)"; }
+});
+
+/* =========================================================================
+   SIMULATEUR DE ROUTAGE
+   Les routes ci-dessous sont celles du docker-compose.yml du projet.
+   ========================================================================= */
+const ROUTES = [
+  {name:"frontend",  host:"app.localhost",     prefix:null,   mw:[],                                   svc:"frontend:80",  strip:null,   optionnel:false},
+  {name:"api",       host:"api.localhost",     prefix:null,   mw:[],                                   svc:"api:8000",     strip:null,   optionnel:false},
+  {name:"api-path",  host:"app.localhost",     prefix:"/api", mw:["api-strip (stripprefix /api)"],     svc:"api:8000",     strip:"/api", optionnel:false},
+  {name:"dashboard", host:"traefik.localhost", prefix:null,   mw:["dashboard-auth (basicauth)"],       svc:"api@internal", strip:null,   optionnel:false},
+  {name:"hello",     host:"hello.localhost",   prefix:null,   mw:[],                                   svc:"hello:8080",   strip:null,   optionnel:true},
+];
+/* La règle telle qu'elle est écrite dans les labels — sa LONGUEUR décide. */
+function regleDe(r){
+  const h = "Host(`" + r.host + "`)";
+  return r.prefix ? h + " && PathPrefix(`" + r.prefix + "`)" : h;
+}
+function parseUrl(raw){
+  let s = raw.trim().replace(/^https?:\/\//i,'');
+  const i = s.indexOf('/');
+  let hostPart = i<0 ? s : s.slice(0,i);
+  let path     = i<0 ? '/' : s.slice(i);
+  const j = hostPart.indexOf(':');
+  const host = (j<0 ? hostPart : hostPart.slice(0,j)).toLowerCase();
+  const port = j<0 ? '' : hostPart.slice(j+1);
+  if(!path.startsWith('/')) path = '/'+path;
+  return {host, port, path};
+}
+function initRoute(){
+  const inp = document.getElementById('urlInput');
+  if(!inp.dataset.bound){
+    inp.dataset.bound = "1";
+    inp.value = "http://app.localhost:1111/api/health";
+    inp.oninput = simRoute;
+    document.getElementById('helloOn').onchange = simRoute;
+    sections[cur].querySelectorAll('.ex').forEach(b=>{
+      b.onclick = ()=>{ inp.value = b.textContent; simRoute(); };
+    });
+  }
+  simRoute();
+}
+/* Reproduit le middleware stripprefix de Traefik : TrimPrefix + ensureLeadingSlash.
+   Conséquence : /apidocs avec le préfixe /api devient /docs, et non "docs". */
+function apresStrip(path, prefix){
+  if(!prefix) return path;
+  const reste = path.slice(prefix.length);
+  if(reste === '') return '/';
+  return reste.startsWith('/') ? reste : '/' + reste;
+}
+function simRoute(){
+  const {host, port, path} = parseUrl(document.getElementById('urlInput').value);
+  const helloOn = document.getElementById('helloOn').checked;
+
+  document.getElementById('simParts').innerHTML =
+      `<span><span class="k">en-tête Host :</span> <b style="color:var(--accent-lift)">${esc(host||'—')}</b></span>`
+    + `<span><span class="k">port :</span> ${esc(port||'—')} <span class="k">(ignoré par Host)</span></span>`
+    + `<span><span class="k">chemin :</span> <b style="color:var(--accent-lift)">${esc(path)}</b></span>`;
+
+  const actives = ROUTES.filter(r => !r.optionnel || helloOn);
+  const evals = actives.map(r=>{
+    const okHost = (r.host === host);
+    /* PathPrefix est un préfixe de CHAÎNE, pas de segment : /apidocs correspond à /api */
+    const okPath = (!r.prefix || path.startsWith(r.prefix));
+    const regle  = regleDe(r);
+    return {r, regle, match: okHost && okPath, len: regle.length};
+  });
+  const gagnants = evals.filter(e=>e.match).sort((a,b)=>b.len-a.len);
+  const win = gagnants[0] || null;
+
+  let html = `<tr><th>Router</th><th>Règle</th><th>Long.</th><th>Correspond ?</th></tr>`;
+  evals.forEach(e=>{
+    const cls = e === win ? 'win' : (e.match ? '' : 'miss');
+    html += `<tr class="${cls}"><td>${e.r.name}</td><td>${esc(e.regle)}</td>`
+          + `<td class="muted">${e.len}</td>`
+          + `<td class="${e.match?'yes':'no'}">${e.match?'✓ oui':'✗ non'}</td></tr>`;
+  });
+  if(!helloOn){
+    html += `<tr class="miss"><td>hello</td><td colspan="3" class="muted">conteneur arrêté — la route n'existe pas dans Traefik</td></tr>`;
+  }
+  document.getElementById('simRoutes').innerHTML = html;
+
+  const v = document.getElementById('simVerdict');
+  if(!win){
+    v.className = 'verdict ko';
+    const raison = actives.some(r=>r.host===host)
+      ? `Le nom <b>${esc(host)}</b> est bien connu de Traefik, mais aucun routeur ne couvre ce chemin.`
+      : `Aucun routeur ne déclare <code class="inline">Host(\`${esc(host)}\`)</code>. Label absent, conteneur arrêté, ou faute de frappe dans la règle.`;
+    v.innerHTML = `<b style="color:var(--danger)">404 page not found</b><br>${raison}`;
+  } else {
+    const r = win.r;
+    const recu = apresStrip(path, r.strip);
+    v.className = 'verdict ok';
+    v.innerHTML =
+        `<b style="color:var(--ok)">La requête passe.</b><br>`
+      + `<span class="muted">router retenu</span> <b>${r.name}</b>`
+      + (gagnants.length>1 ? ` <span class="muted">— il gagne parce que sa règle est la plus longue (${win.len} caractères contre ${gagnants[1].len})</span>` : '')
+      + `<br><span class="muted">middlewares</span> <b>${r.mw.length ? r.mw.join(' → ') : 'aucun'}</b>`
+      + `<br><span class="muted">service destinataire</span> <b>${r.svc}</b>`
+      + `<br><span class="muted">chemin reçu par l'application</span> <b style="color:var(--accent-lift)">${esc(recu)}</b>`
+      + (r.strip ? ` <span class="muted">— le middleware a retiré <code class="inline">${r.strip}</code></span>` : '');
+  }
+}
+
+/* =========================================================================
+   ANIMATION — la découverte automatique
+   ========================================================================= */
+const FLOW = [
+  {who:['acTerm','acDocker'],    msg:'<span class="stepno">1</span> On tape <code class="inline">docker compose up -d</code>. Docker <b>crée et démarre</b> le conteneur <code class="inline">hello</code>, avec ses labels attachés.'},
+  {who:['acDocker'],             msg:'<span class="stepno">2</span> Le moteur Docker émet un <b>événement</b> : « conteneur <code class="inline">hello</code> démarré ». Il ne sait rien de Traefik — il annonce, c\'est tout.'},
+  {who:['acDocker','acTraefik'], msg:'<span class="stepno">3</span> Traefik, <b>abonné au socket Docker</b>, reçoit l\'événement. Il tourne depuis le début : il n\'a pas redémarré, aucun fichier n\'a été touché.'},
+  {who:['acTraefik','acHello'],  msg:'<span class="stepno">4</span> Traefik <b>lit les labels</b> du nouveau conteneur : <code class="inline">enable=true</code>, la règle <code class="inline">Host(hello.localhost)</code>, le port interne <code class="inline">8080</code>.'},
+  {who:['acTraefik'],            msg:'<span class="stepno">5</span> <b>La route existe</b> — en moins d\'une seconde. <code class="inline">hello@docker</code> apparaît dans le dashboard, et <code class="inline">http://hello.localhost:1111</code> répond.'},
+  {who:['acTerm','acHello'],     msg:'<span class="stepno">6</span> <code class="inline">docker compose stop hello</code> : l\'événement inverse est émis, et <b>la route disparaît d\'elle-même</b>. Le cycle de vie de la route suit celui du conteneur.'},
+];
+let flowI = -1;
+function flowRender(){
+  ['acTerm','acDocker','acTraefik','acHello'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.classList.remove('hl');
+  });
+  const msgEl = document.getElementById('flowMsg');
+  const cnt = document.getElementById('flowCount');
+  if(!msgEl) return;
+  if(flowI<0){
+    msgEl.innerHTML = 'Clique sur « Étape suivante » pour dérouler le mécanisme complet, de la commande tapée à la route créée.';
+    cnt.textContent = ''; return;
+  }
+  const st = FLOW[flowI];
+  st.who.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add('hl'); });
+  msgEl.innerHTML = st.msg;
+  cnt.textContent = `Étape ${flowI+1} / ${FLOW.length}`;
+}
+function flowStep(d){ const n=flowI+d; if(n>=-1 && n<FLOW.length){ flowI=n; flowRender(); } }
+function flowReset(){ flowI=-1; flowRender(); }
+
+render();
+</script>
+</body>
+</html>

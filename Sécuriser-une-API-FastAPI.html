@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sécuriser une API FastAPI : OAuth2, JWT &amp; Refresh Tokens</title>
+<style>
+  :root{
+    --ink:#1b1a18; --ink2:#47433c; --muted:#8a847a;
+    --paper:#ffffff; --ground:#f3efe9; --tint:#f5f2ec; --hair:#e4e0d7;
+    --accent:#e2231c; --accent-deep:#a8141b;
+    --ok:#3f7d56; --accent2:#3f7d56; --danger:#c0392b; --warn:#b9791f;
+    --serif:Cambria,Georgia,"Times New Roman",serif;
+    --sans:"Segoe UI",Calibri,system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+    --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+  /* progress */
+  #topbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:50;background:transparent}
+  #progress{height:100%;width:0;background:var(--accent);transition:width .3s}
+  /* the page sheet */
+  #deck{max-width:1240px;margin:0 auto 118px;padding:44px 56px 64px;background:var(--paper)}
+  .slide{display:none;animation:fade .4s ease}
+  .slide.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  /* eyebrow */
+  .kicker{display:flex;align-items:center;gap:.55em;color:var(--accent);font-weight:700;
+          letter-spacing:.16em;text-transform:uppercase;font-size:.72rem;margin:0 0 1rem}
+  .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+  .center .kicker{justify-content:center}
+  /* headings */
+  h1{font-family:var(--serif);font-weight:700;font-size:2.7rem;line-height:1.1;letter-spacing:-.01em;margin:.1rem 0 1.1rem;color:var(--ink)}
+  h2{font-family:var(--serif);font-weight:700;font-size:2rem;line-height:1.16;margin:.1rem 0 1.3rem;color:var(--ink)}
+  h3{font-family:var(--serif);font-weight:700;font-size:1.24rem;margin:1.3rem 0 .5rem;color:var(--ink)}
+  p,li{font-size:1.02rem;color:var(--ink2)}
+  p{margin:.6rem 0}
+  ul{padding-left:0;list-style:none;margin:.7rem 0}
+  ul li{position:relative;padding-left:1.35rem;margin:.42rem 0}
+  ul li::before{content:"–";position:absolute;left:0;color:var(--accent);font-weight:700}
+  b,strong{color:var(--ink);font-weight:700}
+  .muted{color:var(--muted)}
+  .center{text-align:center}
+  /* labels */
+  .pill{display:inline-block;border:1px solid var(--hair);border-radius:2px;padding:.32rem .72rem;
+        font-size:.8rem;margin:.2rem .25rem;color:var(--ink2);letter-spacing:.01em}
+  /* two columns, divided by whitespace */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2.8rem;margin:.5rem 0}
+  .card{background:none;border:none;border-radius:0;padding:0}
+  .card h3{margin-top:0}
+  .tag{font-family:var(--sans);display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;
+       letter-spacing:.1em;margin:0 0 .25rem;color:var(--muted)}
+  .tag.a{color:var(--accent-deep)} .tag.b{color:var(--ok)} .tag.w{color:var(--warn)} .tag.d{color:var(--danger)}
+  /* tables: ruled, no boxes */
+  table{border-collapse:collapse;width:100%;margin:1.1rem 0;font-size:.96rem}
+  th,td{padding:.58rem .4rem;text-align:left;border-bottom:1px solid var(--hair);vertical-align:top}
+  th{font-family:var(--sans);font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;
+     color:var(--muted);font-weight:700;border-bottom:1.5px solid var(--ink)}
+  td{color:var(--ink2)}
+  /* code */
+  code.inline{font-family:var(--mono);font-size:.88em;background:var(--tint);color:var(--accent-deep);
+              padding:.07em .35em;border-radius:3px}
+  .codewrap{position:relative;margin:.95rem 0}
+  pre{background:var(--tint);border:1px solid var(--hair);border-radius:4px;padding:18px 20px;overflow-x:auto;margin:0}
+  pre code{font-family:var(--mono);font-size:.85rem;line-height:1.55;white-space:pre;color:var(--ink)}
+  .copybtn{position:absolute;top:8px;right:8px;background:var(--paper);border:1px solid var(--hair);
+           color:var(--muted);border-radius:4px;padding:.25rem .6rem;font-size:.75rem;cursor:pointer}
+  .copybtn:hover{color:var(--accent);border-color:var(--accent)}
+  .tok-kw{color:var(--accent-deep);font-weight:600}
+  .tok-str{color:#4f7a3a}
+  .tok-com{color:var(--muted);font-style:italic}
+  .tok-num{color:#9a5b2e}
+  .tok-fn{color:#2f4858}
+  .tok-dec{color:var(--accent-deep)}
+  /* nav */
+  #nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.9);border-top:1px solid var(--hair);
+       display:flex;align-items:center;justify-content:space-between;padding:10px 20px;backdrop-filter:blur(8px);z-index:40}
+  #nav .btn{background:var(--paper);border:1px solid var(--hair);color:var(--ink);border-radius:3px;padding:.5rem 1rem;cursor:pointer;font-size:.92rem;font-family:var(--sans)}
+  #nav .btn:hover{border-color:var(--accent);color:var(--accent)}
+  #nav .btn:disabled{opacity:.35;cursor:default}
+  #counter{color:var(--muted);font-size:.88rem}
+  #menuToggle{cursor:pointer;color:var(--ink2);font-size:.88rem;border:1px solid var(--hair);border-radius:3px;padding:.5rem .8rem;background:var(--paper)}
+  /* menu */
+  #menu{position:fixed;inset:0;background:rgba(243,239,233,.975);z-index:60;display:none;padding:48px;overflow:auto;backdrop-filter:blur(3px)}
+  #menu.open{display:block}
+  #menu h3{font-family:var(--serif);color:var(--ink);font-size:1.5rem;margin:0 0 1rem}
+  #menu ol{columns:2;column-gap:34px;list-style:none;padding:0}
+  #menu li{padding:.45rem .6rem;border-radius:4px;cursor:pointer;color:var(--ink2)}
+  #menu li:hover{background:var(--paper);color:var(--accent)}
+  #menu .close{position:absolute;top:24px;right:34px;font-size:1.7rem;cursor:pointer;color:var(--muted)}
+  /* widgets */
+  .widget{background:var(--paper);border:1px solid var(--hair);border-radius:5px;padding:18px;margin:1rem 0}
+  textarea,input{width:100%;background:#fff;border:1px solid var(--hair);border-radius:4px;color:var(--ink);
+        font-family:var(--mono);font-size:.88rem;padding:10px}
+  .jwtparts{display:flex;flex-wrap:wrap;gap:6px;margin:.6rem 0;font-family:var(--mono);font-size:.92rem;word-break:break-all}
+  .jwth{color:var(--ink);font-weight:600} .jwtp{color:var(--accent);font-weight:600} .jwts{color:var(--muted)}
+  .jwtout{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:.7rem}
+  .jwtout pre{font-size:.8rem}
+  .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.25rem;font-weight:700}
+  button.act{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:.55rem 1.1rem;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  button.act:hover{background:var(--accent-deep)}
+  button.ghost{background:transparent;border:1px solid var(--hair);color:var(--ink2);border-radius:4px;padding:.55rem 1.1rem;cursor:pointer;font-family:var(--sans)}
+  button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  /* flow */
+  .flow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin:.9rem 0}
+  .actor{background:var(--paper);border:1px solid var(--hair);border-radius:5px;padding:12px;font-weight:600;color:var(--ink)}
+  .actor.hl{border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .flowmsg{background:var(--tint);border:1px solid var(--hair);border-radius:5px;padding:13px 15px;margin:.6rem 0;min-height:46px;color:var(--ink2)}
+  .stepno{display:inline-block;background:var(--accent);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:.55rem;font-size:.82rem}
+  /* quiz */
+  .quiz .opt{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--hair);border-radius:5px;
+        padding:.7rem 1rem;margin:.45rem 0;cursor:pointer;color:var(--ink2);font-size:1rem;font-family:var(--sans)}
+  .quiz .opt:hover{border-color:var(--accent);color:var(--ink)}
+  .quiz .opt.correct{border-color:var(--ok);background:#eef4ef;color:var(--ink)}
+  .quiz .opt.wrong{border-color:var(--danger);background:#fbeeec;color:var(--ink)}
+  .quiz .feedback{margin-top:.6rem;font-weight:700;min-height:1.4rem}
+  /* callouts */
+  .hintbox,.warnbox,.dangerbox{border-radius:5px;padding:13px 16px;margin:.85rem 0;font-size:.98rem;border:1px solid var(--hair);background:var(--tint);color:var(--ink2)}
+  .warnbox{background:#fdf6ea;border-color:#efe1c4}
+  .dangerbox{background:#fbeeec;border-color:#f1d4cf}
+  .hintbox b,.warnbox b,.dangerbox b{color:var(--ink)}
+  kbd{background:var(--tint);border:1px solid var(--hair);border-bottom-width:2px;border-radius:4px;padding:.05rem .4rem;font-size:.8rem;font-family:var(--mono)}
+  /* carte du parcours (slides charnières) */
+  .carte{position:relative;display:flex;margin:2rem 0 1.6rem}
+  .carte::before{content:"";position:absolute;top:2.35rem;left:9%;right:9%;height:1px;background:var(--hair)}
+  .carte .et{flex:1;text-align:center;color:var(--muted);font-size:.84rem;line-height:1.3}
+  /* hauteurs fixes : les points restent alignés même quand l'étape active grossit */
+  .carte .et .n{display:block;font-family:var(--serif);font-weight:700;font-size:1.05rem;
+                height:1.5rem;line-height:1.5rem;margin-bottom:.45rem}
+  .carte .et .pt{position:relative;display:block;width:14px;height:14px;margin:0 auto .6rem}
+  .carte .et .pt::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                        width:9px;height:9px;border-radius:50%;background:var(--muted);
+                        box-shadow:0 0 0 3px var(--paper)}
+  .carte .et.on{color:var(--ink);font-weight:700}
+  .carte .et.on .n{color:var(--accent-deep);font-size:1.25rem}
+  .carte .et.on .pt::after{width:13px;height:13px;background:var(--accent)}
+  @media(max-width:760px){
+    .carte{flex-direction:column;gap:.7rem}
+    .carte::before{display:none}
+  }
+
+  @media(max-width:760px){
+    #deck{padding:40px 22px;margin:14px auto 120px}
+    .grid2,.jwtout{grid-template-columns:1fr;gap:1.5rem}
+    .flow{grid-template-columns:1fr}
+    #menu ol{columns:1}
+    h1{font-size:1.95rem} h2{font-size:1.6rem}
+  }
+</style>
+</head>
+<body>
+<div id="topbar"><div id="progress"></div></div>
+
+<div id="deck"><!-- SLIDES INJECTED BELOW --></div>
+
+<div id="menu">
+  <span class="close" onclick="toggleMenu()">&times;</span>
+  <h3>Sommaire</h3>
+  <ol id="menulist"></ol>
+</div>
+
+<div id="nav">
+  <button class="btn" id="prev" onclick="go(-1)">&larr; Précédent</button>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span id="menuToggle" onclick="toggleMenu()">☰ Sommaire</span>
+    <span id="counter"></span>
+  </div>
+  <button class="btn" id="next" onclick="go(1)">Suivant &rarr;</button>
+</div>
+
+<script>
+/* =========================================================================
+   CONTENU DES SLIDES
+   Chaque slide = {t:"titre menu", html:"contenu"}.
+   Le code Python se met dans <pre><code class="py">...</code></pre>.
+   ========================================================================= */
+const PY = (c) => `<div class="codewrap"><button class="copybtn">copier</button><pre><code class="py">${c.trim()}</code></pre></div>`;
+
+/* Le fil conducteur : 5 étapes, redessinées à chaque charnière avec l'étape en cours allumée. */
+const ETAPES = [
+  ["Pourquoi", "une porte"], ["La preuve :", "le JWT"], ["L'obtenir :", "OAuth2"],
+  ["Le garder :", "refresh"], ["Durcir", "pour la prod"],
+];
+const carte = (actif) => `<div class="carte">${ETAPES.map((e, i) =>
+  `<div class="et${i === actif ? " on" : ""}"><span class="n">${i + 1}</span><span class="pt"></span>${e[0]}<br>${e[1]}</div>`
+).join("")}</div>`;
+
+const slides = [
+{t:"Accueil", html:`
+  <div class="center" style="padding-top:6vh">
+    <div class="kicker">Simplon &bull; Développeur en Intelligence Artificielle</div>
+    <h1>Sécuriser une API FastAPI<br><span style="color:var(--accent)">OAuth2 &bull; JWT &bull; Refresh Tokens</span></h1>
+    <p class="muted" style="max-width:680px;margin:0 auto">Implémenter un flux <b>OAuth2 Password Grant</b> complet, avec une gestion robuste des <b>access</b> et <b>refresh tokens</b> au format JWT.</p>
+    <div style="margin-top:1.4rem">
+      <span class="pill">1 à 2 demi-journées</span>
+      <span class="pill">6 ateliers</span>
+      <span class="pill">1 projet (API qui sert un modèle IA)</span>
+    </div>
+    <p class="muted" style="margin-top:2rem;font-size:.9rem">Navigue avec les flèches <kbd>←</kbd> <kbd>→</kbd> du clavier, ou les boutons en bas. <kbd>M</kbd> = sommaire.</p>
+  </div>`},
+
+{t:"De quoi parle-t-on ?", html:`
+  <div class="kicker">Introduction</div><h2>De quoi parle-t-on ?</h2>
+  <p>Une API, c'est la <b>porte d'entrée</b> d'une application : d'autres programmes viennent y demander des données — ou, ici, la prédiction d'un modèle d'IA. Par défaut, cette porte est <b>grande ouverte à tous</b>. La sécuriser, c'est décider qui entre, et ce qu'il a le droit de faire.</p>
+  <h3>Les trois mots du titre, démystifiés</h3>
+  <ul>
+    <li><b>JWT</b> — le « badge » d'identité qu'on remet à l'utilisateur une fois connecté.</li>
+    <li><b>OAuth2</b> — la méthode standard pour délivrer ce badge, puis s'en servir à chaque requête.</li>
+    <li><b>Refresh token</b> — ce qui permet de rester connecté sans redonner son mot de passe.</li>
+  </ul>
+  <div class="hintbox"><b>Pas de panique</b> : on reprend chacun de ces mots en détail dans les modules. Ici, juste de quoi savoir de quoi on parle avant de plonger.</div>`},
+
+{t:"Objectifs", html:`
+  <div class="kicker">Introduction</div><h2>Ce que tu sauras faire à la fin</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">Comprendre</h3><ul>
+      <li>La différence <b>authentification</b> / <b>autorisation</b></li>
+      <li>La structure et le rôle d'un <b>JWT</b></li>
+      <li>Le flux <b>OAuth2 Password Grant</b></li>
+      <li>Pourquoi 2 tokens : <b>access</b> + <b>refresh</b></li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0">Réaliser</h3><ul>
+      <li>Un endpoint de <b>login</b> qui délivre des tokens</li>
+      <li>Des endpoints <b>protégés</b> avec FastAPI</li>
+      <li>Le <b>rafraîchissement</b> avec rotation et révocation</li>
+      <li>Une API <b>IA sécurisée</b> de bout en bout</li>
+    </ul></div>
+  </div>
+  <div class="hintbox">Pourquoi ça compte pour un Dev IA ? On n'expose jamais un modèle (prédiction, recommandation, LLM...) sans contrôler qui y accède. C'est le <b>Bloc 3</b> de notre référentiel : intégrer et déployer une API d'IA.</div>`},
+
+{t:"Plan", html:`
+  <div class="kicker">Déroulé</div><h2>Le programme</h2>
+  <table>
+    <tr><th>Module</th><th>Contenu</th></tr>
+    <tr><td><b>0</b></td><td>Rappel express FastAPI</td></tr>
+    <tr><td><b>1</b></td><td>Pourquoi et comment sécuriser une API</td></tr>
+    <tr><td><b>2</b></td><td>JWT en profondeur : structure, <b>validation &amp; pièges</b> <span class="tag a">démo live</span></td></tr>
+    <tr><td><b>3</b></td><td>OAuth2 : Password Grant <b>+ panorama</b> (acteurs, grant types, OIDC) <span class="tag a">schéma animé</span></td></tr>
+    <tr><td><b>4</b></td><td>Access + Refresh tokens : rotation, révocation &amp; <b>détection de réutilisation</b></td></tr>
+    <tr><td><b>5</b></td><td>Durcissement : secrets, rôles/scopes, <b>stockage côté client</b></td></tr>
+  </table>
+  <p class="muted">Six ateliers jalonnent le parcours (dont l'atelier 3, avancé, optionnel) ; un volet « Dev IA » relie sécurité et serving de modèle, jusqu'au projet final (2h+).</p>`},
+
+/* ---------------- MODULE 0 ---------------- */
+{t:"Vue d'ensemble", html:`
+  <div class="kicker">Le fil conducteur</div><h2>La grande image, en une minute</h2>
+  <p>Avant de plonger dans les détails, tout le mécanisme tient en quatre temps :</p>
+  <div class="flowmsg"><span class="stepno">1</span> L'utilisateur prouve son identité <b>une seule fois</b> (le login : username + mot de passe).</div>
+  <div class="flowmsg"><span class="stepno">2</span> Le serveur lui remet un <b>jeton signé</b> (le token) — une preuve infalsifiable.</div>
+  <div class="flowmsg"><span class="stepno">3</span> À chaque requête, le client présente ce jeton (<code class="inline">Authorization: Bearer</code>).</div>
+  <div class="flowmsg"><span class="stepno">4</span> Le serveur vérifie la signature et répond, <b>sans rien stocker</b> (stateless).</div>
+  <div class="hintbox"><b>L'analogie</b> : comme un bracelet de festival — on montre sa pièce d'identité une seule fois à l'entrée, puis le bracelet suffit partout, et personne ne peut en fabriquer un faux.</div>`},
+
+{t:"M0 · FastAPI", html:`
+  <div class="kicker">Module 0</div><h2>Rappel express : FastAPI</h2>
+  <p>FastAPI est un framework Python pour construire des API web rapidement. Trois briques à connaître :</p>
+  <ul>
+    <li><b>Les routes</b> : des fonctions décorées par <code class="inline">@app.get</code>, <code class="inline">@app.post</code>...</li>
+    <li><b>Pydantic</b> : valide automatiquement les données entrantes/sortantes.</li>
+    <li><b>Depends</b> : l'injection de dépendances (on s'en servira pour l'authentification).</li>
+  </ul>
+  ${PY(`from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class Item(BaseModel):       # validation automatique du corps de la requête
+    nom: str
+    prix: float
+
+@app.get("/")
+def accueil():
+    return {"message": "Bonjour"}
+
+@app.post("/items")
+def creer(item: Item):       # FastAPI vérifie le type et renvoie 422 si invalide
+    return {"item": item, "ttc": item.prix * 1.2}`)}
+  <div class="hintbox">Lancer l'API : <code class="inline">uvicorn main:app --reload</code> puis ouvrir <code class="inline">http://127.0.0.1:8000/docs</code> &mdash; une documentation interactive générée automatiquement.</div>`},
+
+{t:"Où on en est · 1", html:`
+  <div class="kicker">Où on en est &bull; Étape 1</div><h2>Qui a le droit d'entrer ?</h2>
+  ${carte(0)}
+  <p><b style="color:var(--accent-deep)">On vient de voir</b> — un rappel de FastAPI : des routes, Pydantic pour valider les entrées, une doc automatique. Mais rien qui protège : pour l'instant, n'importe qui peut appeler votre API.</p>
+  <p><b>Dans ce module</b> — les deux questions qu'une porte doit poser — et les deux codes HTTP qui y répondent : 401 et 403. Puis pourquoi le serveur ne doit rien retenir.</p>`},
+
+{t:"M1 · Pourquoi", html:`
+  <div class="kicker">Module 1</div><h2>Authentification vs Autorisation</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">Authentification (AuthN)</h3><p><i>« Es-tu bien toi ? »</i></p><p>Prouver son <b>identité</b> (login + mot de passe).</p></div>
+    <div class="card"><h3 style="margin-top:0">Autorisation (AuthZ)</h3><p><i>« As-tu le droit ? »</i></p><p>Décider de ce qu'on peut <b>faire</b> (rôles, permissions).</p></div>
+  </div>
+  <h3>Deux codes d'erreur à ne jamais confondre</h3>
+  <table>
+    <tr><th>Code</th><th>Signification</th><th>Exemple</th></tr>
+    <tr><td><span class="tag d">401</span></td><td>Non authentifié</td><td>Token absent, invalide ou expiré</td></tr>
+    <tr><td><span class="tag w">403</span></td><td>Authentifié mais non autorisé</td><td>Un simple user appelle une route admin</td></tr>
+  </table>`},
+
+{t:"M1 · Stateless", html:`
+  <div class="kicker">Module 1</div><h2>Stateless : le serveur ne retient rien</h2>
+  <div class="grid2">
+    <div class="card bad"><span class="tag d">Sessions classiques</span><p>Le serveur garde une session en mémoire pour chaque connecté. Difficile à <b>répartir</b> sur plusieurs serveurs.</p></div>
+    <div class="card good"><span class="tag b">Tokens (notre approche)</span><p>Le serveur ne stocke rien. Chaque requête <b>porte sa preuve</b> d'identité : le token. Idéal pour passer à l'échelle.</p></div>
+  </div>
+  <h3>Le Bearer token : comment il voyage à chaque requête</h3>
+  <p>« Bearer » signifie « au porteur ». Concrètement : après le login, <b>c'est le client</b> (le navigateur ou l'appli) qui <b>garde</b> le token et l'<b>ajoute lui-même</b> dans un en-tête HTTP <code class="inline">Authorization</code> à <b>chacune</b> de ses requêtes. Le serveur se contente de lire cet en-tête.</p>
+  <p class="muted" style="margin:.5rem 0 .2rem">1. Ce que le client envoie sur le réseau :</p>
+  ${PY(`GET /predict HTTP/1.1
+Host: mon-api.fr
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWI...`)}
+  <p class="muted" style="margin:.5rem 0 .2rem">2. Côté client, on attache le token à chaque appel (exemple en JavaScript) :</p>
+  ${PY(`fetch("/predict", {
+  headers: { "Authorization": "Bearer " + monToken }
+})`)}
+  <div class="hintbox">C'est donc le <b>client</b> qui doit renvoyer le token à chaque fois (le serveur ne s'en souvient pas). Et comme quiconque le détient peut l'utiliser, d'où l'importance de l'<b>expiration courte</b> et du <b>HTTPS</b> pour éviter qu'il soit intercepté.</div>`},
+
+{t:"Quiz 1", html:`
+  <div class="kicker">Quiz éclair</div><h2>AuthN, AuthZ et codes HTTP</h2>
+  <div class="widget quiz" data-correct="2">
+    <p><b>Un utilisateur connecté (token valide) tente de supprimer le compte d'un autre, sans en avoir le droit. Quel code renvoyer ?</b></p>
+    <button class="opt">200 OK</button>
+    <button class="opt">401 Unauthorized</button>
+    <button class="opt">403 Forbidden</button>
+    <button class="opt">500 Internal Server Error</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Le serveur ne garde aucune session en mémoire et chaque requête transporte son token. On dit que l'API est :</b></p>
+    <button class="opt">avec état (stateful)</button>
+    <button class="opt">sans état (stateless)</button>
+    <button class="opt">chiffrée de bout en bout</button>
+    <div class="feedback"></div>
+  </div>`},
+
+/* ---------------- MODULE 2 ---------------- */
+{t:"Où on en est · 2", html:`
+  <div class="kicker">Où on en est &bull; Étape 2</div><h2>À quoi ressemble cette preuve ?</h2>
+  ${carte(1)}
+  <p><b style="color:var(--accent-deep)">On vient de voir</b> — qu'il faut distinguer « qui es-tu ? » de « as-tu le droit ? », et que le serveur ne retient rien : c'est le client qui présente sa preuve à chaque requête.</p>
+  <p><b>Dans ce module</b> — la structure exacte du jeton, ce qu'on a le droit d'y mettre, comment on le vérifie vraiment — et les deux attaques classiques.</p>`},
+
+{t:"M2 · Le JWT en clair", html:`
+  <div class="kicker">Module 2</div><h2>Le JWT, en clair</h2>
+  <p><b>JWT = JSON Web Token.</b> Un format standard de jeton, conçu pour transporter une preuve d'identité de façon compacte et <b>infalsifiable</b>.</p>
+  <div class="hintbox"><b>L'image à retenir</b> : un bracelet de festival plastifié. Tout le monde peut <b>lire</b> ce qui est écrit dessus (votre nom, la date), mais personne ne peut en fabriquer un faux : il porte un <b>sceau</b> que seul l'organisateur sait produire.</div>
+  <ul>
+    <li><b>Autonome</b> — il contient lui-même l'information : pas besoin d'une base côté serveur.</li>
+    <li><b>Signé</b> — toute modification est détectée. C'est le « sceau ».</li>
+    <li><b>Lisible</b> — le contenu n'est pas chiffré (on n'y met donc jamais de secret).</li>
+  </ul>
+  <p class="muted"><b>Pourquoi ça existe</b> : avant, le serveur gardait une session par utilisateur connecté. Avec un JWT, le jeton EST la preuve — le serveur ne stocke plus rien.</p>`},
+
+{t:"M2 · JWT structure", html:`
+  <div class="kicker">Module 2</div><h2>JWT : JSON Web Token</h2>
+  <p>Un JWT est une chaîne en <b>3 parties</b> séparées par des points :</p>
+  <div class="jwtparts" style="font-size:1.05rem">
+    <span class="jwth">eyJhbGciOiJIUzI1NiJ9</span><span class="muted">.</span>
+    <span class="jwtp">eyJzdWIiOiJhbGljZSJ9</span><span class="muted">.</span>
+    <span class="jwts">4pcPyMD0_signature</span>
+  </div>
+  <table>
+    <tr><th>Partie</th><th>Contenu</th></tr>
+    <tr><td><span class="jwth">Header</span></td><td>L'algorithme de signature (ex : <code class="inline">HS256</code>) et le type.</td></tr>
+    <tr><td><span class="jwtp">Payload</span></td><td>Les <b>claims</b> : données (identité, expiration...). Encodé en base64url, donc <b>lisible</b> !</td></tr>
+    <tr><td><span class="jwts">Signature</span></td><td>Garantit que le token n'a pas été <b>modifié</b>. Calculée avec la clé secrète.</td></tr>
+  </table>
+  <div class="dangerbox"> Un JWT n'est <b>PAS chiffré</b>, seulement signé. N'importe qui peut lire le payload. <b>Ne jamais</b> y mettre de mot de passe ou de donnée sensible.</div>`},
+
+{t:"M2 · Claims", html:`
+  <div class="kicker">Module 2</div><h2>Les claims standards</h2>
+  <table>
+    <tr><th>Claim</th><th>Signification</th></tr>
+    <tr><td><code class="inline">sub</code></td><td><b>Subject</b> : l'identité (souvent le username ou l'id).</td></tr>
+    <tr><td><code class="inline">exp</code></td><td><b>Expiration</b> : date après laquelle le token n'est plus valide.</td></tr>
+    <tr><td><code class="inline">iat</code></td><td><b>Issued at</b> : date d'émission.</td></tr>
+    <tr><td><code class="inline">iss</code></td><td><b>Issuer</b> : qui a émis le token.</td></tr>
+    <tr><td><code class="inline">jti</code></td><td><b>JWT ID</b> : identifiant unique (utile pour révoquer).</td></tr>
+  </table>
+  <h3>Signature : symétrique ou asymétrique ?</h3>
+  <div class="grid2">
+    <div class="card"><span class="tag a">HS256</span><p><b>Symétrique</b> : la même clé signe et vérifie. Simple, parfait pour une seule API. <i>(on utilise ça)</i></p></div>
+    <div class="card"><span class="tag b">RS256</span><p><b>Asymétrique</b> : clé privée pour signer, clé publique pour vérifier. Utile quand plusieurs services vérifient sans pouvoir signer.</p></div>
+  </div>`},
+
+{t:"M2 · Décodeur live", html:`
+  <div class="kicker">Module 2 &bull; Interactif</div><h2>Décodeur JWT en direct</h2>
+  <p>Colle un JWT ci-dessous (ou garde l'exemple) pour voir son contenu décodé. Remarque : <b>aucune clé secrète n'est nécessaire pour lire</b> le header et le payload.</p>
+  <div class="widget">
+    <div class="lbl">Token JWT</div>
+    <textarea id="jwtInput" rows="4"></textarea>
+    <div class="jwtparts" id="jwtParts"></div>
+    <div class="jwtout">
+      <div><div class="lbl jwth">Header</div><pre><code id="jwtHeader"></code></pre></div>
+      <div><div class="lbl jwtp">Payload</div><pre><code id="jwtPayload"></code></pre></div>
+    </div>
+    <div id="jwtExp" class="muted" style="margin-top:.5rem"></div>
+  </div>
+  <div class="hintbox">Essaie de modifier un caractère du payload : le décodage change, mais sur un vrai serveur la <b>signature</b> ne correspondrait plus &rarr; token rejeté.</div>`},
+
+{t:"M2 · Valider un JWT", html:`
+  <div class="kicker">Module 2 &bull; Sécurité</div><h2>Valider un JWT, vraiment</h2>
+  <p>Vérifier la signature ne suffit pas. Un décodage robuste impose aussi l'<b>algorithme</b>, l'<b>expiration</b> et le <b>destinataire</b> :</p>
+  ${PY(`donnees = jwt.decode(
+    token, SECRET_KEY,
+    algorithms=["HS256"],          # liste blanche stricte (jamais None, jamais mixte)
+    audience="api-predictions",    # sans ce paramètre, le claim aud N'EST PAS vérifié
+    issuer="https://mon-api.fr",   # vérifie iss
+    options={"require": ["exp", "iat", "nbf", "iss", "aud", "sub"]},
+)`)}
+  <table>
+    <tr><th>Claim / paramètre</th><th>Rôle</th></tr>
+    <tr><td><code class="inline">exp</code> / <code class="inline">nbf</code></td><td>Fenêtre de validité (PyJWT les vérifie automatiquement <b>s'ils sont présents</b>).</td></tr>
+    <tr><td><code class="inline">aud</code></td><td>Le bon destinataire. Non vérifié si on oublie <code class="inline">audience=...</code>.</td></tr>
+    <tr><td><code class="inline">iss</code></td><td>Le bon émetteur.</td></tr>
+    <tr><td><code class="inline">algorithms</code></td><td>Liste blanche stricte. <b>Jamais</b> « none », jamais une liste mixte.</td></tr>
+  </table>
+  <div class="hintbox"><b>Règle</b> : n'acceptez QUE l'algorithme attendu et rendez les claims critiques obligatoires via <code class="inline">require</code>. C'est tout l'objet de l'atelier 3.</div>`},
+
+{t:"M2 · Pièges JWT", html:`
+  <div class="kicker">Module 2 &bull; Sécurité</div><h2>Deux pièges classiques à connaître</h2>
+  <p>Ces deux attaques ne cassent pas la cryptographie : elles exploitent la façon dont le serveur <b>vérifie</b> le token.</p>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0;color:var(--accent-deep)">1. alg : none</h3>
+      <p><b>L'idée</b> : l'attaquant met <code class="inline">"alg":"none"</code> dans le header et supprime la signature.</p>
+      <p><b>Le risque</b> : une librairie qui « fait confiance » au header accepte un token <b>sans aucune signature</b> ; l'attaquant écrit ce qu'il veut (ex. <code class="inline">role: admin</code>).</p>
+      <p><b>La défense</b> : imposer <code class="inline">algorithms=["HS256"]</code> et ne jamais désactiver la vérification.</p>
+    </div>
+    <div class="card"><h3 style="margin-top:0;color:var(--accent-deep)">2. Confusion d'algorithme</h3>
+      <p><b>L'idée</b> : forcer le serveur à vérifier le token avec le <b>mauvais algorithme</b>, en réutilisant une clé publique comme si c'était un secret.</p>
+      <p><b>La défense</b> : « épingler » (pinner) l'algorithme attendu, jamais une liste mixte HS/RS.</p>
+      <p class="muted">On la décortique pas à pas sur la slide suivante.</p>
+    </div>
+  </div>
+  <div class="dangerbox"><b>Règle d'or</b> : un endpoint attend UN algorithme précis, codé en dur dans la vérification. Le header du token ne doit jamais « décider » comment on le vérifie.</div>`},
+
+{t:"M2 · Confusion d'algo, pas à pas", html:`
+  <div class="kicker">Module 2 &bull; Sécurité</div><h2>La confusion d'algorithme, pas à pas</h2>
+  <p><b>Rappel</b> : <code class="inline">HS256</code> utilise <b>une seule clé secrète</b> (elle signe ET vérifie). <code class="inline">RS256</code> utilise <b>deux clés</b> : une <b>privée</b> (secrète, pour signer) et une <b>publique</b> (partagée à tous, pour vérifier).</p>
+  <div class="flowmsg"><span class="stepno">1</span> Le serveur signe ses tokens en <b>RS256</b> et publie sa <b>clé publique</b> (c'est normal : elle est faite pour être connue).</div>
+  <div class="flowmsg"><span class="stepno">2</span> L'attaquant récupère cette clé publique et fabrique un token en <b>HS256</b>, en s'en servant comme <b>secret</b>.</div>
+  <div class="flowmsg"><span class="stepno">3</span> Si le serveur vérifie « avec la clé publique, selon l'algorithme écrit dans le token », il calcule un HMAC avec cette clé... et <b>la signature correspond</b>.</div>
+  <div class="flowmsg"><span class="stepno">4</span> Résultat : l'attaquant a signé un token <b>sans connaître la clé privée</b>, et peut se faire passer pour admin.</div>
+  <div class="hintbox"><b>Pourquoi ça marche</b> : la même suite d'octets (la clé publique) a servi à deux usages différents. <b>La défense</b> : <code class="inline">algorithms=["RS256"]</code> — on refuse tout token qui ne serait pas en RS256. On le reproduit à l'atelier 3.</div>`},
+
+{t:"Quiz sécurité JWT", html:`
+  <div class="kicker">Quiz éclair</div><h2>Sécurité JWT</h2>
+  <div class="widget quiz" data-correct="2">
+    <p><b>Quelle est la meilleure défense contre la confusion d'algorithme (RS256 &rarr; HS256) ?</b></p>
+    <button class="opt">Allonger la clé secrète</button>
+    <button class="opt">Chiffrer le payload</button>
+    <button class="opt">Pinner l'algorithme attendu (algorithms=["RS256"]) côté vérification</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Le claim <code class="inline">aud</code> est présent dans le token, mais on oublie de passer <code class="inline">audience=...</code> au décodage. Que se passe-t-il ?</b></p>
+    <button class="opt">Le token est rejeté automatiquement</button>
+    <button class="opt">L'audience n'est pas vérifiée : un token destiné à une autre API peut passer</button>
+    <button class="opt">PyJWT devine la bonne audience</button>
+    <div class="feedback"></div>
+  </div>`},
+
+/* ---------------- MODULE 3 ---------------- */
+{t:"Où on en est · 3", html:`
+  <div class="kicker">Où on en est &bull; Étape 3</div><h2>Et comment on obtient ce jeton ?</h2>
+  ${carte(2)}
+  <p><b style="color:var(--accent-deep)">On vient de voir</b> — le JWT : trois parties, signé donc infalsifiable, lisible donc jamais de secret dedans. On sait le lire, le vérifier et repérer les pièges.</p>
+  <p><b>Dans ce module</b> — le protocole qui délivre le jeton, le hachage des mots de passe, et le mécanisme FastAPI qui protège une route.</p>`},
+
+{t:"M3 · OAuth2 en clair", html:`
+  <div class="kicker">Module 3</div><h2>OAuth2, c'est quoi au juste ?</h2>
+  <p>OAuth2 n'est pas un logiciel : c'est un <b>cadre standard</b> qui décrit comment obtenir et utiliser des jetons d'accès. Il définit des rôles et plusieurs « flux » (grants).</p>
+  <div class="hintbox"><b>L'analogie</b> : au festival, vous montrez votre pièce au <b>guichet</b> (qui authentifie et remet le bracelet), puis les <b>bars</b> se contentent de vérifier le bracelet. OAuth2, c'est le règlement commun qui fait que tout le monde parle le même langage.</div>
+  <p>Nous démarrons avec le flux le plus simple — le <b>Password Grant</b>, détaillé juste après. Les quatre rôles d'OAuth2 et les autres flux sont vus en fin de module.</p>`},
+
+{t:"M3 · Password Grant", html:`
+  <div class="kicker">Module 3</div><h2>OAuth2 « Password Grant »</h2>
+  <p>OAuth2 définit plusieurs <b>flux</b>. Le <b>Password Grant</b> (nom officiel : <b>ROPC</b>, pour <i>Resource Owner Password Credentials</i>) est le plus direct : l'utilisateur échange ses identifiants contre un token. Adapté quand le client est <b>de confiance</b> (ton propre front-end).</p>
+  <div class="flowmsg"><span class="stepno">1</span> Le client envoie <code class="inline">username</code> + <code class="inline">password</code> à <code class="inline">POST /token</code></div>
+  <div class="flowmsg"><span class="stepno">2</span> Le serveur vérifie le mot de passe (comparé au <b>hash</b> stocké)</div>
+  <div class="flowmsg"><span class="stepno">3</span> Si OK &rarr; il renvoie un <b>access token</b> (et un refresh token)</div>
+  <div class="flowmsg"><span class="stepno">4</span> Le client renvoie l'access token à chaque requête protégée</div>
+  <div class="warnbox">Le mot de passe ne circule qu'<b>une seule fois</b> (au login). Ensuite, seul le token circule.</div>`},
+
+{t:"M3 · Hachage", html:`
+  <div class="kicker">Module 3</div><h2>On ne stocke jamais un mot de passe en clair</h2>
+  <p>On stocke un <b>hash</b> : une transformation à sens unique. À la connexion, on hache le mot de passe fourni et on compare. Avec <code class="inline">pwdlib</code> (bcrypt) :</p>
+  ${PY(`from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
+
+password_hash = PasswordHash((BcryptHasher(),))
+
+# À l'inscription : on stocke le hash, jamais le mot de passe
+haché = password_hash.hash("secret123")
+
+# À la connexion : on vérifie
+password_hash.verify("secret123", haché)   # True
+password_hash.verify("mauvais",   haché)   # False`)}
+  <div class="hintbox">bcrypt est <b>lent par conception</b> et ajoute un « sel » aléatoire : deux mots de passe identiques donnent deux hash différents, ce qui casse les attaques par dictionnaire pré-calculé.</div>`},
+
+{t:"M3 · /token", html:`
+  <div class="kicker">Module 3</div><h2>L'endpoint de login <code class="inline">POST /token</code></h2>
+  <p>C'est <b>le guichet</b> : il reçoit les identifiants, les vérifie, et remet un token. Lisons-le par blocs (détails juste sous le code).</p>
+  ${PY(`import jwt
+from datetime import datetime, timedelta, timezone
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
+SECRET_KEY = "..."  # via variable d'environnement !
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authentifier(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Identifiants incorrects")
+    payload = {"sub": user["username"],
+               "exp": datetime.now(timezone.utc) + timedelta(minutes=15)}
+    access = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return {"access_token": access, "token_type": "bearer"}`)}
+  <ul>
+    <li><code class="inline">OAuth2PasswordRequestForm</code> : récupère automatiquement <code class="inline">username</code> et <code class="inline">password</code> envoyés par le formulaire de login (nécessite <code class="inline">python-multipart</code>).</li>
+    <li><code class="inline">authentifier(...)</code> : vérifie le mot de passe (comparé au hash stocké, slide précédente). Échec &rarr; <b>401</b>.</li>
+    <li><code class="inline">payload</code> : ce qu'on met dans le token, l'identité (<code class="inline">sub</code>) et une expiration courte (<code class="inline">exp</code>).</li>
+    <li><code class="inline">jwt.encode(...)</code> : signe le token avec la clé secrète, puis on le renvoie au client.</li>
+  </ul>`},
+
+{t:"M3 · Depends", html:`
+  <div class="kicker">Module 0</div><h2>L'injection de dépendances (<code class="inline">Depends</code>)</h2>
+  <p>Une <b>dépendance</b> est une fonction dont FastAPI exécute le résultat avant ta route, puis te le passe en argument. C'est parfait pour factoriser une logique commune... comme « vérifier que l'utilisateur est connecté ».</p>
+  ${PY(`from fastapi import Depends, FastAPI
+
+app = FastAPI()
+
+def pagination(skip: int = 0, limit: int = 10):
+    return {"skip": skip, "limit": limit}
+
+@app.get("/users")
+def liste(p: dict = Depends(pagination)):   # p = résultat de pagination()
+    return p`)}
+  <div class="grid2">
+    <div class="card good"><span class="tag b">Avantage</span><p>On écrit la logique <b>une fois</b>, on la réutilise partout. Idéal pour l'authentification.</p></div>
+    <div class="card"><span class="tag a">À retenir</span><p>Plus loin : <code class="inline">Depends(get_current_user)</code> protègera nos endpoints.</p></div>
+  </div>`},
+
+/* ---------------- MODULE 1 ---------------- */
+{t:"M3 · Endpoint protégé", html:`
+  <div class="kicker">Module 3</div><h2>Protéger un endpoint avec <code class="inline">get_current_user</code></h2>
+  <p><code class="inline">get_current_user</code> est une <b>dépendance</b> (vue au module 0) : une fonction que FastAPI exécute <b>avant</b> la route. Son rôle : lire le token, le vérifier, renvoyer l'utilisateur... ou refuser l'accès.</p>
+  ${PY(`def get_current_user(token: str = Depends(oauth2_scheme)):
+    creds_exc = HTTPException(
+        status.HTTP_401_UNAUTHORIZED, "Token invalide ou expiré",
+        headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.InvalidTokenError:        # signature OU expiration invalide
+        raise creds_exc
+    user = get_user(payload.get("sub"))
+    if user is None:
+        raise creds_exc
+    return user
+
+@app.get("/me")
+def lire_profil(current_user: dict = Depends(get_current_user)):
+    return {"username": current_user["username"]}`)}
+  <ul>
+    <li>Le token est lu automatiquement depuis l'en-tête <code class="inline">Authorization: Bearer</code> par <code class="inline">oauth2_scheme</code>.</li>
+    <li><code class="inline">jwt.decode(...)</code> vérifie la signature et l'expiration ; toute erreur &rarr; <b>401</b>.</li>
+    <li>On retrouve l'utilisateur grâce au <code class="inline">sub</code> contenu dans le token.</li>
+    <li>Ensuite, il suffit d'écrire <code class="inline">Depends(get_current_user)</code> sur n'importe quelle route pour la protéger.</li>
+  </ul>
+  <div class="hintbox">Sans token valide, FastAPI renvoie <b>401</b> avant même d'exécuter la fonction de la route.</div>`},
+
+{t:"M3 · Flux animé", html:`
+  <div class="kicker">Module 3 &bull; Interactif</div><h2>Le flux OAuth2, étape par étape</h2>
+  <div class="flow">
+    <div class="actor" id="acClient">Client<br><span class="muted" style="font-size:.8rem">(front / app)</span></div>
+    <div class="actor" id="acApi"> API FastAPI</div>
+    <div class="actor" id="acDb"> Base / Modèle</div>
+  </div>
+  <div class="flowmsg" id="flowMsg">Clique sur « Étape suivante » pour dérouler le scénario complet (login &rarr; accès &rarr; expiration &rarr; refresh).</div>
+  <div style="display:flex;gap:10px;margin-top:.6rem">
+    <button class="ghost" onclick="flowStep(-1)">◀ Précédente</button>
+    <button class="act" onclick="flowStep(1)">Étape suivante ▶</button>
+    <button class="ghost" onclick="flowReset()">↺ Recommencer</button>
+    <span class="muted" id="flowCount" style="align-self:center"></span>
+  </div>`},
+
+{t:"OAuth2 · Acteurs", html:`
+  <div class="kicker">Module 3 &bull; OAuth2 en largeur</div><h2>D'où viennent les « 4 acteurs » ?</h2>
+  <p>OAuth2 a été inventé pour un besoin précis : <b>autoriser une application à accéder à vos données chez un autre service, sans lui donner votre mot de passe</b>. C'est le fameux « <b>Se connecter avec Google</b> ».</p>
+  <div class="hintbox"><b>Exemple concret</b> : un site d'impression photo veut accéder à vos photos Google. Vous ne lui donnez pas votre mot de passe Google : Google lui remet un jeton limité. Ce scénario fait apparaître naturellement quatre rôles.</div>
+  <table>
+    <tr><th>Acteur (terme officiel)</th><th>Dans l'exemple</th></tr>
+    <tr><td><b>Resource Owner</b> (le propriétaire)</td><td><b>Vous</b> : vos photos vous appartiennent.</td></tr>
+    <tr><td><b>Client</b></td><td>Le <b>site d'impression</b>, qui demande l'accès.</td></tr>
+    <tr><td><b>Authorization Server</b></td><td><b>Google</b> : il vous authentifie et délivre le jeton (le « guichet »).</td></tr>
+    <tr><td><b>Resource Server</b></td><td>L'<b>API Google Photos</b> : elle héberge et sert les photos.</td></tr>
+  </table>
+  <div class="hintbox">Dans <b>notre</b> cas (une API mono-service), c'est plus simple : votre API est <b>à la fois</b> Authorization Server (elle délivre les tokens via <code class="inline">/token</code>) et Resource Server (elle sert <code class="inline">/predict</code>). Le Client, c'est votre front ; le Resource Owner, l'utilisateur.</div>`},
+
+{t:"OAuth2 · Grants & OIDC", html:`
+  <div class="kicker">Module 3 &bull; OAuth2 en largeur</div><h2>Les « grant types » : plusieurs recettes pour obtenir un token</h2>
+  <p>Un <b>grant type</b> (« type d'autorisation ») est simplement la <b>procédure</b> par laquelle on obtient un token. OAuth2 en définit plusieurs parce que les situations n'ont pas les mêmes contraintes : une appli mobile, un script serveur ou un simple login ne se protègent pas de la même façon.</p>
+  <table>
+    <tr><th>Grant type</th><th>Pour quelle situation</th><th>Verdict</th></tr>
+    <tr><td><b>Authorization Code + PKCE</b></td><td>Une app agit au nom d'un utilisateur (le « Se connecter avec... »)</td><td><span class="tag b">recommandé</span></td></tr>
+    <tr><td><b>Client Credentials</b></td><td>Un service parle à un autre, <b>sans utilisateur</b> (tâche planifiée, backend)</td><td>OK (machine-to-machine)</td></tr>
+    <tr><td><b>Password Grant</b> (ROPC)</td><td><b>Le flux vu au module 3</b> : l'app échange directement identifiant + mot de passe</td><td><span class="tag w">déconseillé (OAuth 2.1)</span></td></tr>
+    <tr><td><b>Implicit</b></td><td>Ancien flux navigateur (le token passait dans l'URL)</td><td><span class="tag d">supprimé</span></td></tr>
+  </table>
+  <h3>Et OpenID Connect (OIDC) ?</h3>
+  <p>OAuth2 sert à <b>autoriser</b> (« cette app a le droit d'accéder à ça »), mais il ne dit pas <i>qui</i> vous êtes. <b>OIDC</b> est une petite couche ajoutée par-dessus qui répond à « <b>qui est l'utilisateur ?</b> » : elle fournit en plus un <code class="inline">id_token</code> (un JWT d'identité). En résumé : <b>OAuth2 = autorisation, OIDC = authentification.</b></p>
+  <div class="warnbox">Nous utilisons le <b>Password Grant</b> pour sa simplicité (apprendre les tokens sans monter tout un serveur d'autorisation). En vrai projet, préférez <b>Authorization Code + PKCE</b>.</div>`},
+
+{t:"Quiz 2", html:`
+  <div class="kicker">Quiz éclair</div><h2>JWT &amp; OAuth2</h2>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Où peut-on mettre en toute sécurité le mot de passe de l'utilisateur ?</b></p>
+    <button class="opt">Dans le payload du JWT</button>
+    <button class="opt">Nulle part : on ne stocke qu'un hash, et il ne va pas dans le token</button>
+    <button class="opt">Dans le header du JWT</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="2">
+    <p><b>Que vérifie la signature d'un JWT ?</b></p>
+    <button class="opt">Que le payload est chiffré</button>
+    <button class="opt">Que l'utilisateur est admin</button>
+    <button class="opt">Que le token n'a pas été modifié (intégrité)</button>
+    <div class="feedback"></div>
+  </div>`},
+
+/* ---------------- MODULE 4 ---------------- */
+{t:"Où on en est · 4", html:`
+  <div class="kicker">Où on en est &bull; Étape 4</div><h2>Comment rester connecté sans danger ?</h2>
+  ${carte(3)}
+  <p><b style="color:var(--accent-deep)">On vient de voir</b> — le flux OAuth2 complet : /token délivre le jeton, Depends(get_current_user) protège les routes. Ça marche… jusqu'à ce que le jeton expire.</p>
+  <p><b>Dans ce module</b> — pourquoi deux jetons plutôt qu'un, leur cycle de vie, puis la rotation et la révocation.</p>`},
+
+{t:"M4 · 2 tokens", html:`
+  <div class="kicker">Module 4</div><h2>Pourquoi deux tokens ?</h2>
+  <p>Un dilemme : un token <b>court</b> est plus sûr (peu de temps pour l'exploiter en cas de vol) mais oblige à se reconnecter souvent. Un token <b>long</b> est pratique mais dangereux. La solution : <b>deux tokens</b>.</p>
+  <div class="grid2">
+    <div class="card"><span class="tag a">Access token</span><p>Durée <b>courte</b> (~15 min). Présenté à chaque requête protégée. S'il fuite, il expire vite.</p></div>
+    <div class="card"><span class="tag b">Refresh token</span><p>Durée <b>longue</b> (~7 jours). Sert <b>uniquement</b> à obtenir un nouvel access token, sans redemander le mot de passe.</p></div>
+  </div>
+  <p>On distingue les deux grâce à un claim <code class="inline">"type"</code> (<code class="inline">"access"</code> ou <code class="inline">"refresh"</code>) : un refresh token ne doit jamais donner accès aux ressources.</p>`},
+
+{t:"M4 · Cycle de vie", html:`
+  <div class="kicker">Module 4</div><h2>Le cycle de vie complet</h2>
+  <div class="flowmsg"><span class="stepno">1</span> <b>Login</b> &rarr; je reçois un access (15 min) + un refresh (7 j)</div>
+  <div class="flowmsg"><span class="stepno">2</span> J'utilise l'access pour accéder aux ressources</div>
+  <div class="flowmsg"><span class="stepno">3</span> 15 min passent &rarr; l'access expire &rarr; réponse <span class="tag d">401</span></div>
+  <div class="flowmsg"><span class="stepno">4</span> J'appelle <code class="inline">POST /refresh</code> avec mon refresh token</div>
+  <div class="flowmsg"><span class="stepno">5</span> Je reçois un <b>nouvel</b> access (et un nouveau refresh = rotation)</div>
+  <div class="flowmsg"><span class="stepno">6</span> <b>Logout</b> &rarr; le refresh est révoqué, fin de session</div>
+  <div class="hintbox"><b>À noter</b> : le logout ne révoque que le <b>refresh</b>. Un access déjà émis reste valide jusqu'à son expiration — c'est précisément pour ça que l'access doit être <b>court</b>.</div>`},
+
+{t:"M4 · Rotation/Révocation", html:`
+  <div class="kicker">Module 4</div><h2>Rotation &amp; révocation</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">Rotation</h3><p>À chaque refresh, l'ancien refresh token est <b>invalidé</b> et un nouveau est émis. Si un attaquant rejoue un ancien refresh &rarr; rejeté.</p></div>
+    <div class="card"><h3 style="margin-top:0">Révocation</h3><p>Rendre un token invalide <b>avant</b> son expiration (au logout). Comme un JWT est stateless, il faut garder une trace côté serveur.</p></div>
+  </div>
+  <p>Technique simple : un identifiant unique <code class="inline">jti</code> par refresh token, et un ensemble des jti encore valides côté serveur.</p>
+  ${PY(`# store.py : en mémoire pour la démo (en prod : Redis / base de données)
+_active_refresh_jti: set[str] = set()
+
+def register(jti): _active_refresh_jti.add(jti)        # à l'émission
+def is_active(jti): return jti in _active_refresh_jti  # à la vérification
+def revoke(jti):   _active_refresh_jti.discard(jti)    # rotation ou logout`)}`},
+
+{t:"M4 · /refresh", html:`
+  <div class="kicker">Module 4</div><h2>L'endpoint <code class="inline">POST /refresh</code> (avec rotation)</h2>
+  ${PY(`@app.post("/refresh")
+def refresh(body: RefreshRequest):
+    err = HTTPException(401, "Refresh invalide, expiré ou révoqué")
+    try:
+        payload = decode_token(body.refresh_token)
+    except jwt.InvalidTokenError:
+        raise err
+    if payload.get("type") != "refresh":          # un access est refusé ici
+        raise err
+    jti = payload.get("jti")
+    if not jti or not store.is_active(jti):        # révoqué / déjà tourné ?
+        raise err
+
+    store.revoke(jti)                              # ROTATION : l'ancien meurt
+    new_refresh, new_jti = create_refresh_token(payload["sub"])
+    store.register(new_jti)
+    new_access = create_access_token(payload["sub"], ...)
+    return {"access_token": new_access, "refresh_token": new_refresh}`)}`},
+
+{t:"M4 · Réutilisation", html:`
+  <div class="kicker">Module 4 &bull; Refresh avancé</div><h2>Détecter le vol : familles de tokens</h2>
+  <p>La rotation seule ne dit pas si un refresh a été <b>volé</b>. En regroupant tous les refresh d'une session dans une <b>famille</b> (et en mémorisant le dernier <code class="inline">jti</code> émis), un rejeu devient un <b>signal d'alerte</b>.</p>
+  <div class="flowmsg"><span class="stepno">1</span> Une session = une <b>famille</b> ; on retient le dernier <code class="inline">jti</code> émis.</div>
+  <div class="flowmsg"><span class="stepno">2</span> Le <code class="inline">jti</code> présenté est le dernier émis &rarr; <b>rotation normale</b>.</div>
+  <div class="flowmsg"><span class="stepno">3</span> Un ancien <code class="inline">jti</code>, déjà tourné, est rejoué &rarr; <b>réutilisation détectée</b>.</div>
+  <div class="flowmsg"><span class="stepno">4</span> On révoque <b>toute la famille</b> &rarr; <b>révocation en cascade</b>.</div>
+  <div class="dangerbox"><b>Effet</b> : même le dernier token légitime cesse de fonctionner. Voleur ET victime sont déconnectés &mdash; le vol est neutralisé. On le construit à l'atelier 4.</div>`},
+
+/* ---------------- MODULE 5 ---------------- */
+{t:"Quiz 3", html:`
+  <div class="kicker">Quiz éclair</div><h2>Access, refresh &amp; rotation</h2>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Un attaquant vole un refresh token et s'en sert. Plus tard, la victime présente le sien — déjà tourné. Que doit-il se passer ?</b></p>
+    <button class="opt">Les deux sessions coexistent</button>
+    <button class="opt">Le jeton rejoué est refusé, et toute la famille est révoquée</button>
+    <button class="opt">Un nouveau couple de tokens est émis pour chacun</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Après un logout, pourquoi l'accès n'est-il pas coupé instantanément ?</b></p>
+    <button class="opt">Le refresh token reste actif</button>
+    <button class="opt">L'access token déjà émis reste valide jusqu'à son expiration</button>
+    <button class="opt">Le serveur ne se synchronise qu'une fois par heure</button>
+    <div class="feedback"></div>
+  </div>`},
+
+{t:"Où on en est · 5", html:`
+  <div class="kicker">Où on en est &bull; Étape 5</div><h2>Et le jour où c'est en ligne ?</h2>
+  ${carte(4)}
+  <p><b style="color:var(--accent-deep)">On vient de voir</b> — access + refresh, la rotation et la révocation : la session tient dans la durée, sans jamais recourir à un jeton éternel.</p>
+  <p><b>Dans ce module</b> — la checklist de production : clé, HTTPS, rate limiting, CORS, rôles, et où stocker le jeton côté navigateur.</p>`},
+
+{t:"M5 · De la démo à la prod", html:`
+  <div class="kicker">Module 5 &bull; Durcissement</div><h2>« Ça marche » n'est pas encore « c'est sûr »</h2>
+  <p>Aux modules 1 à 4, on a construit une authentification <b>qui fonctionne</b> : login, tokens, endpoints protégés, refresh. Mais une API prête pour la <b>production</b> doit aussi résister aux attaques et aux erreurs de configuration. C'est tout l'objet de ce module.</p>
+  <p>Trois chantiers, qu'on va dérouler dans l'ordre :</p>
+  <ul>
+    <li><b>Autorisation fine</b> : être authentifié ne suffit pas, encore faut-il avoir le <b>droit</b> (rôles &amp; scopes).</li>
+    <li><b>Durcissement</b> : fermer les portes classiques (rate limiting, CORS, gestion des secrets, « fail-closed »).</li>
+    <li><b>Stockage côté client</b> : où ranger le token dans le navigateur sans se le faire voler.</li>
+  </ul>
+  <div class="hintbox">Pour ne rien oublier, on s'appuie sur une <b>carte des risques</b> reconnue : l'<b>OWASP API Top 10</b> (slide suivante).</div>`},
+
+{t:"OWASP API Top 10", html:`
+  <div class="kicker">Module 5 &bull; Durcissement</div><h2>La carte des risques : OWASP API Top 10</h2>
+  <p>L'<b>OWASP</b> est une organisation de référence en sécurité. Son <b>API Security Top 10</b> est la liste des 10 failles les plus fréquentes des API. On s'en sert de <b>check-list</b>. Voici les principales, expliquées en clair, et ce que le cours en couvre.</p>
+  <table>
+    <tr><th>La faille (nom officiel)</th><th>En clair</th><th>Dans ce cours</th></tr>
+    <tr><td><b>Authentification cassée</b><br><span class="muted">API2 &middot; Broken Authentication</span></td><td>L'attaquant se fait passer pour quelqu'un d'autre : mot de passe faible, token mal vérifié.</td><td><b>Cœur du cours</b> : JWT, OAuth2, validation.</td></tr>
+    <tr><td><b>Autorisation de fonction cassée</b><br><span class="muted">API5</span></td><td>Un simple utilisateur atteint une action réservée (ex. une route admin).</td><td>Rôles &amp; scopes.</td></tr>
+    <tr><td><b>Consommation sans limite</b><br><span class="muted">API4</span></td><td>Aucun garde-fou sur le nombre d'appels : brute-force, surcoût, déni de service.</td><td>Rate limiting &amp; quota (ateliers 5-6).</td></tr>
+    <tr><td><b>Mauvaise configuration</b><br><span class="muted">API8</span></td><td>Réglages dangereux : CORS trop ouvert, secret laissé « par défaut »...</td><td>CORS, secrets, fail-closed.</td></tr>
+    <tr><td><b>Accès à un objet qui n'est pas le sien</b><br><span class="muted">API1 / API3</span></td><td>Lire ou modifier les données d'un autre utilisateur en changeant un identifiant dans l'URL.</td><td>Au-delà de ce cours.</td></tr>
+  </table>
+  <div class="hintbox"><b>À retenir</b> : l'authentification (API2) est la porte d'entrée, mais une API sûre traite aussi l'autorisation, la consommation et la configuration.</div>`},
+
+{t:"M5 · Bonnes pratiques", html:`
+  <div class="kicker">Module 5</div><h2>Durcissement : la checklist</h2>
+  <div class="grid2">
+    <div class="card"><ul>
+      <li><b>SECRET_KEY</b> via variable d'environnement, jamais en dur, jamais sur Git</li>
+      <li><b>HTTPS</b> obligatoire en production (sinon le Bearer token circule en clair)</li>
+      <li><b>Expiration courte</b> pour l'access token</li>
+      <li><b>Rate limiting</b> sur <code class="inline">/token</code> : plafonner les essais de login (anti-brute-force)</li>
+    </ul></div>
+    <div class="card"><ul>
+      <li>Mots de passe <b>hachés</b> (bcrypt/argon2), jamais en clair</li>
+      <li><b>401</b> vs <b>403</b> bien distingués</li>
+      <li><b>Révocation</b> possible (logout réel)</li>
+      <li><b>CORS</b> : restreindre quels sites (origines) peuvent appeler l'API</li>
+    </ul></div>
+  </div>
+  ${PY(`# Générer une bonne clé secrète :
+python -c "import secrets; print(secrets.token_urlsafe(32))"`)}
+  <div class="dangerbox">Le piège classique : laisser <code class="inline">SECRET_KEY = "secret"</code> dans le code. Si la clé fuite, <b>n'importe qui peut forger des tokens valides</b> pour n'importe quel utilisateur.</div>`},
+
+{t:"M5 · Clé fail-closed", html:`
+  <div class="kicker">Module 5 &bull; Durcissement</div><h2>Fail-closed : refuser de démarrer sans clé</h2>
+  <p><b>« Fail-closed »</b> veut dire « échouer en se fermant » : en cas de configuration manquante, l'application <b>s'arrête</b> au lieu de tourner en mode dangereux. Le piège n°1 ici : prévoir une <code class="inline">SECRET_KEY</code> « par défaut » pour que l'app démarre sans config. Si on oublie de la remplacer, l'API tourne en prod avec une <b>clé connue</b>, et n'importe qui forge des tokens valides.</p>
+  ${PY(`import os
+
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY manquante : refus de démarrer. "
+        "Définissez-la dans l'environnement (.env)."
+    )`)}
+  <div class="dangerbox"><b>La règle</b> : mieux vaut une API qui <b>refuse de démarrer</b> (fail-closed) qu'une API qui tourne en silence avec une faille béante.</div>`},
+
+{t:"M5 · Durcir /token", html:`
+  <div class="kicker">Module 5 &bull; Durcissement</div><h2>Durcir <code class="inline">/token</code> en pratique</h2>
+  <p>Trois défenses autour du login. D'abord, ce que veulent dire ces mots :</p>
+  <ul>
+    <li><b>Rate limiting</b> (« limitation de débit ») : plafonner le nombre de requêtes par client, par exemple 5 essais/minute. Ça casse le <b>brute-force</b> (tester des milliers de mots de passe). Au-delà, l'API répond <code class="inline">429 Too Many Requests</code>.</li>
+    <li><b>CORS</b> (« Cross-Origin Resource Sharing ») : la règle qui dit au navigateur <b>quels sites</b> (origines) ont le droit d'appeler votre API. On n'autorise que votre propre front.</li>
+    <li><b>Anti-énumération</b> : renvoyer le <b>même message</b> d'erreur que le compte existe ou non, pour ne pas révéler quels comptes existent.</li>
+  </ul>
+  ${PY(`from slowapi import Limiter                      # déclaré dans pyproject.toml
+from slowapi.util import get_remote_address
+from fastapi.middleware.cors import CORSMiddleware
+
+limiter = Limiter(key_func=get_remote_address)      # 1) rate limiting par IP
+app.add_middleware(CORSMiddleware,                  # 2) CORS restreint
+                   allow_origins=["https://mon-front.fr"])
+
+@app.post("/token")
+@limiter.limit("5/minute")                          # 429 au-dela
+def login(request: Request, form=Depends(OAuth2PasswordRequestForm)):
+    ...  # 3) message generique + verif d'un hash meme si le compte n'existe pas`)}
+  <div class="dangerbox"><b>Anti-énumération</b> : même message pour « compte inconnu » et « mauvais mot de passe », et on vérifie toujours un hash pour lisser le temps de réponse. Voir l'atelier 5.</div>`},
+
+{t:"M5 · Rôles & scopes", html:`
+  <div class="kicker">Module 5 &bull; Autorisation</div><h2>Autorisation fine : rôles &amp; scopes</h2>
+  <p><b>Rappel</b> : l'<b>authentification</b> prouve <i>qui</i> on est ; l'<b>autorisation</b> décide <i>ce qu'on a le droit</i> de faire. Voici l'autorisation en pratique : une fois authentifié, on restreint selon le <b>rôle</b> (ou des <b>scopes</b> OAuth2). Exemple : seuls les admins listent les utilisateurs.</p>
+  ${PY(`def require_admin(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    return current_user
+
+@app.get("/users")
+def liste_users(admin: dict = Depends(require_admin)):   # 403 si pas admin
+    return [...]`)}
+  <div class="hintbox">On <b>chaîne</b> les dépendances : <code class="inline">require_admin</code> dépend de <code class="inline">get_current_user</code>. FastAPI exécute d'abord l'authentification, puis le contrôle du rôle.</div>`},
+
+{t:"M5 · Stockage client", html:`
+  <div class="kicker">Module 5 &bull; Côté client</div><h2>Où stocker les tokens dans le navigateur ?</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">localStorage</h3><ul>
+      <li>Simple à lire / écrire en JavaScript.</li>
+      <li>Vulnérable au <b>XSS</b> : un script injecté lit le token.</li>
+    </ul></div>
+    <div class="card"><h3 style="margin-top:0;color:var(--accent-deep)">Cookie httpOnly</h3><ul>
+      <li>Inaccessible au JS &rarr; <b>protège du XSS</b>.</li>
+      <li>Envoyé automatiquement &rarr; exposé au <b>CSRF</b>.</li>
+      <li>À coupler avec <code class="inline">SameSite</code> + un jeton anti-CSRF.</li>
+    </ul></div>
+  </div>
+  <table>
+    <tr><th></th><th>localStorage</th><th>Cookie httpOnly</th></tr>
+    <tr><td>Risque XSS</td><td><span class="tag d">élevé</span></td><td><span class="tag b">faible</span></td></tr>
+    <tr><td>Risque CSRF</td><td><span class="tag b">faible</span></td><td><span class="tag w">à gérer (SameSite)</span></td></tr>
+  </table>
+  <div class="hintbox"><b>Arbitrage</b> : pas de solution magique. Cookie <code class="inline">httpOnly</code> + <code class="inline">SameSite</code> + protection CSRF est souvent le meilleur compromis. Dans tous les cas : <b>HTTPS</b> et expiration courte.</div>`},
+
+/* ---------------- EXERCICES ---------------- */
+{t:"Quiz 4", html:`
+  <div class="kicker">Quiz éclair</div><h2>Durcissement &amp; mise en production</h2>
+  <div class="widget quiz" data-correct="1">
+    <p><b>Votre <code class="inline">/token</code> répond « utilisateur inconnu » ou « mot de passe incorrect » selon le cas. Où est le problème ?</b></p>
+    <button class="opt">Nulle part, c'est plus clair pour l'utilisateur</button>
+    <button class="opt">Cela permet d'énumérer les comptes existants</button>
+    <button class="opt">Cela ralentit inutilement l'API</button>
+    <div class="feedback"></div>
+  </div>
+  <div class="widget quiz" data-correct="1">
+    <p><b>L'application démarre sans <code class="inline">SECRET_KEY</code> définie. Quel comportement est le bon ?</b></p>
+    <button class="opt">Utiliser une clé par défaut pour ne pas bloquer</button>
+    <button class="opt">Refuser de démarrer (fail-closed)</button>
+    <button class="opt">Générer une clé aléatoire à chaque démarrage</button>
+    <div class="feedback"></div>
+  </div>`},
+
+{t:"Dev IA · L'enjeu", html:`
+  <div class="kicker">Dev IA &bull; L'enjeu</div><h2>Un modèle, ce n'est pas une route comme une autre</h2>
+  <p>Pourquoi tout ce travail de sécurité, concrètement, quand la ressource servie est un <b>modèle d'IA</b> ?</p>
+  <ul>
+    <li><b>Coût</b> — chaque prédiction consomme du CPU/GPU. Sans contrôle, on subit la facture et le déni de service.</li>
+    <li><b>Propriété</b> — votre modèle est de la valeur. Un accès libre permet de le copier en l'interrogeant massivement.</li>
+    <li><b>Données</b> — les entrées envoyées au modèle peuvent être sensibles (santé, finance) : qui a le droit de les soumettre ?</li>
+    <li><b>Abus</b> — des quotas par utilisateur évitent le scraping et garantissent un service équitable.</li>
+  </ul>
+  <div class="hintbox"><b>Bon réflexe</b> : renvoyez aussi la <b>probabilité / confiance</b> (pas seulement la classe prédite), et journalisez les accès refusés.</div>`},
+
+{t:"Dev IA · Protéger /predict", html:`
+  <div class="kicker">Dev IA &bull; En pratique</div><h2>Protéger l'endpoint du modèle</h2>
+  <p>Un token ne suffit pas : un endpoint d'inférence se protège aussi de ses <b>entrées</b> et de l'<b>abus d'usage</b>.</p>
+  ${PY(`class IrisFeatures(BaseModel):        # 1) validation METIER stricte
+    sepal_length: float = Field(gt=0, le=12)   # bornes realistes, pas juste > 0
+    ...                              # une valeur aberrante -> 422
+
+@app.post("/predict")
+def predict(f: IrisFeatures, user=Depends(get_current_user)):
+    if usage[user] >= QUOTA:         # 2) quota par utilisateur
+        raise HTTPException(429, "Quota atteint")   # cout / anti-extraction
+    usage[user] += 1
+    return {"espece": modele.predict(f), "restant": QUOTA - usage[user]}`)}
+  <div class="hintbox"><b>Pourquoi</b> : les bornes bloquent les entrées absurdes/adversariales ; le quota maîtrise le coût et freine l'extraction du modèle par interrogation massive. Voir l'atelier 6.</div>`},
+
+{t:"Dev IA · Sécurité LLM", html:`
+  <div class="kicker">Dev IA &bull; LLM</div><h2>Sensibilisation : l'injection de prompt</h2>
+  <p>Si le modèle servi est un <b>LLM</b>, une menace nouvelle apparaît : l'<b>injection de prompt</b>.</p>
+  <ul>
+    <li><b>Le problème</b> : entrée utilisateur et consignes système partagent le même canal ; l'utilisateur peut « écraser » vos instructions (« ignore les règles ci-dessus »).</li>
+    <li><b>Séparer</b> consignes système et données utilisateur ; ne jamais concaténer aveuglément.</li>
+    <li><b>Borner la sortie</b> (longueur, format) et ne jamais exécuter/évaluer ce que renvoie le modèle.</li>
+    <li><b>Filtrer &amp; minimiser</b> : valider entrée/sortie, limiter les données sensibles accessibles au modèle.</li>
+  </ul>
+  <div class="warnbox">L'injection de prompt n'a pas de correctif unique : c'est de la défense en profondeur. Un sujet clé pour un Dev IA.</div>`},
+
+{t:"Dépannage", html:`
+  <div class="kicker">Ateliers &bull; Dépannage</div><h2>Les erreurs que vous allez croiser</h2>
+  <p>Les messages d'erreur sont vos amis : chacun pointe vers sa cause.</p>
+  <table>
+    <tr><th>Symptôme</th><th>Cause &amp; correction</th></tr>
+    <tr><td><b>422</b> sur <code class="inline">/token</code></td><td>L'endpoint attend un <b>formulaire</b>, pas du JSON. Envoyez <code class="inline">username=…&amp;password=…</code> et installez <code class="inline">python-multipart</code>.</td></tr>
+    <tr><td><b>401</b> systématique</td><td>Token absent, mal copié, expiré, ou un <b>refresh</b> présenté là où un <b>access</b> est attendu.</td></tr>
+    <tr><td><code class="inline">InvalidSignatureError</code></td><td>La clé de décodage n'est pas celle qui a signé le token.</td></tr>
+    <tr><td><code class="inline">ExpiredSignatureError</code></td><td>Le token a dépassé <code class="inline">exp</code>. C'est normal : il faut le rafraîchir.</td></tr>
+    <tr><td><code class="inline">ModuleNotFoundError: jwt</code></td><td>Installez <code class="inline">pyjwt</code> (l'import s'appelle <code class="inline">jwt</code>).</td></tr>
+  </table>
+  <div class="hintbox"><b>Réflexe</b> : lisez le <b>type exact</b> de l'exception — il vous dit presque toujours quoi corriger.</div>`},
+
+{t:"Exercice 1", html:`
+  <div class="kicker">À toi de jouer &bull; ~30 min</div><h2>Exercice 1 — Manipuler un JWT <span class="tag b">facile</span></h2>
+  <ul>
+    <li><b>A.</b> Décoder un JWT fourni (header + payload), à la main puis en Python.</li>
+    <li><b>B.</b> Créer et signer un JWT avec PyJWT, le vérifier ; observer l'erreur avec une mauvaise clé.</li>
+    <li><b>C.</b> Créer un token qui expire en 5 s, observer <code class="inline">ExpiredSignatureError</code>.</li>
+  </ul>
+  <p><b>Objectif</b> : comprendre concrètement la structure, la signature et l'expiration.</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/exercice-1-jwt.md</code> &bull; Corrigé : <code class="inline">corriges/exercice-1/</code></p>
+  <div class="hintbox">Astuce : utilise le <b>décodeur live</b> de ce support (module 2) pour la partie A.</div>`},
+
+{t:"Exercice 2", html:`
+  <div class="kicker">À toi de jouer &bull; ~45-60 min</div><h2>Exercice 2 — Login + protégé + refresh <span class="tag w">moyen</span></h2>
+  <ul>
+    <li><code class="inline">POST /token</code> : login (Password Grant) avec hachage du mot de passe.</li>
+    <li><code class="inline">GET /me</code> : endpoint <b>protégé</b> via <code class="inline">get_current_user</code>.</li>
+    <li><code class="inline">POST /refresh</code> : délivre un nouvel access token à partir d'un refresh.</li>
+    <li>Un access doit être refusé sur <code class="inline">/refresh</code> (et inversement).</li>
+  </ul>
+  <p><b>Objectif</b> : reproduire le flux OAuth2 complet de base.</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/exercice-2-oauth2-refresh.md</code> &bull; Corrigé : <code class="inline">corriges/exercice-2/</code></p>`},
+
+{t:"Atelier 3 · Sécurité JWT", html:`
+  <div class="kicker">À toi de jouer &bull; ~45-60 min</div><h2>Atelier 3 — Sécurité JWT : valider &amp; déjouer les pièges <span class="tag w">avancé · optionnel</span></h2>
+  <ul>
+    <li><b>A.</b> Validation robuste : pinner l'algorithme, imposer <code class="inline">aud</code> / <code class="inline">iss</code> / <code class="inline">exp</code> / <code class="inline">nbf</code>.</li>
+    <li><b>B.</b> Forger un token <code class="inline">alg:none</code> et montrer qu'un décodage strict le rejette.</li>
+    <li><b>C.</b> Reproduire la confusion d'algorithme <code class="inline">RS256 &rarr; HS256</code>, puis la bloquer.</li>
+  </ul>
+  <p><b>Objectif</b> : comprendre que vérifier la signature ne suffit pas.</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/atelier-3-securite-jwt.md</code> &bull; Corrigé runnable : <code class="inline">corriges/atelier-securite-jwt/</code></p>`},
+
+{t:"Atelier 4 · Réutilisation", html:`
+  <div class="kicker">À toi de jouer &bull; ~60 min</div><h2>Atelier 4 — Détection de réutilisation des refresh <span class="tag d">moyen &rarr; difficile</span></h2>
+  <ul>
+    <li>Implémenter les <b>familles de tokens</b> (un <code class="inline">jti</code> courant par session).</li>
+    <li>Rotation normale quand le dernier <code class="inline">jti</code> est présenté.</li>
+    <li>Rejeu d'un ancien <code class="inline">jti</code> &rarr; <b>réutilisation détectée</b> &rarr; révocation en cascade.</li>
+    <li>Prouver le scénario complet avec un test de bout en bout.</li>
+  </ul>
+  <p><b>Objectif</b> : transformer un vol de refresh token en alerte de sécurité.</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/atelier-4-reutilisation-refresh.md</code> &bull; Corrigé runnable : <code class="inline">corriges/atelier-reutilisation-refresh/</code></p>`},
+
+{t:"Atelier 5 · Durcissement", html:`
+  <div class="kicker">À toi de jouer &bull; ~45 min</div><h2>Atelier 5 — Durcir l'endpoint d'authentification <span class="tag w">moyen</span></h2>
+  <ul>
+    <li><b>Rate limiting</b> sur <code class="inline">/token</code> avec slowapi (429 au-delà de 5/min).</li>
+    <li><b>CORS</b> restreint à l'origine du front légitime.</li>
+    <li><b>Journalisation</b> des échecs + message générique (anti-énumération).</li>
+  </ul>
+  <p><b>Objectif</b> : protéger le login exposé (brute-force, énumération, cross-site).</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/atelier-5-durcissement.md</code> &bull; Corrigé runnable : <code class="inline">corriges/durcissement-prod/</code></p>`},
+
+{t:"Atelier 6 · Serving IA", html:`
+  <div class="kicker">À toi de jouer &bull; ~45 min</div><h2>Atelier 6 — Sécuriser un endpoint qui sert un modèle <span class="tag w">moyen</span></h2>
+  <ul>
+    <li><b>Validation métier stricte</b> des features : bornes réalistes &rarr; 422.</li>
+    <li><b>Quota par utilisateur</b> sur <code class="inline">/predict</code> : 429 au-delà.</li>
+    <li>Vérifier l'<b>isolation</b> du quota entre utilisateurs.</li>
+  </ul>
+  <p><b>Objectif</b> : ajouter les protections propres au serving d'un modèle.</p>
+  <p class="muted">Énoncé : <code class="inline">exercices/atelier-6-serving-ia.md</code> &bull; Corrigé runnable : <code class="inline">corriges/serving-ia-securise/</code></p>`},
+
+{t:"Projet final · HorRAGor", html:`
+  <div class="kicker">Projet final &bull; HorRAGor Partie 3</div><h2>Sécuriser le cluster multi-agent <span class="tag d">difficile</span></h2>
+  <p>Votre projet HorRAGor expose un graphe <b>multi-agent LangGraph</b> (RAG &rarr; routeur &rarr; Scraper &rarr; Narration) derrière une API FastAPI. L'épilogue MLOps exige une authentification robuste par <b>refresh tokens</b> : c'est votre livrable.</p>
+  <div class="grid2">
+    <div class="card"><span class="tag a">Ce qu'on vous demande</span><ul>
+      <li><code class="inline">/token</code>, <code class="inline">/refresh</code> (rotation), <code class="inline">/logout</code> (révocation)</li>
+      <li>L'endpoint qui invoque le graphe : <b>401 sans token valide</b></li>
+      <li>Rôles : recharger l'index ou lire les traces = admin (403 sinon)</li>
+    </ul></div>
+    <div class="card"><span class="tag b">Durcissement</span><ul>
+      <li><code class="inline">SECRET_KEY</code> via <code class="inline">.env</code> + <b>fail-closed</b> au démarrage</li>
+      <li>Rate limiting sur <code class="inline">/token</code>, CORS restreint à l'UI Streamlit</li>
+      <li>Journalisation des accès refusés (loguru)</li>
+    </ul></div>
+  </div>
+  <div class="hintbox"><b>Le graphe est fourni</b> : on ne réimplémente pas LangGraph, on le <b>verrouille</b>. Toute la sécurité vue en formation s'applique telle quelle.</div>
+  <p class="muted">Énoncé + grille d'évaluation : <code class="inline">exercices/projet-final-horragor.md</code></p>`},
+
+{t:"Aller plus loin · Exemple", html:`
+  <div class="kicker">Aller plus loin &bull; Exemple</div><h2>Un exemple complet, déjà corrigé</h2>
+  <p>Besoin d'un modèle à copier pendant le projet ? Le kit contient une <b>API IA sécurisée de bout en bout</b> (modèle Iris), entièrement corrigée et testée : exactement la couche de sécurité attendue sur HorRAGor.</p>
+  <div class="grid2">
+    <div class="card"><span class="tag a">Auth</span><ul><li><code class="inline">/token</code>, <code class="inline">/refresh</code>, <code class="inline">/logout</code></li><li>access court + refresh long</li><li>rotation + révocation (jti)</li></ul></div>
+    <div class="card"><span class="tag b">Métier</span><ul><li><code class="inline">POST /predict</code> protégé (401 sans token)</li><li><code class="inline">GET /users</code> réservé admin (403 sinon)</li><li>SECRET_KEY via <code class="inline">.env</code></li></ul></div>
+  </div>
+  <div class="hintbox">À lire comme une <b>référence de code</b> : l'architecture auth y est directement transposable sur l'API de votre graphe.</div>
+  <p class="muted">Exemple : <code class="inline">exercices/exemple-api-ia-securisee.md</code> &bull; Code : <code class="inline">corriges/exemple-api-ia-securisee/</code></p>`},
+
+{t:"Pour aller plus loin", html:`
+  <div class="kicker">Pour aller plus loin</div><h2>Ressources &amp; prochaines étapes</h2>
+  <ul>
+    <li><b>Auth Code + PKCE</b> : l'évolution naturelle du projet, remplacer le Password Grant par le flux recommandé (OAuth 2.1).</li>
+    <li><b>OWASP</b> : API Security Top 10 et les Cheat Sheets (JWT, Authentication, Password Storage).</li>
+    <li><b>Documentation FastAPI</b> : Security, OAuth2 with scopes, Testing (pytest + dependency_overrides).</li>
+    <li><b>RFC</b> : 7519 (JWT), 8725 (bonnes pratiques JWT), 6749 (OAuth2).</li>
+    <li><b>Déploiement</b> : Docker + uvicorn/gunicorn derrière un reverse proxy HTTPS.</li>
+  </ul>
+  <div class="hintbox">Prochaine étape : reprendre le projet final, le durcir avec les ateliers 5 et 6, puis tenter l'extension Authorization Code + PKCE.</div>`},
+
+{t:"Récap", html:`
+  <div class="center" style="padding-top:5vh">
+    <div class="kicker">Bravo </div>
+    <h1>Ce qu'on a construit</h1>
+    <div class="grid2" style="text-align:left;margin-top:1rem">
+      <div class="card"><h3 style="margin-top:0">Les concepts</h3><ul>
+        <li>JWT : header.payload.signature, signé ≠ chiffré</li>
+        <li>OAuth2 Password Grant</li>
+        <li>Access (court) + Refresh (long)</li>
+      </ul></div>
+      <div class="card"><h3 style="margin-top:0">La pratique</h3><ul>
+        <li>Hachage bcrypt, <code class="inline">get_current_user</code></li>
+        <li>Rotation &amp; révocation des refresh</li>
+        <li>Rôles, 401/403, SECRET_KEY en env</li>
+      </ul></div>
+    </div>
+    <p class="muted" style="margin-top:1.5rem">Ouvre <code class="inline">ressources/glossaire.md</code> en cas de doute, et lance les corrigés pour expérimenter. Bon code !</p>
+  </div>`},
+];
+
+/* =========================================================================
+   MOTEUR DE PRÉSENTATION
+   ========================================================================= */
+let cur = 0;
+const deck = document.getElementById('deck');
+const menulist = document.getElementById('menulist');
+
+// Construit les slides
+slides.forEach((s,i)=>{
+  const sec = document.createElement('section');
+  sec.className = 'slide' + (i===0?' active':'');
+  sec.innerHTML = s.html;
+  deck.appendChild(sec);
+  const li = document.createElement('li');
+  li.textContent = (i+1)+'. '+s.t;
+  li.onclick = ()=>{ jump(i); toggleMenu(); };
+  menulist.appendChild(li);
+});
+const sections = Array.from(document.querySelectorAll('.slide'));
+
+function render(){
+  sections.forEach((s,i)=>s.classList.toggle('active', i===cur));
+  document.getElementById('counter').textContent = `${cur+1} / ${slides.length}`;
+  document.getElementById('progress').style.width = ((cur)/(slides.length-1)*100)+'%';
+  document.getElementById('prev').disabled = cur===0;
+  document.getElementById('next').disabled = cur===slides.length-1;
+  document.getElementById('deck').scrollIntoView({behavior:'instant',block:'start'});
+  window.scrollTo(0,0);
+  highlightAll();
+  if(sections[cur].querySelector('#jwtInput')) initJwt();
+  if(sections[cur].querySelector('#flowMsg')) flowReset();
+}
+function go(d){ const n=cur+d; if(n>=0&&n<slides.length){cur=n;render();} }
+function jump(i){ cur=i; render(); }
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' ') go(1);
+  else if(e.key==='ArrowLeft') go(-1);
+  else if(e.key==='m'||e.key==='M') toggleMenu();
+  else if(e.key==='Home') jump(0);
+  else if(e.key==='End') jump(slides.length-1);
+});
+function toggleMenu(){ document.getElementById('menu').classList.toggle('open'); }
+
+/* ---- Coloration syntaxique Python (légère, un seul passage) ---- */
+const KW = "def|class|return|import|from|if|elif|else|try|except|finally|raise|for|while|in|is|not|and|or|None|True|False|with|as|async|await|lambda|pass|global|yield";
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(code){
+  code = escapeHtml(code);
+  const re = new RegExp(
+    "(#[^\\n]*)" +                              // 1 commentaire
+    "|(\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')" + // 2 string
+    "|(@\\w+)" +                                // 3 décorateur
+    "|\\b(" + KW + ")\\b" +                     // 4 mot-clé
+    "|\\b(\\d+\\.?\\d*)\\b" +                   // 5 nombre
+    "|\\b([a-zA-Z_]\\w*)(?=\\s*\\()",           // 6 appel de fonction
+    "g");
+  return code.replace(re,(m,com,str,dec,kw,num,fn)=>{
+    if(com) return `<span class="tok-com">${com}</span>`;
+    if(str) return `<span class="tok-str">${str}</span>`;
+    if(dec) return `<span class="tok-dec">${dec}</span>`;
+    if(kw)  return `<span class="tok-kw">${kw}</span>`;
+    if(num) return `<span class="tok-num">${num}</span>`;
+    if(fn)  return `<span class="tok-fn">${fn}</span>`;
+    return m;
+  });
+}
+function highlightAll(){
+  sections[cur].querySelectorAll('code.py').forEach(c=>{
+    if(c.dataset.done) return;
+    c.innerHTML = highlight(c.textContent);
+    c.dataset.done = "1";
+  });
+  // boutons copier
+  sections[cur].querySelectorAll('.copybtn').forEach(b=>{
+    if(b.dataset.bound) return; b.dataset.bound="1";
+    b.onclick=()=>{
+      const code = b.parentElement.querySelector('code').textContent;
+      navigator.clipboard.writeText(code).then(()=>{
+        const old=b.textContent; b.textContent="copié ✓";
+        setTimeout(()=>b.textContent=old,1200);
+      });
+    };
+  });
+}
+
+/* ---- Quiz ---- */
+document.addEventListener('click',e=>{
+  if(!e.target.classList.contains('opt')) return;
+  const quiz = e.target.closest('.quiz');
+  const correct = parseInt(quiz.dataset.correct,10);
+  const opts = Array.from(quiz.querySelectorAll('.opt'));
+  const idx = opts.indexOf(e.target);
+  opts.forEach(o=>o.classList.remove('correct','wrong'));
+  const fb = quiz.querySelector('.feedback');
+  if(idx===correct){ e.target.classList.add('correct'); fb.textContent="Correct !"; fb.style.color="var(--accent2)"; }
+  else { e.target.classList.add('wrong'); opts[correct].classList.add('correct'); fb.textContent="Pas tout à fait. La bonne réponse est surlignée."; fb.style.color="var(--danger)"; }
+});
+
+/* ---- Décodeur JWT ---- */
+const SAMPLE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcxNTAwMDAwMCwiZXhwIjoxNzE1MDAwOTAwfQ.Xb3aQnq9k4Zr2example_signature";
+function b64urlDecode(str){
+  str = str.replace(/-/g,'+').replace(/_/g,'/');
+  str += '='.repeat((4 - str.length % 4) % 4);
+  try{ return decodeURIComponent(escape(atob(str))); }catch(e){ return null; }
+}
+function initJwt(){
+  const inp = document.getElementById('jwtInput');
+  if(!inp.value) inp.value = SAMPLE_JWT;
+  inp.oninput = decodeJwt;
+  decodeJwt();
+}
+function decodeJwt(){
+  const inp = document.getElementById('jwtInput');
+  const parts = inp.value.trim().split('.');
+  const partsEl = document.getElementById('jwtParts');
+  const hEl = document.getElementById('jwtHeader');
+  const pEl = document.getElementById('jwtPayload');
+  const expEl = document.getElementById('jwtExp');
+  partsEl.innerHTML='';
+  const cls=['jwth','jwtp','jwts'];
+  parts.forEach((p,i)=>{
+    if(i>0){ const d=document.createElement('span'); d.className='muted'; d.textContent='.'; partsEl.appendChild(d); }
+    const sp=document.createElement('span'); sp.className=cls[i]||''; sp.textContent=p; partsEl.appendChild(sp);
+  });
+  function show(el,raw){
+    if(raw===undefined){ el.textContent='—'; return null; }
+    const dec=b64urlDecode(raw);
+    if(dec===null){ el.textContent='(non décodable)'; return null; }
+    try{ const obj=JSON.parse(dec); el.textContent=JSON.stringify(obj,null,2); return obj; }
+    catch(e){ el.textContent=dec; return null; }
+  }
+  show(hEl, parts[0]);
+  const payload = show(pEl, parts[1]);
+  if(payload && payload.exp){
+    const d=new Date(payload.exp*1000);
+    const expired = Date.now() > payload.exp*1000;
+    expEl.innerHTML = `Expiration (exp) : <b>${d.toLocaleString('fr-FR')}</b> ` +
+      (expired?'<span class="tag d">EXPIRÉ</span>':'<span class="tag b">encore valide</span>');
+  } else { expEl.textContent=''; }
+}
+
+/* ---- Animation du flux OAuth2 ---- */
+const FLOW = [
+  {who:['acClient','acApi'], msg:'<span class="stepno">1</span> Le client envoie <b>username + password</b> à <code class="inline">POST /token</code>.'},
+  {who:['acApi','acDb'],     msg:'<span class="stepno">2</span> L\'API récupère le <b>hash</b> stocké et vérifie le mot de passe.'},
+  {who:['acApi','acClient'], msg:'<span class="stepno">3</span> Identité confirmée &rarr; l\'API renvoie un <b>access (15 min)</b> + un <b>refresh (7 j)</b>.'},
+  {who:['acClient','acApi'], msg:'<span class="stepno">4</span> Le client appelle <code class="inline">POST /predict</code> avec <code class="inline">Authorization: Bearer access</code>.'},
+  {who:['acApi','acClient'], msg:'<span class="stepno">5</span> Token valide &rarr; l\'API exécute le modèle et renvoie la <b>prédiction</b> (200).'},
+  {who:['acClient','acApi'], msg:'<span class="stepno">6</span> 15 min plus tard : l\'access est <b>expiré</b> &rarr; réponse <span class="tag d">401</span>.'},
+  {who:['acClient','acApi'], msg:'<span class="stepno">7</span> Le client envoie son <b>refresh token</b> à <code class="inline">POST /refresh</code>.'},
+  {who:['acApi','acClient'], msg:'<span class="stepno">8</span> L\'API renvoie un <b>nouvel access</b> + un <b>nouveau refresh</b> (rotation). L\'ancien refresh est mort.'},
+];
+let flowI = -1;
+function flowRender(){
+  ['acClient','acApi','acDb'].forEach(id=>document.getElementById(id).classList.remove('hl'));
+  const msgEl = document.getElementById('flowMsg');
+  const cnt = document.getElementById('flowCount');
+  if(flowI<0){ msgEl.innerHTML='Clique sur « Étape suivante » pour dérouler le scénario complet (login &rarr; accès &rarr; expiration &rarr; refresh).'; cnt.textContent=''; return; }
+  const st = FLOW[flowI];
+  st.who.forEach(id=>document.getElementById(id).classList.add('hl'));
+  msgEl.innerHTML = st.msg;
+  cnt.textContent = `Étape ${flowI+1} / ${FLOW.length}`;
+}
+function flowStep(d){ const n=flowI+d; if(n>=-1 && n<FLOW.length){ flowI=n; flowRender(); } }
+function flowReset(){ flowI=-1; flowRender(); }
+
+render();
+</script>
+</body>
+</html>

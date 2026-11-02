@@ -1,0 +1,183 @@
+ML OPS Advanced
+A.SCHUTZ
+1
+
+Docker-compose
+BROKER
+2
+
+notion sur les brokers
+Un broker permet de gérer la communication asynchrone entre services, ce qui évite de bloquer l'application en attendant une réponse, permettant ainsi une exécution plus fluide et réactive.
+Pour des développeurs d'applications en IA, l'utilisation d'un broker est cruciale pour découpler les processus, exécuter des tâches parallèles et ne pas bloquer l'application pendant des calculs lourds ou des traitements de données.
+3
+
+Apache Kafka - Rabbit MQ - Celery
+Kafka :
+Kafka est une plateforme de streaming distribuée conçue pour gérer un grand volume de messages en temps réel, permettant une communication hautement scalable entre services.
+Celery :
+Celery est un framework permettant d'exécuter des tâches asynchrones ou planifiées, souvent utilisé pour des traitements lourds en arrière-plan. Il utilise le broker RabbitMQ entre autre
+4
+
+Au cœur d’une architecture de flux de données, Kafka sert de plateforme centrale, où les Producers publient des flux de données et les Consumers les consomment pour traitement en temps réel.
+5
+KAFKA
+PRODUCER
+CONSUMER
+PRODUCER
+CONSUMER
+SERVICE IA
+app
+app
+
+Celery
+Système de file d'attente distribué permettant l'exécution asynchrone et la gestion de tâches lourdes en arrière-plan → c’est le moteur utilisé pour lancer des requêtes et que votre application continue de fonctionner sans attendre patiemment que les prédiction soit faites! → il ne fonctionne pas tout seul, il a besoin d’un système de gestion des données
+Redis : Moteur de stockage de données en mémoire à ultra-haute performance, utilisé ici comme courtier de messages léger. Tout est dans la RAM mais il n’y a aucune vérification.
+RabbitMQ : Agent de transfert de messages implémentant le protocole AMQP pour garantir une distribution robuste et sécurisée des données. Plus lourd mais vérifie tout, il est très utilisé en industrie.
+6
+
+Celery
+7
+broker
+Modèle(Brain)
+CeleryWorker
+Celery + SERVICE IA
+Application
+
+Broker
+L’application envoie des requêtes dans le broker
+Le worker Celery et dès qu’il est disponible récupère un travail à faire. 
+Quand le travail est terminé le résultat est renvoyé au broker et l’application n’a plus qu’à récupérer le résultat.
+8
+broker
+Modèle(Brain)
+CeleryWorker
+Celery + SERVICE IA
+Application
+  redis:
+    image: redis:alpine
+    container_name: redis_broker
+    ports:
+      - "6379:6379"
+    networks:
+      - mlops-network
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq_broker
+    ports:
+      - "15672:15672" # Interface d'admin RabbitMQ
+    networks:
+      - mlops-network
+
+worker
+celery -A worker.app worker --loglevel=info
+celeryC'est l'exécutable principal. Il lance le framework Celery dans le container.
+-A worker.appIl dit à Celery où trouver l'instance de l'application  worker.py. app = Celery(...).
+worker C'est la sous-commande qui indique à Celery que ce container doit agir comme un Worker
+9
+  worker:
+    build: .
+    container_name: celery_worker
+    # Commande pour lancer le worker Celery
+    command: celery -A worker.app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MODEL_LATENCY=5
+    depends_on:
+      - redis
+    networks:
+      - ml-network
+  worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A worker.app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=rpc://
+      - MODEL_LATENCY=5
+    depends_on:
+      - rabbitmq
+    networks:
+      - ml-network
+
+
+command: ["celery", "-A", "worker.app", "worker", "--loglevel=info", "--concurrency=1"]
+
+worker
+C’est un peu comme une API, on déclare un app Celery et on utilise un décorateur nommé qui sera connu par l’API de fast_api.
+Ici le prédicteur est bidon, il attend, normalement 5 secondes mais on dirait qu’il bug et ne trouve pas les 5 secondes à attendre.
+Celery nomme les tâches en fonction de leur chemin, en forçant le nom on évite des problèmes. 
+Dans l’api on appelle pas predict_task  mais on appelle predict_task.delay() car cela ajoute la tâche à la file d’attente.
+10
+import os
+import time
+
+from celery import Celery
+
+# Configuration dynamique via Docker Compose (avec défaut)
+BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+app = Celery("ml_tasks", 
+broker=BROKER_URL, 
+backend=RESULT_BACKEND)
+
+@app.task(name="predict_task")
+def predict_task():
+    # Simulation d'un modèle d'IA lourd
+    processing_time = int(os.getenv("MODEL_LATENCY", "5"))
+    time.sleep(processing_time)
+    return {"status": "complete", "prediction": 42} 
+
+API
+Dans l’api on appelle pas predict_task  mais on appelle predict_task.delay() car cela ajoute la tâche à la file d’attente.
+11
+from celery.result import AsyncResult
+from fastapi import FastAPI
+
+from worker import predict_task
+
+app = FastAPI()
+
+
+@app.post("/predict")
+def run_prediction():
+    # On envoie la tâche au broker sans attendre
+    job = predict_task.delay()
+    return {"task_id": job.id}
+
+
+Flower
+12
+
+Flower
+Outil de monitoring en temps réel pour Celery, offrant une interface web pour surveiller l'exécution des tâches.
+Permet de visualiser l'état des workers, d'annuler des tâches en cours et d'analyser les temps de réponse de vos modèles IA.
+Il se connecte directement au Broker (Redis ou RabbitMQ) pour intercepter et afficher les événements du cluster Celery.
+On Branche Flower sur le Broker.
+13
+flower:
+    image: mher/flower:latest
+    container_name: flower_monitor
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - ml-network
+flower:    image: mher/flower:latest    container_name: flower_monitor
+    environment:
+      # URL du Broker pour les tâches
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      # URL de l'API RabbitMQ pour les stats avancées
+      - FLOWER_BROKER_API=http://guest:guest@rabbitmq:15672/api/
+    ports:
+      - "5555:5555"
+    depends_on:
+      - rabbitmq
+      - worker
+    networks:
+      - ml-network

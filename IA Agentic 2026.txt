@@ -1,0 +1,60 @@
+IA Agentic 2026
+Antony Schutz
+1
+
+Un peu d’histoire
+Le NLP primitif et les Chatbots à règles (Années 1960 - 1990) : Les débuts reposent sur des règles de grammaire strictes et des correspondances de mots-clés (comme le célèbre chatbot ELIZA). Ces systèmes n'ont aucune "compréhension" réelle et se contentent de suivre un script.
+Le NLP Statistique et Machine Learning (Années 1990 - 2010) : On arrête d'essayer d'enseigner toutes les règles de grammaire aux ordinateurs. À la place, on utilise des algorithmes statistiques (comme les chaînes de Markov cachées, puis les SVM ou Random Forests) pour que la machine "apprenne" à partir de grands corps de texte. C'est l'époque où l'on extrait des caractéristiques textuelles (TF-IDF, n-grams) pour faire de la classification de spams ou du typage de mots (POS tagging).
+NLTK (2001) : Devient la boîte à outils académique de référence pour enseigner et prototyper ces techniques de ML en Python.
+2
+
+Un peu d’histoire
+L'ère du Vectorial et du Deep Learning (Années 2000 - 2013) : L'arrivée des techniques d'encoding et surtout des embeddings (comme Word2Vec en 2013) change la donne. Les mots ne sont plus de simples chaînes de caractères, mais des vecteurs mathématiques. On peut enfin mesurer la proximité sémantique entre deux mots (ex: "roi" - "homme" + "femme" = "reine").
+Efficient Estimation of Word Representations in Vector Space
+La révolution du Transformer (2017) : L'introduction de l'architecture Transformer et du mécanisme d'attention permet de traiter d'immenses volumes de texte en parallèle et de comprendre le contexte global d'une phrase, ouvrant la voie aux modèles de langage modernes.
+Attention Is All You Need est le papier qui a balayé les architectures de réseaux de neurones récurrents (RNN, LSTM) et les CNN pour le traitement du texte, ouvrant la voie à la lignée des modèles GPT, BERT et à tous les LLMs actuels.
+3
+
+Transformer et mécanisme d’attention
+Le mécanisme d'attention permet à l'IA de lier chaque mot d'une phrase à tous les autres en même temps, afin de calculer dynamiquement l'importance relative de chaque mot pour comprendre le contexte global.
+Les têtes d'attention sont des "regards" spécialisés qui analysent simultanément le texte sous plusieurs angles différents (syntaxe, pronoms, temps) pour capturer toutes les nuances du contexte en un seul passage.
+Le Transformer est une architecture globale qui empile des blocs de têtes d’attention pour lier les mots, des encodages positionnels pour repérer leur ordre, des réseaux de neurones classiques pour stocker le savoir, et des connexions résiduelles pour stabiliser le calcul, transformant ainsi le traitement du langage en une géométrie vectorielle dynamique.
+4
+
+Un peu d’histoire
+L'explosion des LLMs et de GPT (2018 - 2022) : Les modèles deviennent gigantesques (GPT-3, puis ChatGPT). On passe de modèles qui prédisent simplement le mot suivant à des interfaces conversationnelles capables de suivre des instructions complexes, de coder et de raisonner.
+L'extension des capacités Mémoire et RAG (2023) : Pour pallier le manque de mémoire à long terme et les hallucinations des LLMs, on intègre des bases de connaissances externes (RAG - Retrieval-Augmented Generation). Le modèle peut désormais chercher des informations fraîches ou privées avant de répondre.
+Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks 
+L'émergence des Chatbots Agentiques (2023 - 2024) : Le chatbot ne fait plus que parler ; il commence à agir. En combinant le LLM avec des outils (accès à des API, exécution de code Python, requêtes SQL), le modèle peut décider d'utiliser un outil tiers pour résoudre un problème.
+5
+
+Aujourd’hui
+L'avènement des IA Agentiques : On dépasse le simple chat. Les agents actuels sont dotés d'un cycle autonome : Planification (décomposer une tâche complexe), Mémoire (court et long terme), Utilisation d'outils, et surtout Réflexion/Correction (analyser leurs propres erreurs pour ajuster leur stratégie). Ils peuvent collaborer entre eux (systèmes multi-agents) pour accomplir des flux de travail entiers sans intervention humaine constante.
+Toolformer: Language Models Can Teach Themselves to Use Tools 
+ReAct: Synergizing Reasoning and Acting in Language Models 
+6
+
+LLM (stateless)
+Prend un texte en entrée, prédit la suite en sortie.
+Une seule exécution à la fois, aucune persistance (il oublie tout d'une requête à l'autre).
+7
+
+Le Chatbot (LLM + Historique)
+On lui réinjecte le fil de la discussion à chaque message.
+Permet de simuler un échange continu et de maintenir une cohérence à court terme.
+8
+
+Le Chatbot Spécialisé - RAG
+On connecte le chatbot à une base de connaissances externe (documents, wikis, bases vectorielles).
+Le modèle peut chercher des informations fraîches ou privées avant de répondre. Fin des hallucinations sur les données métiers.
+9
+
+L'Agent AutonomeTools
+Le LLM devient le cerveau décisionnel.
+Il est doté d'outils (exécuter du code, appeler une API, faire une requête SQL). En plus de parler, il agit et résout des tâches complexes de manière autonome.
+10
+
+Le Chef d'Orchestre : LangChain & LangGraph
+
+Tous ces ajouts (mémoire, RAG, outils, boucles de décision) ne sont pas natifs dans le LLM. Ce sont des frameworks comme LangChain (pour assembler les briques et les outils) et LangGraph (pour gérer les cycles complexes, les états et la persistance) qui permettent de relier toutes ces notions pour donner vie aux architectures agentiques.
+11
