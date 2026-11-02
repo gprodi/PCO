@@ -1,0 +1,26 @@
+---
+name: User story (E4 / C14)
+about: Nouvelle fonctionnalité exprimée du point de vue utilisateur
+title: "[US] En tant que … je veux … afin de …"
+labels: user-story
+---
+
+**En tant que** … **je veux** … **afin de** …
+
+## Contexte
+
+## Scénarios (Gherkin)
+```gherkin
+Scénario: …
+  Étant donné …
+  Quand …
+  Alors …
+```
+
+## Critères d'acceptation
+- [ ] Fonctionnel : …
+- [ ] Accessibilité (RGAA 4.1) : critère n° … — …
+- [ ] Sécurité / RGPD : …
+- [ ] Tests : unitaires / intégration / E2E
+
+## Estimation (points) :

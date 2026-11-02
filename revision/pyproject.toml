@@ -1,0 +1,41 @@
+[project]
+name = "revision"
+version = "0.1.0"
+description = "Révisions DevIA — NotebookLM amélioré : cours -> fiches, QCM, flashcards, exercices, cartes mentales, podcasts"
+requires-python = ">=3.11"
+dependencies = [
+    "llm-gateway",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0",
+    "loguru>=0.7",
+    "typer>=0.12",
+    "httpx>=0.27",
+    # Ingestion
+    "pypdf>=5.0",
+    "python-pptx>=1.0",
+    "beautifulsoup4>=4.12",
+    "markdownify>=0.13",
+    "python-docx>=1.1",
+    "nbformat>=5.10",
+    # API locale
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "sse-starlette>=2.1",
+]
+
+[project.optional-dependencies]
+chroma = ["chromadb>=0.5"]
+web = ["trafilatura>=1.12"]
+podcast = ["piper-tts>=1.2"]
+
+[project.scripts]
+revise = "revision.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/revision"]

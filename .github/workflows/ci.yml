@@ -1,0 +1,76 @@
+# C18 — Intégration continue : lint + tests + couverture à chaque push / PR.
+# Les actions tierces sont épinglées par SHA de commit (veille sécurité : compromissions
+# d'actions/paquets en 2026). Mettre à jour via Dependabot.
+name: ci
+
+on:
+  push:
+    branches: [main, "claude/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }} — ruff + pytest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Installer les dépendances
+        run: uv sync --all-packages --group dev
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Tests + couverture (porte 80 %)
+        run: uv run pytest --cov --cov-report=xml --cov-report=term -m "not integration and not network"
+      - name: Rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ matrix.python }}
+          path: coverage.xml
+
+  firmware:
+    name: Compilation d'un firmware généré (arduino-cli, AVR)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - name: Installer arduino-cli + cœur AVR
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          $HOME/.local/bin/arduino-cli core update-index
+          $HOME/.local/bin/arduino-cli core install arduino:avr
+          $HOME/.local/bin/arduino-cli lib install "DHT sensor library" "Adafruit SSD1306" "Adafruit GFX Library" "Adafruit Unified Sensor" "Servo"
+      - name: Générer et compiler les projets de démonstration
+        run: uv run python -m microforge.core.cli compile-demo --fqbn arduino:avr:uno --out build/demo
+
+  secrets:
+    name: Détection de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

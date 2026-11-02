@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# Secrets / env
+.env
+*.pem
+!**/tests/**/*.pem
+
+# Data & models (versionnés par DVC / MinIO, pas Git)
+data/raw/
+data/interim/
+*.parquet
+!**/tests/fixtures/**/*.parquet
+*.sqlite3
+*.db
+mlruns/
+runs/
+*.pt
+*.onnx
+!**/tests/fixtures/**
+
+# Node / site
+node_modules/
+revision/site/dist/
+revision/site/.astro/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Sphinx
+microforge/docs/_build/
+
+# Divers
+logs/
+*.log
+.chroma/
