@@ -11,7 +11,7 @@
     "build:relatif": "ARTIFACT=1 PUBLIC_MODE=static astro build && node scripts/relativize.mjs dist dist-relatif"
   },
   "dependencies": {
-    "@astrojs/react": "4.4.2",
+    "@astrojs/react": "7.1.2",
     "@astrojs/starlight": "0.37.7",
     "astro": "5.18.2",
     "markmap-lib": "0.18.12",
