@@ -1,0 +1,137 @@
+# Contenu du rapport E1 (Bloc 1 : C1 à C5) injecté dans referentiel/modeles/E1_template.docx.
+# Clés = titres du modèle ; « Parent > Titre » pour les titres en double.
+# Les marqueurs [À COMPLÉTER : …] signalent ce qui dépend de tes exécutions réelles (captures, mesures).
+
+titre: "MicroForge — base de connaissances composants & prix"
+annexe_titre: "Annexe 1 : extraits de code, requêtes SQL et matrice des droits"
+
+sections:
+  Remerciements:
+    - "Je remercie mon formateur Antony Schutz et l'équipe Simplon pour leur accompagnement, ainsi que [À COMPLÉTER : tuteur / entreprise d'accueil] pour leur confiance."
+
+  Introduction:
+    - "MicroForge aide les makers à passer de leur tiroir de composants à un montage qui fonctionne. L'utilisateur photographie son stock ; une IA de vision (YOLO + VLM) en fait l'inventaire ; l'application propose les projets réalisables (station météo, alarme, robot…) et génère pour chacun le câblage, le programme Arduino/ESP32, le guide de soudure, une simulation Wokwi et une netlist KiCad. En mode « je veux construire X », elle calcule la liste d'achat."
+    - "Ce premier dossier couvre le service de données qui alimente l'application : une base de connaissances des composants (brochages, bibliothèques, prix et stocks), construite à partir de cinq types de sources, nettoyée, stockée dans une base conforme au RGPD et exposée par une API REST sécurisée."
+    - "| Élément | Choix |\n|---|---|\n| Langage | Python 3.12+, gestion des dépendances uv |\n| Collecte | httpx + tenacity, BeautifulSoup/lxml, sqlite3, PySpark, BigQuery (option) |\n| Orchestration | Prefect 3 (repli Python pur si absent) |\n| Stockage | PostgreSQL 17 (SQLite en développement), SQLModel/SQLAlchemy 2, Alembic |\n| API | FastAPI, Pydantic v2, JWT RS256, argon2, Fernet |\n| Qualité | pytest (couverture 91 %), ruff, loguru, GitHub Actions |"
+
+  # ------------------------------------------------------------------ C1
+  Identifier les contraintes techniques des sources de données cibles:
+    - "Chaque source a été qualifiée avant d'écrire le code (détail : docs/E1/specifications.md)."
+    - "| Type | Source | Accès | Contraintes |\n|---|---|---|---|\n| Service web REST | DigiKey Product Information v4 | OAuth2 client credentials | quotas par minute/jour, CGU |\n| Service web REST | Mouser Search API | clé d'API | quota non publié → 1 requête/s |\n| Service web REST | GitHub REST | jeton lecture seule | 5 000 requêtes/h |\n| Service web REST | Frankfurter (taux BCE) | libre | 1 appel/jour suffit |\n| Fichier | library_index.json (Arduino) | HTTPS | fichier volumineux, toutes versions |\n| Fichier | pièces Fritzing .fzp (XML) | git clone | licence CC-BY-SA à citer |\n| Scraping | boutique française (shops.yaml) | HTML public | robots.txt, CGU, délai 3 s |\n| Base de données | jlcparts cache.sqlite3 (LCSC) | lecture seule | ~11 Go, instantané daté |\n| Big data | Spark SQL sur l'export Parquet LCSC | local[*] | mémoire selon le profil machine |\n| Big data (option) | BigQuery github_repos.sample_contents | projet GCP | dry-run obligatoire, plafond 60 Go |"
+    - "Contraintes transverses : aucune donnée personnelle collectée, secrets uniquement dans le fichier .env (jamais dans Git, gitleaks en CI), reprise sur erreur réseau (tenacity, respect des en-têtes Retry-After)."
+
+  Définir les spécifications techniques du processus d'extraction:
+    - "Tous les extracteurs héritent d'une même classe Extractor (data_pipeline/base.py) qui impose la structure demandée par le critère C1 :"
+    - "- point de lancement : CLI « mf-pipeline » (Typer) et flow Prefect ;\n- initialisation : setup() (configuration, clients HTTP, connexions) ;\n- traitement : extract() ;\n- gestion des erreurs : exceptions typées, statut « failed » journalisé par loguru ;\n- fin et sauvegarde : save() écrit data/raw/<source>/<date>/records.jsonl et un manifest.json (nombre de lignes, durée, SHA-256, paramètres sans secret)."
+    - "```bash\nuv run mf-pipeline extract fx\nuv run mf-pipeline extract digikey --keywords \"DHT22,BME280\"\nuv run mf-pipeline extract jlcparts --path data/external/cache.sqlite3\nuv run mf-pipeline run   # flow complet : collecte → agrégation → import\n```"
+
+  Construire des requêtes HTTP pour l'accès aux données web:
+    - "Les quatre services REST passent par un client commun (extract/_http.py) : httpx avec délai d'attente, User-Agent identifié, nouvelles tentatives exponentielles (tenacity) sur 429/5xx. DigiKey utilise le flux OAuth2 client credentials (jeton mis en cache jusqu'à expiration) ; Mouser une clé d'API ; GitHub un jeton en lecture seule."
+    - "Les tests rejouent des réponses enregistrées avec respx : ils tournent hors ligne et sans clé."
+
+  Traiter différents formats de fichiers de données (CSV, JSON, XML, etc.):
+    - "- JSON : library_index.json d'Arduino, lu en flux ; on garde la dernière version de chaque bibliothèque et ses « providesIncludes » pour relier composant ↔ bibliothèque ↔ #include.\n- XML : pièces Fritzing (.fzp) analysées avec lxml/XPath pour récupérer le nom et la description de chaque connecteur (brochage).\n- Sorties : JSONL (brut), Parquet (big data), CSV (nomenclatures)."
+
+  Mettre en œuvre des techniques de web scraping pour l'extraction de données:
+    - "Le scraper (extract/scrape_shop.py) lit la configuration de la boutique dans shops.yaml (sélecteurs CSS), vérifie robots.txt avec urllib.robotparser avant chaque page, attend 3 s entre deux requêtes et archive le HTML brut avant de l'analyser avec BeautifulSoup. Seules des données publiques non personnelles sont collectées (prix TTC, disponibilité)."
+    - "[À COMPLÉTER : nom de la boutique retenue après lecture de ses CGU et de son robots.txt]"
+
+  Se connecter à des bases de données relationnelles et NoSQL:
+    - "La base jlcparts (catalogue LCSC, SQLite) est ouverte en lecture seule (URI « mode=ro ») ; les requêtes paramétrées sont dans data_pipeline/sql/. La base applicative PostgreSQL est accédée via SQLModel/SQLAlchemy."
+
+  Filtrer et parser les données extraites:
+    - "Les champs JSON des prix (grilles par paliers) et des attributs sont décodés, les textes nettoyés (balises HTML, entités, Unicode NFKC) et les lignes hors périmètre « maker » (CMS minuscules, stock nul) écartées dès la requête."
+
+  Exécuter des requêtes SQL pour extraire des données structurées:
+    - "Voir C2 : jointures composants ⋈ catégories ⋈ fabricants, filtres sur le stock et fonction fenêtre pour garder la meilleure offre."
+
+  # ------------------------------------------------------------------ C2
+  Concevoir et développer des requêtes SQL performantes pour extraire des données de bases de données relationnelles:
+    - "| Fichier | Moteur | Rôle |\n|---|---|---|\n| jlcparts_maker_parts.sql | SQLite | composants utiles aux makers (MCU, capteurs, afficheurs, drivers) avec stock > 100 |\n| jlcparts_best_offer.sql | SQLite | meilleure offre par fabricant : ROW_NUMBER() OVER (PARTITION BY …) |\n| spark_category_stats.sql | Spark SQL | médiane des prix (percentile_approx), boîtiers traversants/CMS par catégorie |\n| bigquery_include_cooccurrence.sql | BigQuery | paires de #include co-occurrentes dans les sketches publics |"
+    - "Optimisations : filtrage le plus tôt possible, projection des seules colonnes utiles, index sur les clés de jointure (comparaison EXPLAIN QUERY PLAN avant/après), partitionnement et diffusion (broadcast) de la petite table côté Spark, dry-run obligatoire côté BigQuery."
+    - "[À COMPLÉTER : temps d'exécution mesurés avant/après index sur ta machine]"
+
+  Documenter de manière claire et concise les requêtes SQL développées:
+    - "Chaque fichier .sql commence par un en-tête (objectif, tables, filtres, jointures, optimisations). La page docs/E1/requetes.md reprend chaque requête avec son explication ; l'annexe 1 en donne des extraits."
+
+  # ------------------------------------------------------------------ C3
+  Définir les spécifications techniques pour l'agrégation et le nettoyage des données:
+    - "Clé d'unification : (fabricant normalisé, MPN normalisé). Les modules génériques (« capteur DHT22 ») sont rapprochés du catalogue par une table d'alias puis par similarité rapidfuzz (seuil 90, cas douteux mis de côté)."
+  Service web:
+    - "DigiKey, Mouser, GitHub, Frankfurter : réponses JSON paginées, prix par paliers à ramener en euros au taux BCE du jour de collecte."
+  Web scraping:
+    - "Prix TTC en texte localisé (« 3,90 € ») à convertir en nombre ; disponibilité en texte libre normalisée."
+  Fichier de données:
+    - "Arduino : une entrée par version → garder la plus récente. Fritzing : noms de broches hétérogènes à normaliser."
+  Base de données:
+    - "jlcparts : prix et attributs en JSON dans des colonnes texte, stock instantané daté."
+  Système big data:
+    - "Export Parquet partitionné par catégorie ; agrégats calculés par Spark puis réimportés comme statistiques de référence (détection des prix aberrants)."
+
+  Développer un processus automatisé pour l'agrégation des données provenant de différentes sources:
+    - "Le flow Prefect « collect → aggregate → load » enchaîne les extracteurs, l'agrégation (aggregate/aggregate.py) et l'import idempotent. Il est planifiable (cron) et tracé dans la table execution_collecte."
+  Identifier et supprimer les entrées de données corrompues ou erronées:
+    - "| Règle | Contrôle | Action |\n|---|---|---|\n| R1 identité | MPN et nom absents | rejet |\n| R2 prix | prix ≤ 0 ou non numérique | rejet |\n| R3 devise | devise inconnue sans taux | rejet |\n| R4 stock | stock négatif | rejet |\n| R5 valeurs aberrantes | prix hors [Q1 − 1,5·IQR ; Q3 + 1,5·IQR] de la catégorie | quarantaine |"
+    - "Un rapport de rejets compte les lignes écartées par règle ; il est testé sur un jeu de données de référence (tests/test_pipeline.py)."
+  Homogénéiser les formats de données pour assurer la cohérence:
+    - "- tensions : « 3V3 », « 3.3V », « 3,3 V » → 3.3 (volts) ;\n- prix : toutes devises → EUR au taux BCE daté ;\n- MPN en majuscules sans suffixe d'emballage, fabricants canoniques, boîtiers canoniques (DIP-8, SOT-23…) ;\n- interfaces dans un vocabulaire contrôlé (I2C, SPI, UART, 1-Wire, PWM, ADC, GPIO) ;\n- dates ISO 8601, textes UTF-8 NFKC."
+  Versionner et documenter le code source du processus de nettoyage:
+    - "Code versionné dans Git (branches, commits conventionnels), règles documentées dans docs/E1/agregation.md, fonctions pures testées unitairement (pytest), lint ruff et tests exécutés à chaque push par GitHub Actions."
+
+  # ------------------------------------------------------------------ C4
+  Définir les spécifications techniques de la base de données:
+    - "Besoins : données très relationnelles (composants, offres, inventaires, projets), accès concurrents, rôles distincts (application, analyste en lecture seule), recherche vectorielle à terme (datasheets). Volumétrie visée : ~50 000 composants, ~200 000 offres."
+  Description des données utiles:
+    - "| Groupe | Entités |\n|---|---|\n| Utilisateurs | UTILISATEUR, JETON_RAFRAICHISSEMENT |\n| Catalogue | COMPOSANT, CATEGORIE, FABRICANT, BIBLIOTHEQUE, UTILISE |\n| Achats | FOURNISSEUR, OFFRE |\n| Inventaire | ARTICLE_INVENTAIRE, PHOTO, RETOUR_DETECTION |\n| Projets | PROJET |\n| Traçabilité | EXECUTION_COLLECTE |"
+  Modèle Conceptuel des Données > Définition:
+    - "Le MCD (méthode Merise) décrit les entités, leurs propriétés et les associations avec leurs cardinalités, indépendamment de tout SGBD."
+  MCD:
+    - "[À COMPLÉTER : insérer l'image du MCD générée avec Mocodo à partir de docs/E1/merise.md]"
+    - "Exemples de cardinalités : un UTILISATEUR possède 0,n ARTICLE_INVENTAIRE ; un ARTICLE_INVENTAIRE concerne 1,1 COMPOSANT ; un COMPOSANT est proposé dans 0,n OFFRE par un FOURNISSEUR ; un COMPOSANT UTILISE 0,n BIBLIOTHEQUE."
+  Modèle Logique des Données > Définition:
+    - "Le MLD traduit le MCD en relations : chaque entité devient une table, les associations 1,n deviennent des clés étrangères et les associations n,n des tables de jointure (UTILISE)."
+  Optimisation de la mémoire:
+    - "Types au plus juste (SMALLINT pour les quantités, NUMERIC(10,4) pour les prix, VARCHAR bornés), énumérations pour les rôles et statuts, index uniquement sur les colonnes de recherche et de jointure, données volumineuses (photos) hors base dans le stockage objet."
+  MLD:
+    - "[À COMPLÉTER : insérer le MLD (Mocodo / Looping)]"
+  Modèle Physique des Données > Définition:
+    - "Le MPD est l'implémentation dans le SGBD choisi : types PostgreSQL, contraintes, index, script DDL. Il est produit par les modèles SQLModel (api_data/db.py) et versionné par migrations Alembic."
+  MPD:
+    - "[À COMPLÉTER : extrait du DDL généré (alembic upgrade head --sql)]"
+  Tests:
+    - "Les tests d'intégration créent une base SQLite temporaire, appliquent le schéma, insèrent des données et vérifient contraintes, droits et cascade de suppression (tests/test_api_data.py)."
+
+  Sélectionner un système de gestion de base de données (SGBD):
+    - "| Critère | PostgreSQL 17 | SQLite | MongoDB |\n|---|---|---|---|\n| Données relationnelles | ++ | + | − |\n| Accès concurrents, rôles | ++ | − | + |\n| Vecteurs (datasheets) | pgvector | − | Atlas (cloud) |\n| Coût / sobriété | libre, une seule base | libre | libre |"
+    - "Choix : PostgreSQL 17 + pgvector en production, SQLite pour le développement et les tests."
+  Créer la base de données et implémenter le schéma de données:
+    - "Schéma défini dans api_data/db.py (15 tables, noms en français), créé par Alembic ; procédure : docker compose --profile core up puis alembic upgrade head."
+  Documenter le processus d'installation et le script d'import des données:
+    - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/compose.yml --profile core up -d\nuv run alembic upgrade head\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
+    - "L'import (load/importer.py) est idempotent (upsert sur la clé d'unification) et trace chaque exécution dans execution_collecte. Documentation : docs/installation.md."
+  Mettre en œuvre les mesures nécessaires pour assurer la conformité au RGPD (registre des traitements, procédures de tri, etc.):
+    - "| Traitement | Finalité | Base légale | Données | Conservation |\n|---|---|---|---|---|\n| Comptes | accès au service | contrat | pseudo, e-mail chiffré, ville facultative | jusqu'à suppression, inactifs 24 mois |\n| Photos de stock | inventaire | contrat | image sans EXIF/GPS | 30 jours après traitement |\n| Photos pour entraînement | amélioration du modèle | consentement | découpes anonymes | jusqu'au retrait du consentement |\n| Journaux | sécurité | intérêt légitime | identifiant haché, route, statut | 6 mois |"
+    - "Mesures : e-mail chiffré (Fernet) avec index aveugle HMAC pour la recherche, mots de passe argon2, export de mes données et suppression du compte par l'API, purge hebdomadaire (load/purge.py) tracée. Registre complet : docs/E1/rgpd.md."
+
+  # ------------------------------------------------------------------ C5
+  Définir les spécifications techniques de l'API:
+    - "API REST versionnée /v1 (FastAPI). Ressources : authentification, utilisateur (export/suppression RGPD), catalogue (composants, offres, cartes, modèles), inventaire, photos et retours de détection, projets, liste d'achat, administration (exécutions de collecte, synchronisation du catalogue)."
+  Configurer les accès aux données de la base de données:
+    - "Connexion par variable d'environnement (MF_DATABASE_URL), sessions SQLModel injectées par dépendance FastAPI, rôle PostgreSQL applicatif distinct d'un rôle « analyste » en lecture seule pour l'accès direct documenté."
+  Développer les endpoints de l'API pour la réception et la validation des requêtes, l'interrogation de la base de données et la construction des réponses:
+    - "Validation par schémas Pydantic (tailles et bornes), réponses filtrées par response_model, pagination plafonnée, contrôle de propriété de chaque objet (BOLA). Exemples : GET /v1/components?q=dht, POST /v1/inventory/bulk, POST /v1/shopping-list."
+    - "Les 30 routes sont listées en annexe 1 avec les droits associés."
+  Mettre en place un système d'authentification et d'autorisation pour sécuriser l'accès à l'API:
+    - "JWT RS256 : jeton d'accès 15 min, jeton de rafraîchissement 7 jours avec rotation et détection de réutilisation (toute la famille est révoquée). La clé publique est publiée (/v1/auth/public-key) pour que l'API IA vérifie les jetons sans pouvoir en émettre. Rôles user/admin, limitation de débit (slowapi) sur /token, en-têtes de sécurité, CORS restreint ; Top 10 OWASP API traité point par point dans docs/E1/api.md."
+  Conteneurisation et monitoring de l’API:
+    - "Image Docker multi-étapes (uv), compose par profils ; métriques Prometheus (/metrics), tableaux Grafana, journaux JSON loguru vers Loki, sonde Uptime Kuma sur /health."
+    - "[À COMPLÉTER : capture du tableau Grafana « API données »]"
+  Documenter l'API et les méthodes d'accès aux données:
+    - "Documentation OpenAPI générée (/docs et /redoc) complétée par docs/E1/api.md : règles d'authentification, exemples curl, codes d'erreur, accès direct à la base pour les analystes."
+
+  Conclusion:
+    - "Le service de données de MicroForge collecte cinq types de sources, nettoie et unifie les composants selon des règles testées, les stocke dans une base modélisée avec Merise et conforme au RGPD, et les expose par une API sécurisée et documentée. Prochaines étapes : brancher les clés réelles DigiKey/Mouser, mesurer les volumes et temps d'exécution, et compléter le tableau de bord de supervision."
+
+  Annexes:
+    - "Annexe 1 : liste des routes et droits"
+    - "| Route | Méthode | Accès |\n|---|---|---|\n| /v1/auth/register, /token, /refresh, /logout | POST | public (limité en débit) |\n| /v1/users/me, /me/export | GET | utilisateur (soi-même) |\n| /v1/users/me | DELETE | utilisateur (soi-même) |\n| /v1/components, /boards, /templates | GET | utilisateur |\n| /v1/inventory… | GET, POST, PATCH, DELETE | utilisateur (ses objets) |\n| /v1/projects… | GET, POST, DELETE | utilisateur (ses objets) |\n| /v1/shopping-list | POST | utilisateur |\n| /v1/admin/ingestion-runs, /catalog/sync, /feedback-stats | GET, POST | admin |"
