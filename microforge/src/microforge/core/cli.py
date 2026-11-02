@@ -112,6 +112,17 @@ def goal(
     typer.echo(f"Projet écrit dans {path}")
 
 
+def sketch_dir(project: Path) -> Path:
+    """Dossier du sketch principal : celui dont le .ino porte le nom du dossier (exigence Arduino).
+
+    Le dossier ``wokwi/`` contient aussi un ``sketch.ino`` : il ne doit pas être choisi.
+    """
+    for ino in sorted(project.glob("*/*.ino")):
+        if ino.stem == ino.parent.name:
+            return ino.parent
+    raise FileNotFoundError(f"Aucun sketch principal dans {project}")
+
+
 def _board_for_fqbn(fqbn: str):
     cat = get_catalog()
     board = next((b for b in cat.boards.values() if b.fqbn == fqbn), None)
@@ -162,7 +173,7 @@ def compile_demo(
     for tid in targets:
         result = b.build(b.spec_from_template(tid, board.id))
         write_project(b, result, out / tid)
-        sketch = next((out / tid).glob("*/*.ino")).parent
+        sketch = sketch_dir(out / tid)
         proc = subprocess.run(  # noqa: S603 — arguments contrôlés (FQBN du catalogue)
             [cli, "compile", "--fqbn", fqbn, str(sketch)], capture_output=True, text=True
         )

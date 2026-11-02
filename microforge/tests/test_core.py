@@ -562,3 +562,14 @@ def test_cli_lists_libraries_per_board():
     assert "alarme-porte" in ids and all(not CAT.templates[t].requires_wifi for t in ids)
     out = CliRunner().invoke(app, ["libs", "--fqbn", "arduino:avr:uno"]).output
     assert "IRremote" in out and "LedControl" in out and "ESP32Servo" not in out
+
+
+def test_cli_sketch_dir_ignores_wokwi_folder(tmp_path):
+    """Régression CI : le dossier wokwi/ (sketch.ino) ne doit pas être pris pour le sketch."""
+    from microforge.core.cli import sketch_dir, write_project
+
+    for tid in ("station-meteo-oled", "alarme-porte", "veilleuse-auto"):
+        r = BUILDER.build(BUILDER.spec_from_template(tid, "arduino-uno"))
+        write_project(BUILDER, r, tmp_path / tid)
+        d = sketch_dir(tmp_path / tid)
+        assert d.name != "wokwi" and (d / f"{d.name}.ino").exists()
