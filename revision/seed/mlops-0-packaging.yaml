@@ -1,0 +1,237 @@
+titre: "MLOps 0 — packaging Python"
+fiche:
+  titre: "Packager son code Python : structure, pyproject, build et publication"
+  resume: >-
+    Un package Python organise des modules en dossiers pour les rendre importables, versionnés et
+    reproductibles ; il ne se copie pas, il s'installe. Sa porte d'entrée est __init__.py, qui décide de ce
+    qui est public : il peut réexporter des fonctions (from .calculs import ma_fonction), porter la version
+    (__version__) et restreindre l'import étoile avec __all__. La structure recommandée place le code dans
+    src/<nom_du_package>/ et laisse à la racine le pyproject.toml, le README, le Dockerfile et la CI.
+    pyproject.toml décrit l'identité (nom, version dynamique, licence, auteurs), les dépendances de
+    production minimales, les extras optionnels (test, dev, doc), les commandes (project.scripts) et le
+    système de construction (hatchling). uv pip install -e . installe en mode éditable pour développer et
+    tester en même temps. uv build produit un sdist (.tar.gz) et un wheel (.whl) dans dist/, installables
+    partout. On publie via Git, PyPI ou une release GitHub déclenchée par un tag v*.
+  objectifs:
+    - Structurer un projet en src layout avec un __init__.py qui définit l'API publique
+    - Écrire un pyproject.toml complet (métadonnées, dépendances, extras, scripts, build-system)
+    - Installer en mode éditable, construire sdist et wheel, vérifier l'installation
+    - Automatiser une release GitHub sur tag de version
+  notions:
+    - { terme: "Package", definition: "Dossier de modules avec un __init__.py, importable et distribuable avec un numéro de version." }
+    - { terme: "__init__.py", definition: "Porte d'entrée du package : réexporte l'API publique, porte __version__." }
+    - { terme: "__all__", definition: "Liste des noms exportés par « from package import * » ; documente l'API publique." }
+    - { terme: "src layout", definition: "Code dans src/<package>/ : oblige à installer le package pour le tester, ce qui évite d'importer par erreur la copie locale." }
+    - { terme: "Extras (optional-dependencies)", definition: "Groupes installables à la demande : pip install \".[test]\"." }
+    - { terme: "Installation éditable", definition: "uv pip install -e . : le package pointe vers le code source, les modifications sont prises en compte sans réinstaller." }
+    - { terme: "Wheel / sdist", definition: "Wheel (.whl) : format prêt à installer. sdist (.tar.gz) : archive des sources à construire." }
+    - { terme: "Versionnage sémantique", definition: "MAJEUR.MINEUR.CORRECTIF : majeur = changement incompatible, mineur = ajout compatible, correctif = correction." }
+  points_cles:
+    - "Dépendances de production minimales ; outils de test, de lint et de doc dans des extras ou des groupes."
+    - "La version est définie à un seul endroit (dynamic = [\"version\"] lue dans __init__.py par hatch)."
+    - "project.scripts crée de vraies commandes : train-model = \"mon_package.main:run_train\"."
+    - "Toujours tester le wheel construit dans un environnement propre : python -c \"import pkg; print(pkg.__version__)\"."
+    - "Une release sur tag (git tag v1.2.0 && git push --tags) relie précisément un numéro de version à un commit."
+  code:
+    - titre: "Structure et __init__.py"
+      lang: python
+      code: |
+        # mon_projet/
+        # ├── pyproject.toml
+        # ├── README.md
+        # ├── src/
+        # │   └── mon_package/
+        # │       ├── __init__.py
+        # │       ├── model.py
+        # │       └── train.py
+        # └── tests/
+        #     └── test_model.py
+
+        # src/mon_package/__init__.py
+        """Pipeline d'entraînement de mon_package."""
+
+        from .model import predire
+        from .train import entrainer
+
+        __version__ = "0.1.0"
+        __all__ = ["entrainer", "predire"]   # les helpers internes ne sont pas exportés
+      explication: "Les utilisateurs écrivent from mon_package import entrainer, sans connaître l'arborescence interne."
+    - titre: "pyproject.toml et commandes de build"
+      lang: toml
+      code: |
+        [build-system]
+        requires = ["hatchling"]
+        build-backend = "hatchling.build"
+
+        [project]
+        name = "mon_package"
+        dynamic = ["version"]
+        description = "Pipeline d'entraînement"
+        readme = "README.md"
+        requires-python = ">=3.11"
+        license = "MIT"
+        dependencies = ["pandas", "scikit-learn", "pydantic"]
+
+        [project.optional-dependencies]
+        test = ["pytest", "pytest-cov"]
+        dev = ["ruff", "pre-commit"]
+
+        [project.scripts]
+        train-model = "mon_package.train:main"
+
+        [tool.hatch.version]
+        path = "src/mon_package/__init__.py"
+
+        # Terminal :
+        #   uv pip install -e ".[test]"      # mode éditable + extras de test
+        #   uv build                          # -> dist/mon_package-0.1.0.tar.gz et ...-py3-none-any.whl
+        #   uv pip install dist/mon_package-0.1.0-py3-none-any.whl
+      explication: "hatch lit __version__ dans __init__.py : une seule source pour le numéro de version."
+  pieges:
+    - "Mettre __init__.py directement dans src/ au lieu de src/<package>/ : le package s'appelle « src »."
+    - "Oublier de réinstaller après modification sans mode éditable : on teste l'ancienne version."
+    - "Tout mettre dans dependencies (pytest, ruff, sphinx) : l'image de production grossit inutilement."
+    - "Numéro de version écrit à plusieurs endroits : ils finissent par diverger."
+    - "Workflow de release sans permissions contents: write : la création de la release échoue."
+  aller_plus_loin:
+    - titre: "Publier sur TestPyPI puis PyPI avec Trusted Publishing"
+      contenu: "`uv publish` envoie le package ; avec le Trusted Publishing, GitHub Actions s'authentifie auprès de PyPI sans jeton stocké. Commence toujours par TestPyPI."
+      lien: "https://packaging.python.org/en/latest/tutorials/packaging-projects/"
+    - titre: "Workspace uv : plusieurs packages dans un dépôt"
+      contenu: "MicroForge et Révisions DevIA partagent `llm_gateway` grâce à un workspace uv (`[tool.uv.workspace]`) : chaque package a son pyproject, un seul uv.lock à la racine. C'est la réponse à « pourquoi plusieurs pyproject.toml ? » du cours MLOps 1."
+      lien: "https://docs.astral.sh/uv/concepts/projects/workspaces/"
+    - titre: "Changelog et versionnage automatique"
+      contenu: "Avec des commits conventionnels (feat:, fix:), des outils comme release-please ou commitizen calculent la prochaine version et génèrent le CHANGELOG. Défi : publie une v0.2.0 avec ses notes de version."
+      lien: "https://semver.org/lang/fr/"
+  jury: >-
+    **E4 (C15, C17)** et **E5 (C19)** : un cadre technique propre et une livraison reproductible. Le dépôt PCO
+    est un workspace uv : `packages/llm_gateway`, `microforge`, `revision`, chacun avec son pyproject, ses
+    commandes (`revise`, `microforge`) et un `uv.lock` commun. Montre comment un package partagé évite la
+    duplication de code entre deux applications.
+  competences: [C15, C17, C19]
+  sources: []
+qcm:
+  - question: "Rôle de __init__.py dans un package ?"
+    choix: ["Accélérer l'import", "Marquer le dossier comme package et définir son API publique", "Stocker les tests", "Remplacer pyproject.toml"]
+    bonne: 1
+    explication: "Il peut réexporter les fonctions et porter __version__."
+    difficulte: 1
+  - question: "Que contrôle __all__ ?"
+    choix: ["Les tests à lancer", "Ce qu'exporte « from package import * »", "La version", "Les dépendances"]
+    bonne: 1
+    explication: "C'est aussi une documentation de l'API publique."
+    difficulte: 1
+  - question: "Intérêt de uv pip install -e . ?"
+    choix: ["Installer plus vite", "Prendre en compte les modifications du code sans réinstaller", "Installer sans dépendances", "Créer un wheel"]
+    bonne: 1
+    explication: "Le package installé pointe vers le dossier source."
+    difficulte: 1
+  - question: "Que produit uv build ?"
+    choix: ["Une image Docker", "Un sdist (.tar.gz) et un wheel (.whl) dans dist/", "Un .venv", "Un exécutable"]
+    bonne: 1
+    explication: "Ce sont les formats standard de distribution."
+    difficulte: 1
+  - question: "Où placer pytest et ruff ?"
+    choix: ["Dans dependencies", "Dans des extras ou groupes (test, dev)", "Dans __init__.py", "Nulle part"]
+    bonne: 1
+    explication: "La production n'en a pas besoin."
+    difficulte: 1
+  - question: "Passer de 1.4.2 à 2.0.0 signifie :"
+    choix: ["Une correction de bug", "Un ajout compatible", "Un changement incompatible", "Rien de particulier"]
+    bonne: 2
+    explication: "Versionnage sémantique : majeur = rupture de compatibilité."
+    difficulte: 2
+  - question: "Pourquoi le src layout est-il recommandé ?"
+    choix: ["Il est plus joli", "Il force à tester le package installé et non la copie locale du dossier", "Il est obligatoire pour PyPI", "Il accélère Python"]
+    bonne: 1
+    explication: "Il évite les imports « qui marchent chez moi » par hasard."
+    difficulte: 2
+  - question: "Comment déclencher une release automatique ?"
+    choix: ["À chaque commit", "En poussant un tag v* qui déclenche le workflow de release", "En ouvrant une issue", "En modifiant le README"]
+    bonne: 1
+    explication: "on: push: tags: ['v*']."
+    difficulte: 1
+flashcards:
+  - { recto: "Structure src layout", verso: "src/<package>/__init__.py + modules ; tests/ et pyproject.toml à la racine." }
+  - { recto: "Exporter une fonction au niveau du package", verso: "Dans __init__.py : from .calculs import ma_fonction" }
+  - { recto: "Version du package", verso: "__version__ = \"1.0.0\" dans __init__.py (lue par hatch : dynamic = [\"version\"])." }
+  - { recto: "Système de build", verso: "[build-system] requires = [\"hatchling\"], build-backend = \"hatchling.build\"" }
+  - { recto: "Extras", verso: "[project.optional-dependencies] test = [...] ; pip install \".[test]\"" }
+  - { recto: "Commande installée par le package", verso: "[project.scripts] nom = \"package.module:fonction\"" }
+  - { recto: "Mode éditable", verso: "uv pip install -e ." }
+  - { recto: "Construire", verso: "uv build → dist/*.tar.gz et dist/*.whl" }
+  - { recto: "Installer depuis GitHub", verso: "pip install git+https://github.com/compte/depot.git" }
+  - { recto: "Vérifier un wheel", verso: "Environnement propre + python -c \"import pkg; print(pkg.__version__)\"" }
+  - { recto: "SemVer", verso: "MAJEUR (incompatible).MINEUR (ajout).CORRECTIF (correction)." }
+  - { recto: "Release sur tag", verso: "git tag v1.2.0 && git push --tags → workflow on: push: tags: ['v*']" }
+exercices:
+  - titre: "Transformer un script en package"
+    niveau: 1
+    enonce: "Tu as un fichier `outils.py` avec `nettoyer()` et `_normaliser()` (interne). Réorganise-le en package `datatools` (src layout), exporte seulement `nettoyer` et donne-lui la version 0.1.0."
+    indices: ["src/datatools/__init__.py", "__all__ = [...]"]
+    corrige: |
+      ```python
+      # src/datatools/__init__.py
+      from .outils import nettoyer
+
+      __version__ = "0.1.0"
+      __all__ = ["nettoyer"]
+      ```
+      `outils.py` est déplacé dans `src/datatools/` ; `_normaliser` reste accessible en interne (`from .outils import _normaliser`) mais n'est pas exporté. Le préfixe `_` signale aussi qu'il est privé.
+  - titre: "Release automatique"
+    niveau: 2
+    enonce: "Écris le workflow qui, sur un tag v*, construit le package et attache le wheel à une release GitHub. Quelle permission faut-il ?"
+    corrige: |
+      ```yaml
+      name: release
+      on:
+        push:
+          tags: ["v*"]
+      jobs:
+        release:
+          runs-on: ubuntu-latest
+          permissions:
+            contents: write          # nécessaire pour créer la release
+          steps:
+            - uses: actions/checkout@v4
+            - uses: astral-sh/setup-uv@v6
+            - run: uv build
+            - uses: softprops/action-gh-release@v2
+              with:
+                files: dist/*.whl
+      ```
+mindmap: |
+  # Packaging Python
+  ## Package
+  - Modules + __init__.py
+  - __version__, __all__
+  - Installé, versionné
+  ## Structure
+  - src/<package>/
+  - tests/
+  - pyproject.toml à la racine
+  ## pyproject.toml
+  - [project] : nom, version dynamique, licence
+  - dependencies (prod minimale)
+  - optional-dependencies (test, dev, doc)
+  - project.scripts
+  - build-system (hatchling)
+  ## Construire
+  - uv pip install -e .
+  - uv build : sdist + wheel
+  ## Publier
+  - Git, PyPI
+  - Release sur tag v*
+  - SemVer
+podcast_titre: "Du script au package installable"
+podcast:
+  - { voix: A, texte: "Karim, j'ai trois scripts Python qui s'importent entre eux et ça casse dès que je change de dossier. Une solution ?" }
+  - { voix: B, texte: "En faire un package. Le code va dans src, dans un dossier au nom du package, avec un init point py. Puis tu l'installes, et il est importable de partout." }
+  - { voix: A, texte: "Le init point py, je mets quoi dedans ?" }
+  - { voix: B, texte: "Ce qui est public : tu réexportes les fonctions utiles, tu mets la version, et all pour lister ce qui sort. Les fonctions internes restent cachées." }
+  - { voix: A, texte: "Et pendant que je développe, je dois réinstaller à chaque modification ?" }
+  - { voix: B, texte: "Non : uv pip install tiret e point. Le mode éditable pointe vers ton code, les changements sont pris en compte tout de suite." }
+  - { voix: A, texte: "Et pour le distribuer ?" }
+  - { voix: B, texte: "uv build fabrique un wheel. Tu peux l'attacher à une release GitHub automatiquement quand tu pousses un tag v un point zéro, ou le publier sur PyPI." }
+  - { voix: A, texte: "Et la version, je la mets où ?" }
+  - { voix: B, texte: "À un seul endroit, dans init point py, et hatch la lit. Majeur pour une rupture, mineur pour un ajout, correctif pour une correction : c'est le versionnage sémantique." }

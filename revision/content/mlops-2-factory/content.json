@@ -1,0 +1,329 @@
+{
+  "slug": "mlops-2-factory",
+  "titre": "MLOps 2 — usine ML : MLflow + MinIO",
+  "theme": "mlops",
+  "fiche": {
+    "titre": "L'usine à modèles : tracking MLflow, stockage S3 MinIO, registre et inférence par alias",
+    "resume": "L'usine ML relie l'entraînement à la production sans manipuler de fichiers model.pkl à la main. Le serveur de tracking MLflow centralise paramètres et métriques dans une base (SQLite par défaut, PostgreSQL en production) et expose une interface web et une API REST sur le port 5000. Les fichiers lourds (modèles, graphiques) partent dans un stockage objet compatible S3, ici MinIO, dans un bucket (mlflow) créé au besoin avec boto3 ; MLflow y accède grâce à MLFLOW_S3_ENDPOINT_URL et aux identifiants AWS_*. Lors de l'entraînement, log_model avec registered_model_name enregistre directement une nouvelle version dans le Model Registry, puis le MlflowClient pose un alias métier (Production, Staging) sur la version voulue. Côté API, FastAPI ne charge plus un fichier local : il demande au registre quelle version porte l'alias, la télécharge depuis MinIO (models:/nom@Production) et la garde en cache tant que l'alias ne change pas. Promouvoir une V2 se fait en déplaçant l'alias, sans redéployer l'API.",
+    "objectifs": [
+      "Déployer MLflow (tracking + registre) et MinIO avec Docker Compose",
+      "Entraîner, journaliser et enregistrer un modèle dans le registre",
+      "Gérer les versions avec des alias et les promouvoir sans toucher au code de l'API",
+      "Charger dynamiquement le modèle de production dans FastAPI avec un cache"
+    ],
+    "notions": [
+      {
+        "terme": "Tracking server",
+        "definition": "Serveur MLflow qui reçoit runs, paramètres et métriques par API REST et les range dans un backend store (SQL)."
+      },
+      {
+        "terme": "Artifact store",
+        "definition": "Stockage des fichiers (modèles, figures) : disque, ou stockage objet S3 comme MinIO."
+      },
+      {
+        "terme": "MinIO",
+        "definition": "Stockage objet compatible S3, auto-hébergeable ; buckets, API sur le port 9000, console sur 9001."
+      },
+      {
+        "terme": "boto3",
+        "definition": "Client Python pour S3 ; sert à créer le bucket et à dialoguer avec MinIO."
+      },
+      {
+        "terme": "Model Registry",
+        "definition": "Catalogue des modèles : chaque enregistrement crée une version numérotée (1, 2, 3…)."
+      },
+      {
+        "terme": "Alias",
+        "definition": "Étiquette mobile (Production, Staging, champion) qui pointe vers une version ; models:/nom@alias la charge."
+      },
+      {
+        "terme": "Inférence dynamique",
+        "definition": "L'API résout l'alias à l'exécution et recharge le modèle quand la version pointée change."
+      }
+    ],
+    "points_cles": [
+      "MLflow garde les métadonnées ; MinIO garde les fichiers : les deux doivent être persistants (volumes).",
+      "registered_model_name dans log_model enregistre la version en une étape.",
+      "La version créée est connue directement (model_info.registered_model_version) : inutile de chercher « la dernière ».",
+      "L'alias sépare le numéro technique (v7) de l'usage métier (Production) : rollback = remettre l'alias sur v6.",
+      "Le client (script d'entraînement et API) a besoin de MLFLOW_TRACKING_URI, MLFLOW_S3_ENDPOINT_URL et des identifiants S3.",
+      "Ne pas interroger le registre à chaque requête sans limite : cache avec vérification périodique."
+    ],
+    "code": [
+      {
+        "titre": "Entraîner, enregistrer, poser l'alias",
+        "lang": "python",
+        "code": "import os\n\nimport boto3\nimport mlflow\nfrom mlflow import MlflowClient\nfrom sklearn.datasets import load_iris\nfrom sklearn.linear_model import LogisticRegression\n\nos.environ.setdefault(\"MLFLOW_S3_ENDPOINT_URL\", \"http://localhost:9000\")\n# AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY viennent du .env, jamais du code\n\ns3 = boto3.client(\"s3\", endpoint_url=os.environ[\"MLFLOW_S3_ENDPOINT_URL\"])\nif \"mlflow\" not in [b[\"Name\"] for b in s3.list_buckets()[\"Buckets\"]]:\n    s3.create_bucket(Bucket=\"mlflow\")\n\nmlflow.set_tracking_uri(\"http://localhost:5000\")\nmlflow.set_experiment(\"iris\")\nX, y = load_iris(return_X_y=True)\nwith mlflow.start_run():\n    model = LogisticRegression(max_iter=500).fit(X, y)\n    mlflow.log_metric(\"accuracy\", model.score(X, y))\n    info = mlflow.sklearn.log_model(model, name=\"model\", registered_model_name=\"iris_model\")\n\nMlflowClient().set_registered_model_alias(\"iris_model\", \"Production\", info.registered_model_version)\n",
+        "explication": "log_model renvoie la version créée ; l'alias la promeut sans deviner « la dernière »."
+      },
+      {
+        "titre": "API qui suit l'alias Production",
+        "lang": "python",
+        "code": "import time\n\nimport mlflow\nfrom fastapi import FastAPI, HTTPException\nfrom mlflow import MlflowClient\n\nMODEL, ALIAS, TTL = \"iris_model\", \"Production\", 60\nclient = MlflowClient()\netat = {\"model\": None, \"version\": None, \"verifie\": 0.0}\napp = FastAPI()\n\ndef modele_production():\n    if time.monotonic() - etat[\"verifie\"] > TTL or etat[\"model\"] is None:\n        try:\n            version = client.get_model_version_by_alias(MODEL, ALIAS).version\n            if version != etat[\"version\"]:\n                etat[\"model\"] = mlflow.pyfunc.load_model(f\"models:/{MODEL}@{ALIAS}\")\n                etat[\"version\"] = version\n            etat[\"verifie\"] = time.monotonic()\n        except Exception as e:\n            if etat[\"model\"] is None:\n                raise HTTPException(503, \"Modèle indisponible\") from e\n    return etat[\"model\"], etat[\"version\"]\n\n@app.post(\"/predict\")\ndef predict(mesures: list[float]):\n    modele, version = modele_production()\n    return {\"classe\": int(modele.predict([mesures])[0]), \"version_modele\": version}\n",
+        "explication": "Le registre n'est interrogé qu'une fois par minute ; si MLflow tombe, l'API continue avec le modèle en cache."
+      }
+    ],
+    "pieges": [
+      "Laisser minioadmin/minioadmin comme identifiants, ou les écrire en dur dans le code et le compose.",
+      "Oublier de créer le bucket : log_model échoue avec NoSuchBucket.",
+      "client.get_latest_versions(..., stages=[...]) : API des stages dépréciée depuis MLflow 2.9 ; utiliser les alias et la version renvoyée par log_model.",
+      "Renvoyer 404 quand MLflow est injoignable : c'est une indisponibilité (503), pas une ressource absente.",
+      "Base SQLite du tracking et données MinIO sans volume : registre et modèles perdus au redémarrage.",
+      "MLFLOW_S3_ENDPOINT_URL pointant vers localhost dans un conteneur (il faut http://minio:9000)."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Promotion contrôlée par la CI",
+        "contenu": "Un script compare le nouveau modèle à celui qui porte l'alias Production sur un jeu de validation figé ; il ne déplace l'alias que si le gain dépasse un seuil. MicroForge le fait avec `ml/evaluate.py` (porte de promotion) puis `ml/register.py` (alias staging/production).",
+        "lien": ""
+      },
+      {
+        "titre": "Signature, exemple d'entrée et validation à l'inférence",
+        "contenu": "Journalise la signature (`infer_signature`) et un `input_example` : le modèle pyfunc refuse une entrée au mauvais format, et l'interface MLflow montre comment l'appeler.",
+        "lien": "https://mlflow.org/docs/latest/ml/model/signatures/"
+      },
+      {
+        "titre": "Stockages S3 alternatifs",
+        "contenu": "MinIO n'est pas le seul stockage objet auto-hébergeable : MicroForge utilise SeaweedFS (compatible S3) avec MLflow 3.5. Défi : compare MinIO et SeaweedFS (licence, empreinte mémoire, facilité de déploiement) dans ta veille.",
+        "lien": "https://github.com/seaweedfs/seaweedfs"
+      }
+    ],
+    "jury": "**E3 (C11, C13)** : traçabilité du modèle et chaîne de livraison continue. Dans MicroForge : MLflow 3.5 + SeaweedFS (S3) dans le profil `mlops` du compose, `ml/register.py` qui pose l'alias, et le détecteur de l'API IA chargé par `MF_MLFLOW_MODEL_URI=models:/microforge-detector@production`. Montre une promotion puis un rollback en déplaçant l'alias.",
+    "competences": [
+      "C11",
+      "C13"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Où MLflow stocke-t-il les fichiers de modèles dans cette architecture ?",
+        "choix": [
+          "Dans SQLite",
+          "Dans MinIO (stockage objet S3)",
+          "Dans Git",
+          "Dans le conteneur de l'API"
+        ],
+        "bonne": 1,
+        "explication": "Le backend SQL garde les métadonnées, MinIO les fichiers.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que fait registered_model_name dans log_model ?",
+        "choix": [
+          "Renomme le run",
+          "Enregistre une nouvelle version du modèle dans le registre",
+          "Supprime l'ancien modèle",
+          "Crée un bucket"
+        ],
+        "bonne": 1,
+        "explication": "Journalisation et enregistrement en une étape.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment mettre la version 3 en production sans redéployer l'API ?",
+        "choix": [
+          "Modifier le code de l'API",
+          "Déplacer l'alias Production sur la version 3",
+          "Supprimer les versions 1 et 2",
+          "Redémarrer MinIO"
+        ],
+        "bonne": 1,
+        "explication": "L'API charge models:/nom@Production.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment faire un rollback ?",
+        "choix": [
+          "Réentraîner",
+          "Remettre l'alias Production sur la version précédente",
+          "Restaurer une sauvegarde de la base",
+          "Ce n'est pas possible"
+        ],
+        "bonne": 1,
+        "explication": "Les anciennes versions restent dans le registre.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quelle variable indique à MLflow l'adresse de MinIO ?",
+        "choix": [
+          "MLFLOW_TRACKING_URI",
+          "MLFLOW_S3_ENDPOINT_URL",
+          "MINIO_HOST",
+          "AWS_REGION"
+        ],
+        "bonne": 1,
+        "explication": "Avec AWS_ACCESS_KEY_ID et AWS_SECRET_ACCESS_KEY pour s'authentifier.",
+        "difficulte": 2
+      },
+      {
+        "question": "À quoi sert boto3 dans ce cours ?",
+        "choix": [
+          "À entraîner le modèle",
+          "À dialoguer avec le stockage S3 (créer le bucket mlflow)",
+          "À servir l'API",
+          "À tracer les métriques"
+        ],
+        "bonne": 1,
+        "explication": "C'est le client Python standard pour S3.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi garder le modèle en cache dans l'API ?",
+        "choix": [
+          "Pour économiser du disque",
+          "Pour ne pas le retélécharger à chaque requête et rester disponible si MLflow tombe",
+          "Parce que MLflow l'impose",
+          "Pour chiffrer le modèle"
+        ],
+        "bonne": 1,
+        "explication": "On ne recharge que si la version pointée par l'alias change.",
+        "difficulte": 2
+      },
+      {
+        "question": "Code HTTP adapté si le registre est injoignable et qu'aucun modèle n'est en cache ?",
+        "choix": [
+          "200",
+          "404",
+          "503",
+          "401"
+        ],
+        "bonne": 2,
+        "explication": "Service temporairement indisponible.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Deux stockages de MLflow",
+        "verso": "Backend store (SQL : runs, métriques) + artifact store (S3/MinIO : fichiers).",
+        "tags": []
+      },
+      {
+        "recto": "Lancer le serveur MLflow avec S3",
+        "verso": "mlflow server --backend-store-uri … --default-artifact-root s3://mlflow/ --host 0.0.0.0",
+        "tags": []
+      },
+      {
+        "recto": "Ports MinIO",
+        "verso": "9000 : API S3 ; 9001 : console web.",
+        "tags": []
+      },
+      {
+        "recto": "Créer un bucket",
+        "verso": "boto3.client(\"s3\", endpoint_url=...).create_bucket(Bucket=\"mlflow\")",
+        "tags": []
+      },
+      {
+        "recto": "Enregistrer un modèle",
+        "verso": "mlflow.sklearn.log_model(model, name=\"model\", registered_model_name=\"iris_model\")",
+        "tags": []
+      },
+      {
+        "recto": "Poser un alias",
+        "verso": "MlflowClient().set_registered_model_alias(nom, \"Production\", version)",
+        "tags": []
+      },
+      {
+        "recto": "Version pointée par un alias",
+        "verso": "client.get_model_version_by_alias(nom, alias).version",
+        "tags": []
+      },
+      {
+        "recto": "Charger par alias",
+        "verso": "mlflow.pyfunc.load_model(\"models:/iris_model@Production\")",
+        "tags": []
+      },
+      {
+        "recto": "Variables côté client",
+        "verso": "MLFLOW_TRACKING_URI, MLFLOW_S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY",
+        "tags": []
+      },
+      {
+        "recto": "Rollback",
+        "verso": "Remettre l'alias sur la version précédente.",
+        "tags": []
+      },
+      {
+        "recto": "Stages vs alias",
+        "verso": "Stages (Staging/Production) dépréciés depuis MLflow 2.9 ; on utilise des alias libres.",
+        "tags": []
+      },
+      {
+        "recto": "Dans un conteneur, adresse de MinIO",
+        "verso": "http://minio:9000 (nom du service), pas localhost.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Promouvoir et revenir en arrière",
+        "niveau": 1,
+        "enonce": "Le modèle iris_model a les versions 1 (accuracy 0,91) et 2 (0,95). Écris les appels pour mettre la v2 en Production, puis, après un incident, revenir à la v1. Que doit faire l'API ?",
+        "indices": [],
+        "corrige": "```python\nfrom mlflow import MlflowClient\n\nclient = MlflowClient()\nclient.set_registered_model_alias(\"iris_model\", \"Production\", \"2\")\n# incident…\nclient.set_registered_model_alias(\"iris_model\", \"Production\", \"1\")\n```\nL'API n'a rien à faire : au prochain contrôle (TTL), elle voit que l'alias pointe vers une autre version et recharge le modèle.\n"
+      },
+      {
+        "titre": "Stack Compose MLflow + MinIO propre",
+        "niveau": 2,
+        "enonce": "Réécris le compose du cours : versions épinglées, identifiants dans le .env, volumes pour MinIO et pour la base MLflow, console MinIO et interface MLflow accessibles seulement depuis la machine.",
+        "indices": [],
+        "corrige": "```yaml\nservices:\n  minio:\n    image: minio/minio:RELEASE.2025-04-22T22-12-26Z\n    command: server /data --console-address \":9001\"\n    environment:\n      MINIO_ROOT_USER: ${MINIO_ROOT_USER}\n      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}\n    volumes: [minio_data:/data]\n    ports: [\"127.0.0.1:9001:9001\"]\n\n  mlflow:\n    image: ghcr.io/mlflow/mlflow:v3.5.0\n    depends_on: [minio]\n    environment:\n      MLFLOW_S3_ENDPOINT_URL: http://minio:9000\n      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}\n      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}\n    command: >\n      mlflow server --host 0.0.0.0 --port 5000\n      --backend-store-uri sqlite:////mlflow/mlflow.db\n      --default-artifact-root s3://mlflow/\n    volumes: [mlflow_db:/mlflow]\n    ports: [\"127.0.0.1:5000:5000\"]\n\nvolumes:\n  minio_data:\n  mlflow_db:\n```\nRemarque : l'image officielle MLflow n'inclut pas toujours boto3 ; si `mlflow server` signale son absence, construire une image dérivée (`pip install boto3`).\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# MLOps 2 — usine ML\n## Tracking\n- Serveur MLflow (5000)\n- Backend store (SQL)\n## Stockage\n- MinIO (S3), bucket mlflow\n- boto3\n- MLFLOW_S3_ENDPOINT_URL\n## Registre\n- registered_model_name\n- Versions\n- Alias Production / Staging\n- MlflowClient\n## Inférence\n- models:/nom@alias\n- Cache + TTL\n- Rechargement automatique\n- 503 si indisponible\n## Exploitation\n- Promotion, rollback\n- Volumes, secrets\n"
+  },
+  "podcast": {
+    "titre": "Déployer un nouveau modèle sans toucher au code",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, aujourd'hui pour changer de modèle, je remplace le fichier model point pkl dans mon API et je redéploie. Il y a mieux ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Bien mieux : l'usine ML. MLflow garde la trace de chaque entraînement, MinIO stocke les fichiers des modèles, et le registre numérote les versions."
+      },
+      {
+        "voix": "A",
+        "texte": "Et comment l'API sait quelle version utiliser ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Par un alias. Tu dis : la version 3 est Production. L'API charge models slash iris arobase Production et ne connaît jamais le numéro."
+      },
+      {
+        "voix": "A",
+        "texte": "Donc pour passer à la version 4…"
+      },
+      {
+        "voix": "B",
+        "texte": "Tu déplaces l'alias. L'API vérifie régulièrement, voit que l'alias pointe ailleurs, et recharge. Et si la version 4 pose problème, tu remets l'alias sur la 3 : rollback en une ligne."
+      },
+      {
+        "voix": "A",
+        "texte": "MinIO, c'est comme Amazon S3 ?"
+      },
+      {
+        "voix": "B",
+        "texte": "C'est compatible S3, mais chez toi. Il faut créer le bucket, donner l'adresse à MLflow avec MLFLOW S3 ENDPOINT URL, et surtout ne pas garder minioadmin comme mot de passe."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si MLflow tombe pendant que l'API tourne ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Si le modèle est en cache, l'API continue. Sinon elle renvoie 503, service indisponible, et ton monitoring doit le voir tout de suite."
+      }
+    ]
+  },
+  "origine": "seed"
+}

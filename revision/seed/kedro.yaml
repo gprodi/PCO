@@ -1,0 +1,224 @@
+titre: "Kedro"
+fiche:
+  titre: "Kedro : passer du notebook bricolé à un pipeline de data science structuré"
+  resume: >-
+    Le support de cours oppose deux parcours d'un même projet de data science, sous forme de jeu de rôle
+    avec des points de vie. Sans cadre, on explore dans des notebooks, on entraîne, on prédit, puis on tente
+    d'industrialiser : manipulations manuelles, fichiers locaux sans nommage, dépendances invisibles,
+    connaissances concentrées dans une seule tête, essais impossibles à comparer ; la précision baisse et le
+    problème métier reste entier. Avec Kedro, le projet part d'un modèle de structure (template), décrit
+    toutes ses données dans un catalogue (catalog.yml), découpe le code en nodes (fonctions pures) assemblés
+    en pipelines, et trace ses expériences ; Kedro-Viz affiche le graphe du pipeline. Cette fiche complète le
+    support, très court, avec la documentation officielle de Kedro : paramètres dans parameters.yml,
+    environnements de configuration, exécution par kedro run, et intégration possible avec MLflow.
+  objectifs:
+    - Expliquer les problèmes d'un projet de data science sans structure et ce que Kedro y répond
+    - Décrire les données d'un projet dans le Data Catalog
+    - Écrire des nodes et les assembler en pipelines exécutables avec kedro run
+    - Visualiser et documenter un pipeline avec Kedro-Viz
+  notions:
+    - { terme: "Template de projet", definition: "Structure standard créée par kedro new : conf/, data/, src/, notebooks/, tests/." }
+    - { terme: "Data Catalog", definition: "Fichier conf/base/catalog.yml qui déclare chaque jeu de données (type, chemin, format) ; le code ne manipule plus de chemins." }
+    - { terme: "Node", definition: "Fonction Python pure, avec des entrées et sorties nommées qui renvoient au catalogue." }
+    - { terme: "Pipeline", definition: "Ensemble de nodes ; Kedro déduit l'ordre d'exécution des dépendances entre entrées et sorties." }
+    - { terme: "Paramètres", definition: "Valeurs de configuration (conf/base/parameters.yml) injectées dans les nodes via params:nom." }
+    - { terme: "Environnements de configuration", definition: "conf/base (partagé) et conf/local (secrets et réglages personnels, non versionnés)." }
+    - { terme: "Kedro-Viz", definition: "Interface web qui affiche le graphe des nodes et des jeux de données d'un pipeline." }
+  points_cles:
+    - "Le catalogue sépare le « quoi » (les données) du « comment » (le code) : changer de fichier ou de format ne touche pas aux nodes."
+    - "Des nodes purs (entrées → sorties, sans effet de bord) sont faciles à tester et à réutiliser."
+    - "kedro run exécute tout le pipeline dans le bon ordre ; --nodes ou --pipeline ciblent une partie."
+    - "Les secrets vont dans conf/local/credentials.yml, jamais dans conf/base ni dans Git."
+    - "Kedro structure le code ; un orchestrateur (Prefect, Airflow) planifie et exécute en production."
+  code:
+    - titre: "Catalogue et paramètres"
+      lang: yaml
+      code: |
+        # conf/base/catalog.yml
+        ventes_brutes:
+          type: pandas.CSVDataset
+          filepath: data/01_raw/ventes.csv
+
+        ventes_propres:
+          type: pandas.ParquetDataset
+          filepath: data/02_intermediate/ventes.parquet
+
+        modele:
+          type: pickle.PickleDataset
+          filepath: data/06_models/modele.pkl
+
+        # conf/base/parameters.yml
+        test_size: 0.2
+        random_state: 42
+      explication: "Chaque nom (ventes_brutes, modele) est utilisé par les nodes ; Kedro lit et écrit les fichiers."
+    - titre: "Nodes et pipeline"
+      lang: python
+      code: |
+        import pandas as pd
+        from kedro.pipeline import Pipeline, node, pipeline
+        from sklearn.linear_model import LinearRegression
+        from sklearn.model_selection import train_test_split
+
+        def nettoyer(df: pd.DataFrame) -> pd.DataFrame:
+            return df.dropna().drop_duplicates()
+
+        def entrainer(df: pd.DataFrame, test_size: float, random_state: int) -> LinearRegression:
+            X, y = df.drop(columns="montant"), df["montant"]
+            X_tr, _, y_tr, _ = train_test_split(X, y, test_size=test_size, random_state=random_state)
+            return LinearRegression().fit(X_tr, y_tr)
+
+        def create_pipeline(**kwargs) -> Pipeline:
+            return pipeline([
+                node(nettoyer, inputs="ventes_brutes", outputs="ventes_propres", name="nettoyage"),
+                node(entrainer, inputs=["ventes_propres", "params:test_size", "params:random_state"],
+                     outputs="modele", name="entrainement"),
+            ])
+      explication: "Les fonctions ignorent tout des fichiers ; le pipeline relie leurs entrées et sorties aux noms du catalogue."
+  pieges:
+    - "Écrire des chemins de fichiers en dur dans les nodes : on perd l'intérêt du catalogue."
+    - "Nodes avec effets de bord (lecture directe de fichiers, variables globales) : difficiles à tester et à réordonner."
+    - "Mettre des identifiants de base de données dans conf/base au lieu de conf/local/credentials.yml."
+    - "Garder la logique dans les notebooks : ils servent à explorer, le pipeline porte le code de production."
+  aller_plus_loin:
+    - titre: "kedro-mlflow"
+      contenu: "Le plugin kedro-mlflow journalise automatiquement paramètres, métriques et modèles de chaque `kedro run` dans MLflow : on retrouve la traçabilité des expériences vue en MLOps 2."
+      lien: "https://kedro-mlflow.readthedocs.io/"
+    - titre: "Tester les nodes avec pytest"
+      contenu: "Un node est une fonction : on le teste avec un petit DataFrame en entrée. Défi : écris le test de `nettoyer` (une ligne vide et un doublon doivent disparaître) et un test du pipeline complet avec un catalogue en mémoire (`MemoryDataset`)."
+      lien: "https://docs.kedro.org/en/stable/tutorial/test_a_project.html"
+    - titre: "Kedro-Viz pour la documentation"
+      contenu: "`kedro viz run` ouvre le graphe interactif ; `kedro viz build` en fait un site statique à publier avec la documentation du projet."
+      lien: "https://docs.kedro.org/projects/kedro-viz/"
+  jury: >-
+    **E1 (C1, C3)** et **E3 (C13)** : automatiser l'extraction et la préparation des données de façon
+    reproductible. Le pipeline de données de MicroForge (`data_pipeline/` : extract → transform → load) suit
+    la même logique que Kedro sans en dépendre : sources déclarées, étapes séparées et testées. Sache
+    expliquer ce que Kedro apporterait (catalogue, visualisation) et pourquoi ce choix n'a pas été fait.
+  competences: [C1, C3, C13]
+  sources: ["https://docs.kedro.org/"]
+qcm:
+  - question: "Quel problème le Data Catalog de Kedro résout-il ?"
+    choix: ["La lenteur de pandas", "Les chemins et formats de fichiers dispersés dans le code", "L'absence de modèle", "La planification des runs"]
+    bonne: 1
+    explication: "Les données sont déclarées une fois, le code n'utilise que leurs noms."
+    difficulte: 1
+  - question: "Qu'est-ce qu'un node Kedro ?"
+    choix: ["Un serveur", "Une fonction Python avec des entrées et sorties nommées", "Un conteneur Docker", "Un fichier CSV"]
+    bonne: 1
+    explication: "Assemblés, les nodes forment un pipeline."
+    difficulte: 1
+  - question: "Comment Kedro détermine-t-il l'ordre d'exécution des nodes ?"
+    choix: ["Par ordre alphabétique", "À partir des dépendances entre sorties et entrées", "Au hasard", "Par l'ordre des fichiers"]
+    bonne: 1
+    explication: "Un node s'exécute quand ses entrées ont été produites."
+    difficulte: 2
+  - question: "Où ranger un mot de passe de base de données dans un projet Kedro ?"
+    choix: ["conf/base/catalog.yml", "conf/local/credentials.yml (non versionné)", "Dans le node", "Dans le README"]
+    bonne: 1
+    explication: "conf/local est exclu de Git."
+    difficulte: 1
+  - question: "Comment un node reçoit-il un paramètre de parameters.yml ?"
+    choix: ["Par une variable globale", "En entrée nommée params:nom_du_parametre", "Par un argument de ligne de commande obligatoire", "Il ne peut pas"]
+    bonne: 1
+    explication: "Ex. inputs=[\"ventes_propres\", \"params:test_size\"]."
+    difficulte: 2
+  - question: "À quoi sert Kedro-Viz ?"
+    choix: ["Entraîner plus vite", "Visualiser le graphe des nodes et des données du pipeline", "Remplacer Grafana", "Déployer en production"]
+    bonne: 1
+    explication: "Utile pour comprendre et documenter un projet."
+    difficulte: 1
+  - question: "Kedro remplace-t-il un orchestrateur comme Prefect ?"
+    choix: ["Oui, complètement", "Non : Kedro structure le code et les données ; un orchestrateur planifie et exécute en production", "Oui, mais seulement sur le cloud", "Ils sont incompatibles"]
+    bonne: 1
+    explication: "Ils sont complémentaires."
+    difficulte: 2
+  - question: "Selon le support, quel est le principal risque d'un projet sans structure ?"
+    choix: ["Trop de tests", "Expériences impossibles à comparer et étapes difficiles à reproduire", "Un code trop rapide", "Trop de documentation"]
+    bonne: 1
+    explication: "Manipulations manuelles, fichiers sans nommage, dépendances invisibles."
+    difficulte: 1
+flashcards:
+  - { recto: "Créer un projet Kedro", verso: "kedro new (template : conf/, data/, src/, notebooks/, tests/)" }
+  - { recto: "Exécuter le pipeline", verso: "kedro run (--pipeline nom, --nodes nom pour cibler)" }
+  - { recto: "Déclarer un jeu de données", verso: "Dans catalog.yml : nom, type (pandas.CSVDataset…), filepath" }
+  - { recto: "Node", verso: "node(fonction, inputs=..., outputs=..., name=...)" }
+  - { recto: "Pipeline", verso: "pipeline([node(...), node(...)]) ; ordre déduit des dépendances." }
+  - { recto: "Paramètres", verso: "conf/base/parameters.yml ; utilisés via \"params:nom\"" }
+  - { recto: "Secrets", verso: "conf/local/credentials.yml (jamais versionné)" }
+  - { recto: "Visualiser", verso: "kedro viz run" }
+  - { recto: "Couches de data/", verso: "01_raw, 02_intermediate, 03_primary… 06_models, 08_reporting" }
+  - { recto: "Données en mémoire pour les tests", verso: "MemoryDataset" }
+  - { recto: "Kedro + MLflow", verso: "Plugin kedro-mlflow : journalisation automatique de chaque run." }
+  - { recto: "Rôle des notebooks dans Kedro", verso: "Explorer ; le code de production vit dans les nodes du pipeline." }
+exercices:
+  - titre: "Du notebook au pipeline"
+    niveau: 1
+    enonce: "Un notebook lit `data/ventes.csv`, supprime les lignes vides, calcule le total par mois et sauvegarde `total_mois.csv`. Découpe-le en catalogue + nodes + pipeline Kedro."
+    corrige: |
+      **catalog.yml** : `ventes_brutes` (pandas.CSVDataset, data/01_raw/ventes.csv) et `total_mois` (pandas.CSVDataset, data/08_reporting/total_mois.csv).
+
+      ```python
+      import pandas as pd
+      from kedro.pipeline import node, pipeline
+
+      def nettoyer(df: pd.DataFrame) -> pd.DataFrame:
+          return df.dropna()
+
+      def total_par_mois(df: pd.DataFrame) -> pd.DataFrame:
+          return df.groupby(pd.to_datetime(df["date"]).dt.to_period("M"))["montant"].sum().reset_index()
+
+      def create_pipeline(**kwargs):
+          return pipeline([
+              node(nettoyer, "ventes_brutes", "ventes_propres"),
+              node(total_par_mois, "ventes_propres", "total_mois"),
+          ])
+      ```
+      `ventes_propres`, absent du catalogue, reste en mémoire entre les deux nodes.
+  - titre: "Tester un node"
+    niveau: 2
+    enonce: "Écris un test pytest pour le node `nettoyer` du cours (dropna + drop_duplicates)."
+    corrige: |
+      ```python
+      import pandas as pd
+
+      def nettoyer(df: pd.DataFrame) -> pd.DataFrame:
+          return df.dropna().drop_duplicates()
+
+      def test_nettoyer():
+          df = pd.DataFrame({"a": [1, 1, None], "b": ["x", "x", "y"]})
+          assert nettoyer(df).to_dict("records") == [{"a": 1.0, "b": "x"}]
+      ```
+mindmap: |
+  # Kedro
+  ## Sans structure
+  - Notebooks, fichiers locaux
+  - Dépendances invisibles
+  - Expériences non comparables
+  ## Template
+  - conf/, data/, src/, tests/
+  ## Data Catalog
+  - catalog.yml
+  - Types de datasets
+  ## Code
+  - Nodes (fonctions pures)
+  - Pipelines
+  - params:
+  ## Outils
+  - kedro run
+  - Kedro-Viz
+  - kedro-mlflow
+  ## Configuration
+  - conf/base
+  - conf/local (secrets)
+podcast_titre: "Ranger son projet de data science avant qu'il ne déborde"
+podcast:
+  - { voix: A, texte: "Karim, le cours sur Kedro était un combat de jeu vidéo avec des points de vie. Je n'ai pas tout compris." }
+  - { voix: B, texte: "L'idée : un projet de data science sans structure perd des points à chaque étape. Fichiers sans nom, notebooks qu'on relance dans le désordre, résultats impossibles à comparer." }
+  - { voix: A, texte: "Et Kedro rend des points de vie ?" }
+  - { voix: B, texte: "Il impose une structure. D'abord un catalogue : chaque jeu de données est déclaré une fois, avec son chemin et son format. Ton code ne manipule plus de chemins." }
+  - { voix: A, texte: "Et le code lui-même ?" }
+  - { voix: B, texte: "Découpé en nodes : des fonctions pures, avec des entrées et des sorties nommées. Kedro les assemble en pipeline et devine l'ordre tout seul." }
+  - { voix: A, texte: "Et les paramètres comme la taille du jeu de test ?" }
+  - { voix: B, texte: "Dans parameters point yml, et le node les reçoit avec params deux-points nom. Les secrets vont dans conf local, jamais dans Git." }
+  - { voix: A, texte: "Ça remplace Prefect ?" }
+  - { voix: B, texte: "Non, c'est complémentaire : Kedro organise le code, Prefect planifie et exécute en production. Et Kedro-Viz te dessine le pipeline, parfait pour la soutenance." }

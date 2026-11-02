@@ -1,0 +1,266 @@
+titre: "MLOps 0 — uv, ruff, tests, CI/CD, Docker"
+fiche:
+  titre: "Les fondations MLOps : uv, ruff, pytest, CI/CD GitHub Actions et Docker"
+  resume: >-
+    Avant d'industrialiser un modèle, on industrialise le projet. uv gère versions de Python, environnement
+    virtuel et dépendances : uv init crée pyproject.toml, .gitignore, README et uv.lock (versions exactes de
+    toutes les dépendances, y compris indirectes) ; uv add ajoute un paquet, --dev ou --group le range dans un
+    groupe ; uv run exécute dans l'environnement du projet et uvx lance un outil ponctuel. pyproject.toml
+    centralise aussi la configuration de ruff (linter et formateur), de pytest et de la couverture, et
+    déclare des commandes (project.scripts). Le code est documenté par des docstrings au style Google, testé
+    avec pytest (assert, approx, parametrize, fixtures) et mesuré par pytest-cov. On travaille par branches
+    et pull requests. GitHub Actions automatise ruff et pytest à chaque push (CI), puis construit et pousse
+    une image Docker vers Docker Hub (CD) avec des identifiants rangés dans les secrets du dépôt. Docker
+    fige l'environnement d'exécution : un Dockerfile (FROM, WORKDIR, COPY, RUN, EXPOSE, CMD) et un
+    .dockerignore produisent une image, exécutée en conteneur.
+  objectifs:
+    - Créer et piloter un projet avec uv (dépendances, groupes, scripts, versions de Python)
+    - Configurer ruff et pytest dans pyproject.toml et mesurer la couverture
+    - Écrire un workflow GitHub Actions de CI (lint + tests) et de CD (image Docker)
+    - Écrire un Dockerfile efficace avec un .dockerignore et maîtriser les commandes Docker de base
+  notions:
+    - { terme: "uv.lock", definition: "Fichier de verrouillage : versions exactes de toutes les dépendances (directes et indirectes) pour un environnement reproductible." }
+    - { terme: "Groupe de dépendances", definition: "[dependency-groups] dev/data/ia : paquets installés à la demande (uv sync --group ia), hors dépendances de production." }
+    - { terme: "uvx", definition: "Exécute un outil dans un environnement temporaire sans l'ajouter au projet (uvx ruff check .)." }
+    - { terme: "ruff", definition: "Linter et formateur Python très rapide ; remplace flake8, isort et black." }
+    - { terme: "Couverture de tests", definition: "Part du code exécutée par les tests (pytest-cov) ; term-missing liste les lignes non couvertes." }
+    - { terme: "CI / CD", definition: "Intégration continue : lint et tests automatiques à chaque push. Livraison/déploiement continu : construction et publication automatiques de l'artefact (image)." }
+    - { terme: "Image / conteneur", definition: "L'image est le modèle figé (système + dépendances + code) ; le conteneur est une instance en cours d'exécution." }
+    - { terme: "Secrets GitHub", definition: "Valeurs chiffrées (jetons Docker Hub, clés) injectées dans les workflows via ${{ secrets.NOM }}, jamais écrites dans le code." }
+  points_cles:
+    - "uv add met à jour pyproject.toml ET uv.lock ; on versionne les deux, jamais le .venv."
+    - "Dans un Dockerfile, copier d'abord pyproject.toml et uv.lock puis installer : la couche des dépendances reste en cache tant qu'elles ne changent pas."
+    - "Le .dockerignore exclut .git, .venv, tests, caches : image plus légère et pas de fuite de fichiers."
+    - "La CI doit échouer si ruff ou pytest échoue : c'est le garde-fou avant de fusionner une pull request."
+    - "Taguer l'image avec le SHA du commit (en plus de latest) permet de savoir exactement quel code tourne."
+    - "Mot de passe de base dans le Dockerfile (ENV POSTGRES_PASSWORD=…) = secret figé dans l'image : le passer à l'exécution."
+  code:
+    - titre: "pyproject.toml d'un projet ML"
+      lang: toml
+      code: |
+        [project]
+        name = "mon-projet-ia"
+        version = "0.1.0"
+        requires-python = ">=3.12"
+        dependencies = ["pandas>=2.2", "scikit-learn", "mlflow"]
+
+        [dependency-groups]
+        dev = ["pytest>=8", "pytest-cov", "ruff"]
+        api = ["fastapi", "uvicorn"]
+
+        [project.scripts]
+        api-ia = "app_ia.main:start_server"     # commande « uv run api-ia »
+
+        [tool.ruff]
+        line-length = 100
+        target-version = "py312"
+
+        [tool.ruff.lint]
+        select = ["E", "F", "I", "N", "UP", "B"]
+
+        [tool.pytest.ini_options]
+        testpaths = ["tests"]
+        addopts = "--cov=app_ia --cov-report=term-missing"
+      explication: "Une seule source de configuration pour les dépendances, le lint, les tests et les commandes."
+    - titre: "CI GitHub Actions et Dockerfile avec uv"
+      lang: yaml
+      code: |
+        # .github/workflows/ci.yml
+        name: ci
+        on:
+          push:
+            branches: [main, dev]
+          pull_request:
+            branches: [main]
+        jobs:
+          qualite:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/checkout@v4
+              - uses: astral-sh/setup-uv@v6
+                with:
+                  enable-cache: true
+              - run: uv sync --group dev
+              - run: uv run ruff check . && uv run ruff format --check .
+              - run: uv run pytest
+
+        # Dockerfile (fichier séparé) :
+        # FROM python:3.12-slim
+        # COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /bin/
+        # WORKDIR /app
+        # COPY pyproject.toml uv.lock ./
+        # RUN uv sync --frozen --no-dev --no-install-project
+        # COPY . .
+        # RUN uv sync --frozen --no-dev
+        # EXPOSE 8000
+        # CMD ["uv", "run", "--no-sync", "uvicorn", "app_ia.main:app", "--host", "0.0.0.0", "--port", "8000"]
+      explication: "--frozen installe exactement uv.lock ; la version de l'image uv est épinglée au lieu de latest."
+  pieges:
+    - "Ne pas commiter uv.lock : chaque machine installe des versions différentes."
+    - "`uv pip install --system -r pyproject.toml` dans le Dockerfile ignore uv.lock : préférer `uv sync --frozen`."
+    - "COPY . . avant l'installation des dépendances : le cache Docker saute à chaque modification du code."
+    - "Images de base en :latest (python, uv) : la construction change sans prévenir ; épingler les versions."
+    - "Mettre un mot de passe ou un jeton dans le Dockerfile ou le workflow au lieu des secrets."
+    - "Application qui écoute sur 127.0.0.1 dans le conteneur : injoignable depuis l'extérieur (utiliser 0.0.0.0)."
+  aller_plus_loin:
+    - titre: "pre-commit : la CI avant même le commit"
+      contenu: "Un fichier `.pre-commit-config.yaml` lance ruff, la vérification YAML et gitleaks à chaque commit local. Les erreurs sont corrigées avant d'atteindre GitHub, la CI devient une confirmation."
+      lien: "https://pre-commit.com/"
+    - titre: "Images multi-étapes et utilisateur non root"
+      contenu: "Une étape « builder » installe les dépendances, l'étape finale ne copie que le `.venv` et le code : image plus petite. Ajoute `USER app` pour ne pas tourner en root. Défi : compare la taille de ton image avant/après."
+      lien: "https://docs.astral.sh/uv/guides/integration/docker/"
+    - titre: "Matrices et environnements GitHub"
+      contenu: "`strategy.matrix` teste plusieurs versions de Python ; les environnements protégés (`environment: production`) exigent une validation avant déploiement. La CI de MicroForge utilise une matrice générée depuis le catalogue (15 jobs de compilation)."
+      lien: "https://docs.github.com/actions/using-jobs/using-a-matrix-for-your-jobs"
+  jury: >-
+    **E4 (C18)** et **E5 (C19)** : automatiser les tests (intégration continue) et créer un processus de
+    livraison continue. MicroForge : workspace uv avec `uv.lock`, ruff + pytest avec porte de couverture à
+    80 % sur Python 3.12 et 3.13, détection de secrets (gitleaks) et compilation réelle des firmwares dans
+    `.github/workflows/ci.yml`. Montre un run vert et un run rouge corrigé.
+  competences: [C13, C18, C19]
+  sources: []
+qcm:
+  - question: "Quel fichier garantit que tout le monde installe exactement les mêmes versions ?"
+    choix: ["README.md", "pyproject.toml seul", "uv.lock", ".gitignore"]
+    bonne: 2
+    explication: "pyproject.toml exprime des contraintes, uv.lock fige les versions exactes."
+    difficulte: 1
+  - question: "Comment ajouter pytest uniquement pour le développement ?"
+    choix: ["uv add pytest", "uv add --dev pytest", "pip install pytest --prod", "uvx pytest"]
+    bonne: 1
+    explication: "--dev le place dans le groupe dev, absent de la production."
+    difficulte: 1
+  - question: "Que fait uvx ruff check . ?"
+    choix: ["Ajoute ruff au projet", "Exécute ruff dans un environnement temporaire sans l'ajouter au projet", "Désinstalle ruff", "Lance les tests"]
+    bonne: 1
+    explication: "uvx = uv tool run, pour un outil ponctuel."
+    difficulte: 1
+  - question: "Pourquoi copier pyproject.toml et uv.lock avant le reste du code dans un Dockerfile ?"
+    choix: ["Par convention", "Pour que la couche d'installation des dépendances reste en cache quand seul le code change", "Pour réduire la sécurité", "C'est obligatoire"]
+    bonne: 1
+    explication: "Docker reconstruit à partir de la première couche modifiée."
+    difficulte: 2
+  - question: "Différence entre une image et un conteneur ?"
+    choix: ["Aucune", "L'image est le modèle figé ; le conteneur est une instance qui s'exécute", "Le conteneur est stocké sur Docker Hub", "L'image s'exécute, le conteneur se construit"]
+    bonne: 1
+    explication: "docker build crée l'image, docker run démarre un conteneur."
+    difficulte: 1
+  - question: "Où ranger le jeton Docker Hub utilisé par le workflow de CD ?"
+    choix: ["Dans cd.yml", "Dans les secrets du dépôt GitHub", "Dans le Dockerfile", "Dans le README"]
+    bonne: 1
+    explication: "Référencé par ${{ secrets.DOCKERHUB_TOKEN }}."
+    difficulte: 1
+  - question: "Que fait docker run -d -p 8000:5000 image ?"
+    choix: ["Publie le port 5000 de la machine vers le 8000 du conteneur", "Lance en arrière-plan et relie le port 8000 de la machine au 5000 du conteneur", "Construit l'image", "Pousse sur Docker Hub"]
+    bonne: 1
+    explication: "-p hôte:conteneur ; -d = détaché."
+    difficulte: 2
+  - question: "Quel est le rôle de la CI sur une pull request ?"
+    choix: ["Déployer en production", "Vérifier automatiquement lint et tests avant la fusion", "Écrire la documentation", "Créer la branche"]
+    bonne: 1
+    explication: "Une CI rouge bloque la fusion d'un code cassé."
+    difficulte: 1
+flashcards:
+  - { recto: "Initialiser un projet uv", verso: "uv init mon-projet (pyproject.toml, .gitignore, README, puis uv.lock)" }
+  - { recto: "Ajouter une dépendance", verso: "uv add pandas (met à jour pyproject.toml et uv.lock)" }
+  - { recto: "Installer un groupe", verso: "uv sync --group ia" }
+  - { recto: "Fixer la version de Python", verso: "uv python pin 3.12" }
+  - { recto: "Exécuter dans l'environnement du projet", verso: "uv run python train.py (ou uv run pytest)" }
+  - { recto: "Lint et format avec ruff", verso: "ruff check . ; ruff format . (--check en CI)" }
+  - { recto: "Couverture HTML", verso: "uv run pytest --cov=src --cov-report=html" }
+  - { recto: "Instructions Dockerfile clés", verso: "FROM, WORKDIR, COPY, RUN, EXPOSE, CMD" }
+  - { recto: "Construire / lancer une image", verso: "docker build -t pseudo/nom:tag . ; docker run -d -p 8000:8000 pseudo/nom:tag" }
+  - { recto: "Lister / arrêter", verso: "docker container ls (-a pour tous) ; docker stop <id>" }
+  - { recto: "Publier une image", verso: "docker login puis docker push pseudo/nom:tag" }
+  - { recto: "Utiliser un secret dans GitHub Actions", verso: "${{ secrets.NOM_DU_SECRET }}" }
+exercices:
+  - titre: "Projet uv testé"
+    niveau: 1
+    enonce: "Crée un projet uv avec numpy, une fonction `normaliser(t)` (moyenne 0, écart type 1) dans `app/stats.py`, un test pytest avec `pytest.approx` et lance ruff et pytest avec uv."
+    indices: ["uv init, uv add numpy, uv add --dev pytest ruff", "assert x == pytest.approx(0)"]
+    corrige: |
+      ```python
+      # app/stats.py
+      import numpy as np
+
+      def normaliser(t: np.ndarray) -> np.ndarray:
+          """Centre et réduit un tableau."""
+          return (t - t.mean()) / t.std()
+
+      # tests/test_stats.py
+      import numpy as np
+      import pytest
+      from app.stats import normaliser
+
+      def test_normaliser():
+          z = normaliser(np.array([1.0, 2.0, 3.0]))
+          assert z.mean() == pytest.approx(0)
+          assert z.std() == pytest.approx(1)
+      ```
+      Commandes : `uv init`, `uv add numpy`, `uv add --dev pytest ruff`, `uv run ruff check .`, `uv run pytest`.
+  - titre: "De la CI au Docker Hub"
+    niveau: 2
+    enonce: "Écris le workflow `cd.yml` qui, à chaque push sur main, construit l'image et la pousse sur Docker Hub avec deux tags : latest et le SHA du commit. Indique les secrets à créer."
+    indices: ["docker/login-action, docker/build-push-action", "${{ github.sha }}"]
+    corrige: |
+      ```yaml
+      name: cd
+      on:
+        push:
+          branches: [main]
+      jobs:
+        image:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v4
+            - uses: docker/login-action@v3
+              with:
+                username: ${{ secrets.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_TOKEN }}
+            - uses: docker/setup-buildx-action@v3
+            - uses: docker/build-push-action@v6
+              with:
+                context: .
+                push: true
+                tags: |
+                  ${{ secrets.DOCKERHUB_USERNAME }}/mon-api:latest
+                  ${{ secrets.DOCKERHUB_USERNAME }}/mon-api:${{ github.sha }}
+      ```
+      Secrets à créer (Settings > Secrets and variables > Actions) : `DOCKERHUB_USERNAME` et `DOCKERHUB_TOKEN` (un jeton d'accès Docker Hub, pas le mot de passe).
+mindmap: |
+  # MLOps 0
+  ## uv
+  - init, add, sync, run
+  - --dev, --group
+  - python install / pin
+  - uvx
+  - uv.lock
+  ## Qualité
+  - ruff (check, format)
+  - Docstrings Google
+  - pytest (approx, parametrize, fixtures)
+  - pytest-cov
+  ## Git
+  - Branches, pull requests
+  ## CI/CD
+  - GitHub Actions
+  - Lint + tests
+  - Build + push Docker
+  - Secrets
+  ## Docker
+  - Dockerfile
+  - .dockerignore
+  - build, run, push
+  - Image vs conteneur
+podcast_titre: "Industrialiser son projet avant son modèle"
+podcast:
+  - { voix: A, texte: "Karim, MLOps, je pensais que c'était déployer des modèles. Pourquoi on commence par uv et ruff ?" }
+  - { voix: B, texte: "Parce qu'on ne déploie bien que ce qu'on sait reconstruire. uv te donne un environnement reproductible, avec uv lock qui fige toutes les versions." }
+  - { voix: A, texte: "Et ruff ?" }
+  - { voix: B, texte: "Il vérifie et formate ton code en une fraction de seconde. Tout le monde écrit dans le même style, et les erreurs bêtes sont attrapées avant l'exécution." }
+  - { voix: A, texte: "Ensuite la CI ?" }
+  - { voix: B, texte: "Un fichier YAML dans point github slash workflows : à chaque push, GitHub installe le projet, lance ruff et pytest. Si c'est rouge, on ne fusionne pas." }
+  - { voix: A, texte: "Et Docker, ça sert à quoi de plus ?" }
+  - { voix: B, texte: "À livrer l'environnement complet : Python, dépendances, code. Ce qui tourne sur ta machine tourne pareil sur le serveur. Copie d'abord le pyproject et le lock, installe, puis copie le code : la construction reste rapide." }
+  - { voix: A, texte: "Et les mots de passe dans tout ça ?" }
+  - { voix: B, texte: "Jamais dans le Dockerfile ni dans le workflow. Dans les secrets GitHub, injectés au moment voulu. Et épingle tes versions d'image : latest, c'est une surprise qui t'attend." }
