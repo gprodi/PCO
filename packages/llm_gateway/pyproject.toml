@@ -1,7 +1,7 @@
 [project]
 name = "llm-gateway"
 version = "0.1.0"
-description = "Client IA commun (Ollama local d'abord, puis Gemini, puis Claude) avec profils matériel adaptatifs"
+description = "Client IA commun (Ollama local d'abord, puis Gemini gratuit) avec profils matériel adaptatifs et stockage vectoriel (pgvector)"
 requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.27",
@@ -13,6 +13,8 @@ dependencies = [
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=2.0,<3"]
+# Stockage vectoriel PostgreSQL + pgvector (RAG des cours et copilote MicroForge)
+pgvector = ["sqlalchemy>=2.0", "psycopg[binary]>=3.2"]
 
 [project.scripts]
 llm-gateway = "llm_gateway.cli:main"
