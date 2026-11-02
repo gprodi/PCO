@@ -171,7 +171,7 @@ class PgVectorStore(VectorStore):
             return
         self._ensure(len(vectors[0]))
         sql = self._text(
-            f"INSERT INTO {self.table} (id, grp, title, body, meta, embedding) "
+            f"INSERT INTO {self.table} (id, grp, title, body, meta, embedding) "  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
             "VALUES (:id, :grp, :title, :body, CAST(:meta AS JSONB), CAST(:emb AS vector)) "
             "ON CONFLICT (id) DO UPDATE SET grp = EXCLUDED.grp, title = EXCLUDED.title, "
             "body = EXCLUDED.body, meta = EXCLUDED.meta, embedding = EXCLUDED.embedding"
@@ -195,7 +195,7 @@ class PgVectorStore(VectorStore):
         if not groups or self.dimension() is None:
             return
         with self.engine.begin() as c:
-            c.execute(self._text(f"DELETE FROM {self.table} WHERE grp = ANY(:g)"), {"g": groups})
+            c.execute(self._text(f"DELETE FROM {self.table} WHERE grp = ANY(:g)"), {"g": groups})  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
 
     def search(
         self, vector: Sequence[float], k: int = 5, groups: Sequence[str] | None = None
@@ -204,7 +204,7 @@ class PgVectorStore(VectorStore):
             return []
         where = "WHERE grp = ANY(:g)" if groups else ""
         sql = self._text(
-            f"SELECT id, grp, title, body, meta, 1 - (embedding <=> CAST(:v AS vector)) AS score "
+            f"SELECT id, grp, title, body, meta, 1 - (embedding <=> CAST(:v AS vector)) AS score "  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
             f"FROM {self.table} {where} ORDER BY embedding <=> CAST(:v AS vector) LIMIT :k"
         )
         params: dict[str, Any] = {"v": self._literal(_norm(vector)), "k": int(k)}
@@ -224,7 +224,7 @@ class PgVectorStore(VectorStore):
         if self.dimension() is None:
             return 0
         with self.engine.connect() as c:
-            return int(c.execute(self._text(f"SELECT count(*) FROM {self.table}")).scalar())
+            return int(c.execute(self._text(f"SELECT count(*) FROM {self.table}")).scalar())  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
 
 
 def open_vector_store(
