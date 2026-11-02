@@ -7,7 +7,10 @@ export default function Podcast({ titre, repliques, audioUrl }: { titre: string;
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(-1);
   const stopRef = useRef(false);
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  // Détecté après l'hydratation : le rendu serveur et le premier rendu client doivent être identiques
+  // (sinon erreur React #418).
+  const [supported, setSupported] = useState(false);
+  useEffect(() => setSupported('speechSynthesis' in window), []);
 
   useEffect(() => () => { if (supported) window.speechSynthesis.cancel(); }, [supported]);
 

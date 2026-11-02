@@ -28,7 +28,7 @@ export default function Dashboard({ courses, base }: { courses: Course[]; base: 
         <tbody>
           {rows.map((r) => (
             <tr key={r.slug}>
-              <td><a href={`${base}cours/${r.slug}/#flashcards`}>{r.titre}</a></td>
+              <td><a href={`${base}cours/${r.slug}/index.html#flashcards`}>{r.titre}</a></td>
               <td>{r.dues}</td>
               <td>{r.quiz ? `${r.quiz.score} / ${r.quiz.total}` : '—'}</td>
             </tr>

@@ -43,7 +43,7 @@ function ChatInner({ base }: { base: string }) {
                 <summary>Sources ({m.citations.length})</summary>
                 <ul>
                   {m.citations.map((c) => (
-                    <li key={c.id}><a href={`${base}cours/${c.course}/`}>{c.id}</a> — {c.heading} <small>(score {c.score})</small></li>
+                    <li key={c.id}><a href={`${base}cours/${c.course}/index.html`}>{c.id}</a> — {c.heading} <small>(score {c.score})</small></li>
                   ))}
                 </ul>
               </details>

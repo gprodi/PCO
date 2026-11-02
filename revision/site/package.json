@@ -7,7 +7,8 @@
     "dev": "PUBLIC_MODE=local astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "build:relatif": "ARTIFACT=1 PUBLIC_MODE=static astro build && node scripts/relativize.mjs dist dist-relatif"
   },
   "dependencies": {
     "@astrojs/react": "4.4.2",

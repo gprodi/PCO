@@ -26,6 +26,8 @@ export default defineConfig({
       defaultLocale: 'root',
       locales: { root: { label: 'Français', lang: 'fr' } },
       customCss: ['./src/styles/custom.css'],
+      // Version « Artifact » (liens relatifs) : sans Pagefind, dont l'index suppose une URL de base fixe.
+      pagefind: process.env.ARTIFACT !== '1',
       sidebar: [
         { label: 'Accueil', link: '/' },
         { label: 'Réviser aujourd’hui', link: '/reviser/' },

@@ -32,6 +32,7 @@ runs/
 # Node / site
 node_modules/
 revision/site/dist/
+revision/site/dist-relatif/
 revision/site/.astro/
 
 # OS / IDE
