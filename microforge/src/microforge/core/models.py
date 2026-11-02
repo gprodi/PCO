@@ -90,6 +90,7 @@ class ComponentDef(BaseModel):
     is_module: bool = True  # breakout prêt à câbler (vs composant nu)
     passive: bool = False  # résistance, condensateur… (pas de code)
     needs_series_resistor_ohm: dict[str, int] | None = None  # LED : {"3.3": 150, "5": 220}
+    families: list[str] | None = None  # None = toutes les familles de cartes
     code: dict[str, CodeTemplate] = Field(
         default_factory=dict
     )  # "default", "esp32", "avr", "rp2040"
@@ -129,7 +130,7 @@ class BoardDef(BaseModel):
 
     id: str
     name: str
-    family: str  # esp32 | avr | rp2040
+    family: str  # cf. data/families.yaml (esp32, esp8266, avr, megaavr, renesas, samd, mbed, sam, rp2040, stm32, teensy)
     mcu: str
     aliases: list[str] = Field(default_factory=list)
     logic_v: float
@@ -154,6 +155,15 @@ class BoardDef(BaseModel):
     kicad: dict[str, str] = Field(default_factory=dict)
     price_eur: float | None = None
     notes: list[str] = Field(default_factory=list)
+    # Règles par puce déclarées dans les données (et non codées par famille)
+    adc2_wifi_conflict: bool = False  # ESP32, S2, S3 : ADC2 inutilisable quand le Wi-Fi est actif
+    code_labels: str = (
+        "none"  # "analog" : A0… écrits tels quels ; "all" : PA5… (STM32) ; "none" : numéros
+    )
+    zigbee_thread: bool = False
+    representative: bool = False  # carte de référence de sa famille (tests, CI, démo)
+    source: str = ""  # brochage officiel ayant servi à décrire la carte
+    fqbn_note: str = ""
 
     def pin(self, gpio: int) -> BoardPin:
         """Broche par numéro de GPIO."""
@@ -195,6 +205,19 @@ class Reference(BaseModel):
     proche: bool = False  # variante (autre capteur/afficheur) plutôt que montage identique
 
 
+class FamilyDef(BaseModel):
+    """Famille de cartes partageant un cœur Arduino (data/families.yaml)."""
+
+    id: str
+    label: str
+    core: str  # paquet arduino-cli, ex. esp32:esp32
+    index_url: str = ""  # URL du gestionnaire de cartes (vide = cœur officiel Arduino)
+    platformio: str
+    gpp_define: str  # macro passée à g++ pour le test de syntaxe (ex. -DESP32)
+    wifi_supported: bool = False  # modèles Wi-Fi générés pour cette famille
+    notes: list[str] = Field(default_factory=list)
+
+
 class ProjectTemplate(BaseModel):
     """Modèle de projet du catalogue (suggestions)."""
 
@@ -204,7 +227,9 @@ class ProjectTemplate(BaseModel):
     difficulty: int = 1  # 1 débutant – 3 avancé
     tags: list[str] = Field(default_factory=list)
     requires_wifi: bool = False
-    board_families: list[str] = Field(default_factory=lambda: ["esp32", "avr", "rp2040"])
+    board_families: list[str] | None = (
+        None  # restriction explicite ; sinon calculée (Catalog.template_families)
+    )
     parts: list[PartInstance]
     logic: str
     setup_extra: str = ""

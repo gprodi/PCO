@@ -219,7 +219,29 @@
       setup: "${name}_dev.attach(${PWM}, 500, 2400);"
       api: |
         void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    # Servo intégré au cœur (ne pas installer la bibliothèque Servo d'Arduino, qui viserait l'AVR).
     rp2040:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    esp8266:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    stm32:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    teensy:
       libraries: []
       includes: ["#include <Servo.h>"]
       globals: "Servo ${name}_dev;"

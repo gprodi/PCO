@@ -1,0 +1,189 @@
+# Cartes STM32 (cœur STM32duino) et Teensy 4.x (Teensyduino).
+# STM32 : numéros internes recopiés de variant_PILL_F103Cx.h et variant_BLACKPILL_F411CE.h
+# (dépôt stm32duino/Arduino_Core_STM32) ; le code généré utilise les noms PA5, PB7… (code_labels: all)
+# car les numéros des entrées analogiques dépendent de la variante. Teensy : teensy4/pins_arduino.h (PJRC).
+
+- id: stm32-bluepill
+  name: STM32 Blue Pill (STM32F103C8, 72 MHz)
+  family: stm32
+  mcu: STM32F103C8 (Cortex-M3 72 MHz)
+  aliases: [blue pill, bluepill, stm32f103, stm32f103c8t6]
+  representative: true
+  code_labels: all
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3.3": 3.3, "5V": 5.0 }
+  rail_budget_ma: { "3.3": 300, "5V": 500 }
+  gpio_max_ma: 8
+  fqbn: STMicroelectronics:stm32:GenF1:pnum=BLUEPILL_F103C8
+  platformio_board: bluepill_f103c8
+  default_i2c: { sda: 2, scl: 3 }
+  default_spi: { mosi: 199, miso: 198, sck: 197, cs: 196 }
+  preferred_order: [13, 14, 15, 16, 12, 4, 5, 6, 7, 0, 1, 30, 31, 192, 193, 194, 195, 200, 201, 10, 11]
+  wokwi:
+    type: board-stm32-bluepill
+    gnd: GND.1
+    rails: { "3.3": "3V3.1", "5V": "5V.1" }
+  price_eur: 4.0
+  source: "https://github.com/stm32duino/Arduino_Core_STM32/blob/main/variants/STM32F1xx/F103C8T_F103CB(T-U)/variant_PILL_F103Cx.h"
+  notes:
+    - "Programmation par sonde ST-Link (SWD) ou adaptateur USB-série (bootloader)."
+    - "Beaucoup de broches tolèrent le 5 V (FT), mais pas les entrées analogiques : par prudence MicroForge les traite toutes en 3,3 V."
+    - "PC13 (LED) ne fournit que 3 mA ; PC14/PC15 sont réservées au quartz 32 kHz."
+  pins:
+    - { gpio: 0,  label: PB9,  wokwi: B9,  caps: [digital, pwm] }
+    - { gpio: 1,  label: PB8,  wokwi: B8,  caps: [digital, pwm] }
+    - { gpio: 2,  label: PB7,  wokwi: B7,  caps: [digital, pwm, i2c], note: "SDA" }
+    - { gpio: 3,  label: PB6,  wokwi: B6,  caps: [digital, pwm, i2c], note: "SCL" }
+    - { gpio: 4,  label: PB5,  wokwi: B5,  caps: [digital] }
+    - { gpio: 5,  label: PB4,  wokwi: B4,  caps: [digital], note: "JTAG (libre en mode SWD)" }
+    - { gpio: 6,  label: PB3,  wokwi: B3,  caps: [digital], note: "JTAG (libre en mode SWD)" }
+    - { gpio: 7,  label: PA15, wokwi: A15, caps: [digital], note: "JTAG (libre en mode SWD)" }
+    - { gpio: 8,  label: PA12, wokwi: A12, caps: [digital], reserved: true, note: "USB D+" }
+    - { gpio: 9,  label: PA11, wokwi: A11, caps: [digital], reserved: true, note: "USB D-" }
+    - { gpio: 10, label: PA10, wokwi: A10, caps: [digital, pwm, uart], note: "RX1" }
+    - { gpio: 11, label: PA9,  wokwi: A9,  caps: [digital, pwm, uart], note: "TX1" }
+    - { gpio: 12, label: PA8,  wokwi: A8,  caps: [digital, pwm] }
+    - { gpio: 13, label: PB15, wokwi: B15, caps: [digital] }
+    - { gpio: 14, label: PB14, wokwi: B14, caps: [digital] }
+    - { gpio: 15, label: PB13, wokwi: B13, caps: [digital] }
+    - { gpio: 16, label: PB12, wokwi: B12, caps: [digital] }
+    - { gpio: 17, label: PC13, wokwi: C13, caps: [digital], reserved: true, note: "LED intégrée, 3 mA max" }
+    - { gpio: 18, label: PC14, wokwi: C14, caps: [digital], reserved: true, note: "quartz 32 kHz" }
+    - { gpio: 19, label: PC15, wokwi: C15, caps: [digital], reserved: true, note: "quartz 32 kHz" }
+    - { gpio: 30, label: PB10, wokwi: B10, caps: [digital, uart] }
+    - { gpio: 31, label: PB11, wokwi: B11, caps: [digital, uart] }
+    - { gpio: 32, label: PB2,  caps: [digital], strapping: true, note: "BOOT1" }
+    - { gpio: 33, label: PA13, caps: [digital], reserved: true, note: "SWDIO" }
+    - { gpio: 34, label: PA14, caps: [digital], reserved: true, note: "SWCLK" }
+    - { gpio: 192, label: PA0, wokwi: A0, caps: [digital, pwm, adc] }
+    - { gpio: 193, label: PA1, wokwi: A1, caps: [digital, pwm, adc] }
+    - { gpio: 194, label: PA2, wokwi: A2, caps: [digital, pwm, adc] }
+    - { gpio: 195, label: PA3, wokwi: A3, caps: [digital, pwm, adc] }
+    - { gpio: 196, label: PA4, wokwi: A4, caps: [digital, adc, spi], note: "SPI CS" }
+    - { gpio: 197, label: PA5, wokwi: A5, caps: [digital, adc, spi], note: "SPI SCK" }
+    - { gpio: 198, label: PA6, wokwi: A6, caps: [digital, pwm, adc, spi], note: "SPI MISO" }
+    - { gpio: 199, label: PA7, wokwi: A7, caps: [digital, pwm, adc, spi], note: "SPI MOSI" }
+    - { gpio: 200, label: PB0, wokwi: B0, caps: [digital, pwm, adc] }
+    - { gpio: 201, label: PB1, wokwi: B1, caps: [digital, pwm, adc] }
+
+- id: stm32-blackpill-f411
+  name: STM32 Black Pill (STM32F411CE, 100 MHz, USB-C)
+  family: stm32
+  mcu: STM32F411CE (Cortex-M4F 100 MHz)
+  aliases: [black pill, blackpill, stm32f411, weact black pill]
+  code_labels: all
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "5V": 5.0 }
+  rail_budget_ma: { "3V3": 300, "5V": 500 }
+  gpio_max_ma: 8
+  fqbn: STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE
+  platformio_board: blackpill_f411ce
+  default_i2c: { sda: 23, scl: 22 }
+  default_spi: { mosi: 199, miso: 198, sck: 197, cs: 196 }
+  preferred_order: [8, 9, 10, 15, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 193, 194, 195, 200, 201]
+  wokwi:
+    type: board-stm32-blackpill
+    gnd: GND.1
+    rails: { "3V3": "3V3.1", "5V": "5V.1" }
+  price_eur: 6.0
+  source: "https://github.com/stm32duino/Arduino_Core_STM32/blob/main/variants/STM32F4xx/F411C(C-E)(U-Y)/variant_BLACKPILL_F411CE.h"
+  notes: ["Téléversement par l'USB-C en mode DFU (boutons BOOT0 + NRST) ou par ST-Link.", "PA0 est relié au bouton KEY."]
+  pins:
+    - { gpio: 8,  label: PA8,  wokwi: A8,  caps: [digital, pwm] }
+    - { gpio: 9,  label: PA9,  wokwi: A9,  caps: [digital, pwm, uart] }
+    - { gpio: 10, label: PA10, wokwi: A10, caps: [digital, pwm, uart] }
+    - { gpio: 11, label: PA11, wokwi: A11, caps: [digital], reserved: true, note: "USB D-" }
+    - { gpio: 12, label: PA12, wokwi: A12, caps: [digital], reserved: true, note: "USB D+" }
+    - { gpio: 13, label: PA13, caps: [digital], reserved: true, note: "SWDIO" }
+    - { gpio: 14, label: PA14, caps: [digital], reserved: true, note: "SWCLK" }
+    - { gpio: 15, label: PA15, wokwi: A15, caps: [digital, pwm] }
+    - { gpio: 18, label: PB2,  caps: [digital], strapping: true, note: "BOOT1" }
+    - { gpio: 19, label: PB3,  wokwi: B3,  caps: [digital, pwm] }
+    - { gpio: 20, label: PB4,  wokwi: B4,  caps: [digital, pwm] }
+    - { gpio: 21, label: PB5,  wokwi: B5,  caps: [digital, pwm] }
+    - { gpio: 22, label: PB6,  wokwi: B6,  caps: [digital, pwm, i2c], note: "SCL" }
+    - { gpio: 23, label: PB7,  wokwi: B7,  caps: [digital, pwm, i2c], note: "SDA" }
+    - { gpio: 24, label: PB8,  wokwi: B8,  caps: [digital, pwm] }
+    - { gpio: 25, label: PB9,  wokwi: B9,  caps: [digital, pwm] }
+    - { gpio: 26, label: PB10, wokwi: B10, caps: [digital, pwm] }
+    - { gpio: 27, label: PB12, wokwi: B12, caps: [digital] }
+    - { gpio: 28, label: PB13, wokwi: B13, caps: [digital] }
+    - { gpio: 29, label: PB14, wokwi: B14, caps: [digital] }
+    - { gpio: 30, label: PB15, wokwi: B15, caps: [digital] }
+    - { gpio: 31, label: PC13, wokwi: C13, caps: [digital], reserved: true, note: "LED intégrée" }
+    - { gpio: 192, label: PA0, wokwi: A0, caps: [digital, pwm, adc], note: "bouton KEY" }
+    - { gpio: 193, label: PA1, wokwi: A1, caps: [digital, pwm, adc] }
+    - { gpio: 194, label: PA2, wokwi: A2, caps: [digital, pwm, adc] }
+    - { gpio: 195, label: PA3, wokwi: A3, caps: [digital, pwm, adc] }
+    - { gpio: 196, label: PA4, wokwi: A4, caps: [digital, adc, spi] }
+    - { gpio: 197, label: PA5, wokwi: A5, caps: [digital, pwm, adc, spi] }
+    - { gpio: 198, label: PA6, wokwi: A6, caps: [digital, pwm, adc, spi] }
+    - { gpio: 199, label: PA7, wokwi: A7, caps: [digital, pwm, adc, spi] }
+    - { gpio: 200, label: PB0, wokwi: B0, caps: [digital, pwm, adc] }
+    - { gpio: 201, label: PB1, wokwi: B1, caps: [digital, pwm, adc] }
+
+- id: teensy-40
+  name: PJRC Teensy 4.0 (i.MX RT1062, 600 MHz)
+  family: teensy
+  mcu: NXP i.MX RT1062 (Cortex-M7 600 MHz)
+  aliases: [teensy 4.0, teensy40, teensy 4]
+  code_labels: analog
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3.3V": 3.3, "VIN": 5.0 }
+  rail_budget_ma: { "3.3V": 250 }
+  gpio_max_ma: 4
+  fqbn: teensy:avr:teensy40
+  platformio_board: teensy40
+  default_i2c: { sda: 18, scl: 19 }
+  default_spi: { mosi: 11, miso: 12, sck: 13, cs: 10 }
+  preferred_order: [2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 14, 15, 16, 17, 20, 21, 22, 23, 10, 11, 12, 13, 18, 19]
+  price_eur: 30.0
+  source: "https://github.com/PaulStoffregen/cores/blob/master/teensy4/pins_arduino.h"
+  notes: ["Broches NON tolérantes au 5 V. Courant de sortie faible : LED via transistor ou résistance ≥ 470 Ω."]
+  pin_ranges:
+    - { from: 2, to: 13, label: "D{n}", caps: [digital, pwm] }
+    - { from: 14, to: 17, label: "A{a}", caps: [digital, adc], analog_offset: 14 }
+    - { from: 20, to: 21, label: "A{a}", caps: [digital, adc], analog_offset: 14 }
+    - { from: 22, to: 23, label: "A{a}", caps: [digital, pwm, adc], analog_offset: 14 }
+  pins:
+    - { gpio: 0,  label: D0, caps: [digital, pwm, uart], note: "RX1" }
+    - { gpio: 1,  label: D1, caps: [digital, pwm, uart], note: "TX1" }
+    - { gpio: 18, label: A4, caps: [digital, pwm, adc, i2c], note: "SDA" }
+    - { gpio: 19, label: A5, caps: [digital, pwm, adc, i2c], note: "SCL" }
+
+- id: teensy-41
+  name: PJRC Teensy 4.1 (i.MX RT1062, 600 MHz, Ethernet, microSD)
+  family: teensy
+  mcu: NXP i.MX RT1062 (Cortex-M7 600 MHz)
+  aliases: [teensy 4.1, teensy41]
+  representative: true
+  code_labels: analog
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3.3V": 3.3, "VIN": 5.0 }
+  rail_budget_ma: { "3.3V": 250 }
+  gpio_max_ma: 4
+  fqbn: teensy:avr:teensy41
+  platformio_board: teensy41
+  default_i2c: { sda: 18, scl: 19 }
+  default_spi: { mosi: 11, miso: 12, sck: 13, cs: 10 }
+  preferred_order: [2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 24, 25, 28, 29, 33, 36, 37, 14, 15, 16, 17, 20, 21, 22, 23, 38, 39, 40, 41]
+  price_eur: 35.0
+  source: "https://github.com/PaulStoffregen/cores/blob/master/teensy4/pins_arduino.h"
+  notes: ["Broches NON tolérantes au 5 V. Lecteur microSD et Ethernet intégrés."]
+  pin_ranges:
+    - { from: 2, to: 13, label: "D{n}", caps: [digital, pwm] }
+    - { from: 14, to: 17, label: "A{a}", caps: [digital, adc], analog_offset: 14 }
+    - { from: 20, to: 21, label: "A{a}", caps: [digital, adc], analog_offset: 14 }
+    - { from: 22, to: 23, label: "A{a}", caps: [digital, pwm, adc], analog_offset: 14 }
+    - { from: 24, to: 27, label: "A{a}", caps: [digital, pwm, adc], analog_offset: 14 }
+    - { from: 28, to: 37, label: "D{n}", caps: [digital] }
+    - { from: 38, to: 41, label: "A{a}", caps: [digital, adc], analog_offset: 24 }
+  pins:
+    - { gpio: 0,  label: D0, caps: [digital, pwm, uart], note: "RX1" }
+    - { gpio: 1,  label: D1, caps: [digital, pwm, uart], note: "TX1" }
+    - { gpio: 18, label: A4, caps: [digital, pwm, adc, i2c], note: "SDA" }
+    - { gpio: 19, label: A5, caps: [digital, pwm, adc, i2c], note: "SCL" }

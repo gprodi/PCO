@@ -19,11 +19,6 @@ from microforge.core.outputs.svg import wiring_svg
 from microforge.core.outputs.wiring import wiring_table
 from microforge.core.outputs.wokwi import wokwi_diagram
 
-PIO_PLATFORM = {
-    "esp32": "espressif32",
-    "avr": "atmelavr",
-    "rp2040": "https://github.com/maxgerhardt/platform-raspberrypi.git",
-}
 PIO_LIBS = {
     "DHT sensor library": "adafruit/DHT sensor library",
     "Adafruit Unified Sensor": "adafruit/Adafruit Unified Sensor",
@@ -133,7 +128,7 @@ class ProjectBuilder:
         lib_deps = "\n    ".join(PIO_LIBS.get(lib, lib) for lib in result.libraries)
         out["platformio.ini"] = (
             f"; PlatformIO — {spec.title}\n[platformio]\nsrc_dir = {name}\n\n"
-            f"[env:{board.platformio_board}]\nplatform = {PIO_PLATFORM[board.family]}\n"
+            f"[env:{board.platformio_board}]\nplatform = {self.catalog.families[board.family].platformio}\n"
             f"board = {board.platformio_board}\nframework = arduino\nmonitor_speed = 115200\n"
             + (f"lib_deps =\n    {lib_deps}\n" if result.libraries else "")
         )

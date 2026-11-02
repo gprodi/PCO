@@ -21,8 +21,17 @@ from microforge.core.catalog import Catalog
 from microforge.core.models import BUS_ROLES, BoardDef, ProjectSpec, SignalRole
 
 WIFI_HELPERS = """
-// ---- Wi-Fi ----
-#include <WiFi.h>
+// ---- Wi-Fi (ESP32, ESP8266, Pico W / Pico 2 W) ----
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WebServer.h>
+  typedef ESP8266WebServer MFWebServer;
+#else
+  #include <WiFi.h>
+  #include <WebServer.h>
+  typedef WebServer MFWebServer;
+#endif
+#include <time.h>
 #include "secrets.h"
 
 inline bool mf_wifi_connect(unsigned long timeout_ms = 15000) {
@@ -33,19 +42,27 @@ inline bool mf_wifi_connect(unsigned long timeout_ms = 15000) {
   return WiFi.status() == WL_CONNECTED;
 }
 
-#if defined(ESP32)
-#include <time.h>
 // Heure locale via NTP (fuseau Europe/Paris par défaut ; Réunion : "<+04>-4").
 inline void mf_time_begin(const char* tz = "CET-1CEST,M3.5.0,M10.5.0/3") {
+#if defined(ESP32)
   configTzTime(tz, "pool.ntp.org", "time.google.com");
+#elif defined(ESP8266)
+  configTime(tz, "pool.ntp.org", "time.google.com");
+#else
+  setenv("TZ", tz, 1);
+  tzset();
+  NTP.begin("pool.ntp.org", "time.google.com");
+#endif
 }
 inline String mf_time_hhmm() {
+  time_t now = time(nullptr);
+  if (now < 1700000000) { return "--:--"; }  // pas encore synchronisé
   struct tm t;
-  if (!getLocalTime(&t, 2000)) { return "--:--"; }
-  char buf[6]; strftime(buf, sizeof(buf), "%H:%M", &t);
+  localtime_r(&now, &t);
+  char buf[6];
+  strftime(buf, sizeof(buf), "%H:%M", &t);
   return String(buf);
 }
-#endif
 """
 
 SECRETS_H = """// secrets.h — identifiants Wi-Fi. NE PAS VERSIONNER ce fichier avec de vraies valeurs.
@@ -75,10 +92,36 @@ def _pin_constant(part: str, pin: str) -> str:
 
 
 def _pin_value(board: BoardDef, gpio: int, label: str) -> str:
-    # Sur AVR, A0…A15 sont plus lisibles que 14…69 ; ailleurs on garde le numéro de GPIO.
-    if board.family == "avr" and label.startswith("A") and label[1:].isdigit():
+    """Valeur écrite dans le code : numéro de GPIO, ou nom officiel quand le cœur l'exige.
+
+    ``code_labels`` (donnée de la carte) : « analog » -> A0…A15 lisibles (Arduino AVR, Uno R4…) ;
+    « all » -> PA5, PB7… (STM32, dont les numéros dépendent de la variante) ; « none » -> GPIO.
+    """
+    if board.code_labels == "all":
+        return label
+    if board.code_labels == "analog" and label.startswith("A") and label[1:].isdigit():
         return label
     return str(gpio)
+
+
+def _bus_begin(board: BoardDef, line: str) -> str:
+    """Initialisation des bus avec les broches EXPLICITES là où le cœur le permet.
+
+    Le câblage ne dépend alors plus des valeurs par défaut de la variante (ESP32-CAM : I2C sur
+    GPIO 14/15) ; ailleurs (AVR, SAMD…), les broches matérielles sont fixes et ``begin()`` suffit.
+    """
+    stripped = line.strip()
+    if board.family in ("esp32", "esp8266"):
+        if stripped == "Wire.begin();":
+            return "Wire.begin(BUS_I2C_SDA, BUS_I2C_SCL);"
+        if stripped == "SPI.begin();" and board.family == "esp32":
+            return "SPI.begin(BUS_SPI_SCK, BUS_SPI_MISO, BUS_SPI_MOSI);"
+    if board.family == "rp2040":
+        if stripped == "Wire.begin();":
+            return "Wire.setSDA(BUS_I2C_SDA); Wire.setSCL(BUS_I2C_SCL); Wire.begin();"
+        if stripped == "SPI.begin();":
+            return "SPI.setRX(BUS_SPI_MISO); SPI.setTX(BUS_SPI_MOSI); SPI.setSCK(BUS_SPI_SCK); SPI.begin();"
+    return line
 
 
 class FirmwareGenerator:
@@ -148,6 +191,7 @@ class FirmwareGenerator:
                 if inc not in includes:
                     includes.append(inc)
             for line in tpl.setup_once:
+                line = _bus_begin(board, line)
                 if line not in setup_once:
                     setup_once.append(line)
             header = f"// --- {inst.name} : {comp.name}"
@@ -201,7 +245,7 @@ class FirmwareGenerator:
             wifi_setup = (
                 '  Serial.println(mf_wifi_connect() ? F("Wi-Fi connecté") : F("Wi-Fi : échec"));\n'
             )
-            if board.family == "esp32" and "mf_time" in spec.logic + spec.setup_extra:
+            if "mf_time" in spec.logic + spec.setup_extra:
                 wifi_setup += "  mf_time_begin();\n"
         logic = "\n".join(f"  {ln}" if ln.strip() else "" for ln in spec.logic.strip().splitlines())
         setup_extra = "\n".join(f"  {ln}" for ln in spec.setup_extra.strip().splitlines())

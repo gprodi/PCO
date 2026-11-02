@@ -63,7 +63,7 @@ def _board_candidates(
     catalog: Catalog, inventory: Counter[str], tpl: ProjectTemplate
 ) -> list[tuple[BoardDef, bool]]:
     def compatible(b: BoardDef) -> bool:
-        return b.family in tpl.board_families and (b.wifi or not tpl.requires_wifi)
+        return catalog.template_fits(tpl.id, b)
 
     owned = [catalog.boards[b] for b in inventory if b in catalog.boards and inventory[b] > 0]
     owned_ok = [b for b in owned if compatible(b)]

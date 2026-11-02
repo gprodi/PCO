@@ -182,12 +182,18 @@ def _component_rules(
                 fix="Ajouter un module relais ou un MOSFET logique (IRLZ44N) + diode 1N4007.",
             )
         )
-    if spec.uses_wifi and board.family == "esp32":
+    if spec.uses_wifi and board.adc2_wifi_conflict:
+        adc1 = [
+            p.label
+            for p in board.pins
+            if "adc" in p.caps and "adc2" not in p.caps and not p.reserved
+        ]
         issues.append(
             ERCIssue(
                 code="ESP32_WIFI_ADC2",
                 severity=Severity.INFO,
-                message="Wi-Fi actif : seules les entrées ADC1 (GPIO 32–39) ont été utilisées pour l'analogique.",
+                message="Wi-Fi actif : l'ADC2 est réservé à la radio, seules les entrées ADC1 "
+                f"({', '.join(adc1)}) ont été utilisées pour l'analogique.",
             )
         )
     return issues

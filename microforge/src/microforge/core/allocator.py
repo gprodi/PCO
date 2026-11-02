@@ -113,7 +113,8 @@ class PinAllocator:
         if role == SignalRole.ADC:
             if "adc" not in caps:
                 return False
-            return not (board.family == "esp32" and uses_wifi and "adc1" not in caps)
+            # ESP32/S2/S3 : l'ADC2 est réservé au Wi-Fi quand celui-ci est actif (donnée de la carte).
+            return not (board.adc2_wifi_conflict and uses_wifi and "adc2" in caps)
         return False
 
     # ------------------------------------------------------------------ principal
@@ -146,7 +147,7 @@ class PinAllocator:
                     code="NO_WIFI",
                     severity=Severity.ERROR,
                     message=f"{board.name} n'a pas de Wi-Fi.",
-                    fix="Choisir un ESP32 ou un Raspberry Pi Pico W.",
+                    fix="Choisir une carte Wi-Fi gérée : ESP32 (toutes variantes sauf H2), ESP8266, Pico W / Pico 2 W.",
                 )
             )
 
@@ -174,6 +175,17 @@ class PinAllocator:
     ) -> None:
         i2c_parts = [(n, c) for n, c in parts if any(p.role in _BUS_I2C for p in c.pins)]
         if not i2c_parts:
+            return
+        if not {"sda", "scl"} <= set(board.default_i2c):
+            result.issues.append(
+                ERCIssue(
+                    code="NO_I2C_BUS",
+                    severity=Severity.ERROR,
+                    message=f"{board.name} n'expose pas de bus I2C utilisable.",
+                    fix="Choisir une autre carte pour ce projet.",
+                    parts=[n for n, _ in i2c_parts],
+                )
+            )
             return
         sda, scl = board.default_i2c["sda"], board.default_i2c["scl"]
         used[sda] = used[scl] = "bus I2C"
@@ -242,6 +254,17 @@ class PinAllocator:
             if any(p.role in (*_BUS_SPI, SignalRole.SPI_CS) for p in c.pins)
         ]
         if not spi_parts:
+            return
+        if not {"mosi", "miso", "sck"} <= set(board.default_spi):
+            result.issues.append(
+                ERCIssue(
+                    code="NO_SPI_BUS",
+                    severity=Severity.ERROR,
+                    message=f"{board.name} n'expose pas de bus SPI libre.",
+                    fix="Choisir une autre carte pour ce projet.",
+                    parts=[n for n, _ in spi_parts],
+                )
+            )
             return
         bus = {
             SignalRole.SPI_MOSI: board.default_spi["mosi"],

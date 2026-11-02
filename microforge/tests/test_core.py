@@ -356,19 +356,42 @@ def test_esp32_servo_uses_esp32servo():
     assert "ESP32Servo" in r.libraries
 
 
+CAPACITY_CODES = {"NO_PIN", "NO_I2C_BUS", "NO_SPI_BUS"}
+
+
+def _board_for(tid: str, family: str):
+    """Première carte de la famille (référence d'abord) sur laquelle le projet est réalisable.
+
+    Renvoie (carte, None) ou (None, raison) quand aucune carte de la famille n'a assez de broches :
+    c'est une limite matérielle signalée par le moteur, pas une erreur de génération.
+    """
+    rep = CAT.representative(family)
+    candidates = [rep] + [
+        b for b in CAT.boards_for_template(tid) if b.family == family and b.id != rep.id
+    ]
+    reasons = []
+    for board in candidates:
+        if not CAT.template_fits(tid, board):
+            continue
+        r = BUILDER.build(BUILDER.spec_from_template(tid, board.id))
+        errors = [i for i in r.issues if i.severity.value == "error"]
+        if not errors:
+            return board.id, None
+        assert {i.code for i in errors} <= CAPACITY_CODES | {"CODEGEN"}, [i.message for i in errors]
+        reasons.append(f"{board.id}: {errors[0].message}")
+    return None, "; ".join(reasons)
+
+
 @pytest.mark.skipif(shutil.which("g++") is None, reason="g++ absent")
 @pytest.mark.parametrize(
     ("tid", "family"),
-    [(tid, fam) for tid in sorted(CAT.templates) for fam in CAT.templates[tid].board_families],
+    [(tid, fam) for tid in sorted(CAT.templates) for fam in CAT.template_families(tid)],
 )
 def test_generated_firmware_compiles_syntax(tid, family, tmp_path):
     """Chaque modèle génère du C++ valide sur chaque famille compatible (en-têtes Arduino simulés)."""
-    board = {"esp32": "esp32-devkit-v1", "avr": "arduino-uno", "rp2040": "rpi-pico-w"}[family]
-    defines = {
-        "esp32-devkit-v1": "-DESP32",
-        "arduino-uno": "-DARDUINO_ARCH_AVR",
-        "rpi-pico-w": "-DARDUINO_ARCH_RP2040",
-    }
+    board, reason = _board_for(tid, family)
+    if board is None:
+        pytest.skip(f"pas assez de broches dans la famille {family} : {reason}")
     r = BUILDER.build(BUILDER.spec_from_template(tid, board))
     for rel, content in r.firmware_files.items():
         p = tmp_path / rel
@@ -383,7 +406,7 @@ def test_generated_firmware_compiles_syntax(tid, family, tmp_path):
             "-Wall",
             "-Wno-unused-function",
             f"-I{STUBS}",
-            defines[board],
+            CAT.families[family].gpp_define,
             "-x",
             "c++",
             "-include",

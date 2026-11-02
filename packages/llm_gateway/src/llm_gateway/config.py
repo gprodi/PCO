@@ -11,7 +11,7 @@ class GatewaySettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    llm_chain: str = Field(default="ollama,gemini,anthropic", alias="LLM_CHAIN")
+    llm_chain: str = Field(default="ollama,gemini", alias="LLM_CHAIN")
     llm_profile: str | None = Field(default=None, alias="LLM_PROFILE")
     llm_timeout_s: float = Field(default=120.0, alias="LLM_TIMEOUT_S")
 

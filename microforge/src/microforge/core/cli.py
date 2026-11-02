@@ -134,12 +134,64 @@ def _board_for_fqbn(fqbn: str):
 def templates_for_board(cat, board, only_demo: bool = False) -> list[str]:
     """Modèles compatibles avec la famille de la carte (Wi-Fi exigé -> carte Wi-Fi)."""
     ids = DEMO_TEMPLATES if only_demo else sorted(cat.templates)
-    return [
-        tid
-        for tid in ids
-        if board.family in cat.templates[tid].board_families
-        and (board.wifi or not cat.templates[tid].requires_wifi)
-    ]
+    return [tid for tid in ids if cat.template_fits(tid, board)]
+
+
+@app.command("ci-matrix")
+def ci_matrix() -> None:
+    """Matrice JSON de la CI : une entrée par famille (carte de référence, cœur, index)."""
+    cat = get_catalog()
+    include = []
+    for fam in cat.families.values():
+        board = cat.representative(fam.id)
+        others = [b.fqbn for b in cat.boards.values() if b.family == fam.id and b.id != board.id]
+        include.append(
+            {
+                "name": f"{fam.label.split(' (')[0]} — {board.name.split(' (')[0]}",
+                "family": fam.id,
+                "fqbn": board.fqbn,
+                "core": fam.core,
+                "index": fam.index_url,
+                "others": " ".join(others),
+            }
+        )
+    typer.echo(json.dumps({"include": include}, ensure_ascii=False))
+
+
+@app.command("board-smoke")
+def board_smoke(
+    family: str = typer.Option(..., help="Famille dont toutes les cartes sont vérifiées"),
+    out: Path = typer.Option(Path("build/smoke")),
+) -> None:
+    """Compile un croquis minimal (LED, I2C, SPI) pour CHAQUE carte d'une famille : FQBN et broches valides."""
+    cat = get_catalog()
+    cli = shutil.which("arduino-cli")
+    if cli is None:
+        raise typer.Exit("arduino-cli introuvable")
+    failures = []
+    for board in (b for b in cat.boards.values() if b.family == family):
+        free = [
+            p for p in board.pins if "digital" in p.caps and not p.reserved and not p.input_only
+        ]
+        pin = free[0].label if board.code_labels == "all" else str(free[0].gpio)
+        sketch = out / board.id.replace("-", "_")
+        sketch.mkdir(parents=True, exist_ok=True)
+        (sketch / f"{sketch.name}.ino").write_text(
+            "#include <Wire.h>\n#include <SPI.h>\n"
+            f"// Croquis de fumée MicroForge pour {board.name}\n"
+            f"void setup() {{ pinMode({pin}, OUTPUT); Wire.begin(); SPI.begin(); }}\n"
+            f"void loop() {{ digitalWrite({pin}, HIGH); delay(500); digitalWrite({pin}, LOW); delay(500); }}\n",
+            encoding="utf-8",
+        )
+        proc = subprocess.run(  # noqa: S603 — FQBN issus du catalogue
+            [cli, "compile", "--fqbn", board.fqbn, str(sketch)], capture_output=True, text=True
+        )
+        typer.echo(f"{'OK' if proc.returncode == 0 else 'ÉCHEC':5s} {board.id:28s} {board.fqbn}")
+        if proc.returncode != 0:
+            failures.append(board.id)
+            typer.echo(proc.stdout[-1500:] + proc.stderr[-1500:])
+    if failures:
+        raise typer.Exit(code=1)
 
 
 @app.command("libs")
@@ -170,8 +222,14 @@ def compile_demo(
     b = ProjectBuilder(cat)
     failures: list[str] = []
     targets = templates_for_board(cat, board, only_demo=not all_templates)
+    skipped: list[str] = []
     for tid in targets:
         result = b.build(b.spec_from_template(tid, board.id))
+        errors = [i for i in result.issues if i.severity.value == "error"]
+        if errors and {i.code for i in errors} <= {"NO_PIN", "NO_I2C_BUS", "NO_SPI_BUS", "CODEGEN"}:
+            skipped.append(tid)
+            typer.echo(f"—     {tid:28s} non réalisable sur cette carte : {errors[0].message}")
+            continue
         write_project(b, result, out / tid)
         sketch = sketch_dir(out / tid)
         proc = subprocess.run(  # noqa: S603 — arguments contrôlés (FQBN du catalogue)
@@ -190,7 +248,11 @@ def compile_demo(
         if proc.returncode != 0:
             failures.append(tid)
             typer.echo(proc.stdout[-2000:] + proc.stderr[-2000:])
-    typer.echo(f"\n{len(targets) - len(failures)}/{len(targets)} projets compilés pour {fqbn}")
+    done = len(targets) - len(skipped)
+    typer.echo(
+        f"\n{done - len(failures)}/{done} projets compilés pour {fqbn}"
+        + (f" ({len(skipped)} non réalisables faute de broches)" if skipped else "")
+    )
     if failures:
         typer.echo("Échecs : " + ", ".join(failures))
         raise typer.Exit(code=1)

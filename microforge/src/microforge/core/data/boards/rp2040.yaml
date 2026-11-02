@@ -1,0 +1,184 @@
+# Cartes Raspberry Pi RP2040 / RP2350 (cœur arduino-pico d'Earle Philhower). Bus par défaut :
+# variants/*/pins_arduino.h du dépôt earlephilhower/arduino-pico. Wokwi : dépôt wokwi/wokwi-boards.
+# La Nano RP2040 Connect n'est pas incluse : ses broches I2C (D18/D19) ne sont pas vérifiables dans la variante.
+
+- id: rpi-pico
+  name: Raspberry Pi Pico (RP2040)
+  family: rp2040
+  mcu: RP2040 double cœur Cortex-M0+ 133 MHz
+  aliases: [pico, raspberry pi pico, rp2040, pico h]
+  representative: true
+  source: "https://github.com/earlephilhower/arduino-pico/blob/master/variants/rpipico/pins_arduino.h"
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "VBUS": 5.0 }
+  rail_budget_ma: { "3V3": 300, "VBUS": 400 }
+  gpio_max_ma: 12
+  fqbn: rp2040:rp2040:rpipico
+  platformio_board: pico
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 19, miso: 16, sck: 18, cs: 17 }
+  default_uart: { rx: 1, tx: 0 }
+  preferred_order: [2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 0, 1, 16, 17, 18, 19, 4, 5, 26, 27, 28]
+  wokwi:
+    type: wokwi-pi-pico
+    gnd: GND.1
+    rails: { "3V3": "3V3", "VBUS": "VBUS" }
+  kicad: { symbol: "MCU_RaspberryPi:RaspberryPi_Pico", footprint: "Module:RaspberryPi_Pico_SMD_TH" }
+  price_eur: 5.0
+  notes:
+    - "GPIO non tolérants au 5 V."
+    - "Cœur Arduino recommandé : arduino-pico (Earle Philhower)."
+  pin_ranges:
+    - { from: 0, to: 22, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm] }
+    - { from: 26, to: 28, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm, adc] }
+  pins: []
+
+- id: rpi-pico-w
+  name: Raspberry Pi Pico W (RP2040 + Wi-Fi)
+  family: rp2040
+  mcu: RP2040 + CYW43439
+  aliases: [pico w, raspberry pi pico w, pico wh]
+  source: "https://datasheets.raspberrypi.com/picow/pico-w-datasheet.pdf"
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "VBUS": 5.0 }
+  rail_budget_ma: { "3V3": 250, "VBUS": 400 }
+  gpio_max_ma: 12
+  wifi: true
+  bluetooth: true
+  fqbn: rp2040:rp2040:rpipicow
+  platformio_board: rpipicow
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 19, miso: 16, sck: 18, cs: 17 }
+  default_uart: { rx: 1, tx: 0 }
+  preferred_order: [2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 0, 1, 16, 17, 18, 19, 4, 5, 26, 27, 28]
+  wokwi:
+    type: board-pi-pico-w
+    gnd: GND.1
+    rails: { "3V3": "3V3", "VBUS": "VBUS" }
+  kicad: { symbol: "MCU_RaspberryPi:RaspberryPi_Pico", footprint: "Module:RaspberryPi_Pico_SMD_TH" }
+  price_eur: 8.0
+  pin_ranges:
+    - { from: 0, to: 22, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm] }
+    - { from: 26, to: 28, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm, adc] }
+  pins: []
+
+- id: rpi-pico-2
+  name: Raspberry Pi Pico 2 (RP2350)
+  family: rp2040
+  mcu: RP2350 double cœur Cortex-M33 / RISC-V 150 MHz
+  aliases: [pico 2, raspberry pi pico 2, rp2350]
+  source: "https://github.com/earlephilhower/arduino-pico/blob/master/variants/rpipico2/pins_arduino.h"
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "VBUS": 5.0 }
+  rail_budget_ma: { "3V3": 300, "VBUS": 400 }
+  gpio_max_ma: 12
+  fqbn: rp2040:rp2040:rpipico2
+  platformio_board: rpipico2
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 19, miso: 16, sck: 18, cs: 17 }
+  default_uart: { rx: 1, tx: 0 }
+  preferred_order: [2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 0, 1, 16, 17, 18, 19, 4, 5, 26, 27, 28]
+  wokwi:
+    type: board-pi-pico-2
+    gnd: GND.1
+    rails: { "3V3": "3V3", "VBUS": "VBUS" }
+  kicad: { symbol: "MCU_RaspberryPi:RaspberryPi_Pico", footprint: "Module:RaspberryPi_Pico_SMD_TH" }
+  price_eur: 5.5
+  notes:
+    - "Erratum RP2350-E9 : les pull-down internes peuvent rester bloqués ; préférer une résistance de tirage externe."
+    - "GPIO non tolérants au 5 V."
+    - "Cœur Arduino recommandé : arduino-pico (Earle Philhower)."
+  pin_ranges:
+    - { from: 0, to: 22, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm] }
+    - { from: 26, to: 28, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm, adc] }
+  pins: []
+
+- id: rpi-pico-2-w
+  name: Raspberry Pi Pico 2 W (RP2350 + Wi-Fi)
+  family: rp2040
+  mcu: RP2350 + CYW43439
+  aliases: [pico 2 w, raspberry pi pico 2 w, pico 2w]
+  source: "https://datasheets.raspberrypi.com/picow/pico-2-w-datasheet.pdf"
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "VBUS": 5.0 }
+  rail_budget_ma: { "3V3": 250, "VBUS": 400 }
+  gpio_max_ma: 12
+  wifi: true
+  bluetooth: true
+  fqbn: rp2040:rp2040:rpipico2w
+  platformio_board: rpipico2w
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 19, miso: 16, sck: 18, cs: 17 }
+  default_uart: { rx: 1, tx: 0 }
+  preferred_order: [2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 0, 1, 16, 17, 18, 19, 4, 5, 26, 27, 28]
+  wokwi:
+    type: board-pi-pico-2w
+    gnd: GND.1
+    rails: { "3V3": "3V3", "VBUS": "VBUS" }
+  kicad: { symbol: "MCU_RaspberryPi:RaspberryPi_Pico", footprint: "Module:RaspberryPi_Pico_SMD_TH" }
+  price_eur: 8.5
+  pin_ranges:
+    - { from: 0, to: 22, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm] }
+    - { from: 26, to: 28, label: "GP{n}", wokwi: "GP{n}", caps: [digital, pwm, adc] }
+  pins: []
+
+- id: xiao-rp2040
+  name: Seeed Studio XIAO RP2040
+  family: rp2040
+  mcu: RP2040 double cœur Cortex-M0+ 133 MHz
+  aliases: [xiao rp2040, seeed xiao rp2040]
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "5V": 5.0 }
+  rail_budget_ma: { "3V3": 300, "5V": 400 }
+  gpio_max_ma: 12
+  fqbn: rp2040:rp2040:seeed_xiao_rp2040
+  platformio_board: seeed_xiao_rp2040
+  default_i2c: { sda: 6, scl: 7 }
+  default_spi: { mosi: 3, miso: 4, sck: 2 }
+  preferred_order: [26, 27, 28, 29, 0, 1, 2, 3, 4, 6, 7]
+  price_eur: 6.0
+  source: "https://github.com/earlephilhower/arduino-pico/blob/master/variants/seeed_xiao_rp2040/pins_arduino.h"
+  notes: ["LED RVB intégrée (GPIO 16–17–25) et LED NeoPixel (GPIO 12) non sorties sur les plots."]
+  pins:
+    - { gpio: 26, label: D0,  caps: [digital, pwm, adc] }
+    - { gpio: 27, label: D1,  caps: [digital, pwm, adc] }
+    - { gpio: 28, label: D2,  caps: [digital, pwm, adc] }
+    - { gpio: 29, label: D3,  caps: [digital, pwm, adc] }
+    - { gpio: 6,  label: D4,  caps: [digital, pwm, i2c], note: "SDA" }
+    - { gpio: 7,  label: D5,  caps: [digital, pwm, i2c], note: "SCL" }
+    - { gpio: 0,  label: D6,  caps: [digital, pwm, uart], note: "TX" }
+    - { gpio: 1,  label: D7,  caps: [digital, pwm, uart], note: "RX" }
+    - { gpio: 2,  label: D8,  caps: [digital, pwm, spi], note: "SCK" }
+    - { gpio: 4,  label: D9,  caps: [digital, pwm, spi], note: "MISO" }
+    - { gpio: 3,  label: D10, caps: [digital, pwm, spi], note: "MOSI" }
+
+- id: waveshare-rp2040-zero
+  name: Waveshare RP2040-Zero (USB-C, NeoPixel intégrée)
+  family: rp2040
+  mcu: RP2040 double cœur Cortex-M0+ 133 MHz
+  aliases: [rp2040 zero, rp2040-zero, waveshare rp2040 zero]
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "5V": 5.0 }
+  rail_budget_ma: { "3V3": 300, "5V": 400 }
+  gpio_max_ma: 12
+  fqbn: rp2040:rp2040:waveshare_rp2040_zero
+  platformio_board: waveshare_rp2040_zero
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 3, miso: 4, sck: 2, cs: 5 }
+  preferred_order: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 26, 27, 28, 29, 2, 3, 4, 5]
+  price_eur: 4.0
+  source: "https://github.com/earlephilhower/arduino-pico/blob/master/variants/waveshare_rp2040_zero/pins_arduino.h"
+  notes:
+    - "Par défaut, l'I2C (GP4/GP5) et le SPI (MISO = GP4) partagent GP4 : un projet qui utilise les deux bus n'est pas réalisable sur cette carte."
+    - "GP16 pilote la LED NeoPixel intégrée."
+  pin_ranges:
+    - { from: 0, to: 15, label: "GP{n}", caps: [digital, pwm] }
+    - { from: 26, to: 29, label: "GP{n}", caps: [digital, pwm, adc] }
+  pins:
+    - { gpio: 16, label: GP16, caps: [digital], reserved: true, note: "NeoPixel intégrée" }

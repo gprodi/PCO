@@ -15,7 +15,14 @@ from typing import Any
 
 import yaml
 
-from microforge.core.models import BoardDef, BoardPin, ComponentDef, ProjectTemplate, Reference
+from microforge.core.models import (
+    BoardDef,
+    BoardPin,
+    ComponentDef,
+    FamilyDef,
+    ProjectTemplate,
+    Reference,
+)
 
 _DATA = "microforge.core.data"
 
@@ -38,14 +45,20 @@ def _expand_board(raw: dict[str, Any]) -> dict[str, Any]:
         offset = rng.get("analog_offset", 0)
         for n in range(rng["from"], rng["to"] + 1):
             a = n - offset
-            pins.append(
-                {
-                    "gpio": n,
-                    "label": rng["label"].format(n=n, a=a),
-                    "wokwi": rng.get("wokwi", "{n}").format(n=n, a=a),
-                    "caps": rng.get("caps", ["digital"]),
-                }
-            )
+            pin = {
+                "gpio": n,
+                "label": rng["label"].format(n=n, a=a),
+                "wokwi": rng.get("wokwi", "{n}").format(n=n, a=a),
+                "caps": rng.get("caps", ["digital"]),
+            }
+            for flag in ("input_only", "strapping", "reserved", "note"):
+                if flag in rng:
+                    pin[flag] = rng[flag]
+            pins.append(pin)
+    gpios = [p["gpio"] for p in pins]
+    dup = sorted({g for g in gpios if gpios.count(g) > 1})
+    if dup:
+        raise ValueError(f"Carte {raw.get('id')} : GPIO en double {dup}")
     raw["pins"] = pins
     return raw
 
@@ -58,10 +71,14 @@ class Catalog:
         components: list[ComponentDef],
         boards: list[BoardDef],
         templates: list[ProjectTemplate],
+        families: list[FamilyDef] | None = None,
     ) -> None:
         self.components = {c.id: c for c in components}
         self.boards = {b.id: b for b in boards}
         self.templates = {t.id: t for t in templates}
+        if families is None:
+            families = [FamilyDef.model_validate(f) for f in _read_yaml("families.yaml")]
+        self.families = {f.id: f for f in families}
         self._aliases: dict[str, str] = {}
         for item in [*components, *boards]:
             for key in [item.id, item.name, *item.aliases]:
@@ -77,7 +94,12 @@ class Catalog:
             if entry.name.endswith(".yaml"):
                 for raw in yaml.safe_load(entry.read_text(encoding="utf-8")):
                     components.append(ComponentDef.model_validate(raw))
-        boards = [BoardDef.model_validate(_expand_board(b)) for b in _read_yaml("boards.yaml")]
+        boards: list[BoardDef] = []
+        board_dir = resources.files(_DATA).joinpath("boards")
+        for entry in sorted(board_dir.iterdir(), key=lambda p: p.name):
+            if entry.name.endswith(".yaml"):
+                for raw in yaml.safe_load(entry.read_text(encoding="utf-8")):
+                    boards.append(BoardDef.model_validate(_expand_board(raw)))
         templates: list[ProjectTemplate] = []
         proj_dir = resources.files(_DATA).joinpath("projects")
         for entry in sorted(proj_dir.iterdir(), key=lambda p: p.name):
@@ -108,6 +130,37 @@ class Catalog:
         if key is None or key not in self.boards:
             raise KeyError(f"Carte inconnue : {ref!r}")
         return self.boards[key]
+
+    # ------------------------------------------------------------------ familles et compatibilité
+    def representative(self, family: str) -> BoardDef:
+        """Carte de référence d'une famille (tests, CI) : la première marquée ``representative``."""
+        boards = [b for b in self.boards.values() if b.family == family]
+        return next((b for b in boards if b.representative), boards[0])
+
+    def template_families(self, template_id: str) -> list[str]:
+        """Familles compatibles avec un modèle : intersection des familles de ses composants,
+        de sa restriction éventuelle et, s'il exige le Wi-Fi, des familles où il est géré."""
+        tpl = self.templates[template_id]
+        fams = set(self.families)
+        if tpl.board_families:
+            fams &= set(tpl.board_families)
+        for part in tpl.parts:
+            comp = self.components.get(self.resolve(part.component) or part.component)
+            if comp is not None and comp.families:
+                fams &= set(comp.families)
+        if tpl.requires_wifi:
+            fams &= {f for f, d in self.families.items() if d.wifi_supported}
+        order = list(self.families)
+        return sorted(fams, key=order.index)
+
+    def template_fits(self, template_id: str, board: BoardDef) -> bool:
+        tpl = self.templates[template_id]
+        return board.family in self.template_families(template_id) and (
+            board.wifi or not tpl.requires_wifi
+        )
+
+    def boards_for_template(self, template_id: str) -> list[BoardDef]:
+        return [b for b in self.boards.values() if self.template_fits(template_id, b)]
 
     def is_board(self, ref: str) -> bool:
         return self.resolve(ref) in self.boards

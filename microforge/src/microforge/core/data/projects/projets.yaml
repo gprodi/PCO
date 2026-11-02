@@ -290,7 +290,6 @@
   tags: [wifi, horloge, iot]
   learning: [Wi-Fi, protocole NTP, fuseau horaire]
   requires_wifi: true
-  board_families: [esp32]
   parts:
     - { name: ecran, component: ssd1306-i2c }
   logic: |
@@ -304,12 +303,10 @@
   tags: [wifi, iot, web, météo]
   learning: [serveur HTTP embarqué, HTML, adresse IP]
   requires_wifi: true
-  board_families: [esp32]
   parts:
     - { name: dht, component: dht22 }
   globals_extra: |
-    #include <WebServer.h>
-    WebServer serveur(80);
+    MFWebServer serveur(80);  // WebServer (ESP32, Pico W) ou ESP8266WebServer
   setup_extra: |
     serveur.on("/", []() {
       String page = "<!doctype html><html lang='fr'><head><meta charset='utf-8'>"

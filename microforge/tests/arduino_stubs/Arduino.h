@@ -25,6 +25,16 @@ typedef bool boolean;
 #define A5 19
 #define A6 20
 #define A7 21
+#define A8 22
+#define A9 23
+#define A10 24
+#define A11 25
+#define A12 26
+#define A13 27
+#define A14 28
+#define A15 29
+#define A16 30
+#define A17 31
 // Macros réelles du cœur AVR (variants/standard/pins_arduino.h) : un firmware qui déclare
 // une constante du même nom ne compile pas. On les reproduit pour détecter ces collisions.
 #ifdef ARDUINO_ARCH_AVR
@@ -34,6 +44,46 @@ typedef bool boolean;
 #define PIN_SPI_SCK (13)
 #define PIN_WIRE_SDA (18)
 #define PIN_WIRE_SCL (19)
+#endif
+// STM32duino : les broches se nomment PA0…PC15 (valeurs propres à chaque variante).
+#ifdef ARDUINO_ARCH_STM32
+#define PA0 200
+#define PA1 201
+#define PA2 202
+#define PA3 203
+#define PA4 204
+#define PA5 205
+#define PA6 206
+#define PA7 207
+#define PA8 208
+#define PA9 209
+#define PA10 210
+#define PA11 211
+#define PA12 212
+#define PA13 213
+#define PA14 214
+#define PA15 215
+#define PB0 216
+#define PB1 217
+#define PB2 218
+#define PB3 219
+#define PB4 220
+#define PB5 221
+#define PB6 222
+#define PB7 223
+#define PB8 224
+#define PB9 225
+#define PB10 226
+#define PB11 227
+#define PB12 228
+#define PB13 229
+#define PB14 230
+#define PB15 231
+#define PC13 232
+#define PC14 233
+#define PC15 234
+#define PH0 235
+#define PH1 236
 #endif
 using std::isnan;
 using std::abs;

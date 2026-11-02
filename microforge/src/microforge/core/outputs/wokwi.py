@@ -30,10 +30,14 @@ def wokwi_diagram(
     spec: ProjectSpec, board: BoardDef, alloc: Allocation, catalog: Catalog
 ) -> dict[str, Any]:
     """Construit le diagram.json Wokwi."""
-    parts: list[dict[str, Any]] = [
-        {"type": board.wokwi.get("type", ""), "id": MCU_ID, "top": 0, "left": 0, "attrs": {}}
-    ]
     missing: list[str] = []
+    parts: list[dict[str, Any]] = []
+    if board.wokwi.get("type"):
+        parts.append({"type": board.wokwi["type"], "id": MCU_ID, "top": 0, "left": 0, "attrs": {}})
+    else:
+        missing.append(
+            f"carte {board.name} (non simulée par Wokwi : choisir une carte équivalente)"
+        )
     wokwi_pins: dict[str, dict[str, str]] = {}
     col = 0
     for inst in spec.parts:
@@ -78,8 +82,12 @@ def wokwi_diagram(
     rails = board.wokwi.get("rails", {})
     gnd = board.wokwi.get("gnd", "GND")
 
+    has_board = bool(board.wokwi.get("type"))
+
     def endpoint(ref: str, pin: str) -> str | None:
         if ref == BOARD:
+            if not has_board:
+                return None
             if pin == "GND":
                 return f"{MCU_ID}:{gnd}"
             if pin in rails:
@@ -110,7 +118,12 @@ def wokwi_diagram(
         "parts": parts,
         "connections": connections,
         "dependencies": {},
-        "microforge": {"missing_parts": missing, "board": board.id, "project": spec.title},
+        "microforge": {
+            "missing_parts": missing,
+            "board": board.id,
+            "board_simulable": has_board,
+            "project": spec.title,
+        },
     }
 
 

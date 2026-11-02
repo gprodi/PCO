@@ -1,0 +1,74 @@
+# Cartes ESP8266 (cœur esp8266:esp8266). Correspondance Dx -> GPIO et bus par défaut recopiés de
+# variants/nodemcu/pins_arduino.h et variants/d1_mini/pins_arduino.h (dépôt esp8266/Arduino).
+# Pas de simulation Wokwi pour l'ESP8266.
+
+- id: nodemcu-esp8266
+  name: NodeMCU v3 (ESP8266 ESP-12E)
+  family: esp8266
+  mcu: ESP8266 (Tensilica L106 80/160 MHz)
+  aliases: [nodemcu, esp8266, esp-12e, nodemcu v3, nodemcu v2, lolin nodemcu]
+  representative: true
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "VIN": 5.0 }
+  rail_budget_ma: { "3V3": 300, "VIN": 400 }
+  gpio_max_ma: 12
+  wifi: true
+  fqbn: esp8266:esp8266:nodemcuv2
+  platformio_board: nodemcuv2
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 13, miso: 12, sck: 14, cs: 15 }
+  preferred_order: [14, 12, 13, 5, 4, 16, 0, 2, 15, 17]
+  price_eur: 5.0
+  source: "https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h"
+  notes:
+    - "Une seule entrée analogique : A0 (0–3,3 V grâce au pont diviseur de la carte)."
+    - "D3 (GPIO 0), D4 (GPIO 2) doivent être à l'état haut et D8 (GPIO 15) à l'état bas au démarrage."
+    - "D0 (GPIO 16) : ni PWM ni interruption ; sert au réveil après sommeil profond."
+  pins:
+    - { gpio: 16, label: D0, caps: [digital], note: "pas de PWM, réveil du sommeil profond" }
+    - { gpio: 5,  label: D1, caps: [digital, pwm, i2c], note: "SCL" }
+    - { gpio: 4,  label: D2, caps: [digital, pwm, i2c], note: "SDA" }
+    - { gpio: 0,  label: D3, caps: [digital, pwm], strapping: true, note: "bouton FLASH" }
+    - { gpio: 2,  label: D4, caps: [digital, pwm], strapping: true, note: "LED intégrée" }
+    - { gpio: 14, label: D5, caps: [digital, pwm, spi], note: "SCK" }
+    - { gpio: 12, label: D6, caps: [digital, pwm, spi], note: "MISO" }
+    - { gpio: 13, label: D7, caps: [digital, pwm, spi], note: "MOSI" }
+    - { gpio: 15, label: D8, caps: [digital, pwm, spi], strapping: true, note: "LOW au démarrage" }
+    - { gpio: 3,  label: RX, caps: [digital, uart], reserved: true, note: "USB série" }
+    - { gpio: 1,  label: TX, caps: [digital, uart], reserved: true, note: "USB série" }
+    - { gpio: 17, label: A0, caps: [adc], input_only: true, note: "seule entrée analogique" }
+
+- id: wemos-d1-mini
+  name: Wemos / LOLIN D1 mini (ESP8266)
+  family: esp8266
+  mcu: ESP8266 (Tensilica L106 80/160 MHz)
+  aliases: [d1 mini, wemos d1 mini, lolin d1 mini, d1mini]
+  logic_v: 3.3
+  five_v_tolerant: false
+  rails: { "3V3": 3.3, "5V": 5.0 }
+  rail_budget_ma: { "3V3": 300, "5V": 400 }
+  gpio_max_ma: 12
+  wifi: true
+  fqbn: esp8266:esp8266:d1_mini
+  platformio_board: d1_mini
+  default_i2c: { sda: 4, scl: 5 }
+  default_spi: { mosi: 13, miso: 12, sck: 14, cs: 15 }
+  preferred_order: [14, 12, 13, 5, 4, 16, 0, 2, 15, 17]
+  price_eur: 4.0
+  source: "https://github.com/esp8266/Arduino/blob/master/variants/d1_mini/pins_arduino.h"
+  notes:
+    - "Même brochage que la NodeMCU (D0–D8, A0) dans un format compact compatible avec les shields D1 mini."
+  pins:
+    - { gpio: 16, label: D0, caps: [digital], note: "pas de PWM" }
+    - { gpio: 5,  label: D1, caps: [digital, pwm, i2c], note: "SCL" }
+    - { gpio: 4,  label: D2, caps: [digital, pwm, i2c], note: "SDA" }
+    - { gpio: 0,  label: D3, caps: [digital, pwm], strapping: true }
+    - { gpio: 2,  label: D4, caps: [digital, pwm], strapping: true, note: "LED intégrée" }
+    - { gpio: 14, label: D5, caps: [digital, pwm, spi], note: "SCK" }
+    - { gpio: 12, label: D6, caps: [digital, pwm, spi], note: "MISO" }
+    - { gpio: 13, label: D7, caps: [digital, pwm, spi], note: "MOSI" }
+    - { gpio: 15, label: D8, caps: [digital, pwm, spi], strapping: true, note: "LOW au démarrage" }
+    - { gpio: 3,  label: RX, caps: [digital, uart], reserved: true }
+    - { gpio: 1,  label: TX, caps: [digital, uart], reserved: true }
+    - { gpio: 17, label: A0, caps: [adc], input_only: true }
