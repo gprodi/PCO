@@ -1,0 +1,265 @@
+{
+  "slug": "mlflow",
+  "titre": "MLflow — suivi des expériences",
+  "theme": "mlops",
+  "fiche": {
+    "titre": "MLflow : tracer, comparer et retrouver ses modèles",
+    "resume": "MLflow est un outil open-source qui enregistre tout ce qui concerne un entraînement : paramètres, métriques, artefacts et le modèle lui-même. Chaque exécution est un « run » rangé dans une « expérience ». L'interface web (mlflow ui) permet de comparer les runs et de retrouver le meilleur modèle. Un modèle journalisé se recharge ensuite par son URI (runs:/<id>/model) ou, via le registre, par un alias comme @production — ce qui évite de modifier le code pour changer de version.",
+    "objectifs": [
+      "Journaliser paramètres, métriques et modèles d'un entraînement scikit-learn",
+      "Comparer des runs dans l'interface MLflow",
+      "Recharger un modèle depuis un run ou depuis le registre"
+    ],
+    "notions": [
+      {
+        "terme": "Expérience",
+        "definition": "Dossier logique qui regroupe des runs d'un même problème (mlflow.set_experiment)."
+      },
+      {
+        "terme": "Run",
+        "definition": "Une exécution d'entraînement, avec ses paramètres, métriques et artefacts (mlflow.start_run)."
+      },
+      {
+        "terme": "Paramètre",
+        "definition": "Valeur d'entrée fixée avant l'entraînement (ex. max_depth) : mlflow.log_param."
+      },
+      {
+        "terme": "Métrique",
+        "definition": "Valeur mesurée, éventuellement à chaque étape (ex. accuracy) : mlflow.log_metric."
+      },
+      {
+        "terme": "Artefact",
+        "definition": "Fichier produit par le run (graphique, modèle, rapport) : mlflow.log_artifact."
+      },
+      {
+        "terme": "Model Registry",
+        "definition": "Catalogue des modèles versionnés ; un alias (@production) désigne la version à servir."
+      }
+    ],
+    "points_cles": [
+      "Toujours ouvrir un run avec un bloc with mlflow.start_run(): pour qu'il soit correctement fermé.",
+      "Paramètres = ce que l'on choisit ; métriques = ce que l'on mesure.",
+      "mlflow.sklearn.log_model enregistre le modèle avec son environnement (dépendances, signature).",
+      "Le tracking server centralise les runs ; le backend store (SQLite/PostgreSQL) stocke les métadonnées, l'artifact store (S3) les fichiers.",
+      "Charger par alias (models:/nom@production) découple le code de la version déployée."
+    ],
+    "code": [
+      {
+        "titre": "Journaliser un entraînement",
+        "lang": "python",
+        "code": "import mlflow\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.metrics import accuracy_score\n\nmlflow.set_experiment(\"iris\")\nwith mlflow.start_run():\n    model = RandomForestClassifier(max_depth=4).fit(X_train, y_train)\n    mlflow.log_param(\"max_depth\", 4)\n    mlflow.log_metric(\"accuracy\", accuracy_score(y_test, model.predict(X_test)))\n    mlflow.sklearn.log_model(model, \"model\")\n",
+        "explication": "Chaque exécution crée un run visible dans mlflow ui, comparable aux autres."
+      },
+      {
+        "titre": "Recharger le modèle",
+        "lang": "python",
+        "code": "model = mlflow.pyfunc.load_model(\"runs:/<run_id>/model\")\nmodel_prod = mlflow.pyfunc.load_model(\"models:/iris@production\")\n",
+        "explication": "pyfunc fournit une interface predict() commune quel que soit le framework."
+      }
+    ],
+    "pieges": [
+      "Oublier set_experiment : tous les runs finissent dans « Default ».",
+      "Journaliser une métrique dans une boucle sans step : la courbe est illisible (utiliser step=epoch).",
+      "Stocker les artefacts en local sur un serveur partagé : les autres machines ne les retrouvent pas (utiliser un stockage S3)."
+    ],
+    "competences": [
+      "C11",
+      "C12",
+      "C13"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Quelle fonction enregistre une valeur mesurée comme l'accuracy ?",
+        "choix": [
+          "mlflow.log_param",
+          "mlflow.log_metric",
+          "mlflow.log_artifact",
+          "mlflow.set_tag"
+        ],
+        "bonne": 1,
+        "explication": "Les métriques (mesures) passent par log_metric ; log_param sert aux hyperparamètres.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que représente un run dans MLflow ?",
+        "choix": [
+          "Un serveur MLflow",
+          "Une exécution d'entraînement avec ses paramètres et résultats",
+          "Un fichier de modèle",
+          "Une version du registre"
+        ],
+        "bonne": 1,
+        "explication": "Un run = une exécution, rangée dans une expérience.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle URI charge la version désignée par l'alias production du modèle « iris » ?",
+        "choix": [
+          "runs:/iris/production",
+          "models:/iris@production",
+          "models:/iris/production/model",
+          "mlflow://iris:production"
+        ],
+        "bonne": 1,
+        "explication": "La syntaxe des alias du registre est models:/<nom>@<alias>.",
+        "difficulte": 2
+      },
+      {
+        "question": "Où sont stockés les fichiers (modèles, graphiques) d'un tracking server en production ?",
+        "choix": [
+          "Dans le backend store SQL",
+          "Dans l'artifact store (ex. S3)",
+          "Dans le navigateur",
+          "Dans Git"
+        ],
+        "bonne": 1,
+        "explication": "Le backend store garde les métadonnées ; l'artifact store garde les fichiers.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi utiliser un bloc with mlflow.start_run() ?",
+        "choix": [
+          "Pour accélérer l'entraînement",
+          "Pour fermer proprement le run même en cas d'erreur",
+          "Pour chiffrer les données",
+          "C'est obligatoire pour log_param uniquement"
+        ],
+        "bonne": 1,
+        "explication": "Le gestionnaire de contexte termine le run (statut FINISHED ou FAILED).",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel intérêt principal du chargement par alias pour une API de prédiction ?",
+        "choix": [
+          "Réduire la taille du modèle",
+          "Changer de version déployée sans modifier le code",
+          "Éviter d'installer scikit-learn",
+          "Chiffrer le modèle"
+        ],
+        "bonne": 1,
+        "explication": "On déplace l'alias vers la nouvelle version ; l'API recharge par alias.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Commande pour lancer l'interface MLflow en local ?",
+        "verso": "mlflow ui (par défaut sur http://127.0.0.1:5000).",
+        "tags": []
+      },
+      {
+        "recto": "Différence paramètre / métrique ?",
+        "verso": "Paramètre : choisi avant l'entraînement. Métrique : mesurée pendant/après.",
+        "tags": []
+      },
+      {
+        "recto": "À quoi sert mlflow.set_experiment ?",
+        "verso": "À ranger les runs dans une expérience nommée (créée si besoin).",
+        "tags": []
+      },
+      {
+        "recto": "Que contient un modèle journalisé avec log_model ?",
+        "verso": "Le modèle sérialisé, son environnement (dépendances) et éventuellement sa signature d'entrée/sortie.",
+        "tags": []
+      },
+      {
+        "recto": "URI d'un modèle issu d'un run ?",
+        "verso": "runs:/<run_id>/<chemin_artefact>, ex. runs:/abc123/model.",
+        "tags": []
+      },
+      {
+        "recto": "Rôle du Model Registry ?",
+        "verso": "Versionner les modèles et leur associer des alias (staging, production).",
+        "tags": []
+      },
+      {
+        "recto": "Backend store vs artifact store ?",
+        "verso": "Backend : métadonnées (SQLite/PostgreSQL). Artifact : fichiers (disque, S3/MinIO).",
+        "tags": []
+      },
+      {
+        "recto": "Comment tracer une courbe d'apprentissage ?",
+        "verso": "mlflow.log_metric('loss', valeur, step=epoch) à chaque epoch.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Mon premier run",
+        "niveau": 1,
+        "enonce": "Entraîne une régression logistique sur le jeu iris et journalise le paramètre `C`, l'accuracy de test et le modèle dans l'expérience `iris-tp`.",
+        "indices": [
+          "mlflow.set_experiment puis with mlflow.start_run():",
+          "mlflow.sklearn.log_model(model, 'model')"
+        ],
+        "corrige": "```python\nimport mlflow\nfrom sklearn.datasets import load_iris\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.model_selection import train_test_split\n\nX, y = load_iris(return_X_y=True)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, random_state=42)\nmlflow.set_experiment(\"iris-tp\")\nwith mlflow.start_run():\n    C = 0.5\n    model = LogisticRegression(C=C, max_iter=500).fit(X_tr, y_tr)\n    mlflow.log_param(\"C\", C)\n    mlflow.log_metric(\"accuracy\", model.score(X_te, y_te))\n    mlflow.sklearn.log_model(model, \"model\")\n```\n"
+      },
+      {
+        "titre": "Recherche d'hyperparamètres tracée",
+        "niveau": 2,
+        "enonce": "Boucle sur C ∈ {0.01, 0.1, 1, 10} : un run par valeur. Puis, en Python, retrouve le run de meilleure accuracy avec `mlflow.search_runs` et recharge son modèle.",
+        "indices": [
+          "mlflow.search_runs(experiment_names=[...], order_by=['metrics.accuracy DESC'])",
+          "La colonne run_id du DataFrame"
+        ],
+        "corrige": "```python\nfor C in [0.01, 0.1, 1, 10]:\n    with mlflow.start_run():\n        m = LogisticRegression(C=C, max_iter=500).fit(X_tr, y_tr)\n        mlflow.log_param(\"C\", C)\n        mlflow.log_metric(\"accuracy\", m.score(X_te, y_te))\n        mlflow.sklearn.log_model(m, \"model\")\nruns = mlflow.search_runs(experiment_names=[\"iris-tp\"], order_by=[\"metrics.accuracy DESC\"])\nbest = mlflow.pyfunc.load_model(f\"runs:/{runs.iloc[0].run_id}/model\")\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# MLflow\n## Tracking\n- Expérience\n- Run\n  - log_param\n  - log_metric (step)\n  - log_artifact\n## Modèles\n- log_model (flavor sklearn, pyfunc)\n- URI runs:/id/model\n## Registre\n- Versions\n- Alias @staging / @production\n- models:/nom@alias\n## Serveur\n- Backend store (SQL)\n- Artifact store (S3)\n- mlflow ui\n"
+  },
+  "podcast": {
+    "titre": "MLflow en trois minutes",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, quand j'entraîne dix modèles, je ne sais plus lequel était le meilleur. MLflow peut m'aider ?"
+      },
+      {
+        "voix": "B",
+        "texte": "C'est exactement son rôle. Chaque entraînement devient un run, rangé dans une expérience, avec ses paramètres et ses métriques."
+      },
+      {
+        "voix": "A",
+        "texte": "Paramètres, métriques… quelle différence ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Un paramètre, tu le choisis avant, comme la profondeur d'un arbre. Une métrique, tu la mesures, comme l'accuracy."
+      },
+      {
+        "voix": "A",
+        "texte": "Et le modèle lui-même ?"
+      },
+      {
+        "voix": "B",
+        "texte": "On le journalise avec log_model : MLflow garde le fichier et la liste de ses dépendances. On peut le recharger plus tard avec son adresse runs, l'identifiant du run puis le chemin."
+      },
+      {
+        "voix": "A",
+        "texte": "En production, on ne va pas recopier un identifiant de run à chaque fois…"
+      },
+      {
+        "voix": "B",
+        "texte": "Non : on enregistre le modèle dans le registre, et on lui colle un alias, production. L'API charge toujours l'alias. Pour déployer une nouvelle version, on déplace juste l'alias."
+      },
+      {
+        "voix": "A",
+        "texte": "Malin ! Et où vont tous ces fichiers ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Les métadonnées dans une base SQL, les fichiers dans un stockage objet de type S3. C'est la base de l'usine à modèles du cours MLOps 2."
+      }
+    ]
+  },
+  "origine": "seed"
+}

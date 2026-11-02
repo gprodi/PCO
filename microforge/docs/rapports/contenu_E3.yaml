@@ -1,0 +1,108 @@
+# Contenu du rapport E3 (C9 à C13) injecté dans referentiel/modeles/E3_template.docx.
+titre: "MicroForge — détecteur de composants : intégration et MLOps"
+annexe_titre: "Annexe 1 : extraits du workflow model-cd et du rapport d'évaluation"
+
+sections:
+  Introduction:
+    - "Le modèle mis en service est le détecteur de composants électroniques (YOLO) qui transforme la photo d'un tiroir en inventaire. Il est exposé par l'API IA de MicroForge, intégré dans l'application, surveillé en production, testé automatiquement et réentraîné par une chaîne de livraison continue qui ouvre une demande de fusion avec son rapport d'évaluation."
+
+  # ------------------------------------------------------------------ C9
+  Analyser les spécifications fonctionnelles et techniques:
+    - "Entrée : une photo (JPEG, PNG ou WebP, 8 Mo maximum). Sortie : la liste des composants détectés (classe, boîte, confiance), rapprochés du catalogue, avec un affinage optionnel par VLM pour lire les marquages. Temps de réponse visé : moins de 5 s."
+  Concevoir l'architecture de l'API:
+    - "API séparée de l'API de données (exigence du projet) : api_ia vérifie les jetons émis par api_data avec la seule clé publique RS256 et ne peut pas en émettre. Routes principales : POST /v1/vision/scan, POST /v1/builds/suggest, /generate, /from-goal, /bundle, POST /v1/ideas/explore, GET /v1/ideas/inspiration, /health, /metrics."
+  Choisir les outils et langages de programmation:
+    - "Python, FastAPI, Pydantic v2, Ultralytics YOLO, Pillow, MLflow (registre de modèles), slowapi (quotas), loguru."
+  Installer et configurer l'environnement de développement:
+    - "```bash\nuv sync --all-packages --group dev --extra data --extra app\nLLM_CHAIN=fake uv run uvicorn microforge.api_ia.main:app --port 8001\n```"
+  Développer la vérification et la transformation des paramètres:
+    - "Le type réel du fichier est vérifié par Pillow (et non par l'extension), la taille est bornée, les métadonnées EXIF/GPS sont supprimées (RGPD) et l'image est redimensionnée avant l'inférence."
+  Développer l'exécution du modèle à partir de la requête client:
+    - "Le détecteur est chargé une seule fois au démarrage depuis le registre MLflow (alias @production) ou depuis un fichier local ; les classes sont rapprochées du catalogue (correspondance exacte puis approximative)."
+  Développer la réponse de l'API avec le résultat du modèle:
+    - "Réponse typée (ScanResult) : détections, composants proposés pour l'inventaire, version du modèle, durée d'analyse."
+  Développer les règles d'autorisation et d'accès:
+    - "Toutes les routes métier exigent un jeton valide ; quotas par utilisateur (ex. 20 générations d'idées par heure) ; erreurs 401/403/413/415/429 explicites."
+  Sécuriser l'API:
+    - "Vérification RS256 par clé publique, limitation de débit, taille et type de fichier contrôlés, aucun stockage de photo sans consentement, en-têtes de sécurité, Top 10 OWASP API passé en revue."
+  Développer des tests d'intégration:
+    - "tests/test_api_ia.py : TestClient FastAPI, détecteur statique et fournisseur LLM simulé ; un test de contrat vérifie que chaque route appelée par l'application existe bien dans l'une des deux API."
+  Versionner les sources avec Git:
+    - "Branches de fonctionnalité, commits explicites, CI à chaque push (ruff, pytest avec seuil de couverture de 80 %)."
+  Rédiger et/ou générer la documentation de l'API:
+    - "OpenAPI générée (/docs) et page docs/E3/api-ia.md avec exemples."
+
+  # ------------------------------------------------------------------ C10
+  Installer l'environnement de développement de l'application:
+    - "Preuve de concept Streamlit multipage (app_streamlit/) ; la PWA React prendra le relais en phase 2."
+  Programmer les étapes d'authentification et d'autorisation:
+    - "Inscription et connexion par l'API de données ; le client conserve le jeton d'accès en mémoire et le renouvelle automatiquement avec le jeton de rafraîchissement quand il reçoit une 401, puis rejoue la requête (testé dans tests/test_streamlit_client.py)."
+  Programmer la communication avec l'API:
+    - "Client httpx unique (app_streamlit/client.py) : inventaire, scan photo, suggestions, génération, exploration par thème, inspiration."
+  Intégrer les adaptations d'interface:
+    - "Résultats de détection affichés sous forme de liste éditable (pas seulement des boîtes sur l'image), onglets câblage / schéma / code / guide / Wokwi / KiCad / nomenclature / fiabilité et sources."
+  Tester et valider l'accessibilité des interfaces:
+    - "Navigation au clavier, libellés explicites, statut exprimé par du texte et pas seulement par la couleur, schéma SVG avec titre et description."
+    - "[À COMPLÉTER : rapport axe ou Lighthouse sur les pages principales]"
+  C10. Intégration de l'API dans une Application > Développer des tests d'intégration:
+    - "Tests du client (renouvellement de jeton, erreurs, nouvelles routes) et parcours complet de bout en bout avec Playwright : inscription, stock, idées, génération, chaque onglet ouvert sans erreur."
+  C10. Intégration de l'API dans une Application > Versionner les sources avec Git:
+    - "Même dépôt et même CI que les API."
+
+  # ------------------------------------------------------------------ C11
+  Lister les métriques du modèle à monitorer:
+    - "| Métrique | Signification | Seuil |\n|---|---|---|\n| mf_detection_correction_rate | part des détections corrigées par les utilisateurs (7 jours) | > 25 % → alerte et réentraînement |\n| mf_detection_confidence | confiance des prédictions | moyenne < 0,5 sur 24 h |\n| mf_detections_unknown_total | objets hors catalogue | > 20 % sur 6 h |\n| mf_scan_seconds | durée d'analyse | p95 > 5 s |\n| mAP50 sur les retours étiquetés | performance réelle | baisse > 5 points |"
+  Choisir une solution ou un outil pour le monitorage:
+    - "Prometheus (métriques exposées par les deux API) et rapports de dérive Evidently."
+  Intégrer la solution ou l'outil de monitorage:
+    - "Instrumentation dans api_ia (histogrammes, compteurs) et calcul du taux de corrections dans api_data à partir de la table retour_detection."
+  Sélectionner un outil de restitution des métriques:
+    - "Grafana : tableau « Modèle » provisionné (monitoring/grafana/)."
+  Intégrer l'outil de restitution et les alertes:
+    - "Règles d'alerte Prometheus (monitoring/prometheus/alerts.yml) ; l'alerte « taux de corrections » déclenche le workflow de réentraînement (repository_dispatch)."
+  Tester et valider le bon fonctionnement de la chaîne de monitorage:
+    - "Bac à sable : un générateur de trafic injecte volontairement une dérive (images sombres, classes inconnues) pour vérifier que l'alerte se déclenche."
+    - "[À COMPLÉTER : capture de l'alerte déclenchée dans Grafana]"
+  C11. Monitorage d'un Modèle d'IA > Versionner les sources avec Git:
+    - "Tableaux Grafana et règles d'alerte versionnés en fichiers (provisioning)."
+  Rédiger la documentation technique et utilisateur:
+    - "docs/E3/monitoring-modele.md : installation, lecture des tableaux, conduite à tenir pour chaque alerte."
+
+  # ------------------------------------------------------------------ C12
+  Définir le périmètre des tests pour chaque composante du modèle:
+    - "| Partie | Cas testés |\n|---|---|\n| Données | format des lignes YOLO, classes connues, coordonnées normalisées, labels manquants |\n| Fuites | même image (SHA-256) dans deux ensembles |\n| Cohérence | dataset.yaml = classes.yaml = identifiants du catalogue |\n| Entraînement | test fumée d'une epoch sur CPU |\n| Évaluation | porte de non-régression : mAP50 ≥ production − 0,02 |\n| Inférence | schéma de sortie, correspondance avec le catalogue |"
+  Choisir les outils de test:
+    - "pytest (tests paramétrés, fixtures), hypothesis pour l'allocateur de broches, CI GitHub Actions."
+  Installer et configurer l'environnement d'exécution des tests:
+    - "uv sync puis uv run pytest ; les tests d'entraînement réels tournent sur le runner GPU (étiquette « gpu »)."
+  Intégrer les tests:
+    - "tests/test_ml_data.py et ml/evaluate.py, exécutés à chaque push et dans la chaîne de livraison du modèle."
+  Versionner les sources et les données avec Git:
+    - "Code dans Git, images et annotations versionnées avec DVC (stockage objet S3 compatible)."
+  C12. Tests Automatisés d'un Modèle d'IA > Rédiger la documentation technique:
+    - "docs/E3/tests-modele.md."
+
+  # ------------------------------------------------------------------ C13
+  C13. Création d'une Chaîne de Livraison Continue > Définir les étapes, tâches et déclencheurs de la chaîne de livraison continue:
+    - "Déclencheurs : modification de ml/** ou des fichiers .dvc, alerte de monitoring (repository_dispatch), lancement manuel, réentraînement mensuel. Étapes : tests des données → entraînement → évaluation → comparaison avec @production → enregistrement en @staging → demande de fusion avec le rapport → promotion en @production à la fusion."
+  C13. Création d'une Chaîne de Livraison Continue > Paramétrer la chaîne de livraison continue:
+    - ".github/workflows/model-cd.yml, actions épinglées par empreinte de commit."
+  Intégrer l'exécution des tests du modèle et des données:
+    - "Première étape de la chaîne : tests de données et test fumée."
+  Intégrer les étapes d'entraînement et d’évaluation du modèle:
+    - "ml/train.py (périphérique choisi selon la machine : cuda, mps ou cpu), suivi MLflow ; ml/evaluate.py calcule mAP50, mAP50-95, précision et rappel par classe."
+  Intégrer la génération des rapports d'évaluation:
+    - "Rapport Markdown et matrice de confusion joints à la demande de fusion ouverte automatiquement."
+  Intégrer l'étape de livraison:
+    - "À la fusion, le modèle passe en @production ; api_ia recharge le modèle par son alias."
+  C13. Création d'une Chaîne de Livraison Continue > Versionner les sources de la chaîne avec Git:
+    - "Workflow et scripts dans le dépôt."
+  Documenter les procédures d’installation et de test de la chaîne:
+    - "docs/E3/cd-modele.md : installation du runner GPU, secrets nécessaires, lancement manuel."
+  Documenter l'utilisation de la chaîne:
+    - "[À COMPLÉTER : capture d'une demande de fusion « Modèle vX » avec son rapport]"
+
+  Conclusion:
+    - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Reste à entraîner la première version sur les photos annotées et à mesurer ses performances réelles."
+  Annexes:
+    - "[À COMPLÉTER : extrait de model-cd.yml et d'un rapport d'évaluation]"

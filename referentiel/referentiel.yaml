@@ -1,0 +1,582 @@
+# Référentiel RNCP37827 — Développeur en intelligence artificielle (Simplon)
+# Structuré à partir de IA-E1.pdf, IA-E2-E3.pdf, IA-E4-E5.pdf, E12345-E1.pdf.
+# Utilisé par : le site Révisions DevIA (page Référentiel) et la doc MicroForge (check-lists d'épreuves).
+#
+# Champs :
+#   cours        -> slugs des cours de revision/content liés
+#   boilerplates -> templates de revision/boilerplates liés
+#   microforge   -> livrables MicroForge qui démontrent la compétence
+
+rncp: RNCP37827
+intitule: Développeur en intelligence artificielle
+niveau: 6
+
+blocs:
+  - id: B1
+    titre: Réaliser la collecte, le stockage et la mise à disposition des données d'un projet en IA
+    activites: [A1, A2]
+    epreuves: [E1]
+  - id: B2
+    titre: Intégrer des modèles et des services d'intelligence artificielle
+    activites: [A3, A4, A5]
+    epreuves: [E2, E3]
+  - id: B3
+    titre: Réaliser une application intégrant un service d'intelligence artificielle
+    activites: [A6, A7, A8, A9]
+    epreuves: [E4, E5]
+
+activites:
+  A1: Programmer la collecte de données depuis plusieurs sources pour un projet en IA
+  A2: Développer la mise à disposition technique des données collectées pour un projet d'IA
+  A3: Accompagner le choix et l'intégration d'un service d'IA préexistant
+  A4: Réaliser l'intégration d'un modèle ou d'un service d'IA
+  A5: Faciliter le déploiement d'un modèle d'IA avec une approche MLOps
+  A6: Concevoir une application intégrant un service d'IA
+  A7: Développer les interfaces et les fonctionnalités d'une application d'IA
+  A8: Développer les fonctions de tests et de contrôle d'une application d'IA
+  A9: Assurer le maintien en condition opérationnelle d'une application d'IA
+
+epreuves:
+  - id: E1
+    type: Mise en situation
+    competences: [C1, C2, C3, C4, C5]
+    contexte: >-
+      Réalisation d'un service numérique (réel ou fictif) basé sur l'usage de données, à partir d'un
+      cadrage (spécifications fonctionnelles et techniques). But : optimiser, automatiser, pérenniser
+      et mettre à disposition les flux de données utiles au service.
+    livrable: Rapport professionnel individuel
+    evaluation: [Correction du rapport, Soutenance orale individuelle]
+    microforge: Base de connaissances composants & prix (microforge/data_pipeline + api_data)
+  - id: E2
+    type: Cas pratique
+    competences: [C6, C7, C8]
+    contexte: >-
+      Expression d'un besoin (réel ou fictif) de fonctionnalités d'IA. But : installer et configurer
+      le service d'IA préconisé.
+    livrable: Rapport professionnel individuel (veille + benchmark + documentation technique)
+    evaluation: [Correction du rapport, Soutenance orale individuelle]
+    microforge: Veille IA vision/LLM locaux + AI Act ; benchmark VLM/détecteurs ; Ollama + LiteLLM
+  - id: E3
+    type: Mise en situation
+    competences: [C9, C10, C11, C12, C13]
+    contexte: >-
+      Réalisation d'un service d'IA à partir d'un modèle fourni. But : mise en service (packaging,
+      monitorage, tests…) du modèle et intégration dans une application existante.
+    livrable: Rapport professionnel individuel
+    evaluation: [Correction du rapport, Soutenance orale avec démonstration]
+    microforge: Détecteur YOLO de composants exposé par api_ia, monitoré, testé, livré en continu
+  - id: E4
+    type: Mise en situation
+    competences: [C14, C15, C16, C17, C18, C19]
+    contexte: >-
+      Développement d'une application intégrant un service d'IA : analyser le besoin, concevoir,
+      développer, tester et livrer l'application.
+    livrable: Rapport professionnel individuel
+    evaluation: [Correction du rapport, Soutenance orale avec démonstration]
+    microforge: Application MicroForge (Streamlit puis PWA React) + CI/CD
+  - id: E5
+    type: Cas pratique
+    competences: [C20, C21]
+    contexte: >-
+      Application existante présentant au moins une erreur technique. But : mettre en place le
+      monitorage applicatif et résoudre un incident technique.
+    livrable: Documentation technique du monitorage + documentation de la résolution d'incident
+    evaluation: [Correction de la documentation, Soutenance orale (monitorage + solution)]
+    microforge: Prometheus/Grafana/Loki/Uptime Kuma + incident documenté (issue -> PR)
+
+competences:
+  - id: C1
+    activite: A1
+    epreuve: E1
+    titre: Automatiser l'extraction de données
+    enonce: >-
+      Automatiser l'extraction de données depuis un service web, une page web (scraping), un fichier
+      de données, une base de données et un système big data en programmant le script adapté afin de
+      pérenniser la collecte des données nécessaires au projet.
+    criteres:
+      - La présentation du projet et de son contexte est complète (acteurs, objectifs fonctionnels et techniques, environnements et contraintes techniques, budget, organisation du travail et planification).
+      - Les spécifications techniques précisent les technologies et outils, les services externes, les exigences de programmation, l'accessibilité (disponibilité, accès).
+      - Le périmètre des spécifications couvre tous les moyens techniques d'extraction et d'agrégation en un jeu de données brutes final.
+      - Le script d'extraction est fonctionnel - toutes les données visées sont récupérées.
+      - Le script comprend un point de lancement, l'initialisation des dépendances et connexions, les règles de traitement, la gestion des erreurs et exceptions, la fin du traitement et la sauvegarde des résultats.
+      - Le script est versionné et accessible depuis un dépôt Git.
+      - L'extraction mixe au moins - un service web (API REST), un fichier de données, un scraping, une base de données et un système big data.
+    livrables:
+      - Spécifications techniques de la collecte (docs/E1/specifications.md)
+      - Un script par type de source + flow d'orchestration
+      - Jeu de données brutes daté (Parquet) + manifeste
+    cours: [horragor-1, horragor-2, sqlalchemy, pandas-seaborn, python-cookbook, mlops-3-automation]
+    boilerplates: [prefect-docker]
+    microforge:
+      - microforge/src/microforge/data_pipeline/extract/
+      - microforge/src/microforge/data_pipeline/flows.py
+      - microforge/docs/E1/specifications.md
+
+  - id: C2
+    activite: A1
+    epreuve: E1
+    titre: Développer des requêtes SQL d'extraction
+    enonce: >-
+      Développer des requêtes de type SQL d'extraction des données depuis un système de gestion de
+      base de données et un système big data en appliquant le langage de requête propre au système
+      afin de préparer la collecte des données nécessaires au projet.
+    criteres:
+      - Les requêtes SQL de collecte sont fonctionnelles (les données visées sont extraites).
+      - La documentation met en lumière les choix de sélections, filtrages, conditions, jointures… en fonction des objectifs de collecte.
+      - La documentation explicite les optimisations appliquées aux requêtes.
+    livrables:
+      - Requêtes .sql versionnées (SGBD + Spark SQL)
+      - Documentation des requêtes et optimisations (docs/E1/requetes.md)
+    cours: [sqlalchemy, sqlmodel, horragor-1]
+    boilerplates: []
+    microforge:
+      - microforge/src/microforge/data_pipeline/sql/
+      - microforge/docs/E1/requetes.md
+
+  - id: C3
+    activite: A1
+    epreuve: E1
+    titre: Agréger et nettoyer les données
+    enonce: >-
+      Développer des règles d'agrégation de données issues de différentes sources en programmant,
+      sous forme de script, la suppression des entrées corrompues et l'homogénéisation des formats
+      des données afin de préparer le stockage du jeu de données final.
+    criteres:
+      - Le script d'agrégation est fonctionnel - données agrégées, nettoyées et normalisées en un seul jeu de données.
+      - Le script est versionné et accessible depuis un dépôt Git.
+      - La documentation est complète - dépendances, commandes, enchaînements logiques, choix de nettoyage et d'homogénéisation.
+    livrables:
+      - Script d'agrégation + règles documentées
+      - Rapport de rejets (entrées corrompues par règle)
+    cours: [pandas-seaborn, horragor-1, sas-ia-exercices]
+    boilerplates: []
+    microforge:
+      - microforge/src/microforge/data_pipeline/aggregate/
+      - microforge/docs/E1/agregation.md
+
+  - id: C4
+    activite: A2
+    epreuve: E1
+    titre: Créer une base de données conforme au RGPD
+    enonce: >-
+      Créer une base de données dans le respect du RGPD en élaborant les modèles conceptuels et
+      physiques des données à partir des données préparées et en programmant leur import afin de
+      stocker le jeu de données du projet.
+    criteres:
+      - Les modélisations respectent la méthode et le formalisme Merise.
+      - Le modèle physique est fonctionnel (intégré sans erreur à la création de la base).
+      - Le SGBD est choisi au regard de la modélisation et des contraintes du projet.
+      - Les procédures d'installation (base + API) sont reproductibles.
+      - Le script d'import est fonctionnel et sa documentation est versionnée à la racine du même dépôt.
+      - La documentation couvre les dépendances et les commandes d'exécution.
+      - Le registre des traitements intègre tous les traitements de données personnelles.
+      - Les procédures de tri (RGPD) sont rédigées, avec traitements et fréquence.
+    livrables:
+      - MCD / MLD / MPD Merise
+      - Procédure d'installation du SGBD
+      - Script d'import documenté
+      - Registre des traitements + procédures de tri RGPD
+    cours: [sqlalchemy, sqlmodel, horragor-1, securiser-api-fastapi]
+    boilerplates: [fastapi-jwt-sqlmodel]
+    microforge:
+      - microforge/docs/E1/merise.md
+      - microforge/docs/E1/rgpd.md
+      - microforge/src/microforge/data_pipeline/load/
+
+  - id: C5
+    activite: A2
+    epreuve: E1
+    titre: Développer une API REST de mise à disposition des données
+    enonce: >-
+      Développer une API mettant à disposition le jeu de données en utilisant l'architecture REST
+      afin de permettre l'exploitation du jeu de données par les autres composants du projet.
+    criteres:
+      - La documentation de l'API couvre tous les points de terminaison.
+      - La documentation couvre les règles d'authentification et/ou d'autorisation.
+      - La documentation respecte un standard (ex. OpenAPI).
+      - L'API restreint l'accès aux données par une authentification/autorisation.
+      - L'API permet la récupération de toutes les données prévues par les spécifications.
+    livrables:
+      - API FastAPI (OpenAPI) sécurisée (OWASP API Top 10)
+      - Documentation technique API + accès direct à la base
+    cours: [securiser-api-fastapi, glossaire-securite-api, analyse-sentiment, dev-ia-slides, sqlmodel]
+    boilerplates: [fastapi-jwt-sqlmodel, two-apis-streamlit]
+    microforge:
+      - microforge/src/microforge/api_data/
+      - microforge/docs/E1/api.md
+
+  - id: C6
+    activite: A3
+    epreuve: E2
+    titre: Organiser et réaliser une veille technique et réglementaire
+    enonce: >-
+      Organiser et réaliser une veille technique et réglementaire en animant le travail collectif de
+      sélection des sources, de collecte, de traitement et de partage des informations afin de
+      formuler des recommandations pour le projet toujours en phase avec l'état de l'art.
+    criteres:
+      - La thématique porte sur un outil et/ou une réglementation mobilisé dans la mise en situation.
+      - Les temps de veille sont planifiés régulièrement (au minimum 1 h hebdomadaire).
+      - Les outils d'agrégation sont cohérents avec les sources et le budget (RSS, réseaux sociaux, newsletters…).
+      - Les synthèses sont communiquées dans un format accessible (Valentin Haüy, Atalan-AcceDe).
+      - Les informations partagées répondent à la thématique choisie.
+      - Les sources sont fiables (auteur identifié et compétent, contenu daté et sourcé, structuré, accessible, confirmé ailleurs).
+    livrables:
+      - Plan de veille (thématiques, planning, outils)
+      - Liste des sources + grille de fiabilité
+      - Synthèses régulières accessibles + journal de veille
+    cours: [ia-agentic-2026, hugging-face]
+    boilerplates: []
+    microforge:
+      - microforge/veille/
+      - microforge/docs/E2/veille.md
+
+  - id: C7
+    activite: A3
+    epreuve: E2
+    titre: Benchmarker des services d'IA préexistants
+    enonce: >-
+      Identifier des services d'IA préexistants à partir de l'expression de besoin, en réalisant un
+      benchmark de services existants et en analysant leurs caractéristiques pour formaliser une ou
+      plusieurs recommandations de services adaptés au besoin.
+    criteres:
+      - L'expression de besoin est reformulée (objectifs et contraintes).
+      - Le benchmark liste les services étudiés et non étudiés.
+      - Les raisons d'écarter un service sont explicitées.
+      - Le niveau d'adéquation de chaque service est détaillé par ensemble fonctionnel.
+      - Le niveau de démarche éco-responsable de chaque service est détaillé.
+      - Les contraintes techniques et prérequis de chaque solution sont détaillés.
+      - Les conclusions délimitent les services retenus (avantages / inconvénients) et écartés.
+    livrables:
+      - Reformulation du besoin + contraintes
+      - Grille de benchmark mesurée (qualité, latence, énergie, coût, licence, confidentialité)
+      - Recommandation argumentée
+    cours: [hugging-face, idees-projets-hf, ia-agentic]
+    boilerplates: []
+    microforge:
+      - microforge/benchmark/
+      - microforge/docs/E2/benchmark.md
+
+  - id: C8
+    activite: A3
+    epreuve: E2
+    titre: Paramétrer un service d'IA
+    enonce: >-
+      Paramétrer un service d'IA en suivant sa documentation technique et en respectant les
+      spécifications du projet, afin de permettre l'intégration des connecteurs du service dans le
+      système d'information.
+    criteres:
+      - Le service installé est accessible (avec une éventuelle authentification).
+      - Le service est configuré correctement et répond aux besoins et contraintes.
+      - Le monitorage disponible du service est opérationnel.
+      - La documentation couvre les accès, l'installation, les tests, les dépendances, les interconnexions et les données impliquées.
+      - La documentation est communiquée dans un format accessible.
+    livrables:
+      - Service Ollama + passerelle LiteLLM configurés (compose)
+      - Gestion des accès (clés virtuelles, réseau interne)
+      - Monitoring (Prometheus/Grafana, Uptime Kuma)
+      - Documentation d'installation et de test
+    cours: [ia-agentic, mlops-1-orchestration, traefik, mlops-3-monitoring]
+    boilerplates: [prometheus-grafana-uptimekuma]
+    microforge:
+      - microforge/infra/compose.ai.yml
+      - microforge/infra/litellm/config.yaml
+      - microforge/docs/E2/service-ia.md
+
+  - id: C9
+    activite: A4
+    epreuve: E3
+    titre: Développer une API exposant un modèle d'IA
+    enonce: >-
+      Développer une API exposant un modèle d'IA en utilisant l'architecture REST pour permettre
+      l'interaction entre le modèle et les autres composants du projet.
+    criteres:
+      - L'API restreint l'accès au modèle avec un moyen d'authentification.
+      - L'API permet l'accès aux fonctions du modèle comme attendu.
+      - Les recommandations OWASP API Top 10 sont intégrées quand nécessaire.
+      - Les sources sont versionnées sur un dépôt Git distant.
+      - Les tests couvrent tous les points de terminaison, s'exécutent sans bug et sont correctement interprétés.
+      - La documentation couvre l'architecture, tous les endpoints et les règles d'authentification, selon un standard (OpenAPI), dans un format accessible.
+    livrables:
+      - api_ia (FastAPI) + tests d'intégration
+      - Documentation OpenAPI + Sphinx
+    cours: [analyse-sentiment, securiser-api-fastapi, mlops-2-factory, idees-projets-hf]
+    boilerplates: [fastapi-jwt-sqlmodel, mlflow-minio]
+    microforge:
+      - microforge/src/microforge/api_ia/
+      - microforge/docs/E3/api-ia.md
+
+  - id: C10
+    activite: A4
+    epreuve: E3
+    titre: Intégrer l'API d'un modèle d'IA dans une application
+    enonce: >-
+      Intégrer l'API d'un modèle ou d'un service d'IA dans une application, en respectant les
+      spécifications du projet et les normes d'accessibilité en vigueur, à l'aide de la documentation
+      technique de l'API, afin de créer les fonctionnalités d'IA de l'application.
+    criteres:
+      - L'application de départ est installée et fonctionnelle en développement.
+      - La communication avec l'API fonctionne.
+      - L'authentification et son renouvellement (expiration des jetons) sont intégrés.
+      - Tous les endpoints concernés sont intégrés selon les spécifications.
+      - Les adaptations d'interface nécessaires sont intégrées.
+      - Les tests d'intégration couvrent tous les endpoints exploités, s'exécutent et sont interprétés.
+      - Les sources sont versionnées sur le dépôt de l'application.
+    livrables:
+      - Écrans d'inventaire photo (Streamlit puis PWA)
+      - Tests d'intégration front <-> api_ia
+    cours: [streamlit, analyse-sentiment, horragor-2]
+    boilerplates: [two-apis-streamlit, streamlit-multipage]
+    microforge:
+      - microforge/src/microforge/app_streamlit/
+      - microforge/app_pwa/
+
+  - id: C11
+    activite: A5
+    epreuve: E3
+    titre: Monitorer un modèle d'IA
+    enonce: >-
+      Monitorer un modèle d'IA à partir des métriques courantes et spécifiques au projet, en
+      intégrant les outils de collecte, d'alerte et de restitution des données du monitorage pour
+      permettre l'amélioration du modèle de façon itérative.
+    criteres:
+      - Les métriques monitorées sont expliquées sans erreur d'interprétation.
+      - Les outils sont adaptés au contexte et aux contraintes.
+      - Au moins un vecteur de restitution temps réel est proposé (dashboard…).
+      - L'accessibilité de l'outil de restitution est prise en compte.
+      - La chaîne est d'abord testée dans un bac à sable.
+      - La chaîne est en état de marche (métriques évaluées et restituées).
+      - Les sources sont versionnées ; la documentation (installation, configuration, utilisation) est accessible.
+    livrables:
+      - Métriques modèle (confiance, corrections, dérive, mAP) + seuils + déclencheurs
+      - Dashboard Grafana + alertes
+      - Bac à sable avec injection de dérive
+    cours: [mlops-3-monitoring, loki-grafana, mlflow, projet-5-forge-mlops]
+    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy]
+    microforge:
+      - microforge/monitoring/
+      - microforge/docs/E3/monitoring-modele.md
+
+  - id: C12
+    activite: A5
+    epreuve: E3
+    titre: Programmer les tests automatisés d'un modèle d'IA
+    enonce: >-
+      Programmer les tests automatisés d'un modèle d'IA en définissant les règles de validation des
+      jeux de données, des étapes de préparation des données, d'entraînement, d'évaluation et de
+      validation du modèle pour permettre son intégration en continu.
+    criteres:
+      - Tous les cas à tester sont listés et définis (partie visée, périmètre, stratégie).
+      - Les outils de test sont cohérents avec l'environnement technique.
+      - Les tests sont intégrés et respectent la couverture souhaitée.
+      - Les tests s'exécutent sans problème en environnement de test.
+      - Sources (et si possible données - DVC) versionnées sur un dépôt distant.
+      - La documentation couvre l'installation, les dépendances, l'exécution et le calcul de couverture.
+    livrables:
+      - Tests données / préparation / entraînement / évaluation / inférence
+      - Dataset versionné DVC
+    cours: [pytest-loguru, mlops-0-intro, machine-learning]
+    boilerplates: [gha-ci-cd]
+    microforge:
+      - microforge/ml/tests/
+      - microforge/docs/E3/tests-modele.md
+
+  - id: C13
+    activite: A5
+    epreuve: E3
+    titre: Créer une chaîne de livraison continue d'un modèle d'IA
+    enonce: >-
+      Créer une chaîne de livraison continue d'un modèle d'IA en installant les outils et en
+      appliquant les configurations souhaitées, dans une approche MLOps, pour automatiser la
+      validation, les tests, le packaging et le déploiement du modèle.
+    criteres:
+      - La documentation d'utilisation couvre toutes les étapes, tâches et déclencheurs.
+      - Les déclencheurs sont intégrés comme définis.
+      - Les fichiers de configuration sont reconnus et exécutés selon les déclencheurs.
+      - L'étape de test des données s'exécute sans erreur.
+      - Les étapes de test, d'entraînement et de validation du modèle s'exécutent sans erreur.
+      - Les sources de la chaîne sont versionnées ; la documentation (installation, configuration, test) est accessible.
+    livrables:
+      - Workflow model-cd (tests données -> entraînement -> évaluation -> registre -> PR avec rapport)
+    cours: [mlops-0-intro, mlops-2-factory, mlops-3-automation, mlflow]
+    boilerplates: [gha-ci-cd, mlflow-minio]
+    microforge:
+      - .github/workflows/model-cd.yml
+      - microforge/docs/E3/cd-modele.md
+
+  - id: C14
+    activite: A6
+    epreuve: E4
+    titre: Analyser le besoin et rédiger les spécifications fonctionnelles
+    enonce: >-
+      Analyser le besoin d'application d'un commanditaire intégrant un service d'IA, en rédigeant les
+      spécifications fonctionnelles et en le modélisant, dans le respect des standards d'utilisabilité
+      et d'accessibilité.
+    criteres:
+      - La modélisation des données respecte un formalisme (Merise, entités-relations…).
+      - La modélisation des parcours respecte un formalisme (schéma fonctionnel, wireframes…).
+      - Chaque spécification couvre le contexte, les scénarios et les critères de validation.
+      - Les objectifs d'accessibilité sont intégrés aux critères d'acceptation des user stories.
+      - Les objectifs d'accessibilité s'appuient sur un standard (WCAG, RGAA…).
+    livrables:
+      - User stories + critères d'acceptation RGAA
+      - MCD application + parcours / wireframes
+    cours: [sqlalchemy, dev-ia-slides]
+    boilerplates: []
+    microforge:
+      - microforge/docs/E4/user-stories.md
+      - microforge/docs/E4/modelisation.md
+
+  - id: C15
+    activite: A6
+    epreuve: E4
+    titre: Concevoir le cadre technique de l'application
+    enonce: >-
+      Concevoir le cadre technique d'une application intégrant un service d'IA, à partir de l'analyse
+      du besoin, en spécifiant l'architecture technique et applicative et en préconisant les outils et
+      méthodes de développement.
+    criteres:
+      - Les spécifications couvrent l'architecture, les dépendances et l'environnement d'exécution.
+      - Les services et prestataires éco-responsables sont favorisés.
+      - Les flux de données sont représentés par un diagramme de flux de données.
+      - La preuve de concept est accessible et fonctionnelle en pré-production.
+      - La conclusion de la preuve de concept permet une décision sur la poursuite du projet.
+    livrables:
+      - Spécifications techniques + diagrammes C4 + diagramme de flux de données
+      - Preuve de concept en pré-production + conclusion go/no-go
+    cours: [dev-ia-slides, mlops-1-orchestration, traefik]
+    boilerplates: [two-apis-streamlit]
+    microforge:
+      - microforge/docs/E4/architecture.md
+
+  - id: C16
+    activite: A7
+    epreuve: E4
+    titre: Coordonner la réalisation en agile
+    enonce: >-
+      Coordonner la réalisation technique d'une application d'IA en s'intégrant dans une conduite
+      agile de projet et un contexte MLOps et en facilitant les temps de collaboration.
+    criteres:
+      - Cycles, étapes, rôles, rituels et outils de la méthode sont respectés tout au long du projet.
+      - Les outils de pilotage (kanban, burndown, backlog…) sont disponibles.
+      - Objectifs et modalités des rituels sont partagés aux parties prenantes.
+      - Les éléments de pilotage sont accessibles à toutes les parties pendant tout le projet.
+    livrables:
+      - GitHub Projects (backlog, kanban, itérations, burndown)
+      - Comptes rendus de sprints
+    cours: [workflow-i]
+    boilerplates: []
+    microforge:
+      - microforge/docs/E4/agile.md
+
+  - id: C17
+    activite: A7
+    epreuve: E4
+    titre: Développer les composants et interfaces de l'application
+    enonce: >-
+      Développer les composants techniques et les interfaces d'une application en respectant les
+      spécifications, les standards et normes d'accessibilité, de sécurité et de gestion des données.
+    criteres:
+      - L'environnement de développement respecte les spécifications.
+      - Les interfaces respectent les maquettes ; les comportements et la navigation respectent les spécifications.
+      - Les composants métier fonctionnent comme prévu.
+      - La gestion des droits d'accès est développée.
+      - Les flux de données sont intégrés.
+      - L'éco-conception est respectée (EcoIndex, Green IT).
+      - Le Top 10 OWASP est implémenté quand nécessaire.
+      - Des tests couvrent au moins les composants métier et la gestion des accès.
+      - Sources versionnées ; documentation (installation, architecture, dépendances, tests) accessible.
+    livrables:
+      - Code applicatif + tests
+      - Documentation technique
+    cours: [streamlit, securiser-api-fastapi, pytest-loguru, python-cookbook]
+    boilerplates: [fastapi-jwt-sqlmodel, streamlit-multipage]
+    microforge:
+      - microforge/src/microforge/core/
+      - microforge/src/microforge/app_streamlit/
+
+  - id: C18
+    activite: A8
+    epreuve: E4
+    titre: Automatiser les tests (intégration continue)
+    enonce: >-
+      Automatiser les phases de tests du code source lors du versionnement des sources à l'aide d'un
+      outil d'intégration continue de manière à garantir la qualité technique des réalisations.
+    criteres:
+      - La documentation couvre les outils, étapes, tâches et déclencheurs.
+      - L'outil de CI est cohérent avec l'environnement technique.
+      - La chaîne intègre toutes les étapes préalables aux tests (build, configurations…).
+      - La chaîne exécute les tests disponibles.
+      - Les configurations sont versionnées ; la documentation est accessible.
+    livrables:
+      - .github/workflows/ci.yml + documentation
+    cours: [mlops-0-intro, pytest-loguru]
+    boilerplates: [gha-ci-cd]
+    microforge:
+      - .github/workflows/ci.yml
+      - microforge/docs/E4/ci.md
+
+  - id: C19
+    activite: A8
+    epreuve: E4
+    titre: Créer un processus de livraison continue
+    enonce: >-
+      Créer un processus de livraison continue d'une application en s'appuyant sur une chaîne
+      d'intégration continue et en paramétrant les outils d'automatisation et les environnements de test.
+    criteres:
+      - La documentation couvre toutes les étapes, tâches et déclencheurs.
+      - Les fichiers de configuration sont reconnus et exécutés.
+      - Les étapes de packaging (build de containers…) s'exécutent sans erreur.
+      - L'étape de livraison (pull request…) est exécutée après packaging validé.
+      - Sources versionnées ; documentation accessible.
+    livrables:
+      - .github/workflows/cd.yml (images GHCR + PR de release) + documentation
+    cours: [mlops-0-intro, mlops-0-packaging, mlops-1-orchestration]
+    boilerplates: [gha-ci-cd, uv-package]
+    microforge:
+      - .github/workflows/cd.yml
+      - microforge/docs/E4/cd.md
+
+  - id: C20
+    activite: A9
+    epreuve: E5
+    titre: Surveiller une application d'IA
+    enonce: >-
+      Surveiller une application d'IA, en mobilisant des techniques de monitorage et de journalisation,
+      dans le respect des normes de gestion des données personnelles, afin d'alimenter la feedback loop
+      et de permettre la détection automatique d'incidents.
+    criteres:
+      - La documentation liste les métriques et les seuils d'alerte de chaque métrique à risque.
+      - La documentation argumente les choix d'outillage.
+      - Les outils (collecteurs, journalisation, agrégateurs, dashboard…) sont opérationnels au moins en local.
+      - Les règles de journalisation sont intégrées aux sources selon les métriques.
+      - Les alertes sont configurées et en état de marche.
+      - La documentation couvre l'installation et la configuration ; elle est accessible.
+    livrables:
+      - Tableau métriques/seuils + dashboards + alertes
+      - Journalisation loguru structurée sans données personnelles
+    cours: [mlops-3-monitoring, loki-grafana, pytest-loguru, projet-5-forge-mlops]
+    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy]
+    microforge:
+      - microforge/monitoring/
+      - microforge/docs/E5/monitoring.md
+
+  - id: C21
+    activite: A9
+    epreuve: E5
+    titre: Résoudre les incidents techniques
+    enonce: >-
+      Résoudre les incidents techniques en apportant les modifications nécessaires au code de
+      l'application et en documentant les solutions pour en garantir le fonctionnement opérationnel.
+    criteres:
+      - Les causes du problème sont identifiées correctement.
+      - Le problème est reproduit en environnement de développement.
+      - La procédure de débogage est documentée depuis l'outil de suivi.
+      - La solution documentée explicite chaque étape de résolution et d'implémentation.
+      - La solution est versionnée (ex. merge request).
+    livrables:
+      - Issue « Incident » + PR de correctif + post-mortem
+    cours: [loki-grafana, pytest-loguru]
+    boilerplates: []
+    microforge:
+      - .github/ISSUE_TEMPLATE/incident.md
+      - microforge/docs/E5/incidents.md

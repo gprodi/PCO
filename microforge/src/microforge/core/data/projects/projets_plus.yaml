@@ -1,0 +1,299 @@
+# Modèles supplémentaires : domotique, robotique, son, lumière, fêtes, bien-être.
+
+- id: alarme-porte
+  title: Alarme d'ouverture de porte
+  description: Un aimant sur la porte, un contact sur le cadre — la sirène retentit si quelqu'un ouvre.
+  difficulty: 1
+  tags: [sécurité, domotique, débutant]
+  learning: [contact magnétique, pull-up interne]
+  parts:
+    - { name: porte, component: reed-switch }
+    - { name: sirene, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: red } }
+  logic: |
+    if (porte_open()) {
+      voyant_on();
+      sirene_beep(2200, 150);
+      delay(300);
+    } else {
+      voyant_off();
+      delay(50);
+    }
+
+- id: lampe-tactile
+  title: Lampe tactile
+  description: Effleure une plaque (même à travers du bois) pour allumer ou éteindre une lampe basse tension.
+  difficulty: 1
+  tags: [domotique, lumière, débutant]
+  learning: [capteur capacitif, bascule d'état]
+  parts:
+    - { name: touche, component: ttp223-touch }
+    - { name: lampe, component: relay-module-1ch }
+  globals_extra: |
+    bool allume = false;
+  logic: |
+    if (touche_tapped()) {
+      allume = !allume;
+      allume ? lampe_on() : lampe_off();
+    }
+    delay(20);
+
+- id: interrupteur-clap
+  title: Interrupteur à claquement de mains
+  description: Un clap pour allumer, un clap pour éteindre.
+  difficulty: 2
+  tags: [domotique, son]
+  learning: [capteur sonore, anti-rebond temporel]
+  parts:
+    - { name: micro, component: ky038-sound }
+    - { name: lampe, component: relay-module-1ch }
+  globals_extra: |
+    bool allume = false;
+    unsigned long dernier = 0;
+  logic: |
+    if (micro_loud() && millis() - dernier > 400) {
+      allume = !allume;
+      allume ? lampe_on() : lampe_off();
+      dernier = millis();
+      Serial.println(allume ? "Allumé" : "Éteint");
+    }
+
+- id: alerte-inondation
+  title: Alerte inondation
+  description: Posé au sol près du lave-linge ou dans la cave, il sonne dès la première goutte.
+  difficulty: 1
+  tags: [domotique, sécurité, eau]
+  learning: [mesure analogique, seuil]
+  parts:
+    - { name: eau, component: water-level-sensor }
+    - { name: sirene, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: blue } }
+  logic: |
+    if (eau_wet()) {
+      voyant_on();
+      sirene_beep(1800, 400);
+      delay(600);
+    } else {
+      voyant_off();
+      delay(500);
+    }
+
+- id: detecteur-flamme
+  title: Détecteur de flamme
+  description: Surveille une bougie ou un barbecue et alerte si une flamme apparaît (ou disparaît).
+  difficulty: 1
+  tags: [sécurité, capteur]
+  learning: [capteur infrarouge, sortie numérique et analogique]
+  parts:
+    - { name: flamme, component: flame-sensor }
+    - { name: sirene, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: orange } }
+  logic: |
+    if (flamme_detected()) {
+      voyant_on();
+      sirene_beep(2600, 200);
+      Serial.print("Flamme ! intensité "); Serial.println(flamme_intensity());
+      delay(300);
+    } else {
+      voyant_off();
+      delay(100);
+    }
+
+- id: matrice-emotions
+  title: Matrice d'émotions
+  description: Une matrice 8×8 affiche un sourire, un cœur ou une tête triste ; le bouton change d'humeur.
+  difficulty: 1
+  tags: [lumière, jeu, débutant]
+  learning: [affichage binaire, tableaux d'octets]
+  parts:
+    - { name: matrice, component: max7219-matrix }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    const byte SOURIRE[8] = {0x3C, 0x42, 0xA5, 0x81, 0xA5, 0x99, 0x42, 0x3C};
+    const byte COEUR[8] = {0x00, 0x66, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C, 0x18};
+    const byte TRISTE[8] = {0x3C, 0x42, 0xA5, 0x81, 0x99, 0xA5, 0x42, 0x3C};
+    int humeur = 0;
+  setup_extra: |
+    matrice_show(SOURIRE);
+  logic: |
+    if (bouton_clicked()) {
+      humeur = (humeur + 1) % 3;
+      if (humeur == 0) { matrice_show(SOURIRE); }
+      else if (humeur == 1) { matrice_show(COEUR); }
+      else { matrice_show(TRISTE); }
+    }
+
+- id: vu-metre-lumineux
+  title: VU-mètre lumineux
+  description: L'anneau de LED danse au rythme de la musique ou de la voix.
+  difficulty: 2
+  tags: [son, lumière, fête]
+  learning: [amplitude d'un signal, LED adressables]
+  parts:
+    - { name: micro, component: ky038-sound }
+    - { name: anneau, component: ws2812-ring-12 }
+  logic: |
+    anneau_gauge(micro_level());
+    delay(15);
+
+- id: telecommande-lampe
+  title: Lampe commandée par télécommande TV
+  description: Réutilise une vieille télécommande infrarouge pour piloter une lampe ou un ruban LED.
+  difficulty: 2
+  tags: [domotique, infrarouge]
+  learning: [protocoles infrarouges, codes de touches]
+  parts:
+    - { name: ir, component: ir-receiver }
+    - { name: lampe, component: relay-module-1ch }
+  globals_extra: |
+    bool allume = false;
+  logic: |
+    uint16_t code = ir_command();
+    if (code != 0) {
+      Serial.print("Touche : "); Serial.println(code);  // note le code de ta touche préférée
+      allume = !allume;
+      allume ? lampe_on() : lampe_off();
+      delay(250);
+    }
+
+- id: ventilateur-auto
+  title: Ventilateur thermostatique
+  description: La vitesse du ventilateur 12 V suit la température (serre, boîtier, imprimante 3D).
+  difficulty: 2
+  tags: [domotique, énergie, plantes]
+  learning: [PWM de puissance, MOSFET, proportionnalité]
+  parts:
+    - { name: dht, component: dht22 }
+    - { name: ventilo, component: mosfet-module }
+    - { name: helice, component: fan-12v }
+  logic: |
+    float t = dht_temperature();
+    if (!isnan(t)) {
+      int puissance = constrain(map((int)(t * 10), 250, 350, 0, 100), 0, 100);  // 25 °C -> 0 %, 35 °C -> 100 %
+      if (puissance > 0 && puissance < 30) { puissance = 30; }  // en dessous de ~30 %, un ventilateur 12 V ne démarre pas
+      ventilo_power(puissance);
+      Serial.print(t); Serial.print(" C -> "); Serial.print(puissance); Serial.println(" %");
+    }
+    delay(2000);
+
+- id: robot-suiveur-ligne
+  title: Robot suiveur de ligne
+  description: Deux capteurs infrarouges sous le châssis, et le robot suit une piste tracée au ruban noir.
+  difficulty: 3
+  tags: [robot, moteurs, capteurs]
+  learning: [boucle de régulation, pont en H, capteurs réflectifs]
+  parts:
+    - { name: gauche, component: tcrt5000-line }
+    - { name: droite, component: tcrt5000-line }
+    - { name: moteurs, component: l298n-driver }
+    - { name: roue_gauche, component: dc-motor-tt }
+    - { name: roue_droite, component: dc-motor-tt }
+    - { name: piles, component: battery-holder-4aa }
+  logic: |
+    bool g = gauche_on_line();
+    bool d = droite_on_line();
+    if (!g && !d) { moteurs_motors(170, 170); }        // la ligne est entre les capteurs : tout droit
+    else if (g && !d) { moteurs_motors(40, 190); }     // la ligne part à gauche
+    else if (!g && d) { moteurs_motors(190, 40); }     // la ligne part à droite
+    else { moteurs_stop(); }                           // intersection ou fin de piste
+    delay(5);
+
+- id: radar-balayage
+  title: Radar à balayage
+  description: Un capteur à ultrasons monté sur un servo scanne la pièce et envoie la carte des distances au PC.
+  difficulty: 2
+  tags: [robot, distance, servo]
+  learning: [coordonnées polaires, traceur série]
+  parts:
+    - { name: tete, component: sg90-servo }
+    - { name: sonar, component: hc-sr04 }
+  logic: |
+    for (int a = 0; a <= 180; a += 10) {
+      tete_angle(a);
+      delay(120);
+      Serial.print(a); Serial.print(";"); Serial.println(sonar_distance_cm());
+    }
+    for (int a = 180; a >= 0; a -= 10) {
+      tete_angle(a);
+      delay(120);
+      Serial.print(a); Serial.print(";"); Serial.println(sonar_distance_cm());
+    }
+
+- id: pomodoro-vibrant
+  title: Minuteur Pomodoro vibrant
+  description: 25 minutes de concentration affichées en mm:ss, puis le vibreur signale la pause — sans bruit.
+  difficulty: 2
+  tags: [bien-être, temps, productivité]
+  learning: [millis() sans blocage, retour haptique]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: vibreur, component: vibration-motor }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    unsigned long fin = 0;
+    bool actif = false;
+  setup_extra: |
+    afficheur_time(25, 0);
+  logic: |
+    if (bouton_clicked()) {
+      actif = true;
+      fin = millis() + 25UL * 60UL * 1000UL;
+    }
+    if (actif) {
+      long reste = (long)(fin - millis()) / 1000;
+      if (reste <= 0) {
+        actif = false;
+        for (int i = 0; i < 3; i++) { vibreur_buzz(600); delay(300); }
+        afficheur_time(25, 0);
+      } else {
+        afficheur_time(reste / 60, reste % 60);
+      }
+    }
+    delay(100);
+
+- id: guirlande-animee
+  title: Guirlande animée
+  description: Trois ambiances pour les fêtes (arc-en-ciel, rouge/vert de Noël, blanc chaud), un bouton pour changer.
+  difficulty: 1
+  tags: [fête, lumière, débutant]
+  learning: [animations, machine à états]
+  parts:
+    - { name: anneau, component: ws2812-ring-12 }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    int mode = 0;
+    uint8_t teinte = 0;
+  logic: |
+    if (bouton_clicked()) { mode = (mode + 1) % 3; }
+    if (mode == 0) { anneau_wheel(teinte++); delay(20); }
+    else if (mode == 1) {
+      bool rouge = (millis() / 500) % 2;
+      anneau_fill(rouge ? 255 : 0, rouge ? 0 : 255, 0);
+      delay(50);
+    } else { anneau_fill(255, 160, 60); delay(50); }
+
+- id: sablier-lumineux
+  title: Sablier lumineux
+  description: L'anneau se vide LED par LED pendant le temps choisi au potentiomètre (brossage des dents, jeux de société).
+  difficulty: 1
+  tags: [temps, lumière, jeu]
+  learning: [interpolation, temporisation]
+  parts:
+    - { name: anneau, component: ws2812-ring-12 }
+    - { name: potar, component: potentiometer-10k }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    unsigned long debut = 0;
+    unsigned long duree = 0;
+  logic: |
+    if (bouton_clicked()) {
+      duree = map(potar_percent(), 0, 100, 30, 300) * 1000UL;  // de 30 s à 5 min
+      debut = millis();
+    }
+    if (duree > 0) {
+      unsigned long ecoule = millis() - debut;
+      int reste = ecoule >= duree ? 0 : 100 - (int)(ecoule * 100 / duree);
+      anneau_gauge(reste);
+      if (reste == 0) { duree = 0; }
+    }
+    delay(50);

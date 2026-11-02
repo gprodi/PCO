@@ -1,0 +1,13 @@
+{
+  "Errors": [],
+  "SearchResults": {
+    "NumberOfResult": 2,
+    "Parts": [
+      {"MouserPartNumber": "485-3317", "ManufacturerPartNumber": "HC-SR04", "Manufacturer": "SparkFun", "Description": "Ultrasonic Distance Sensor HC-SR04 5V",
+       "Category": "Sensor Development Tools", "Availability": "1 234 En stock", "ProductDetailUrl": "https://www.mouser.fr/x", "DataSheetUrl": "",
+       "PriceBreaks": [{"Quantity": 1, "Price": "3,50 €", "Currency": "EUR"}]},
+      {"MouserPartNumber": "000-ZERO", "ManufacturerPartNumber": "ZERO-PRICE", "Manufacturer": "X", "Description": "Article à prix nul",
+       "Category": "Misc", "Availability": "", "ProductDetailUrl": "", "PriceBreaks": [{"Quantity": 1, "Price": "0,00 €", "Currency": "EUR"}]}
+    ]
+  }
+}

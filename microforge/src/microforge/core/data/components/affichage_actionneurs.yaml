@@ -1,0 +1,489 @@
+# Afficheurs et actionneurs.
+
+- id: ssd1306-i2c
+  name: Écran OLED 0,96" SSD1306 128×64 I2C
+  category: afficheur
+  description: Petit écran monochrome très lisible, 4 fils (I2C).
+  aliases: [oled, ssd1306, ecran oled, 0.96 oled]
+  supply_v: [3.3, 5.0]
+  current_ma: 20
+  i2c_addresses: [0x3C, 0x3D]
+  pins:
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+  code:
+    default:
+      libraries: ["Adafruit SSD1306", "Adafruit GFX Library"]
+      includes: ["#include <Wire.h>", "#include <Adafruit_GFX.h>", "#include <Adafruit_SSD1306.h>"]
+      globals: "Adafruit_SSD1306 ${name}_dev(128, 64, &Wire, -1);"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin(SSD1306_SWITCHCAPVCC, ${I2C_ADDR})) { Serial.println(F("OLED introuvable")); }
+        ${name}_dev.clearDisplay();
+        ${name}_dev.setTextColor(SSD1306_WHITE);
+        ${name}_dev.display();
+      api: |
+        // Affiche jusqu'à 3 lignes (taille 1) ; la 1re ligne peut être agrandie (big = true).
+        void ${name}_print(const String& l1, const String& l2 = "", const String& l3 = "", bool big = false) {
+          ${name}_dev.clearDisplay();
+          ${name}_dev.setCursor(0, 0);
+          ${name}_dev.setTextSize(big ? 2 : 1);
+          ${name}_dev.println(l1);
+          ${name}_dev.setTextSize(1);
+          ${name}_dev.println(l2);
+          ${name}_dev.println(l3);
+          ${name}_dev.display();
+        }
+  wokwi: { type: board-ssd1306, pins: { GND: GND, VCC: VCC, SCL: SCL, SDA: SDA } }
+  kicad: { symbol: "Display_Graphic:OLED-128O064D", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 4.0
+
+- id: lcd1602-i2c
+  name: Écran LCD 16×2 avec module I2C (PCF8574)
+  category: afficheur
+  description: Afficheur 2 lignes de 16 caractères rétroéclairé, piloté en I2C.
+  aliases: [lcd 1602, lcd16x2, lcd i2c, "1602"]
+  supply_v: [4.5, 5.5]
+  current_ma: 30
+  i2c_addresses: [0x27, 0x3F]
+  pins:
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+    - { name: SDA, role: i2c_sda, output_v: 5.0 }
+    - { name: SCL, role: i2c_scl, output_v: 5.0 }
+  code:
+    default:
+      libraries: ["LiquidCrystal I2C"]
+      includes: ["#include <Wire.h>", "#include <LiquidCrystal_I2C.h>"]
+      globals: "LiquidCrystal_I2C ${name}_dev(${I2C_ADDR}, 16, 2);"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        ${name}_dev.init();
+        ${name}_dev.backlight();
+      api: |
+        void ${name}_print(const String& l1, const String& l2 = "") {
+          ${name}_dev.clear();
+          ${name}_dev.setCursor(0, 0); ${name}_dev.print(l1.substring(0, 16));
+          ${name}_dev.setCursor(0, 1); ${name}_dev.print(l2.substring(0, 16));
+        }
+  wokwi: { type: wokwi-lcd1602, attrs: { pins: i2c }, pins: { GND: GND, VCC: VCC, SDA: SDA, SCL: SCL } }
+  kicad: { symbol: "Display_Character:LCD-016N002L", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 5.0
+  notes: ["Les pull-ups du module PCF8574 tirent SDA/SCL à 5 V : sur ESP32/Pico, utiliser un level shifter I2C."]
+
+- id: tm1637-display
+  name: Afficheur 4 chiffres 7 segments TM1637
+  category: afficheur
+  description: Affiche des nombres/heures, 2 fils de données (CLK, DIO).
+  aliases: [tm1637, 7 segments, afficheur 4 digits]
+  supply_v: [3.3, 5.5]
+  current_ma: 30
+  pins:
+    - { name: CLK, role: gpio_out }
+    - { name: DIO, role: gpio_io }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      libraries: ["TM1637"]
+      includes: ["#include <TM1637Display.h>"]
+      globals: "TM1637Display ${name}_dev(${CLK}, ${DIO});"
+      setup: "${name}_dev.setBrightness(5);"
+      api: |
+        void ${name}_number(int n) { ${name}_dev.showNumberDec(n, false); }
+        void ${name}_time(int hh, int mm) { ${name}_dev.showNumberDecEx(hh * 100 + mm, 0b01000000, true); }
+  wokwi: { type: wokwi-tm1637-7segment, pins: { CLK: CLK, DIO: DIO, VCC: VCC, GND: GND } }
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 2.5
+
+- id: led
+  name: LED 5 mm
+  category: actionneur
+  description: Diode électroluminescente ; toujours avec une résistance série.
+  aliases: [led 5mm, diode led, led rouge, led verte, led jaune, led bleue]
+  supply_v: [1.8, 5.0]
+  current_ma: 10
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 150, "5.0": 220 }
+  pins:
+    - { name: A, role: gpio_out, description: "anode (patte longue)" }
+    - { name: C, role: ground, description: "cathode (patte courte, côté plat)" }
+  code:
+    default:
+      setup: "pinMode(${A}, OUTPUT);"
+      api: |
+        void ${name}_on() { digitalWrite(${A}, HIGH); }
+        void ${name}_off() { digitalWrite(${A}, LOW); }
+        void ${name}_set(bool on) { digitalWrite(${A}, on ? HIGH : LOW); }
+        void ${name}_toggle() { digitalWrite(${A}, !digitalRead(${A})); }
+  wokwi: { type: wokwi-led, pins: { A: A, C: C } }
+  kicad: { symbol: "Device:LED", footprint: "LED_THT:LED_D5.0mm" }
+  price_eur: 0.1
+
+- id: rgb-led
+  name: LED RGB 5 mm cathode commune
+  category: actionneur
+  description: Trois LED (rouge, vert, bleu) dans un même boîtier ; mélange de couleurs en PWM.
+  aliases: [led rgb, rgb led]
+  supply_v: [1.8, 5.0]
+  current_ma: 30
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 150, "5.0": 220 }
+  pins:
+    - { name: R, role: pwm }
+    - { name: COM, role: ground, description: "cathode commune (patte la plus longue)" }
+    - { name: G, role: pwm }
+    - { name: B, role: pwm }
+  code:
+    default:
+      setup: |
+        pinMode(${R}, OUTPUT); pinMode(${G}, OUTPUT); pinMode(${B}, OUTPUT);
+      api: |
+        void ${name}_color(uint8_t r, uint8_t g, uint8_t b) { analogWrite(${R}, r); analogWrite(${G}, g); analogWrite(${B}, b); }
+  wokwi: { type: wokwi-rgb-led, attrs: { common: cathode }, pins: { R: R, G: G, B: B, COM: COM } }
+  kicad: { symbol: "Device:LED_RCBG", footprint: "LED_THT:LED_D5.0mm-4_RGB" }
+  price_eur: 0.3
+
+- id: ws2812-ring-12
+  name: Anneau de 12 LED RGB adressables WS2812B (NeoPixel)
+  category: actionneur
+  description: Chaque LED est pilotable individuellement avec un seul fil de données.
+  aliases: [neopixel, ws2812, ws2812b, anneau led, led ring]
+  supply_v: [4.0, 5.5]
+  current_ma: 60
+  peak_ma: 720
+  pins:
+    - { name: VCC, role: power }
+    - { name: DIN, role: gpio_out }
+    - { name: GND, role: ground }
+  code:
+    default:
+      libraries: ["Adafruit NeoPixel"]
+      includes: ["#include <Adafruit_NeoPixel.h>"]
+      globals: "Adafruit_NeoPixel ${name}_dev(12, ${DIN}, NEO_GRB + NEO_KHZ800);"
+      setup: |
+        ${name}_dev.begin();
+        ${name}_dev.setBrightness(40);  // limite le courant (et l'éblouissement)
+        ${name}_dev.show();
+      api: |
+        void ${name}_fill(uint8_t r, uint8_t g, uint8_t b) {
+          for (uint16_t i = 0; i < ${name}_dev.numPixels(); i++) { ${name}_dev.setPixelColor(i, ${name}_dev.Color(r, g, b)); }
+          ${name}_dev.show();
+        }
+        // Allume n % des LED (jauge) avec une couleur verte -> rouge.
+        void ${name}_gauge(int percent) {
+          int n = map(constrain(percent, 0, 100), 0, 100, 0, ${name}_dev.numPixels());
+          for (uint16_t i = 0; i < ${name}_dev.numPixels(); i++) {
+            uint8_t r = map(i, 0, ${name}_dev.numPixels() - 1, 0, 255);
+            ${name}_dev.setPixelColor(i, (int)i < n ? ${name}_dev.Color(r, 255 - r, 0) : 0);
+          }
+          ${name}_dev.show();
+        }
+        void ${name}_wheel(uint8_t pos) {
+          for (uint16_t i = 0; i < ${name}_dev.numPixels(); i++) {
+            ${name}_dev.setPixelColor(i, ${name}_dev.ColorHSV((uint16_t)(pos * 256 + i * 65536L / ${name}_dev.numPixels())));
+          }
+          ${name}_dev.show();
+        }
+  wokwi: { type: wokwi-led-ring, attrs: { pixels: "12" }, pins: { VCC: VCC, DIN: DIN, GND: GND } }
+  kicad: { symbol: "LED:WS2812B", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 4.0
+  notes: ["Ajouter un condensateur 470 µF entre VCC et GND et une résistance 330 Ω sur DIN pour une installation durable."]
+
+- id: sg90-servo
+  name: Servomoteur SG90 (9 g)
+  category: actionneur
+  description: Moteur positionnable de 0 à 180°, commandé par une impulsion PWM 50 Hz.
+  aliases: [sg90, servo, servomoteur, micro servo]
+  supply_v: [4.8, 6.0]
+  current_ma: 10
+  peak_ma: 650
+  pins:
+    - { name: GND, role: ground, description: "fil marron" }
+    - { name: V+, role: power, description: "fil rouge" }
+    - { name: PWM, role: pwm, description: "fil orange" }
+  code:
+    default:
+      libraries: ["Servo"]
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    esp32:
+      libraries: ["ESP32Servo"]
+      includes: ["#include <ESP32Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM}, 500, 2400);"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    # Servo intégré au cœur (ne pas installer la bibliothèque Servo d'Arduino, qui viserait l'AVR).
+    rp2040:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    esp8266:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    stm32:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+    teensy:
+      libraries: []
+      includes: ["#include <Servo.h>"]
+      globals: "Servo ${name}_dev;"
+      setup: "${name}_dev.attach(${PWM});"
+      api: |
+        void ${name}_angle(int deg) { ${name}_dev.write(constrain(deg, 0, 180)); }
+  wokwi: { type: wokwi-servo, pins: { GND: GND, V+: V+, PWM: PWM } }
+  kicad: { symbol: "Motor:Motor_Servo", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 2.5
+  notes: ["Pic de 650 mA au démarrage : au-delà d'un servo, prévoir une alimentation 5 V externe (masses reliées)."]
+
+- id: buzzer
+  name: Buzzer piézo passif
+  category: actionneur
+  description: Joue des notes avec tone() ; un buzzer actif bipe aussi mais sur une seule note.
+  aliases: [piezo, buzzer passif, haut-parleur piezo, buzzer actif]
+  supply_v: [3.3, 5.0]
+  current_ma: 20
+  is_module: false
+  pins:
+    - { name: SIG, role: gpio_out, description: "patte +" }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${SIG}, OUTPUT);"
+      api: |
+        void ${name}_beep(unsigned int freq, unsigned long ms) { tone(${SIG}, freq, ms); }
+        void ${name}_stop() { noTone(${SIG}); }
+  wokwi: { type: wokwi-buzzer, pins: { SIG: "1", GND: "2" } }
+  kicad: { symbol: "Device:Buzzer", footprint: "Buzzer_Beeper:Buzzer_12x9.5RM7.6" }
+  price_eur: 0.5
+
+- id: relay-module-1ch
+  name: Module relais 1 canal 5 V (optocoupleur)
+  category: actionneur
+  description: Interrupteur commandé (jusqu'à 10 A / 250 V AC) ; isole le circuit de puissance.
+  aliases: [relais, relay, module relais]
+  supply_v: [4.5, 5.5]
+  current_ma: 70
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: IN, role: gpio_out }
+  code:
+    default:
+      globals: "const bool ${name}_ACTIF_BAS = true;  // la plupart des modules s'activent à LOW"
+      setup: |
+        pinMode(${IN}, OUTPUT);
+        digitalWrite(${IN}, ${name}_ACTIF_BAS ? HIGH : LOW);  // relais au repos
+      api: |
+        void ${name}_on() { digitalWrite(${IN}, ${name}_ACTIF_BAS ? LOW : HIGH); }
+        void ${name}_off() { digitalWrite(${IN}, ${name}_ACTIF_BAS ? HIGH : LOW); }
+  wokwi: { type: wokwi-relay-module, pins: { VCC: VCC, GND: GND, IN: IN } }
+  kicad: { symbol: "Relay:SANYOU_SRD_Form_C", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 2.0
+  notes: ["DANGER 230 V : ne jamais câbler le secteur sans formation ni boîtier isolant. Préférer des charges basse tension (pompe 5 V, ruban LED 12 V).", "Selon les modules, l'entrée est active à l'état bas (le plus courant) ou haut : constante <nom>_ACTIF_BAS en tête du code.", "Carte 3,3 V (ESP32, Pico) + module 5 V actif bas : le relais peut rester collé. Prendre un module 3,3 V ou à déclenchement réglable (cavalier H/L)."]
+
+- id: water-pump-5v
+  name: Mini pompe à eau immergée 3–5 V
+  category: actionneur
+  description: Pompe pour arrosage automatique ; se commande via un relais ou un MOSFET.
+  aliases: [pompe, pompe a eau, water pump]
+  supply_v: [3.0, 5.0]
+  current_ma: 200
+  passive: true
+  pins: []
+  price_eur: 3.0
+  notes: ["Câbler en série avec le contact COM/NO du relais et une alimentation 5 V dédiée (pas le GPIO !)."]
+
+- id: l298n-driver
+  name: Pont en H L298N (pilote de 2 moteurs CC)
+  category: actionneur
+  description: Pilote 2 moteurs à courant continu (sens + vitesse PWM) jusqu'à 2 A par voie.
+  aliases: [l298n, pont en h, motor driver, driver moteur]
+  supply_v: [4.5, 5.5]
+  current_ma: 36
+  pins:
+    - { name: GND, role: ground, description: "masse commune batterie + carte" }
+    - { name: ENA, role: pwm, description: "retirer le cavalier ENA" }
+    - { name: IN1, role: gpio_out }
+    - { name: IN2, role: gpio_out }
+    - { name: IN3, role: gpio_out }
+    - { name: IN4, role: gpio_out }
+    - { name: ENB, role: pwm, description: "retirer le cavalier ENB" }
+  code:
+    default:
+      setup: |
+        pinMode(${ENA}, OUTPUT); pinMode(${IN1}, OUTPUT); pinMode(${IN2}, OUTPUT);
+        pinMode(${ENB}, OUTPUT); pinMode(${IN3}, OUTPUT); pinMode(${IN4}, OUTPUT);
+      api: |
+        // vitesse de -255 (arrière) à 255 (avant) pour chaque moteur.
+        void ${name}_motors(int gauche, int droite) {
+          digitalWrite(${IN1}, gauche >= 0 ? HIGH : LOW); digitalWrite(${IN2}, gauche >= 0 ? LOW : HIGH);
+          digitalWrite(${IN3}, droite >= 0 ? HIGH : LOW); digitalWrite(${IN4}, droite >= 0 ? LOW : HIGH);
+          analogWrite(${ENA}, constrain(abs(gauche), 0, 255)); analogWrite(${ENB}, constrain(abs(droite), 0, 255));
+        }
+        void ${name}_stop() { ${name}_motors(0, 0); }
+  wokwi: null
+  kicad: { symbol: "Driver_Motor:L298N", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical" }
+  price_eur: 4.0
+  notes: ["Alimenter les moteurs par la borne 12V (batterie 7–12 V) ; relier la masse de la batterie à celle de la carte.", "Chute de tension ~2 V dans le L298N : un TB6612FNG est plus efficace."]
+
+- id: dc-motor-tt
+  name: Moteur jaune TT 3–6 V avec réducteur (+ roue)
+  category: actionneur
+  description: Moteur à courant continu de châssis robot.
+  aliases: [moteur tt, dc motor, moteur cc]
+  supply_v: [3.0, 6.0]
+  current_ma: 150
+  peak_ma: 800
+  passive: true
+  pins: []
+  price_eur: 2.0
+  notes: ["Se branche sur OUT1/OUT2 (ou OUT3/OUT4) du L298N, jamais directement sur la carte."]
+
+- id: stepper-28byj48
+  name: Moteur pas à pas 28BYJ-48 + carte ULN2003
+  category: actionneur
+  description: Moteur pas à pas 5 V à réducteur (2048 pas/tour), positionnement précis et lent.
+  aliases: [28byj-48, uln2003, moteur pas a pas, stepper]
+  supply_v: [4.5, 5.5]
+  current_ma: 240
+  pins:
+    - { name: IN1, role: gpio_out }
+    - { name: IN2, role: gpio_out }
+    - { name: IN3, role: gpio_out }
+    - { name: IN4, role: gpio_out }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      libraries: ["Stepper"]
+      includes: ["#include <Stepper.h>"]
+      globals: "Stepper ${name}_dev(2048, ${IN1}, ${IN3}, ${IN2}, ${IN4});"
+      setup: "${name}_dev.setSpeed(10);  // tours/minute"
+      api: |
+        void ${name}_steps(int n) { ${name}_dev.step(n); }
+        void ${name}_degrees(float deg) { ${name}_dev.step((int)(deg * 2048.0 / 360.0)); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x06_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
+  price_eur: 4.0
+
+- id: max7219-matrix
+  name: Matrice 8×8 LED rouges MAX7219
+  category: afficheur
+  description: "64 LED pilotées par 3 fils : icônes, émoticônes, défilement."
+  aliases: [max7219, matrice led, led matrix, 8x8]
+  supply_v: [4.5, 5.5]
+  current_ma: 100
+  peak_ma: 320
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DIN, role: gpio_out }
+    - { name: CS, role: gpio_out }
+    - { name: CLK, role: gpio_out }
+  code:
+    default:
+      # Pilote intégré (shiftOut) : aucune bibliothèque, compile sur toutes les familles.
+      # (LedControl inclut <avr/pgmspace.h>, absent du cœur ESP32 3.x : trouvé par la CI.)
+      globals: "byte ${name}_buf[8] = {0};"
+      setup: |
+        pinMode(${DIN}, OUTPUT);
+        pinMode(${CLK}, OUTPUT);
+        pinMode(${CS}, OUTPUT);
+        digitalWrite(${CS}, HIGH);
+        ${name}_write(0x0F, 0);  // test d'affichage désactivé
+        ${name}_write(0x09, 0);  // pas de décodage BCD
+        ${name}_write(0x0B, 7);  // 8 lignes balayées
+        ${name}_write(0x0A, 4);  // luminosité (0–15)
+        ${name}_write(0x0C, 1);  // sortie de veille
+        ${name}_clear();
+      api: |
+        // Écrit un registre du MAX7219 (adresse puis donnée, 16 bits, MSB d'abord).
+        void ${name}_write(byte reg, byte data) {
+          digitalWrite(${CS}, LOW);
+          shiftOut(${DIN}, ${CLK}, MSBFIRST, reg);
+          shiftOut(${DIN}, ${CLK}, MSBFIRST, data);
+          digitalWrite(${CS}, HIGH);
+        }
+        // Affiche une image 8×8 (8 octets, un par ligne).
+        void ${name}_show(const byte img[8]) { for (int r = 0; r < 8; r++) { ${name}_buf[r] = img[r]; ${name}_write(r + 1, img[r]); } }
+        void ${name}_clear() { for (int r = 0; r < 8; r++) { ${name}_buf[r] = 0; ${name}_write(r + 1, 0); } }
+        // Barre-graphe : n colonnes allumées (0–8), en partant de la gauche.
+        void ${name}_bars(int n) {
+          byte v = 0;
+          for (int c = 0; c < 8 && c < n; c++) { v |= (0x80 >> c); }
+          for (int r = 0; r < 8; r++) { ${name}_buf[r] = v; ${name}_write(r + 1, v); }
+        }
+  wokwi: { type: wokwi-max7219-matrix, pins: { VCC: V+, GND: GND, DIN: DIN, CS: CS, CLK: CLK } }
+  kicad: { symbol: "Connector:Conn_01x05_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 3.0
+
+- id: mosfet-module
+  name: Module MOSFET (IRF520 / IRLZ44N) pour charge 5–24 V
+  category: actionneur
+  description: Commande en PWM un ventilateur, un ruban LED 12 V ou une pompe, sans bruit de relais.
+  aliases: [mosfet, irf520, irlz44n, transistor de puissance]
+  supply_v: [0, 50]
+  current_ma: 0
+  pins:
+    - { name: SIG, role: pwm }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${SIG}, OUTPUT);"
+      api: |
+        void ${name}_power(int percent) { analogWrite(${SIG}, map(constrain(percent, 0, 100), 0, 100, 0, 255)); }
+        void ${name}_off() { analogWrite(${SIG}, 0); }
+  wokwi: null
+  kicad: { symbol: "Transistor_FET:IRLZ44N", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["L'IRF520 ne conduit bien qu'avec 10 V de grille : préférer un module IRLZ44N (niveau logique) en 3,3 V.", "Ajouter une diode de roue libre sur les charges inductives (moteur, pompe)."]
+
+- id: vibration-motor
+  name: Module moteur vibreur
+  category: actionneur
+  description: "Retour haptique : vibre comme un téléphone."
+  aliases: [vibreur, vibration motor, haptique]
+  supply_v: [3.0, 5.3]
+  current_ma: 60
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: IN, role: gpio_out }
+  code:
+    default:
+      setup: "pinMode(${IN}, OUTPUT);"
+      api: |
+        void ${name}_buzz(unsigned long ms) { digitalWrite(${IN}, HIGH); delay(ms); digitalWrite(${IN}, LOW); }
+  wokwi: null
+  kicad: { symbol: "Motor:Motor_DC", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.5
+
+- id: fan-12v
+  name: Ventilateur 12 V (40–80 mm)
+  category: actionneur
+  description: Ventilation de serre, de boîtier ou d'imprimante ; se commande avec un module MOSFET.
+  aliases: [ventilateur, fan]
+  supply_v: [10, 13]
+  current_ma: 150
+  passive: true
+  pins: []
+  price_eur: 3.0
+  notes: ["Alimentation 12 V séparée ; masse commune avec la carte via le module MOSFET."]

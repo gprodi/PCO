@@ -1,0 +1,13 @@
+# Chaîne reproductible : dvc repro (données versionnées sur le remote S3 (SeaweedFS), cf. README).
+stages:
+  validate:
+    cmd: uv run pytest ../tests/test_ml_data.py -q
+    deps: [../../data/dataset, data/dataset.yaml, dataset_checks.py]
+  train:
+    cmd: uv run --extra ml python train.py --epochs 80
+    deps: [../../data/dataset, data/dataset.yaml, train.py]
+    outs: [runs/detect]
+  evaluate:
+    cmd: uv run --extra ml python evaluate.py --weights runs/detect/latest/weights/best.pt
+    deps: [runs/detect, evaluate.py]
+    metrics: [{reports/evaluation/metrics.json: {cache: false}}]

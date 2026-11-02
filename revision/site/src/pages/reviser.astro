@@ -1,0 +1,10 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Dashboard from '../components/Dashboard';
+import { base, contents } from '../lib/data';
+const list = Object.values(contents).map((c) => ({ slug: c.slug, titre: c.titre, nbCartes: c.flashcards.cartes.length }));
+---
+<StarlightPage frontmatter={{ title: 'Réviser aujourd’hui', description: 'Cartes dues et derniers scores, cours par cours.' }}>
+  <p>La répétition espacée (FSRS) te présente chaque carte juste avant que tu l’oublies. Tes données restent dans ce navigateur.</p>
+  <Dashboard client:load courses={list} base={base} />
+</StarlightPage>

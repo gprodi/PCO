@@ -1,0 +1,25 @@
+---
+title: Révisions DevIA
+description: Tes cours de l'année transformés en fiches, QCM, flashcards, exercices, cartes mentales et podcasts — plus le référentiel E1–E5 et des boilerplates prêts à l'emploi.
+template: splash
+hero:
+  tagline: Tous tes cours Développeur en IA, digérés et prêts à réviser — et chaque nouveau cours est transformé automatiquement par une IA locale.
+  actions:
+    - text: Réviser aujourd'hui
+      link: /PCO/reviser/
+      icon: right-arrow
+    - text: Préparer les épreuves E1–E5
+      link: /PCO/referentiel/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Fiches & cartes mentales" icon="document">Chaque cours résumé : notions, points clés, code commenté, pièges, compétences du référentiel.</Card>
+  <Card title="QCM & flashcards espacées" icon="puzzle">Auto-évaluation et répétition espacée (algorithme FSRS) : tes progrès restent dans ton navigateur.</Card>
+  <Card title="Exercices corrigés & podcasts" icon="pencil">Trois niveaux par cours, avec indices et corrigés ; un résumé audio à deux voix.</Card>
+  <Card title="Référentiel E1–E5" icon="approve-check">Les 21 compétences avec leurs critères, check-lists, cours et boilerplates liés, et un oral blanc.</Card>
+  <Card title="Boilerplates" icon="seti:python">Squelettes de projets issus des cours : FastAPI + JWT, MLflow, Prefect, Celery, monitoring, RAG, agents…</Card>
+  <Card title="Ajoute tes cours" icon="add-document">En mode local : dépose un PDF, un PowerPoint ou une page web ; l'IA locale génère tout le reste.</Card>
+</CardGrid>

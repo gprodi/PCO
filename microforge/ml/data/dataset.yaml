@@ -1,0 +1,47 @@
+# Dataset YOLO de détection de composants (format Ultralytics).
+# Les images/labels sont versionnés avec DVC (remote S3 (SeaweedFS)), pas avec Git.
+path: ../../data/dataset          # relatif à ce fichier
+train: images/train
+val: images/val
+test: images/test
+# L'ordre des classes DOIT correspondre à microforge/src/microforge/vision/classes.yaml (vérifié par test).
+names:
+  0: arduino_uno
+  1: arduino_nano
+  2: arduino_mega
+  3: esp32_devkit
+  4: raspberry_pi_pico
+  5: breadboard
+  6: led
+  7: rgb_led
+  8: resistor
+  9: push_button
+  10: potentiometer
+  11: buzzer
+  12: dht11
+  13: dht22
+  14: ds18b20
+  15: hc_sr04
+  16: pir_sensor
+  17: ldr_module
+  18: soil_moisture
+  19: mq2
+  20: mpu6050
+  21: bme280
+  22: rtc_module
+  23: oled_display
+  24: lcd_1602
+  25: seven_segment_4
+  26: servo_sg90
+  27: relay_module
+  28: l298n
+  29: stepper_28byj48
+  30: dc_motor
+  31: neopixel_ring
+  32: keypad_4x4
+  33: rfid_rc522
+  34: joystick
+  35: rotary_encoder
+  36: sd_module
+  37: hx711
+  38: jumper_wires

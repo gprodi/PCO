@@ -1,0 +1,104 @@
+# Contenu du rapport E4 (C14 à C19) injecté dans referentiel/modeles/E4_template.docx.
+titre: "MicroForge — conception et développement de l'application"
+annexe_titre: "Annexe 1 : user stories complètes et fichiers de configuration CI/CD"
+
+sections:
+  Introduction:
+    - "MicroForge s'adresse aux makers débutants, aux fablabs et aux étudiants en électronique : à partir de leur stock de composants, l'application propose des projets réalisables (45 modèles générables, 131 idées classées en 17 thèmes) et génère tout ce qu'il faut pour les construire. Ce dossier couvre l'analyse du besoin, le cadre technique, la conduite agile, le développement et les chaînes d'intégration et de livraison continues."
+
+  # ------------------------------------------------------------------ C14
+  Modéliser les données de l’application:
+    - "Modèle Merise partagé avec le service de données (dossier E1) : utilisateur, inventaire, photo, retour de détection, projet, composant, offre. Côté métier, le catalogue décrit chaque composant (broches, rôles électriques, tensions, code Arduino, rendu Wokwi, symbole KiCad) dans des fichiers YAML versionnés."
+  Modéliser les parcours utilisateurs:
+    - "- Découvrir : parcours de progression en 7 étapes (de la première LED au robot autonome) et vitrine de vrais projets open source ;\n- Inventaire : photo → détection → correction → stock ;\n- Explorer : thème → idée → projet généré (câblage, code, guide) ;\n- Je veux construire X : description libre → projet + liste d'achat ;\n- Compte : export et suppression des données."
+    - "[À COMPLÉTER : maquettes Penpot des écrans principaux]"
+  Rédiger les spécifications fonctionnelles sous forme de user stories:
+    - "| # | En tant que… je veux… afin de… | Critères d'acceptation (dont RGAA) |\n|---|---|---|\n| US1 | maker, photographier mon stock pour obtenir l'inventaire | composants courants reconnus ; résultat aussi sous forme de liste texte (1.1) |\n| US2 | maker, corriger une détection | tableau éditable au clavier (7.1, 12.8) ; libellés explicites (11.1) |\n| US3 | maker, voir les projets réalisables avec mon stock | statut en texte et icône, jamais par la seule couleur (3.1) |\n| US4 | maker, obtenir câblage, code et guide | tableau avec en-têtes (5.6) ; SVG avec titre et description (1.1) ; code compilable |\n| US5 | maker, décrire un projet en langage naturel | composants issus du catalogue ; mention « généré par IA » |\n| US6 | maker, connaître la liste d'achat et son coût | total TTC ; liens explicites (6.1) |\n| US10 | utilisateur, exporter ou supprimer mes données | export JSON ; suppression confirmée |"
+    - "Liste complète et scénarios Gherkin : docs/E4/user-stories.md."
+  Définir les objectifs techniques d’accessibilité des interfaces:
+    - "Cible RGAA 4.1 niveau AA : navigation complète au clavier, contrastes ≥ 4,5:1, alternatives textuelles des schémas, aucune information portée par la seule couleur, formulaires étiquetés, tests automatisés avec axe."
+
+  # ------------------------------------------------------------------ C15
+  Concevoir l’architecture de l’application:
+    - "Architecture en micro-services : application (Streamlit puis PWA React) → api_data (comptes, inventaire, catalogue, projets) et api_ia (vision, génération) → PostgreSQL, stockage objet, passerelle LLM (Ollama local, repli Gemini puis Claude), MLflow. Le cœur métier (allocateur de broches, contrôle électrique, génération du firmware et des sorties) est une bibliothèque Python pure, testée indépendamment."
+    - "[À COMPLÉTER : diagrammes C4 contexte et conteneurs (Mermaid, docs/E4/architecture.md)]"
+  Choisir les langages de programmation et les outils de développement:
+    - "| Besoin | Choix | Alternative écartée |\n|---|---|---|\n| Back-end | Python 3.12 + FastAPI | Node.js |\n| Front | Streamlit (preuve de concept) puis React + Vite (PWA : caméra, hors ligne, WebSerial) | Flutter |\n| Base | PostgreSQL + pgvector | MongoDB |\n| IA | Ollama local + LiteLLM | API cloud seules |\n| Qualité | uv, ruff, pytest, hypothesis, Playwright | — |"
+  Identifier les flux de données et les zones de stockage:
+    - "Photo (navigateur) → api_ia (EXIF supprimé, traitée en mémoire) → détections → api_data (inventaire en base). Projets générés stockés en base ; photos conservées seulement avec consentement (stockage objet, 30 jours sinon). Journaux sans donnée personnelle (identifiant haché)."
+  Choisir les services externes complémentaires:
+    - "Wokwi (simulation, par export de fichiers), API fournisseurs (prix), Gemini et Claude en secours ; hébergement de préproduction chez un hébergeur européen engagé (Scaleway, OVHcloud ou Infomaniak)."
+  Rédiger les spécifications techniques:
+    - "docs/E4/architecture.md et docs/E4/modelisation.md."
+
+  # ------------------------------------------------------------------ C16
+  Mettre en place les outils et supports de pilotage de la production:
+    - "GitHub Projects : backlog, tableau kanban, itérations de deux semaines, graphique d'avancement ; issues avec modèles (user story, bug, incident)."
+  Faciliter les rituels agiles et le respect du cadre:
+    - "Scrum adapté à un développeur seul : planification en début de sprint, point quotidien écrit, revue avec démonstration au formateur, rétrospective (docs/E4/agile.md)."
+  Communiquer l’avancement des productions techniques:
+    - "Compte rendu de revue à chaque sprint, démonstration en ligne (page de démo publiée), notes de version."
+    - "[À COMPLÉTER : comptes rendus des sprints S1 à S8]"
+  Communiquer les imprévus et les changements:
+    - "Journal des risques et des changements. Exemple réel : l'image MinIO n'étant plus publiée, le stockage objet a été remplacé par SeaweedFS (compatible S3) ; Promtail en fin de vie remplacé par Grafana Alloy."
+
+  # ------------------------------------------------------------------ C17
+  Installer l'environnement de développement:
+    - "```bash\nuv sync --all-packages --group dev --extra data --extra app\ndocker compose -f microforge/infra/compose.yml --profile core up -d\n```"
+  Intégrer la mise en page et les contenus des interfaces:
+    - "Pages Streamlit : Accueil, Explorer par thème (parcours, vitrine, 17 thèmes), Inventaire photo, Mon stock, Idées de projets, Générer un projet, Mon compte."
+  Développer les fonctionnalités front-end:
+    - "Capture photo, tableau éditable des détections, onglets des livrables (câblage, schéma SVG, code, guide de soudure, Wokwi, KiCad, nomenclature, fiabilité et sources), téléchargement du projet en zip."
+  Développer les composants métiers:
+    - "- allocateur de broches déterministe (bus I2C/SPI partagés, ADC1 seulement si Wi-Fi, broches réservées évitées, résistances et ponts diviseurs ajoutés automatiquement) ;\n- contrôle électrique (niveaux logiques, budget de courant, sécurité moteurs et relais) ;\n- génération du firmware Arduino, du câblage, du guide, du diagramme Wokwi et de la netlist KiCad ;\n- suggestions à partir du stock et génération « je veux construire X » validée par l'allocateur."
+  Gérer les droits et accès à l’application:
+    - "Rôles utilisateur et administrateur, contrôle de propriété de chaque objet (inventaire, projets), jetons de courte durée."
+  Intégrer les composants d’accès aux données:
+    - "Client HTTP unique vers les deux API ; un test de contrat garantit que chaque route appelée existe."
+  Sécuriser l’application:
+    - "Top 10 OWASP : validation des entrées, jetons en mémoire, contenus générés échappés, fichiers contrôlés, limitation de débit, dépendances surveillées (Dependabot, pip-audit), secrets détectés en CI (gitleaks)."
+  Intégrer des tests automatisés:
+    - "Près de 300 tests (couverture 91 %), dont la vérification syntaxique C++ de 131 firmwares générés et la compilation réelle avec arduino-cli en CI."
+  C17. Développement des Composants et Interfaces > Versionner les sources avec Git:
+    - "Dépôt GitHub, branches de fonctionnalité, demandes de fusion relues."
+  Prendre en compte les enjeux d’accessibilité:
+    - "Statuts toujours écrits en texte, onglets utilisables au clavier, schémas avec titre et description."
+  Rédiger la documentation technique:
+    - "Documentation Sphinx (Furo + MyST) publiée : installation, architecture, API."
+
+  # ------------------------------------------------------------------ C18
+  Choisir l’outil d’intégration continue:
+    - "GitHub Actions : intégré au dépôt, gratuit pour un dépôt public, actions épinglées par empreinte de commit (sécurité de la chaîne logicielle)."
+  C18. Automatisation des Tests avec Intégration Continue > Définir les étapes, tâches et déclencheurs:
+    - "À chaque push et demande de fusion : lint (ruff), tests et couverture (porte à 80 %) sur Python 3.12 et 3.13, détection de secrets, compilation réelle des firmwares générés sur trois familles de cartes (AVR, ESP32, RP2040)."
+  Produire les fichiers de configuration:
+    - ".github/workflows/ci.yml (annexe 1)."
+  Configurer l’automatisation:
+    - "Cache uv, matrice de versions et de cartes, bibliothèques Arduino installées automatiquement à partir du catalogue (commande microforge libs)."
+  C18. Automatisation des Tests avec Intégration Continue > Tester et valider le bon fonctionnement de la chaîne:
+    - "La chaîne a révélé de vrais problèmes : dépendances manquantes en CI, dossier d'installation d'arduino-cli absent, mauvais dossier de sketch choisi. Chacun a été reproduit, corrigé et couvert par un test (voir le dossier E5)."
+  Versionner les sources de configuration:
+    - "Workflows versionnés dans le dépôt, mis à jour par Dependabot."
+  Documenter les procédures d’installation et de test:
+    - "docs/E4/ci.md."
+  C18. Automatisation des Tests avec Intégration Continue > Documenter l'utilisation de la chaîne:
+    - "Lecture des résultats dans l'onglet Actions, relance manuelle, ajout d'un test."
+
+  # ------------------------------------------------------------------ C19
+  C19. Création d'un Processus de Livraison Continue > Définir les étapes, tâches et déclencheurs de la chaîne de livraison continue:
+    - "Sur fusion dans main ou étiquette v* : construction des images Docker multi-architectures (amd64, arm64) poussées sur GHCR, déploiement en préproduction, tests de fumée."
+  C19. Création d'un Processus de Livraison Continue > Paramétrer la chaîne de livraison continue:
+    - ".github/workflows/cd.yml."
+  Configurer les étapes automatisées à partir de la chaîne d’intégration continue:
+    - "La livraison ne démarre que si l'intégration continue est verte."
+  Versionner les configurations de la chaîne:
+    - "Workflows et fichiers compose versionnés."
+  Tester la chaîne de livraison continue:
+    - "[À COMPLÉTER : première livraison en préproduction et tests de fumée]"
+  Documenter la procédure de livraison continue:
+    - "docs/E4/cd.md, avec la procédure de retour arrière (redéploiement de l'image précédente)."
+
+  Conclusion:
+    - "L'application est conçue à partir des besoins des makers, développée sur un cœur métier testé, et livrée par des chaînes automatisées qui ont déjà prouvé leur utilité en détectant des erreurs réelles."
+  Annexes:
+    - "[À COMPLÉTER : user stories complètes, ci.yml et cd.yml]"

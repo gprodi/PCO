@@ -1,0 +1,239 @@
+# Idées de projets par thème (page « Explorer par thème »).
+# template : identifiant d'un modèle générable directement (câblage + code + guide en un clic) ;
+#            sinon l'idée est conçue par l'IA (« je veux construire… ») à partir de la description
+#            et des composants suggérés.
+# composants : identifiants du catalogue (la carte est choisie selon le stock / le besoin de Wi-Fi).
+
+themes:
+  - id: domotique
+    titre: Domotique & automatismes
+    icone: "🏡"
+    description: "Rendre la maison plus pratique : lumières qui réagissent, appareils pilotés, automatismes."
+    idees:
+      - { titre: "Interrupteur à claquement de mains", template: interrupteur-clap, difficulte: 2, composants: [ky038-sound, relay-module-1ch], description: "Un clap pour allumer, un clap pour éteindre." }
+      - { titre: "Lampe commandée par télécommande TV", template: telecommande-lampe, difficulte: 2, composants: [ir-receiver, relay-module-1ch], description: "Recycle une vieille télécommande infrarouge." }
+      - { titre: "Lampe tactile", template: lampe-tactile, difficulte: 1, composants: [ttp223-touch, relay-module-1ch], description: "Effleure le bois du meuble pour allumer." }
+      - { titre: "Thermostat", template: thermostat-relais, difficulte: 2, composants: [ds18b20, relay-module-1ch, tm1637-display], description: "Maintient une température de consigne (chauffage basse tension)." }
+      - { titre: "Lumière qui s'éteint seule", difficulte: 1, composants: [pir-hc-sr501, relay-module-1ch], description: "Éteint l'éclairage quand plus personne n'est dans la pièce." }
+      - { titre: "Volet roulant miniature", difficulte: 3, composants: [stepper-28byj48, ldr-module, pushbutton], description: "Monte le matin, descend le soir, bouton manuel." }
+      - { titre: "Éclairage d'escalier automatique", difficulte: 2, composants: [pir-hc-sr501, ws2812-ring-12, ldr-module], description: "Les LED s'allument en cascade la nuit quand on approche." }
+      - { titre: "Détecteur de fenêtre ouverte + chauffage", difficulte: 2, composants: [reed-switch, relay-module-1ch, led], description: "Coupe le chauffage tant que la fenêtre est ouverte." }
+      - { titre: "Rappel « porte du frigo ouverte »", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip si la porte reste ouverte plus de 30 s." }
+      - { titre: "Variateur pour ruban LED 12 V", difficulte: 1, composants: [mosfet-module, potentiometer-10k], description: "Un bouton rotatif règle l'intensité d'un ruban LED." }
+
+  - id: interieur
+    titre: Maison & confort
+    icone: "🛋️"
+    description: Confort, ambiance et petits instruments pour la maison.
+    idees:
+      - { titre: "Station météo OLED", template: station-meteo-oled, difficulte: 1, composants: [dht22, ssd1306-i2c], description: "Température et humidité de la pièce sur un petit écran." }
+      - { titre: "Station météo LCD", template: station-meteo-lcd, difficulte: 1, composants: [dht22, lcd1602-i2c], description: "La même, sur un afficheur 16×2 rétroéclairé." }
+      - { titre: "Veilleuse automatique", template: veilleuse-auto, difficulte: 1, composants: [ldr-module, led], description: "S'allume toute seule quand il fait nuit." }
+      - { titre: "Lampe d'ambiance arc-en-ciel", template: lampe-ambiance-neopixel, difficulte: 1, composants: [potentiometer-10k, ws2812-ring-12], description: "Choisis la teinte de l'anneau LED avec un bouton." }
+      - { titre: "Sonnette mélodique", template: sonnette-melodie, difficulte: 1, composants: [pushbutton, buzzer], description: "Un appui joue une petite mélodie." }
+      - { titre: "Indicateur d'aération de salle de bain", difficulte: 1, composants: [dht22, rgb-led], description: "LED rouge quand l'humidité dépasse 70 % : il faut aérer." }
+      - { titre: "Réveil lumineux", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12, pushbutton], description: "La lumière monte progressivement avant l'heure du réveil." }
+      - { titre: "Indicateur de confort (trop chaud / trop sec)", difficulte: 1, composants: [dht11, rgb-led], description: "Une seule LED qui résume le confort de la pièce." }
+      - { titre: "Sonnette silencieuse (bébé dort)", difficulte: 1, composants: [pushbutton, vibration-motor, led], description: "Le visiteur sonne, toi seul sens la vibration." }
+
+  - id: plantes
+    titre: Plantes & jardin
+    icone: "🌱"
+    description: "Arroser, surveiller et chouchouter tes plantes, en intérieur comme au potager."
+    idees:
+      - { titre: "Arrosage automatique", template: arrosage-automatique, difficulte: 2, composants: [soil-moisture-capacitive, relay-module-1ch, water-pump-5v], description: "La pompe se déclenche quand la terre est trop sèche." }
+      - { titre: "Ventilation de serre thermostatique", template: ventilateur-auto, difficulte: 2, composants: [dht22, mosfet-module, fan-12v], description: "Le ventilateur accélère quand la serre chauffe." }
+      - { titre: "Moniteur d'humidité du sol à LED", difficulte: 1, composants: [soil-moisture-capacitive, rgb-led], description: "La LED passe du vert au rouge quand la plante a soif." }
+      - { titre: "Serre connectée", difficulte: 3, wifi: true, composants: [dht22, relay-module-1ch, ssd1306-i2c], description: "Mesure température/humidité, déclenche un ventilateur et affiche l'état sur une page web." }
+      - { titre: "Ouverture automatique de lucarne", difficulte: 2, composants: [ds18b20, sg90-servo], description: "Un servo ouvre la lucarne de la serre au-delà de 28 °C." }
+      - { titre: "Luxmètre pour plantes d'intérieur", difficulte: 1, composants: [ldr-module, tm1637-display], description: "Affiche le niveau de lumière pour trouver le meilleur emplacement." }
+      - { titre: "Thermomètre de compost", difficulte: 1, composants: [ds18b20, ssd1306-i2c], description: "Sonde étanche plantée dans le compost pour suivre sa montée en température." }
+      - { titre: "Rappel d'arrosage sonore", difficulte: 1, composants: [soil-moisture-capacitive, buzzer], description: "Un bip discret quand l'humidité descend sous le seuil." }
+      - { titre: "Lampe de croissance programmée", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Éclaire les semis 12 h par jour à heures fixes." }
+      - { titre: "Niveau du récupérateur d'eau de pluie", difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau indique le remplissage de la cuve vu du dessus." }
+
+  - id: exterieur
+    titre: Extérieur & météo
+    icone: "🌤️"
+    description: Mesurer le temps qu'il fait, éclairer le jardin, enregistrer des données.
+    idees:
+      - { titre: "Mini-station BME280 (pression)", template: mini-station-bme280, difficulte: 2, composants: [bme280, ssd1306-i2c], description: "Température, humidité, pression et tendance météo." }
+      - { titre: "Thermomètre de piscine", template: thermometre-ds18b20, difficulte: 1, composants: [ds18b20, ssd1306-i2c], description: "Sonde étanche et affichage lisible." }
+      - { titre: "Alerte gel", difficulte: 1, composants: [ds18b20, buzzer, led], description: "Bip et voyant quand la température passe sous 2 °C." }
+      - { titre: "Éclairage de jardin intelligent", difficulte: 2, composants: [ldr-module, pir-hc-sr501, relay-module-1ch], description: "S'allume la nuit, seulement quand quelqu'un passe." }
+      - { titre: "Baromètre « prévision »", difficulte: 2, composants: [bme280, rgb-led], description: "Couleur selon la tendance de pression : beau, variable, pluie." }
+      - { titre: "Détecteur de pluie pour linge", difficulte: 1, composants: [water-level-sensor, buzzer], description: "Bip dès les premières gouttes : rentre le linge !" }
+      - { titre: "Lampe solaire de balcon", difficulte: 2, composants: [ldr-module, ws2812-ring-12, battery-holder-4aa], description: "Ambiance douce sur piles, seulement à la tombée de la nuit." }
+
+  - id: securite
+    titre: Sécurité & alarmes
+    icone: "🔒"
+    description: Alarmes, contrôle d'accès et détection de dangers.
+    idees:
+      - { titre: "Alarme de présence", template: alarme-pir, difficulte: 1, composants: [pir-hc-sr501, buzzer, led], description: "Sirène et voyant dès qu'un mouvement est détecté." }
+      - { titre: "Alarme d'ouverture de porte", template: alarme-porte, difficulte: 1, composants: [reed-switch, buzzer, led], description: "Un aimant sur la porte : sirène si elle s'ouvre." }
+      - { titre: "Alerte inondation", template: alerte-inondation, difficulte: 1, composants: [water-level-sensor, buzzer, led], description: "Sous le lave-linge ou à la cave, sonne à la première goutte." }
+      - { titre: "Détecteur de flamme", template: detecteur-flamme, difficulte: 1, composants: [flame-sensor, buzzer, led], description: "Surveille une bougie, un barbecue ou une imprimante 3D." }
+      - { titre: "Détecteur de gaz / fumée", template: detecteur-gaz, difficulte: 2, composants: [mq2-gas, buzzer, led], description: "Alerte sonore au-delà d'un seuil (complète un vrai détecteur, ne le remplace pas)." }
+      - { titre: "Serrure à badge RFID", template: serrure-rfid, difficulte: 3, composants: [rc522-rfid, sg90-servo, led, buzzer], description: "Seul le bon badge ouvre le verrou." }
+      - { titre: "Digicode", template: digicode, difficulte: 2, composants: [keypad-4x4, relay-module-1ch, buzzer], description: "Code secret au clavier pour activer une gâche." }
+      - { titre: "Coffre à code", difficulte: 2, composants: [keypad-4x4, sg90-servo, led], description: "Le servo verrouille une petite boîte ; ouverture au bon code." }
+      - { titre: "Alarme d'ouverture de tiroir", difficulte: 1, composants: [ldr-module, buzzer], description: "La lumière qui entre quand on ouvre le tiroir déclenche l'alarme." }
+      - { titre: "Alarme anti-vol de sac (mouvement)", difficulte: 2, composants: [mpu6050, buzzer, pushbutton], description: "Armée par un bouton, elle hurle si on déplace le sac." }
+
+  - id: robotique
+    titre: Robots & mouvement
+    icone: "🤖"
+    description: "Faire bouger les choses : moteurs, servos, capteurs… jusqu'au robot autonome."
+    idees:
+      - { titre: "Robot évitant les obstacles", template: robot-evitement, difficulte: 3, composants: [l298n-driver, hc-sr04, dc-motor-tt, battery-holder-4aa], description: "Châssis 2 roues qui contourne les obstacles." }
+      - { titre: "Robot suiveur de ligne", template: robot-suiveur-ligne, difficulte: 3, composants: [tcrt5000-line, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Suit un circuit tracé au ruban noir." }
+      - { titre: "Radar à balayage", template: radar-balayage, difficulte: 2, composants: [sg90-servo, hc-sr04], description: "Le sonar tourne et dessine la carte de la pièce sur le PC." }
+      - { titre: "Tourelle pan/tilt au joystick", template: tourelle-joystick, difficulte: 2, composants: [joystick-analog, sg90-servo], description: "Deux servos pilotés par un joystick." }
+      - { titre: "Servo piloté par potentiomètre", template: servo-potentiometre, difficulte: 1, composants: [potentiometer-10k, sg90-servo], description: "Premier pas avec les servomoteurs." }
+      - { titre: "Positionneur pas à pas", template: moteur-pas-a-pas-potar, difficulte: 2, composants: [stepper-28byj48, potentiometer-10k], description: "Le moteur suit la position du bouton." }
+      - { titre: "Suiveur de lumière", difficulte: 2, composants: [ldr-module, sg90-servo], description: "Un panneau (ou une tête de robot) qui se tourne vers la lumière." }
+      - { titre: "Bras robotique à 2 axes", difficulte: 3, composants: [sg90-servo, potentiometer-10k], description: "Deux servos commandés par deux potentiomètres." }
+      - { titre: "Robot sumo", difficulte: 3, composants: [l298n-driver, dc-motor-tt, hc-sr04, tcrt5000-line, battery-holder-4aa], description: "Trouve l'adversaire au sonar et reste dans l'arène grâce au capteur de ligne." }
+      - { titre: "Tête de robot expressive", difficulte: 2, composants: [max7219-matrix, sg90-servo, hc-sr04], description: "Les yeux sur matrice LED suivent et réagissent quand on s'approche." }
+      - { titre: "Robot télécommandé infrarouge", difficulte: 3, composants: [ir-receiver, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Pilote le châssis avec une télécommande de TV." }
+
+  - id: vehicules
+    titre: Véhicules, vélo & trottinette
+    icone: "🚲"
+    description: "Assistance au stationnement, sécurité à vélo, petits engins."
+    idees:
+      - { titre: "Radar de recul", template: radar-de-recul, difficulte: 1, composants: [hc-sr04, buzzer, led], description: "Bips de plus en plus rapides près d'un obstacle (garage)." }
+      - { titre: "Barrière de parking", template: barriere-servo, difficulte: 1, composants: [pushbutton, sg90-servo], description: "Un bouton lève et baisse la barrière (maquette de parking, portail miniature)." }
+      - { titre: "Aide au stationnement à LED", difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "Vert, orange, rouge : la voiture s'arrête pile au bon endroit." }
+      - { titre: "Mesure de dépassement à vélo", difficulte: 3, composants: [hc-sr04, ssd1306-i2c, pushbutton, microsd-module], description: "Comme OpenBikeSensor : mesure à quelle distance les voitures te doublent." }
+      - { titre: "Clignotants de sac à dos", difficulte: 2, composants: [max7219-matrix, pushbutton], description: "Deux boutons au guidon, une flèche qui clignote dans le dos." }
+      - { titre: "Feu arrière qui détecte le freinage", difficulte: 3, composants: [mpu6050, ws2812-ring-12, battery-holder-4aa], description: "S'illumine plus fort quand le vélo ralentit." }
+      - { titre: "Compteur de tours de roue", difficulte: 2, composants: [reed-switch, tm1637-display], description: "Un aimant sur un rayon : vitesse et distance parcourue." }
+
+  - id: musique
+    titre: Musique & son
+    icone: "🎵"
+    description: "Jouer, écouter, faire réagir la lumière au son."
+    idees:
+      - { titre: "VU-mètre lumineux", template: vu-metre-lumineux, difficulte: 2, composants: [ky038-sound, ws2812-ring-12], description: "L'anneau danse au rythme de la musique." }
+      - { titre: "Piano à boutons", difficulte: 2, composants: [pushbutton, buzzer], description: "Chaque bouton joue une note différente." }
+      - { titre: "Thérémine à ultrasons", difficulte: 2, composants: [hc-sr04, buzzer], description: "La hauteur de la note dépend de la distance de ta main." }
+      - { titre: "Métronome visuel et sonore", difficulte: 1, composants: [potentiometer-10k, buzzer, led], description: "Le bouton règle le tempo de 40 à 208 battements/minute." }
+      - { titre: "Boîte à musique à badge", difficulte: 2, composants: [rc522-rfid, buzzer], description: "Chaque badge posé joue une mélodie différente (comme une boîte à histoires)." }
+      - { titre: "Pad de batterie tactile", difficulte: 2, composants: [ttp223-touch, buzzer, led], description: "Tape sur les zones tactiles pour faire du rythme." }
+      - { titre: "Sonomètre de classe", difficulte: 2, composants: [ky038-sound, max7219-matrix], description: "Une jauge de bruit visible de toute la salle." }
+
+  - id: lumiere
+    titre: Lumière & art
+    icone: "🌈"
+    description: "LED adressables, matrices, lampes : de la déco qui bouge."
+    idees:
+      - { titre: "Matrice d'émotions", template: matrice-emotions, difficulte: 1, composants: [max7219-matrix, pushbutton], description: "Sourire, cœur, tête triste : un bouton change l'humeur." }
+      - { titre: "Veilleuse RGB à modes", template: veilleuse-rgb, difficulte: 1, composants: [rgb-led, pushbutton], description: "Chaque appui change la couleur." }
+      - { titre: "Lampe qui respire", difficulte: 1, composants: [ws2812-ring-12], description: "Une lueur qui monte et descend doucement, pour se détendre." }
+      - { titre: "Tableau lumineux interactif", difficulte: 2, composants: [ws2812-ring-12, ttp223-touch], description: "Un cadre décoratif qui change d'ambiance quand on le touche." }
+      - { titre: "Texte défilant sur matrice", difficulte: 2, composants: [max7219-matrix], description: "Un message qui défile (prénom, citation du jour)." }
+      - { titre: "Lampe qui suit la couleur du ciel", difficulte: 2, composants: [ldr-module, ws2812-ring-12], description: "Plus chaude le soir, plus froide en journée." }
+      - { titre: "Sculpture qui s'éveille quand on approche", difficulte: 2, composants: [hc-sr04, ws2812-ring-12, sg90-servo], description: "Lumière et mouvement quand un visiteur s'approche." }
+
+  - id: fetes
+    titre: Fêtes & déco
+    icone: "🎄"
+    description: "Noël, Halloween, anniversaires : des montages qui font de l'effet."
+    idees:
+      - { titre: "Guirlande animée", template: guirlande-animee, difficulte: 1, composants: [ws2812-ring-12, pushbutton], description: "Arc-en-ciel, Noël rouge/vert ou blanc chaud." }
+      - { titre: "Citrouille d'Halloween qui crie", difficulte: 1, composants: [pir-hc-sr501, buzzer, led], description: "Les yeux s'allument et un cri retentit quand on passe." }
+      - { titre: "Calendrier de l'Avent lumineux", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Une LED de plus chaque jour de décembre." }
+      - { titre: "Compte à rebours du Nouvel An", difficulte: 2, composants: [ds3231-rtc, tm1637-display, buzzer], description: "Affiche le temps restant et sonne à minuit." }
+      - { titre: "Gâteau d'anniversaire à souffler", difficulte: 2, composants: [ky038-sound, ws2812-ring-12], description: "Des bougies LED qui s'éteignent quand on souffle dessus." }
+      - { titre: "Boîte à surprise", difficulte: 2, composants: [reed-switch, buzzer, ws2812-ring-12], description: "À l'ouverture : musique et lumières." }
+
+  - id: sante
+    titre: Sport & bien-être
+    icone: "🧘"
+    description: Bouger, se concentrer, prendre soin de soi.
+    idees:
+      - { titre: "Minuteur Pomodoro vibrant", template: pomodoro-vibrant, difficulte: 2, composants: [pushbutton, vibration-motor, tm1637-display], description: "25 min de concentration, signal discret pour la pause." }
+      - { titre: "Sablier lumineux", template: sablier-lumineux, difficulte: 1, composants: [ws2812-ring-12, potentiometer-10k, pushbutton], description: "Brossage des dents, gainage, jeux de société." }
+      - { titre: "Compteur de pompes", difficulte: 1, composants: [hc-sr04, tm1637-display], description: "Le sonar compte chaque descente sous le seuil." }
+      - { titre: "Rappel de posture au bureau", difficulte: 2, composants: [hc-sr04, vibration-motor], description: "Vibre si tu te penches trop près de l'écran." }
+      - { titre: "Rappel d'hydratation", difficulte: 2, composants: [hx711-load-cell, buzzer, led], description: "La gourde posée sur la balance : alerte si elle ne baisse pas." }
+      - { titre: "Guide de respiration (cohérence cardiaque)", difficulte: 1, composants: [ws2812-ring-12], description: "Inspire quand l'anneau s'allume, expire quand il s'éteint (6 cycles/min)." }
+      - { titre: "Chronomètre de corde à sauter", difficulte: 2, composants: [mpu6050, tm1637-display], description: "Compte les sauts grâce à l'accéléromètre." }
+
+  - id: sciences
+    titre: Sciences & expériences
+    icone: "🔬"
+    description: "Mesurer, enregistrer, comprendre la physique avec des capteurs."
+    idees:
+      - { titre: "Niveau à bulle électronique", template: niveau-a-bulle, difficulte: 2, composants: [mpu6050, ssd1306-i2c], description: "Inclinaison sur deux axes à l'écran." }
+      - { titre: "Enregistreur de données sur carte SD", template: enregistreur-sd, difficulte: 3, composants: [dht22, ds3231-rtc, microsd-module], description: "Un relevé horodaté chaque minute dans un fichier CSV (à ouvrir avec Python)." }
+      - { titre: "Mesure de la vitesse du son", difficulte: 2, composants: [hc-sr04, ds18b20, ssd1306-i2c], description: "Compare la mesure à la théorie selon la température." }
+      - { titre: "Sismographe de bureau", difficulte: 3, composants: [mpu6050, microsd-module], description: "Enregistre les vibrations (pas, porte, machine à laver)." }
+      - { titre: "Courbe de refroidissement d'une tasse", difficulte: 2, composants: [ds18b20, microsd-module], description: "Vérifie la loi de Newton avec tes propres mesures." }
+      - { titre: "Détecteur de champ magnétique", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip quand un aimant passe : idéal pour expliquer le magnétisme." }
+      - { titre: "Sonde de qualité de l'air (gaz)", difficulte: 2, composants: [mq2-gas, ssd1306-i2c], description: "Observe l'effet d'une fenêtre ouverte ou d'une cuisson." }
+
+  - id: iot
+    titre: Objets connectés (Wi-Fi)
+    icone: "📡"
+    description: "Consulter et piloter depuis le téléphone, sans application à installer."
+    idees:
+      - { titre: "Station météo Wi-Fi", template: station-meteo-web, difficulte: 3, wifi: true, composants: [dht22], description: "Page web consultable depuis le téléphone." }
+      - { titre: "Horloge Wi-Fi (NTP)", template: horloge-ntp-oled, difficulte: 2, wifi: true, composants: [ssd1306-i2c], description: "L'heure exacte récupérée sur Internet." }
+      - { titre: "Prise commandée en Wi-Fi (basse tension)", difficulte: 2, wifi: true, composants: [relay-module-1ch], description: "Une page web pour allumer/éteindre un ruban LED 12 V." }
+      - { titre: "Boîte aux lettres connectée", difficulte: 2, wifi: true, composants: [reed-switch, ssd1306-i2c], description: "Le contact de la trappe signale le passage du facteur." }
+      - { titre: "Tableau de bord des pièces", difficulte: 3, wifi: true, composants: [dht22, bme280], description: "Plusieurs capteurs, une page web récapitulative." }
+      - { titre: "Capteur pour Home Assistant (ESPHome)", difficulte: 2, wifi: true, composants: [bme280], description: "Ton capteur apparaît tout seul dans Home Assistant." }
+      - { titre: "Alerte inondation sur téléphone", difficulte: 3, wifi: true, composants: [water-level-sensor, buzzer], description: "Sirène locale + notification sur le réseau Wi-Fi." }
+
+  - id: cuisine
+    titre: Cuisine
+    icone: "🍳"
+    description: Peser, minuter, surveiller la cuisson.
+    idees:
+      - { titre: "Balance de cuisine", template: balance-cuisine, difficulte: 2, composants: [hx711-load-cell, ssd1306-i2c, pushbutton], description: "Pèse jusqu'à 5 kg, bouton de tare." }
+      - { titre: "Minuteur de cuisine", difficulte: 2, composants: [rotary-encoder-ky040, tm1637-display, buzzer], description: "Règle la durée à la molette, sonnerie à la fin." }
+      - { titre: "Thermomètre de cuisson", difficulte: 1, composants: [ds18b20, tm1637-display, buzzer], description: "Sonde dans le rôti : bip à la température à cœur visée." }
+      - { titre: "Surveillance de la pâte qui lève", difficulte: 2, composants: [hc-sr04, ssd1306-i2c], description: "Mesure la hauteur de la pâte à pain au fil du temps." }
+      - { titre: "Alerte casserole qui déborde", difficulte: 1, composants: [water-level-sensor, buzzer], description: "Un capteur au bord de la plaque sonne avant la catastrophe." }
+
+  - id: temps
+    titre: Temps & mesure
+    icone: "⏱️"
+    description: Horloges, chronomètres et instruments de mesure.
+    idees:
+      - { titre: "Horloge autonome (RTC)", template: horloge-rtc-lcd, difficulte: 1, composants: [ds3231-rtc, lcd1602-i2c], description: "Garde l'heure même débranchée grâce à la pile." }
+      - { titre: "Télémètre à ultrasons", template: telemetre-oled, difficulte: 1, composants: [hc-sr04, ssd1306-i2c], description: "Mesure une distance et l'affiche en grand." }
+      - { titre: "Jauge de distance lumineuse", template: jauge-distance-neopixel, difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau se remplit à l'approche d'un obstacle." }
+      - { titre: "Chronomètre à deux boutons", difficulte: 1, composants: [pushbutton, tm1637-display], description: "Départ/arrêt et remise à zéro." }
+      - { titre: "Horloge NeoPixel", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Les heures et les minutes affichées par des couleurs sur l'anneau." }
+      - { titre: "Mètre ruban électronique", difficulte: 1, composants: [hc-sr04, tm1637-display, pushbutton], description: "Mesure figée à l'appui du bouton." }
+      - { titre: "Rapporteur d'angle numérique", difficulte: 2, composants: [mpu6050, tm1637-display], description: "Mesure l'angle d'une planche ou d'une scie." }
+
+  - id: animaux
+    titre: Animaux
+    icone: "🐾"
+    description: Prendre soin des animaux de la maison.
+    idees:
+      - { titre: "Distributeur de croquettes programmé", difficulte: 2, composants: [ds3231-rtc, sg90-servo], description: "Le servo ouvre la trappe aux heures des repas." }
+      - { titre: "Surveillance d'aquarium", difficulte: 2, composants: [ds18b20, relay-module-1ch, ssd1306-i2c], description: "Température affichée et chauffage commandé." }
+      - { titre: "Chatière à badge", difficulte: 3, composants: [rc522-rfid, sg90-servo], description: "Seul le badge du collier débloque la chatière." }
+      - { titre: "Détecteur de passage du hamster", difficulte: 1, composants: [pir-hc-sr501, tm1637-display], description: "Compte les sorties nocturnes du petit animal." }
+      - { titre: "Gamelle d'eau qui prévient", difficulte: 1, composants: [water-level-sensor, led], description: "La LED clignote quand l'eau est trop basse." }
+      - { titre: "Jouet laser pour chat", difficulte: 2, composants: [sg90-servo, led, pushbutton], description: "Deux servos promènent un point lumineux au hasard (jamais vers les yeux)." }
+
+  - id: jeux
+    titre: Jeux & apprentissage
+    icone: "🎮"
+    description: Apprendre l'électronique en s'amusant.
+    idees:
+      - { titre: "Jeu de réflexes", template: jeu-reflexes, difficulte: 1, composants: [led, pushbutton, buzzer], description: "Appuie le plus vite possible quand la LED s'allume." }
+      - { titre: "Feu tricolore avec appel piéton", template: feu-tricolore-pieton, difficulte: 1, composants: [led, pushbutton], description: "Séquences temporisées et bouton d'appel." }
+      - { titre: "Compteur à molette", template: compteur-encodeur, difficulte: 1, composants: [rotary-encoder-ky040, tm1637-display], description: "Une molette crantée et un afficheur 4 chiffres." }
+      - { titre: "Jeu « Simon »", difficulte: 3, composants: [led, pushbutton, buzzer], description: "Mémorise et rejoue une séquence de couleurs et de sons de plus en plus longue." }
+      - { titre: "Dé électronique", difficulte: 1, composants: [pushbutton, max7219-matrix], description: "Secoue… appuie : la face du dé apparaît sur la matrice." }
+      - { titre: "Buzzer de quiz à 2 joueurs", difficulte: 2, composants: [pushbutton, led, buzzer], description: "Le premier qui appuie allume sa LED, l'autre est bloqué." }
+      - { titre: "Labyrinthe à bille virtuelle", difficulte: 3, composants: [mpu6050, max7219-matrix], description: "Incline le boîtier pour guider le point lumineux." }
+      - { titre: "Jeu du « fil électrique » (main stable)", difficulte: 1, composants: [buzzer, led], description: "Fais passer l'anneau le long du fil sans le toucher." }

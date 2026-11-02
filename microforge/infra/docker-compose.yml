@@ -1,0 +1,178 @@
+# MicroForge — pile Docker Compose par profils :
+#   docker compose --profile core up -d                 # API + preuve de concept + Postgres
+#   docker compose --profile core --profile ai up -d    # + passerelle LiteLLM (+ Ollama Linux/Windows GPU)
+#   docker compose --profile mlops up -d                # MLflow + stockage S3 (SeaweedFS)
+#   docker compose --profile monitoring up -d           # Prometheus, Grafana, Loki, Alloy, Uptime Kuma
+#   docker compose --profile veille up -d               # FreshRSS
+# Images officielles uniquement (pas de Bitnami), versions épinglées.
+name: microforge
+
+x-app: &app
+  env_file: ../.env
+  restart: unless-stopped
+  extra_hosts: ["host.docker.internal:host-gateway"]
+  networks: [backend]
+
+services:
+  postgres:
+    profiles: [core]
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: microforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-microforge}
+      POSTGRES_DB: microforge
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U microforge"], interval: 10s, retries: 5 }
+    networks: [backend]
+    mem_limit: 512m
+
+  api_data:
+    <<: *app
+    profiles: [core]
+    image: ghcr.io/gprodi/microforge-api_data:${MF_IMAGE_TAG:-main}
+    build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_data }
+    depends_on: { postgres: { condition: service_healthy } }
+    ports: ["8000:8000"]
+    mem_limit: 512m
+
+  api_ia:
+    <<: *app
+    profiles: [core]
+    image: ghcr.io/gprodi/microforge-api_ia:${MF_IMAGE_TAG:-main}
+    build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_ia }
+    depends_on: [api_data]
+    ports: ["8001:8001"]
+    mem_limit: 2g
+
+  streamlit:
+    <<: *app
+    profiles: [core]
+    image: ghcr.io/gprodi/microforge-streamlit:${MF_IMAGE_TAG:-main}
+    build: { context: ../.., dockerfile: microforge/Dockerfile, target: streamlit }
+    environment:
+      MF_API_DATA_URL: http://api_data:8000
+      MF_API_IA_URL: http://api_ia:8001
+    depends_on: [api_data, api_ia]
+    ports: ["8501:8501"]
+    networks: [backend, frontend]
+
+  # ------------------------------------------------------------------ IA (C8)
+  litellm:
+    profiles: [ai]
+    # ⚠️ image épinglée : compromission des paquets PyPI 1.82.7/1.82.8 en mars 2026 (veille).
+    # Remplacer le tag par un digest vérifié : ghcr.io/berriai/litellm@sha256:...
+    image: ghcr.io/berriai/litellm:main-stable
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/litellm
+    volumes: ["./litellm/config.yaml:/app/config.yaml:ro"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["127.0.0.1:4000:4000"]       # interface d'admin : localhost uniquement (Traefik en préprod)
+    networks: [backend]
+
+  ollama:
+    profiles: [ai-gpu]                    # Windows/Linux avec GPU NVIDIA (sur Mac : Ollama natif)
+    image: ollama/ollama:0.12.6
+    volumes: [ollama:/root/.ollama]
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+    networks: [backend]                   # PAS de port publié : accessible seulement via LiteLLM
+
+  # ------------------------------------------------------------------ MLOps (E3)
+  s3:
+    # Stockage objet S3 (artefacts MLflow, remote DVC, dumps bruts).
+    # MinIO ne publie plus d'images communautaires (constat de veille 2025-2026) :
+    # SeaweedFS (Apache 2.0) le remplace, compatible API S3. En dev, S3 sans authentification
+    # et port lié à localhost uniquement ; en préprod, ajouter -s3.config (identités/clefs).
+    profiles: [mlops]
+    image: chrislusf/seaweedfs:4.51
+    command: server -dir=/data -s3 -s3.port=8333 -master.volumeSizeLimitMB=1024
+    volumes: [s3data:/data]
+    ports: ["127.0.0.1:8333:8333"]
+    networks: [backend]
+
+  mlflow:
+    profiles: [mlops]
+    image: ghcr.io/mlflow/mlflow:v3.5.0
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/mlflow
+      --artifacts-destination s3://mlflow
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://s3:8333
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-microforge}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-microforge}
+    depends_on: [s3]
+    ports: ["127.0.0.1:5000:5000"]
+    networks: [backend]
+
+  # ------------------------------------------------------------------ monitoring (C11, C20)
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.6.0
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [backend]
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:12.2.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_DEFAULT_LANGUAGE: fr-FR
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    networks: [backend]
+
+  loki:
+    profiles: [monitoring]
+    image: grafana/loki:3.5.5
+    command: -config.file=/etc/loki/local-config.yaml
+    networks: [backend]
+
+  alloy:
+    # Grafana Alloy remplace Promtail (fin de vie mars 2026) pour collecter les logs Docker.
+    profiles: [monitoring]
+    image: grafana/alloy:v1.11.0
+    command: run /etc/alloy/config.alloy
+    volumes:
+      - ../monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [backend]
+
+  uptime-kuma:
+    profiles: [monitoring]
+    image: louislam/uptime-kuma:2.0.1
+    volumes: [kuma:/app/data]
+    ports: ["3001:3001"]
+    networks: [backend]
+
+  # ------------------------------------------------------------------ veille (C6)
+  freshrss:
+    profiles: [veille]
+    image: freshrss/freshrss:1.27.1
+    environment:
+      TZ: Indian/Reunion
+      CRON_MIN: "*/30"
+    volumes: [freshrss:/var/www/FreshRSS/data, ../veille/sources.opml:/opml/sources.opml:ro]
+    ports: ["8080:80"]
+    networks: [backend]
+
+networks:
+  backend: {}
+  frontend: {}
+
+volumes:
+  pgdata: {}
+  ollama: {}
+  s3data: {}
+  kuma: {}
+  freshrss: {}

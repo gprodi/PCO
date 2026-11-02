@@ -1,0 +1,49 @@
+# Registre des cours : slug -> fichiers sources (dans cours/) et thème.
+# Les doublons .txt/.pdf sont regroupés ; le premier fichier listé est la source principale.
+themes:
+  bases: "Python, outils & bonnes pratiques"
+  data: "Données, SQL & ORM"
+  ml: "Machine learning, deep learning, NLP & audio"
+  api: "API, applications & sécurité"
+  mlops: "MLOps, conteneurs & orchestration"
+  monitoring: "Monitoring & observabilité"
+  agentic: "IA générative, RAG & agents"
+  projets: "Briefs & projets"
+
+courses:
+  workflow-i: { title: "Workflow I — poste de travail, Git, venv", theme: bases, files: ["WORKFLOW I.txt", "WORKFLOW I.pdf"] }
+  python-cookbook: { title: "Python — cookbook", theme: bases, files: ["Python - cookbook.txt"] }
+  sas-ia-exercices: { title: "SAS IA — exercices NumPy, Pandas, Seaborn", theme: bases, files: ["SAS IA - Exercices.md"] }
+  pytest-loguru: { title: "Pytest & Loguru", theme: bases, files: ["OPCO - Pytest - Loguru.md"] }
+  sphinx: { title: "Documentation avec Sphinx", theme: bases, files: ["IA DOCS Sphinx.md"] }
+  pandas-seaborn: { title: "Pandas & Seaborn", theme: data, files: ["OPCO - Pandas - Seaborn.md"] }
+  sqlalchemy: { title: "SQL, Merise & SQLAlchemy", theme: data, files: ["DEV IA SQLAlchemy.txt", "DEV IA SQLAlchemy.pdf"] }
+  sqlmodel: { title: "SQLModel (Pydantic + SQLAlchemy)", theme: data, files: ["sqlmodel_presentation.html", "exercices_sqlmodel_eleve.md"] }
+  machine-learning: { title: "Machine Learning avec scikit-learn", theme: ml, files: ["Machine Learning.pdf"] }
+  keras: { title: "Deep learning avec Keras", theme: ml, files: ["KERAS.pdf"] }
+  nlp: { title: "Natural Language Processing", theme: ml, files: ["Natural Language Processing.pdf"] }
+  audio: { title: "Traitement et modélisation audio", theme: ml, files: ["Traitement et modélisation audio.pdf"] }
+  hugging-face: { title: "Hugging Face — l'univers des modèles", theme: ml, files: ["Hugging Face _ L'univers des modèles d'IA.pdf"] }
+  dev-ia-slides: { title: "Architecture front / API / modèles", theme: api, files: ["DEV IA 25 SLIDES.pdf"] }
+  streamlit: { title: "Streamlit", theme: api, files: ["DEV IA Streamlit.md"] }
+  analyse-sentiment: { title: "Brief — analyse de sentiment (FastAPI + Streamlit)", theme: api, files: ["DEV IA 25 - Analyse Sentiment.md"] }
+  securiser-api-fastapi: { title: "Sécuriser une API FastAPI (OAuth2, JWT)", theme: api, files: ["Sécuriser-une-API-FastAPI.html", "securiser-api-fastapi.pptx"] }
+  glossaire-securite-api: { title: "Glossaire de la sécurité d'API", theme: api, files: ["glossaire.md"] }
+  traefik: { title: "Reverse proxy Traefik", theme: api, files: ["tuto-traefik.html"] }
+  mlops-0-intro: { title: "MLOps 0 — uv, ruff, tests, CI/CD, Docker", theme: mlops, files: ["MLOPS 0 Intro.pdf"] }
+  mlops-0-packaging: { title: "MLOps 0 — packaging Python", theme: mlops, files: ["MLOPS 0 PACKAGING.pdf"] }
+  mlops-1-orchestration: { title: "MLOps 1 — Docker Compose", theme: mlops, files: ["MLOPS 1 Orchestration.pdf"] }
+  mlops-2-factory: { title: "MLOps 2 — usine ML : MLflow + MinIO", theme: mlops, files: ["MLOPS 2 Factory.txt", "MLOPS 2 Factory.pdf"] }
+  mlflow: { title: "MLflow — suivi des expériences", theme: mlops, files: ["MLFLOW.md"] }
+  mlops-3-automation: { title: "MLOps 3 — automatisation avec Prefect", theme: mlops, files: ["MLOPS 3 Automation.txt", "MLOPS 3 Automation.pdf"] }
+  mlops-4-advanced: { title: "MLOps 4 — Celery, Kafka, Kubernetes", theme: mlops, files: ["MLOPS 4 Advanced.pdf", "Copie de MLOPS 4 Advanced.txt"] }
+  kedro: { title: "Kedro", theme: mlops, files: ["kedro.pptx", "kedro-viz.pptx"] }
+  projet-5-forge-mlops: { title: "Brief — la Forge MLOps (K8s, KEDA, observabilité)", theme: projets, files: ["Projet_5_0_Advanced_MLOps.md"] }
+  mlops-3-monitoring: { title: "MLOps 3 — monitoring (Uptime Kuma, Prometheus, Grafana)", theme: monitoring, files: ["MLOPS 3 Monitoring.pdf"] }
+  loki-grafana: { title: "Tuto — enquête d'incident avec Loki & Grafana", theme: monitoring, files: ["Tuto_TVA_Loki_Grafana_v2.md"] }
+  ia-agentic-2026: { title: "IA agentique — de la chatbot à l'agent", theme: agentic, files: ["IA Agentic 2026.txt"] }
+  ia-agentic: { title: "IA agentique — LangChain, LangGraph, RAG, MCP", theme: agentic, files: ["DEVIA 25 - IA Agentic.md"] }
+  horragor-1: { title: "HorRAGor 1 — pipeline de données multi-sources", theme: projets, files: ["HorRAGor BOT Partie 1.md"] }
+  horragor-2: { title: "HorRAGor 2 — agent ReAct", theme: projets, files: ["HorRAGor BOT Partie 2.md"] }
+  horragor-3: { title: "HorRAGor 3 — sécuriser le cluster d'agents", theme: projets, files: ["HorRAGor BOT Partie 3.md"] }
+  idees-projets-hf: { title: "Idées de projets Hugging Face", theme: projets, files: ["DEVIA 25 - Idées de projets FH.md"] }

@@ -1,0 +1,81 @@
+# Familles de cartes = un cœur Arduino commun. Sert au code généré, aux tests g++ et à la matrice CI
+# (compilation réelle de tous les modèles sur la carte « representative » de chaque famille).
+
+- id: esp32
+  label: Espressif ESP32 (classique, S2, S3, C3, C6, H2)
+  core: esp32:esp32
+  index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+  platformio: espressif32
+  gpp_define: -DESP32
+  wifi_supported: true
+  notes: ["Servo : bibliothèque ESP32Servo.", "ADC 12 bits (0–4095)."]
+
+- id: esp8266
+  label: Espressif ESP8266
+  core: esp8266:esp8266
+  index_url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+  platformio: espressif8266
+  gpp_define: -DESP8266
+  wifi_supported: true
+  notes: ["Une seule entrée analogique (A0).", "Servo intégré au cœur."]
+
+- id: avr
+  label: Arduino AVR (Uno R3, Nano, Mega, Leonardo, Micro, Pro Mini)
+  core: arduino:avr
+  platformio: atmelavr
+  gpp_define: -DARDUINO_ARCH_AVR
+
+- id: megaavr
+  label: Arduino megaAVR (Nano Every, Uno WiFi Rev2)
+  core: arduino:megaavr
+  platformio: atmelmegaavr
+  gpp_define: -DARDUINO_ARCH_MEGAAVR
+
+- id: renesas
+  label: Arduino Renesas RA4M1 (Uno R4 Minima, Uno R4 WiFi)
+  core: arduino:renesas_uno
+  platformio: renesas-ra
+  gpp_define: -DARDUINO_ARCH_RENESAS
+
+- id: samd
+  label: Arduino SAMD21 (Nano 33 IoT, MKR WiFi 1010)
+  core: arduino:samd
+  platformio: atmelsam
+  gpp_define: -DARDUINO_ARCH_SAMD
+
+- id: mbed
+  label: Arduino Mbed nRF52840 (Nano 33 BLE)
+  core: arduino:mbed_nano
+  platformio: nordicnrf52
+  gpp_define: -DARDUINO_ARCH_MBED
+
+- id: sam
+  label: Arduino SAM3X8E (Due)
+  core: arduino:sam
+  platformio: atmelsam
+  gpp_define: -DARDUINO_ARCH_SAM
+
+- id: rp2040
+  label: Raspberry Pi RP2040 / RP2350 (cœur arduino-pico)
+  core: rp2040:rp2040
+  index_url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+  platformio: https://github.com/maxgerhardt/platform-raspberrypi.git
+  gpp_define: -DARDUINO_ARCH_RP2040
+  wifi_supported: true
+  notes: ["Servo intégré au cœur.", "Wi-Fi sur Pico W et Pico 2 W."]
+
+- id: stm32
+  label: STMicroelectronics STM32 (cœur STM32duino)
+  core: STMicroelectronics:stm32
+  index_url: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json
+  platformio: ststm32
+  gpp_define: -DARDUINO_ARCH_STM32
+  notes: ["Les broches s'écrivent PA5, PB7… dans le code."]
+
+- id: teensy
+  label: PJRC Teensy 4.x (i.MX RT1062)
+  core: teensy:avr
+  index_url: https://www.pjrc.com/teensy/package_teensy_index.json
+  platformio: teensy
+  gpp_define: -DTEENSYDUINO
+  notes: ["600 MHz ; broches non tolérantes au 5 V."]

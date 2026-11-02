@@ -1,0 +1,61 @@
+# Contenu du rapport E2 (C6 à C8) injecté dans referentiel/modeles/E2_template.docx.
+titre: "MicroForge — choix et intégration d'un service d'IA local"
+annexe_titre: "Annexe 1 : grille de fiabilité des sources et extrait du journal de veille"
+
+sections:
+  Introduction:
+    - "MicroForge a besoin d'IA pour trois tâches : reconnaître les composants sur une photo (vision), proposer et décrire des projets (texte), et produire la logique des programmes Arduino (code). Ce dossier présente la veille menée pour suivre ces technologies et la réglementation, le benchmark des services possibles et le paramétrage du service retenu : des modèles exécutés en local avec Ollama, derrière une passerelle LiteLLM, avec un repli vers Gemini (offre gratuite) puis Claude."
+
+  # ------------------------------------------------------------------ C6
+  Définir la ou les thématiques de veille:
+    - "| Thème | Contenu | Lien avec le projet |\n|---|---|---|\n| T1 technique | détection d'objets légère (YOLO, RF-DETR), VLM open source (Qwen-VL, Gemma), outillage LLM local (Ollama, LiteLLM), écosystème ESP32/Arduino | choix et mises à jour des modèles et cartes |\n| T2 réglementaire et sécurité | AI Act (transparence art. 50), RGPD et recommandations CNIL sur l'IA, accessibilité (RGAA 4.1, EAA), éco-conception (RGESN), sécurité de la chaîne logicielle | conformité de l'application |"
+  Planifier les temps dédiés à la veille:
+    - "Créneau fixe le lundi de 9 h à 10 h, plus 15 minutes de tri le vendredi. Chaque séance est consignée dans un journal (date, durée, sources lues, décisions) : veille/journal.md."
+  Choisir un outil d'agrégation des flux d’informations et d’actualités:
+    - "FreshRSS auto-hébergé (Docker, profil « veille ») : gratuit, filtres et étiquettes, export OPML, API utilisée par un flow d'automatisation qui prépare un brouillon de synthèse avec le LLM local ; la relecture humaine reste obligatoire."
+  Choisir un outil de partage ou communication des synthèses des informations collectées:
+    - "Synthèses publiées en pages HTML accessibles dans la documentation Sphinx du projet, et annoncées par message aux parties prenantes (promotion, formateur)."
+  Identifier les sources et les flux d’informations utiles à la veille thématique visée:
+    - "- officielles : EUR-Lex, CNIL, CERT-FR, numerique.gouv.fr (RGAA, RGESN), W3C WAI ;\n- techniques primaires : flux des versions GitHub (ollama, ultralytics, rf-detr, litellm, arduino-esp32), Hugging Face, arXiv cs.CV filtré ;\n- analyse : blog de Simon Willison, The Batch, Hackaday, LinuxFr ;\n- signaux faibles (jamais cités seuls) : Hacker News, r/LocalLLaMA.\nListe complète au format OPML : veille/sources.opml."
+  Qualifier la fiabilité des sources et des flux identifiés:
+    - "Grille sur 7 points (auteur identifié, compétence sans conflit d'intérêts, date récente, sources citées, contenu structuré, site accessible, recoupement possible) ; une source est retenue à partir de 5. Exemple de recoupement réel : la compromission de paquets LiteLLM sur PyPI (mars 2026) a conduit à épingler l'image Docker de la passerelle par empreinte."
+  Configurer les outils d’agrégation selon les flux et sources et la ou les thématiques de veille:
+    - "Import de l'OPML dans FreshRSS, une catégorie par thème, filtres par mots-clés (ex. « ESP32 », « AI Act », « RGAA »), étiquette « à synthétiser »."
+    - "[À COMPLÉTER : capture de FreshRSS configuré]"
+  Rédiger des synthèses des informations collectées:
+    - "Une synthèse hebdomadaire courte (faits, source, impact sur MicroForge, décision). Première synthèse : veille/syntheses/2026-S45.md."
+    - "[À COMPLÉTER : au moins 8 synthèses avant l'épreuve]"
+  Communiquer les synthèses aux parties prenantes du projet:
+    - "Format accessible : titres hiérarchisés, liens explicites, langage clair, contraste suffisant, aucune information portée par la seule couleur."
+
+  # ------------------------------------------------------------------ C7
+  Définir la problématique technique et fonctionnelle d’intelligence artificielle à adresser:
+    - "| Fonction | Besoin |\n|---|---|\n| F1 détection | localiser et classer plusieurs composants sur une photo de stock |\n| F2 identification fine | lire les marquages, distinguer DHT11 et DHT22, modèles de cartes |\n| F3 génération de code | logique Arduino à partir d'une spécification structurée |\n| F4 raisonnement électronique | explications, guides, idées de projets (le câblage reste calculé par un algorithme déterministe) |\n| F5 embeddings | recherche dans les datasheets et les cours |"
+  Identifier les contraintes de moyens, techniques et opérationnelles liées au contexte du projet:
+    - "Budget proche de 0 € ; photos personnelles (RGPD) donc local en priorité ; trois machines (Mac mini M4 16 Go, PC 8 Go de VRAM, PC école 6–8 Go) ; analyse d'une photo en moins de 5 s ; licences compatibles avec un dépôt public ; sobriété énergétique."
+  Benchmarker les outils et services d’intelligence artificielle accessibles et répondant au problème visé:
+    - "| Service | Fonctions | Coût | Confidentialité | Remarques |\n|---|---|---|---|---|\n| YOLO11/26 (local) | F1 | 0 € | données locales | très sobre en inférence, licence AGPL |\n| RF-DETR (local) | F1 | 0 € | locales | Apache 2.0, plus lourd à entraîner |\n| Qwen-VL / Gemma via Ollama | F2, F3, F4 | 0 € | locales | taille du modèle selon la VRAM |\n| Gemini (offre gratuite) | F2–F5 | 0 € avec quotas | données envoyées à Google | quotas variables |\n| Claude | F2–F4 | payant à l'usage | données envoyées à Anthropic | qualité élevée, repli final |\n| Services cloud de vision sur mesure (Azure, Vertex, Rekognition) | F1 | payant | cloud | écartés : coût et confidentialité |"
+    - "Protocole de mesure commun (50 photos de test : précision, latence p50/p95, énergie avec CodeCarbon, coût pour 1 000 requêtes) : benchmark/protocole.md."
+    - "[À COMPLÉTER : résultats mesurés sur tes trois machines]"
+  Rédiger des conclusions préconisant un ou plusieurs services d’intelligence artificielle:
+    - "Préconisation : détecteur YOLO entraîné sur nos photos pour F1, VLM local via Ollama pour F2–F4, embeddings locaux pour F5 ; Gemini puis Claude en secours seulement si le modèle local échoue ou refuse. Ce choix tient le budget, garde les photos sur la machine et reste utilisable hors ligne."
+
+  # ------------------------------------------------------------------ C8
+  Créer l’environnement d'exécution du service:
+    - "| Machine | Ollama | Passerelle |\n|---|---|---|\n| Mac mini M4 | application native (accélération Metal) | conteneur litellm |\n| PC bureau (8 Go de VRAM) | conteneur ollama avec NVIDIA Container Toolkit, ou natif | conteneur litellm |\n| PC école | natif, modèles 4B | facultative |"
+    - "Le profil matériel est détecté automatiquement (packages/llm_gateway/profiles.yaml) et choisit la taille des modèles ; il peut être forcé avec MF_PROFILE."
+  Installer et configurer les éventuelles dépendances:
+    - "```bash\nollama pull qwen3:8b          # selon le profil (ollama list pour vérifier)\ndocker compose -f microforge/infra/compose.yml --profile ai up -d\n```"
+    - "Configuration de la passerelle : infra/litellm/config.yaml (liste des modèles, ordre de repli, délais). Image épinglée par empreinte."
+  Créer les accès à l’environnement d’exécution et de configuration du service:
+    - "Clés virtuelles par service (api_ia, révisions, développement) avec budgets ; le port d'Ollama n'est pas exposé hors du réseau Docker ; les clés Gemini et Claude restent dans le fichier .env."
+  Installer et configurer les outils de monitorage disponibles avec le service intégré:
+    - "Métriques mf_llm_calls (appels, échecs, replis par fournisseur) exposées à Prometheus et affichées dans Grafana ; alerte si plus de 10 replis en 15 minutes (Ollama probablement arrêté) ; sonde Uptime Kuma sur /health."
+  Rédiger la documentation technique:
+    - "docs/E2/service-ia.md : environnement, dépendances, accès, monitoring, test de bon fonctionnement (commande llm-gateway ping) et données manipulées (les prompts et photos ne sont pas conservés)."
+
+  Conclusion:
+    - "La veille structure le suivi des modèles et de la réglementation, le benchmark justifie un choix local et sobre, et le service est paramétré pour s'adapter aux trois machines tout en restant supervisé."
+  Annexes:
+    - "Annexe 1 : grille de fiabilité appliquée à cinq sources et extrait du journal de veille."
+    - "[À COMPLÉTER : extrait de veille/journal.md]"

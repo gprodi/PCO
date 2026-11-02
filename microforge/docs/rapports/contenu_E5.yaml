@@ -1,0 +1,46 @@
+# Contenu du rapport E5 (C20, C21) injecté dans referentiel/modeles/E5_template.docx.
+# Les incidents de C21 sont RÉELS (survenus le 02/11/2026 pendant le développement).
+titre: "MicroForge — maintien en condition opérationnelle"
+annexe_titre: "Annexe 1 : journaux d'erreur et correctifs (extraits)"
+
+sections:
+  Introduction:
+    - "Ce dossier présente la surveillance de MicroForge en fonctionnement (métriques, seuils, journaux, alertes) et la résolution d'incidents techniques réels rencontrés pendant le développement, documentés de l'analyse du message d'erreur jusqu'au correctif versionné."
+
+  # ------------------------------------------------------------------ C20
+  Définir les métriques pour le monitorage de l’application:
+    - "| Métrique | Pourquoi |\n|---|---|\n| disponibilité de /health | le service est-il rendu ? |\n| latence p95 des API | expérience utilisateur |\n| taux d'erreurs 5xx | bug ou dépendance en panne |\n| replis LLM (mf_llm_calls) | Ollama indisponible |\n| échecs de connexion | attaque par force brute |\n| taux de corrections du modèle | qualité de la vision |"
+  Définir les seuils ou valeurs d'alerte:
+    - "| Métrique | Seuil |\n|---|---|\n| disponibilité | panne > 1 min |\n| latence p95 | > 2 s pendant 5 min (avertissement), > 5 s (critique) |\n| erreurs 5xx | > 2 % pendant 5 min |\n| replis LLM | > 10 en 15 min |\n| échecs de connexion | > 20 par minute |\n| corrections du modèle | > 25 % sur 7 jours |"
+  Choisir une solution ou un outil de consolidation et de suivi des indicateurs:
+    - "Prometheus (métriques), Grafana (tableaux et alertes), Loki + Grafana Alloy (journaux ; Promtail est en fin de vie), Uptime Kuma (disponibilité)."
+  Configurer l’outil ou la solution de monitorage:
+    - "Profil docker compose « monitoring » ; tableaux et règles provisionnés depuis monitoring/ (versionnés)."
+    - "[À COMPLÉTER : captures des tableaux Grafana]"
+  Intégrer la journalisation nécessaire dans l’application:
+    - "loguru en JSON avec identifiant de requête, sans donnée personnelle (identifiant utilisateur haché), rotation et conservation de 6 mois."
+  Intégrer des alertes en fonction des indicateurs:
+    - "Règles Prometheus (monitoring/prometheus/alerts.yml) envoyées vers Discord et par e-mail ; Uptime Kuma prévient en cas de panne."
+  Documenter le monitorage et les procédures d’installation et de configuration:
+    - "docs/E5/monitoring.md."
+
+  # ------------------------------------------------------------------ C21
+  Analyser un message d’erreur:
+    - "Incident 1 : la CI est rouge depuis le premier commit. Le journal du job de tests indique « ModuleNotFoundError: No module named 'rapidfuzz' » à la collecte de tests/test_pipeline.py. Le journal du job de compilation indique « /home/runner/.local/bin ($BINDIR) folder not found ». Les tests passaient sur le poste de développement : l'écart vient donc de l'environnement."
+    - "Incident 2 : la page « Explorer par thème » affiche « AttributeError: 'MicroForgeClient' object has no attribute 'explore' » ; après correction, l'onglet Schéma affiche « PIL.UnidentifiedImageError »."
+    - "Incident 3 : la compilation réelle annonce 19 échecs sur 43 projets avec « Can't open sketch: main file missing from sketch: …/wokwi/wokwi.ino »."
+    - "Incident 4 : une fois la compilation réelle en place, 41 projets sur 43 compilent pour Arduino Uno ; la serrure RFID et l'enregistreur SD échouent avec « pins_arduino.h:39:24: error: expected unqualified-id before numeric constant #define PIN_SPI_MOSI (11) ». Le message pointe la ligne « const uint8_t PIN_SPI_MOSI = 11; » du fichier généré : le nom de constante choisi par le générateur est déjà une macro du cœur Arduino AVR."
+  Rechercher une solution à l’aide de ressources externes:
+    - "- Incident 1 : documentation uv (les « extras » ne sont pas installés par uv sync sans --extra) et script d'installation d'arduino-cli (le dossier BINDIR doit exister).\n- Incident 2 : documentation Streamlit (st.image accepte un SVG sous forme de texte ; en octets il est confié à Pillow, qui ne lit pas le SVG).\n- Incident 3 : spécification des sketches Arduino (le fichier .ino principal doit porter le nom de son dossier).\n- Incident 4 : sources du cœur Arduino AVR (variants/standard/pins_arduino.h) qui définissent PIN_SPI_SS/MOSI/MISO/SCK et PIN_WIRE_SDA/SCL."
+  Tester et valider la solution:
+    - "Incident 1 reproduit dans un environnement virtuel propre avec exactement la commande de la CI : même erreur, puis tous les tests passent avec les extras data, app et anthropic (couverture 91 %). Incident 2 vérifié par un parcours Playwright qui ouvre chaque onglet et échoue si une exception s'affiche. Incident 3 : test de non-régression sur le choix du dossier de sketch. Incident 4 : les macros du cœur AVR ont été ajoutées aux en-têtes simulés ; le test local échoue avec l'ancien nom et passe avec le correctif (préfixe BUS_), puis la CI recompile les 43 projets."
+  Versionner la solution depuis le dépôt Git:
+    - "Un commit par incident, avec le diagnostic dans le message : « CI : installer les extras testés et créer ~/.local/bin pour arduino-cli », « CLI compile-demo : choisir le vrai dossier du sketch (pas wokwi/) », et les corrections du client Streamlit avec un test de contrat entre l'application et les API."
+  Documenter l’erreur et la solution implémentée:
+    - "| Incident | Cause | Correctif | Prévention |\n|---|---|---|---|\n| CI rouge | extras non installés ; dossier d'installation absent | extras ajoutés ; mkdir -p | reproduction de la CI en environnement propre avant de pousser |\n| page Explorer en erreur | méthodes absentes du client ; SVG passé en octets | méthodes ajoutées ; SVG passé en texte | test de contrat client ↔ API ; parcours Playwright sur tous les onglets |\n| faux échecs de compilation | mauvais dossier de sketch choisi | fonction sketch_dir | test de non-régression |\n| projets SPI non compilables | nom de constante identique à une macro du cœur AVR | préfixe BUS_ pour les bus partagés | macros du cœur reproduites dans les en-têtes simulés |"
+    - "Chaque incident a aussi une issue GitHub (modèle « Incident ») : [À COMPLÉTER : liens vers les issues]."
+
+  Conclusion:
+    - "La supervision couvre la disponibilité, les performances, la sécurité et la qualité du modèle. Les incidents réels montrent l'intérêt de tests qui reproduisent fidèlement l'environnement de production."
+  Annexes:
+    - "[À COMPLÉTER : extraits des journaux d'erreur et des diffs des correctifs]"

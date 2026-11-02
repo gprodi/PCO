@@ -1,0 +1,104 @@
+# C18 — Intégration continue : lint + tests + couverture à chaque push / PR.
+# Les actions tierces sont épinglées par SHA de commit (veille sécurité : compromissions
+# d'actions/paquets en 2026). Mettre à jour via Dependabot.
+name: ci
+
+on:
+  push:
+    branches: [main, "claude/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }} — ruff + pytest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Installer les dépendances
+        # Extras légers nécessaires aux tests (data : rapidfuzz, polars… ; app : streamlit ; anthropic : SDK Claude).
+        run: uv sync --all-packages --group dev --extra data --extra app --extra anthropic
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Tests + couverture (porte 80 %)
+        run: uv run pytest --cov --cov-report=xml --cov-report=term -m "not integration and not network"
+      - name: Rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ matrix.python }}
+          path: coverage.xml
+
+  firmware:
+    # Compilation RÉELLE de tous les modèles de projets, sur les 3 familles de cartes.
+    name: Compilation des firmwares générés (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Arduino Uno (AVR)
+            fqbn: arduino:avr:uno
+            core: arduino:avr
+            index: ""
+          - name: ESP32 DevKit
+            fqbn: esp32:esp32:esp32
+            core: esp32:esp32
+            index: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          - name: Raspberry Pi Pico W (RP2040)
+            fqbn: rp2040:rp2040:rpipicow
+            core: rp2040:rp2040
+            index: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - name: Installer arduino-cli, le cœur et les bibliothèques du catalogue
+        env:
+          INDEX: ${{ matrix.index }}
+          CORE: ${{ matrix.core }}
+          FQBN: ${{ matrix.fqbn }}
+        run: |
+          mkdir -p "$HOME/.local/bin"  # install.sh exige que le dossier existe
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/bin:$PATH"
+          arduino-cli config init --overwrite
+          if [ -n "$INDEX" ]; then arduino-cli config add board_manager.additional_urls "$INDEX"; fi
+          arduino-cli core update-index
+          arduino-cli core install "$CORE"
+          uv run python -m microforge.core.cli libs --fqbn "$FQBN" | tee libs.txt
+          xargs -d '\n' -a libs.txt arduino-cli lib install
+      - name: Générer et compiler TOUS les modèles compatibles
+        run: uv run python -m microforge.core.cli compile-demo --all --fqbn "${{ matrix.fqbn }}" --out build/firmware
+
+  secrets:
+    name: Détection de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

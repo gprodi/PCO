@@ -1,0 +1,12 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: discord-microforge
+    receivers:
+      - uid: discord1
+        type: discord
+        settings: { url: "${DISCORD_WEBHOOK_URL}", use_discord_username: false }
+policies:
+  - orgId: 1
+    receiver: discord-microforge
+    group_by: [alertname]

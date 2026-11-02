@@ -1,0 +1,26 @@
+{
+  "Products": [
+    {
+      "ManufacturerProductNumber": "AM2302",
+      "Manufacturer": {"Name": "Aosong (Guangzhou) Electronics Co., Ltd."},
+      "Description": {"ProductDescription": "SENSOR HUMIDITY/TEMP DHT22", "DetailedDescription": "Capteur température et humidité <b>numérique</b>"},
+      "UnitPrice": 9.87,
+      "QuantityAvailable": 1250,
+      "ProductUrl": "https://www.digikey.fr/fr/products/detail/aosong/AM2302/1",
+      "DatasheetUrl": "https://example.org/am2302.pdf",
+      "Category": {"Name": "Sensors, Transducers"},
+      "Parameters": [{"ParameterText": "Voltage - Supply", "ValueText": "3.3V ~ 5.5V"}, {"ParameterText": "Output Type", "ValueText": "Digital, Single Bus"}],
+      "ProductVariations": [{"DigiKeyProductNumber": "1528-1860-ND", "StandardPricing": [{"BreakQuantity": 1, "UnitPrice": 9.87}]}]
+    },
+    {
+      "ManufacturerProductNumber": "SSD1306-OLED-096",
+      "Manufacturer": {"Name": "Adafruit Industries LLC"},
+      "Description": {"ProductDescription": "OLED 0.96in 128x64 I2C", "DetailedDescription": "Graphic OLED display I²C"},
+      "UnitPrice": 17.5,
+      "QuantityAvailable": 80,
+      "Category": {"Name": "Display Modules"},
+      "Parameters": [{"ParameterText": "Voltage - Supply", "ValueText": "3V3 - 5V"}, {"ParameterText": "Interface", "ValueText": "I2C"}],
+      "ProductVariations": [{"DigiKeyProductNumber": "1528-326-ND", "StandardPricing": []}]
+    }
+  ]
+}

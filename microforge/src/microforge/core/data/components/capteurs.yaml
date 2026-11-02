@@ -1,0 +1,502 @@
+# Capteurs. Placeholders du code : ${name} = nom d'instance, ${BROCHE} = constante de broche générée.
+# MF_ADC_MAX est défini dans mf_components.h selon la carte (1023 AVR/RP2040, 4095 ESP32).
+
+- id: dht22
+  name: Capteur température/humidité DHT22 (module 3 broches)
+  category: capteur
+  description: Température -40…80 °C (±0,5 °C) et humidité 0–100 % (±2 %), 1 mesure toutes les 2 s.
+  aliases: [am2302, dht-22, dht 22, capteur humidite]
+  supply_v: [3.3, 5.5]
+  current_ma: 1.5
+  pins:
+    - { name: VCC, role: power }
+    - { name: DATA, role: gpio_io, description: "bus 1 fil propriétaire (pull-up 10 kΩ intégré au module)" }
+    - { name: GND, role: ground }
+  code:
+    default:
+      libraries: ["DHT sensor library", "Adafruit Unified Sensor"]
+      includes: ["#include <DHT.h>"]
+      globals: "DHT ${name}_dev(${DATA}, DHT22);"
+      setup: "${name}_dev.begin();"
+      api: |
+        // Renvoie NAN si la lecture échoue (vérifier avec isnan()).
+        float ${name}_temperature() { return ${name}_dev.readTemperature(); }
+        float ${name}_humidity() { return ${name}_dev.readHumidity(); }
+  wokwi: { type: wokwi-dht22, pins: { VCC: VCC, DATA: SDA, GND: GND } }
+  kicad: { symbol: "Sensor:DHT11", footprint: "Sensor:Aosong_DHT11_5.5x12.0_P2.54mm" }
+  price_eur: 4.5
+  notes: ["Respecter 2 s minimum entre deux lectures.", "Le capteur nu (4 broches) nécessite une pull-up 10 kΩ sur DATA."]
+
+- id: dht11
+  name: Capteur température/humidité DHT11 (module)
+  category: capteur
+  description: Version économique du DHT22 (0–50 °C ±2 °C, 20–90 % ±5 %).
+  aliases: [dht-11, dht 11]
+  supply_v: [3.3, 5.5]
+  current_ma: 1.0
+  pins:
+    - { name: VCC, role: power }
+    - { name: DATA, role: gpio_io }
+    - { name: GND, role: ground }
+  code:
+    default:
+      libraries: ["DHT sensor library", "Adafruit Unified Sensor"]
+      includes: ["#include <DHT.h>"]
+      globals: "DHT ${name}_dev(${DATA}, DHT11);"
+      setup: "${name}_dev.begin();"
+      api: |
+        float ${name}_temperature() { return ${name}_dev.readTemperature(); }
+        float ${name}_humidity() { return ${name}_dev.readHumidity(); }
+  wokwi: { type: wokwi-dht22, pins: { VCC: VCC, DATA: SDA, GND: GND } }
+  kicad: { symbol: "Sensor:DHT11", footprint: "Sensor:Aosong_DHT11_5.5x12.0_P2.54mm" }
+  price_eur: 2.0
+
+- id: ds18b20
+  name: Sonde de température étanche DS18B20 (1-Wire)
+  category: capteur
+  description: Sonde inox -55…125 °C, précision ±0,5 °C, bus 1-Wire (plusieurs sondes sur un fil).
+  aliases: [ds18b20 probe, sonde temperature, onewire]
+  supply_v: [3.0, 5.5]
+  current_ma: 1.5
+  is_module: false
+  pins:
+    - { name: VCC, role: power, description: "fil rouge" }
+    - { name: DQ, role: gpio_io, pullup_ohm: 4700, description: "fil jaune — pull-up 4,7 kΩ vers VCC obligatoire" }
+    - { name: GND, role: ground, description: "fil noir" }
+  code:
+    default:
+      libraries: ["OneWire", "DallasTemperature"]
+      includes: ["#include <OneWire.h>", "#include <DallasTemperature.h>"]
+      globals: |
+        OneWire ${name}_bus(${DQ});
+        DallasTemperature ${name}_dev(&${name}_bus);
+      setup: "${name}_dev.begin();"
+      api: |
+        float ${name}_temperature() { ${name}_dev.requestTemperatures(); return ${name}_dev.getTempCByIndex(0); }
+  wokwi: { type: board-ds18b20, pins: { VCC: VCC, DQ: DQ, GND: GND } }
+  kicad: { symbol: "Sensor_Temperature:DS18B20", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 3.0
+
+- id: bme280
+  name: Capteur BME280 (température, humidité, pression) I2C
+  category: capteur
+  description: Station météo miniature, très précis ; module GY-BME280 alimenté en 3,3 V.
+  aliases: [gy-bme280, bme 280, capteur pression]
+  supply_v: [1.8, 3.6]
+  preferred_supply_v: 3.3
+  current_ma: 0.7
+  i2c_addresses: [0x76, 0x77]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+  code:
+    default:
+      libraries: ["Adafruit BME280 Library", "Adafruit Unified Sensor"]
+      includes: ["#include <Wire.h>", "#include <Adafruit_BME280.h>"]
+      globals: "Adafruit_BME280 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin(0x76) && !${name}_dev.begin(0x77)) { Serial.println(F("BME280 introuvable")); }
+      api: |
+        float ${name}_temperature() { return ${name}_dev.readTemperature(); }
+        float ${name}_humidity() { return ${name}_dev.readHumidity(); }
+        float ${name}_pressure_hpa() { return ${name}_dev.readPressure() / 100.0F; }
+        float ${name}_altitude_m() { return ${name}_dev.readAltitude(1013.25F); }
+  wokwi: null
+  kicad: { symbol: "Sensor:BME280", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 6.0
+  notes: ["Le module GY-BME280 « 3.3V » n'a pas de régulateur : ne JAMAIS l'alimenter en 5 V."]
+
+- id: hc-sr04
+  name: Capteur de distance à ultrasons HC-SR04
+  category: capteur
+  description: Mesure 2–400 cm par temps de vol d'un écho ultrason.
+  aliases: [hcsr04, ultrason, capteur distance, ultrasonic]
+  supply_v: [4.5, 5.5]
+  current_ma: 15
+  pins:
+    - { name: VCC, role: power }
+    - { name: TRIG, role: gpio_out }
+    - { name: ECHO, role: gpio_in, output_v: 5.0, description: "impulsion 5 V !" }
+    - { name: GND, role: ground }
+  code:
+    default:
+      includes: []
+      setup: |
+        pinMode(${TRIG}, OUTPUT);
+        pinMode(${ECHO}, INPUT);
+      api: |
+        // Distance en cm, -1 si aucun écho (obstacle trop loin).
+        float ${name}_distance_cm() {
+          digitalWrite(${TRIG}, LOW); delayMicroseconds(2);
+          digitalWrite(${TRIG}, HIGH); delayMicroseconds(10);
+          digitalWrite(${TRIG}, LOW);
+          unsigned long duree = pulseIn(${ECHO}, HIGH, 30000UL);
+          return duree == 0 ? -1.0f : duree * 0.0343f / 2.0f;
+        }
+  wokwi: { type: wokwi-hc-sr04, pins: { VCC: VCC, TRIG: TRIG, ECHO: ECHO, GND: GND } }
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 2.5
+  notes: ["Sur une carte 3,3 V, ECHO doit passer par un pont diviseur (1 kΩ / 2 kΩ)."]
+
+- id: pir-hc-sr501
+  name: Détecteur de mouvement infrarouge PIR HC-SR501
+  category: capteur
+  description: Détecte une présence humaine jusqu'à ~7 m ; sortie 3,3 V réglable (sensibilité, temporisation).
+  aliases: [pir, hc-sr501, detecteur mouvement, motion sensor]
+  supply_v: [4.5, 20]
+  current_ma: 0.1
+  pins:
+    - { name: VCC, role: power }
+    - { name: OUT, role: gpio_in, output_v: 3.3 }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${OUT}, INPUT);"
+      api: |
+        bool ${name}_motion() { return digitalRead(${OUT}) == HIGH; }
+  wokwi: { type: wokwi-pir-motion-sensor, pins: { VCC: VCC, OUT: OUT, GND: GND } }
+  kicad: { symbol: "Connector:Conn_01x03_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 2.0
+  notes: ["Laisser 30 à 60 s de préchauffage après la mise sous tension."]
+
+- id: ldr-module
+  name: Module photorésistance (capteur de lumière)
+  category: capteur
+  description: Photorésistance + comparateur ; sortie analogique (AO) et numérique (DO).
+  aliases: [ldr, photoresistance, capteur lumiere, light sensor]
+  supply_v: [3.3, 5.0]
+  current_ma: 1
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DO, role: nc }
+    - { name: AO, role: adc }
+  code:
+    default:
+      api: |
+        // 0 % = obscurité, 100 % = pleine lumière (AO baisse quand la lumière augmente).
+        int ${name}_light_percent() { return 100 - map(analogRead(${AO}), 0, MF_ADC_MAX, 0, 100); }
+  wokwi: { type: wokwi-photoresistor-sensor, pins: { VCC: VCC, GND: GND, DO: DO, AO: AO } }
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 1.5
+
+- id: soil-moisture-capacitive
+  name: Capteur d'humidité du sol capacitif v1.2
+  category: capteur
+  description: Mesure l'humidité de la terre sans électrode corrodable ; sortie analogique.
+  aliases: [soil moisture, humidite sol, capteur sol]
+  supply_v: [3.3, 5.5]
+  current_ma: 5
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: AOUT, role: adc }
+  code:
+    default:
+      globals: |
+        // Calibrer : valeur brute capteur à l'air (sec) et dans un verre d'eau (humide).
+        int ${name}_sec = MF_ADC_MAX * 3 / 4;
+        int ${name}_humide = MF_ADC_MAX / 3;
+      api: |
+        int ${name}_raw() { return analogRead(${AOUT}); }
+        int ${name}_percent() {
+          return constrain(map(analogRead(${AOUT}), ${name}_sec, ${name}_humide, 0, 100), 0, 100);
+        }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x03_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 2.5
+  notes: ["Dans Wokwi, simuler le capteur avec un potentiomètre."]
+
+- id: mq2-gas
+  name: Capteur de gaz MQ-2 (GPL, fumée, méthane)
+  category: capteur
+  description: Capteur à élément chauffant ; sortie analogique proportionnelle à la concentration.
+  aliases: [mq2, mq-2, capteur gaz, fumee]
+  supply_v: [4.8, 5.2]
+  current_ma: 150
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DO, role: nc }
+    - { name: AO, role: adc, output_v: 5.0 }
+  code:
+    default:
+      api: |
+        int ${name}_level_percent() { return map(analogRead(${AO}), 0, MF_ADC_MAX, 0, 100); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 2.5
+  notes: ["Préchauffage de 24 h conseillé avant la première calibration.", "Consomme 150 mA (chauffage)."]
+
+- id: mpu6050
+  name: Accéléromètre + gyroscope MPU-6050 (module GY-521)
+  category: capteur
+  description: Centrale inertielle 6 axes ; inclinaison, chocs, mouvements.
+  aliases: [gy-521, mpu-6050, accelerometre, gyroscope, imu]
+  supply_v: [3.3, 5.0]
+  current_ma: 4
+  i2c_addresses: [0x68, 0x69]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+  code:
+    default:
+      libraries: ["Adafruit MPU6050", "Adafruit Unified Sensor"]
+      includes: ["#include <Wire.h>", "#include <Adafruit_MPU6050.h>"]
+      globals: "Adafruit_MPU6050 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin(0x68) && !${name}_dev.begin(0x69)) { Serial.println(F("MPU6050 introuvable")); }
+      api: |
+        // Inclinaison (degrés) autour des axes X et Y, calculée à partir de l'accélération.
+        float ${name}_tilt_x() {
+          sensors_event_t a, g, t; ${name}_dev.getEvent(&a, &g, &t);
+          return atan2(a.acceleration.y, a.acceleration.z) * 180.0 / PI;
+        }
+        float ${name}_tilt_y() {
+          sensors_event_t a, g, t; ${name}_dev.getEvent(&a, &g, &t);
+          return atan2(-a.acceleration.x, a.acceleration.z) * 180.0 / PI;
+        }
+  wokwi: { type: wokwi-mpu6050, pins: { VCC: VCC, GND: GND, SCL: SCL, SDA: SDA } }
+  kicad: { symbol: "Sensor_Motion:MPU-6050", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" }
+  price_eur: 3.5
+
+- id: ds3231-rtc
+  name: Horloge temps réel DS3231 (module + pile CR2032)
+  category: capteur
+  description: Horloge très précise (±2 ppm) qui garde l'heure hors tension.
+  aliases: [ds3231, rtc, horloge, real time clock]
+  supply_v: [2.3, 5.5]
+  current_ma: 0.2
+  i2c_addresses: [0x68]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SDA, role: i2c_sda }
+    - { name: SCL, role: i2c_scl }
+  code:
+    default:
+      libraries: ["RTClib"]
+      includes: ["#include <Wire.h>", "#include <RTClib.h>"]
+      globals: "RTC_DS3231 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin()) { Serial.println(F("DS3231 introuvable")); }
+        if (${name}_dev.lostPower()) { ${name}_dev.adjust(DateTime(F(__DATE__), F(__TIME__))); }
+      api: |
+        String ${name}_time() { char b[] = "hh:mm:ss"; return String(${name}_dev.now().toString(b)); }
+        String ${name}_date() { char b[] = "DD/MM/YYYY"; return String(${name}_dev.now().toString(b)); }
+  wokwi: null
+  kicad: { symbol: "Timer_RTC:DS3231M", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
+  price_eur: 3.0
+  notes: ["Adresse 0x68 identique au MPU-6050 : relier AD0 du MPU au 3,3 V (adresse 0x69) si les deux sont présents."]
+
+- id: hx711-load-cell
+  name: Amplificateur HX711 + capteur de force (cellule de charge 5 kg)
+  category: capteur
+  description: Pesée de précision avec une cellule de charge et le convertisseur 24 bits HX711.
+  aliases: [hx711, balance, load cell, cellule de charge]
+  supply_v: [2.7, 5.5]
+  current_ma: 1.5
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DT, role: gpio_in }
+    - { name: SCK, role: gpio_out }
+  code:
+    default:
+      libraries: ["HX711 Arduino Library"]
+      includes: ["#include <HX711.h>"]
+      globals: |
+        HX711 ${name}_dev;
+        float ${name}_calibration = 420.0f;  // à ajuster avec une masse connue
+      setup: |
+        ${name}_dev.begin(${DT}, ${SCK});
+        ${name}_dev.set_scale(${name}_calibration);
+        ${name}_dev.tare();
+      api: |
+        float ${name}_grams() { return ${name}_dev.is_ready() ? ${name}_dev.get_units(5) : NAN; }
+        void ${name}_tare() { ${name}_dev.tare(); }
+  wokwi: { type: wokwi-hx711, pins: { VCC: VCC, GND: GND, DT: DT, SCK: SCK } }
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 4.0
+
+- id: reed-switch
+  name: Contact magnétique de porte (interrupteur à lame souple)
+  category: capteur
+  description: Détecte l'ouverture d'une porte ou d'une fenêtre grâce à un aimant.
+  aliases: [reed, ils, contact de porte, capteur ouverture, mc-38]
+  supply_v: [0, 50]
+  current_ma: 0
+  is_module: false
+  pins:
+    - { name: "1", role: gpio_in, needs_internal_pullup: true }
+    - { name: "2", role: ground }
+  code:
+    default:
+      setup: "pinMode(${P1}, INPUT_PULLUP);"
+      api: |
+        // Vrai quand l'aimant est éloigné (porte ouverte).
+        bool ${name}_open() { return digitalRead(${P1}) == HIGH; }
+  wokwi: { type: wokwi-pushbutton, pins: { "1": "1.l", "2": "2.l" } }
+  kicad: { symbol: "Switch:SW_Reed", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["Dans Wokwi, simuler le contact avec un bouton poussoir."]
+
+- id: ttp223-touch
+  name: Bouton tactile capacitif TTP223
+  category: entree
+  description: Une touche sensitive (même à travers une fine plaque de bois ou de plastique).
+  aliases: [ttp223, tactile, touch sensor, capteur tactile]
+  supply_v: [2.0, 5.5]
+  current_ma: 0.01
+  pins:
+    - { name: VCC, role: power }
+    - { name: SIG, role: gpio_in }
+    - { name: GND, role: ground }
+  code:
+    default:
+      globals: "bool ${name}_last = LOW;"
+      setup: "pinMode(${SIG}, INPUT);"
+      api: |
+        bool ${name}_touched() { return digitalRead(${SIG}) == HIGH; }
+        // Vrai une seule fois à chaque nouveau contact.
+        bool ${name}_tapped() {
+          bool now = digitalRead(${SIG});
+          bool tap = (now == HIGH && ${name}_last == LOW);
+          ${name}_last = now;
+          return tap;
+        }
+  wokwi: { type: wokwi-pushbutton, pins: { SIG: "1.l", GND: "2.l" } }
+  kicad: { symbol: "Connector:Conn_01x03_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 0.8
+
+- id: ky038-sound
+  name: Capteur de son (micro KY-038)
+  category: capteur
+  description: Détecte un claquement de mains ou mesure le niveau sonore.
+  aliases: [ky-038, micro, microphone, capteur son, sound sensor]
+  supply_v: [3.3, 5.0]
+  current_ma: 4
+  pins:
+    - { name: AO, role: adc }
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+    - { name: DO, role: gpio_in }
+  code:
+    default:
+      globals: "const bool ${name}_DO_ACTIF_BAS = false;  // selon le fabricant : mettre true si la LED DO s'allume sans réaction"
+      setup: "pinMode(${DO}, INPUT);"
+      api: |
+        // Seuil réglé par le potentiomètre bleu du module.
+        bool ${name}_loud() { return digitalRead(${DO}) == (${name}_DO_ACTIF_BAS ? LOW : HIGH); }
+        int ${name}_level() {
+          int lo = MF_ADC_MAX, hi = 0;
+          for (int i = 0; i < 50; i++) { int v = analogRead(${AO}); lo = min(lo, v); hi = max(hi, v); }
+          // Le signal du KY-038 est faible (quelques dizaines de points) : 1/8 de la pleine échelle = 100 %.
+          return constrain(map(hi - lo, 0, MF_ADC_MAX / 8, 0, 100), 0, 100);
+        }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["Régler le potentiomètre pour que la LED « DO » s'allume juste au-dessus du bruit ambiant.", "C'est un détecteur de seuil, pas un reconnaisseur de clap : un bruit fort (porte, voix) peut aussi déclencher.", "La polarité de la sortie DO varie selon les fabricants : constante <nom>_DO_ACTIF_BAS en tête du code."]
+
+- id: water-level-sensor
+  name: Capteur de niveau d'eau / pluie (pistes)
+  category: capteur
+  description: Détecte la présence et la hauteur d'eau (inondation, réservoir, pluie).
+  aliases: [niveau eau, water sensor, capteur pluie, inondation]
+  supply_v: [3.3, 5.0]
+  current_ma: 20
+  pins:
+    - { name: S, role: adc }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      api: |
+        int ${name}_percent() { return constrain(map(analogRead(${S}), 0, MF_ADC_MAX * 2 / 3, 0, 100), 0, 100); }
+        bool ${name}_wet() { return ${name}_percent() > 10; }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x03_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.0
+  notes: ["Les pistes s'oxydent si elles restent alimentées : alimenter le capteur seulement pendant la mesure pour un usage durable."]
+
+- id: flame-sensor
+  name: Détecteur de flamme infrarouge
+  category: capteur
+  description: Repère une flamme (bougie, briquet) à quelques dizaines de centimètres.
+  aliases: [flamme, flame sensor, ky-026]
+  supply_v: [3.3, 5.0]
+  current_ma: 15
+  pins:
+    - { name: AO, role: adc }
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+    - { name: DO, role: gpio_in }
+  code:
+    default:
+      setup: "pinMode(${DO}, INPUT);"
+      api: |
+        bool ${name}_detected() { return digitalRead(${DO}) == LOW; }
+        int ${name}_intensity() { return 100 - map(analogRead(${AO}), 0, MF_ADC_MAX, 0, 100); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 1.5
+
+- id: ir-receiver
+  name: Récepteur infrarouge VS1838B (télécommande)
+  category: communication
+  description: Reçoit les codes de n'importe quelle télécommande TV.
+  aliases: [ir, infrarouge, vs1838b, telecommande, ir receiver]
+  supply_v: [2.7, 5.5]
+  current_ma: 1.5
+  pins:
+    - { name: OUT, role: gpio_in }
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+  code:
+    default:
+      libraries: ["IRremote"]
+      includes: ["#include <IRremote.hpp>"]
+      setup: "IrReceiver.begin(${OUT}, false);"
+      api: |
+        // Code de la touche pressée, 0 si rien de nouveau — affiché sur le moniteur série pour l'apprendre.
+        // Les trames de répétition (touche maintenue) et le bruit (protocole inconnu) sont ignorés.
+        uint16_t ${name}_command() {
+          if (!IrReceiver.decode()) { return 0; }
+          bool valide = IrReceiver.decodedIRData.protocol != UNKNOWN
+                        && !(IrReceiver.decodedIRData.flags & IRDATA_FLAGS_IS_REPEAT);
+          uint16_t cmd = IrReceiver.decodedIRData.command;
+          IrReceiver.resume();
+          return valide ? cmd + 1 : 0;  // +1 : la touche de code 0 reste détectable
+        }
+  wokwi: { type: wokwi-ir-receiver, pins: { OUT: DAT, GND: GND, VCC: VCC } }
+  kicad: { symbol: "Interface_Optical:TSOP382xx", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.0
+
+- id: tcrt5000-line
+  name: Capteur de ligne infrarouge TCRT5000
+  category: capteur
+  description: Distingue une ligne noire d'un sol clair (robot suiveur de ligne).
+  aliases: [tcrt5000, suiveur de ligne, line sensor, capteur ligne]
+  supply_v: [3.3, 5.0]
+  current_ma: 20
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DO, role: gpio_in }
+  code:
+    default:
+      setup: "pinMode(${DO}, INPUT);"
+      api: |
+        // Vrai au-dessus de la ligne noire (peu de réflexion infrarouge).
+        bool ${name}_on_line() { return digitalRead(${DO}) == HIGH; }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x03_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.0

@@ -1,0 +1,18 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, themesIdees } from '../../lib/data';
+const total = themesIdees.reduce((s, t) => s + t.idees.length, 0);
+---
+<StarlightPage frontmatter={{ title: 'Idées de projets par thème', description: 'Plantes, maison, extérieur, sécurité, robotique, jeux… des idées de montages ESP32/Arduino à réaliser avec MicroForge.' }}>
+  <p>{total} idées de montages ESP32 / Arduino / Raspberry Pi Pico, classées par thème. Celles marquées <span class="mf-badge">générable</span> sortent directement de MicroForge (câblage, code, guide de soudure, simulation) ; les autres sont conçues par l’IA à partir de la description.</p>
+  <div class="mf-grid">
+    {themesIdees.map((t) => (
+      <a class="mf-card" href={`${base}idees/${t.id}/`} style="text-decoration:none">
+        <span style="font-size:2rem" aria-hidden="true">{t.icone}</span><br />
+        <strong>{t.titre}</strong><br />
+        <small>{t.description}</small><br />
+        <span class="mf-badge">{t.idees.length} idées</span><span class="mf-badge">{t.idees.filter((i) => i.template).length} générables</span>
+      </a>
+    ))}
+  </div>
+</StarlightPage>

@@ -1,0 +1,275 @@
+# Entrées utilisateur, modules de communication/stockage, composants passifs et outillage.
+
+- id: pushbutton
+  name: Bouton poussoir 6×6 mm
+  category: entree
+  description: Contact momentané ; câblé avec la pull-up interne (INPUT_PULLUP), appui = LOW.
+  aliases: [bouton, poussoir, push button, button, tactile switch]
+  supply_v: [0, 50]
+  current_ma: 0
+  is_module: false
+  pins:
+    - { name: "1", role: gpio_in, needs_internal_pullup: true }
+    - { name: "2", role: ground }
+  code:
+    default:
+      globals: "bool ${name}_last = HIGH;"
+      setup: "pinMode(${P1}, INPUT_PULLUP);"
+      api: |
+        bool ${name}_pressed() { return digitalRead(${P1}) == LOW; }
+        // Vrai une seule fois par appui (front descendant, anti-rebond simple).
+        bool ${name}_clicked() {
+          bool now = digitalRead(${P1});
+          bool clicked = (${name}_last == HIGH && now == LOW);
+          ${name}_last = now;
+          if (clicked) { delay(20); }
+          return clicked;
+        }
+  wokwi: { type: wokwi-pushbutton, pins: { "1": "1.l", "2": "2.l" } }
+  kicad: { symbol: "Switch:SW_Push", footprint: "Button_Switch_THT:SW_PUSH_6mm" }
+  price_eur: 0.1
+
+- id: potentiometer-10k
+  name: Potentiomètre rotatif 10 kΩ
+  category: entree
+  description: Résistance variable ; donne une tension entre 0 et VCC selon la position.
+  aliases: [potentiometre, potar, pot 10k, potentiometer]
+  supply_v: [0, 50]
+  current_ma: 0.5
+  is_module: false
+  pins:
+    - { name: GND, role: ground }
+    - { name: SIG, role: adc, description: "curseur (patte du milieu)" }
+    - { name: VCC, role: power }
+  code:
+    default:
+      api: |
+        int ${name}_raw() { return analogRead(${SIG}); }
+        int ${name}_percent() { return map(analogRead(${SIG}), 0, MF_ADC_MAX, 0, 100); }
+  wokwi: { type: wokwi-potentiometer, pins: { GND: GND, SIG: SIG, VCC: VCC } }
+  kicad: { symbol: "Device:R_Potentiometer", footprint: "Potentiometer_THT:Potentiometer_Bourns_3386P_Vertical" }
+  price_eur: 0.5
+
+- id: rotary-encoder-ky040
+  name: Encodeur rotatif KY-040 avec bouton
+  category: entree
+  description: Molette crantée infinie (sens + nombre de crans) avec bouton intégré.
+  aliases: [ky-040, encodeur, rotary encoder]
+  supply_v: [3.3, 5.0]
+  current_ma: 1
+  pins:
+    - { name: CLK, role: gpio_in }
+    - { name: DT, role: gpio_in }
+    - { name: SW, role: gpio_in }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      globals: "int ${name}_last_clk = HIGH;"
+      setup: |
+        pinMode(${CLK}, INPUT_PULLUP); pinMode(${DT}, INPUT_PULLUP); pinMode(${SW}, INPUT_PULLUP);
+        ${name}_last_clk = digitalRead(${CLK});
+      api: |
+        // +1 (horaire), -1 (anti-horaire) ou 0 depuis le dernier appel.
+        int ${name}_delta() {
+          int clk = digitalRead(${CLK}); int d = 0;
+          if (clk != ${name}_last_clk && clk == LOW) { d = (digitalRead(${DT}) != clk) ? 1 : -1; }
+          ${name}_last_clk = clk;
+          return d;
+        }
+        bool ${name}_pressed() { return digitalRead(${SW}) == LOW; }
+  wokwi: { type: wokwi-ky-040, pins: { CLK: CLK, DT: DT, SW: SW, VCC: VCC, GND: GND } }
+  kicad: { symbol: "Device:RotaryEncoder_Switch", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["Les broches 34–39 de l'ESP32 n'ont pas de pull-up interne : le module KY-040 en intègre."]
+
+- id: joystick-analog
+  name: Joystick analogique 2 axes (KY-023) avec bouton
+  category: entree
+  description: Deux potentiomètres (X, Y) et un bouton poussoir.
+  aliases: [joystick, ky-023, manette]
+  supply_v: [3.3, 5.0]
+  current_ma: 1
+  pins:
+    - { name: VCC, role: power }
+    - { name: VRX, role: adc }
+    - { name: VRY, role: adc }
+    - { name: SW, role: gpio_in, needs_internal_pullup: true }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${SW}, INPUT_PULLUP);"
+      api: |
+        // -100 … +100 sur chaque axe.
+        int ${name}_x() { return map(analogRead(${VRX}), 0, MF_ADC_MAX, -100, 100); }
+        int ${name}_y() { return map(analogRead(${VRY}), 0, MF_ADC_MAX, -100, 100); }
+        bool ${name}_pressed() { return digitalRead(${SW}) == LOW; }
+  wokwi: { type: wokwi-analog-joystick, pins: { VCC: VCC, VRX: HORZ, VRY: VERT, SW: SEL, GND: GND } }
+  kicad: { symbol: "Connector:Conn_01x05_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 2.0
+
+- id: keypad-4x4
+  name: Clavier matriciel souple 4×4
+  category: entree
+  description: 16 touches (0–9, A–D, *, #) lues en balayage de matrice (8 fils).
+  aliases: [keypad, clavier, membrane keypad, clavier 4x4]
+  supply_v: [0, 24]
+  current_ma: 0
+  is_module: false
+  pins:
+    - { name: R1, role: gpio_out }
+    - { name: R2, role: gpio_out }
+    - { name: R3, role: gpio_out }
+    - { name: R4, role: gpio_out }
+    - { name: C1, role: gpio_in, needs_internal_pullup: true }
+    - { name: C2, role: gpio_in, needs_internal_pullup: true }
+    - { name: C3, role: gpio_in, needs_internal_pullup: true }
+    - { name: C4, role: gpio_in, needs_internal_pullup: true }
+  code:
+    default:
+      libraries: ["Keypad"]
+      includes: ["#include <Keypad.h>"]
+      globals: |
+        char ${name}_keys[4][4] = {{'1','2','3','A'},{'4','5','6','B'},{'7','8','9','C'},{'*','0','#','D'}};
+        byte ${name}_rows[4] = {${R1}, ${R2}, ${R3}, ${R4}};
+        byte ${name}_cols[4] = {${C1}, ${C2}, ${C3}, ${C4}};
+        Keypad ${name}_dev = Keypad(makeKeymap(${name}_keys), ${name}_rows, ${name}_cols, 4, 4);
+      api: |
+        // Renvoie la touche appuyée ou 0 (NO_KEY).
+        char ${name}_key() { return ${name}_dev.getKey(); }
+  wokwi: { type: wokwi-membrane-keypad, pins: { R1: R1, R2: R2, R3: R3, R4: R4, C1: C1, C2: C2, C3: C3, C4: C4 } }
+  kicad: { symbol: "Connector:Conn_01x08_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" }
+  price_eur: 1.5
+
+- id: rc522-rfid
+  name: Lecteur RFID RC522 13,56 MHz (SPI) + badges
+  category: communication
+  description: Lit l'identifiant de badges/cartes MIFARE ; alimentation 3,3 V uniquement.
+  aliases: [rc522, mfrc522, rfid, nfc]
+  supply_v: [3.0, 3.6]
+  current_ma: 26
+  pins:
+    - { name: SDA, role: spi_cs, description: "SS / chip select" }
+    - { name: SCK, role: spi_sck }
+    - { name: MOSI, role: spi_mosi }
+    - { name: MISO, role: spi_miso }
+    - { name: IRQ, role: nc }
+    - { name: GND, role: ground }
+    - { name: RST, role: gpio_out }
+    - { name: "3.3V", role: power }
+  code:
+    default:
+      libraries: ["MFRC522"]
+      includes: ["#include <SPI.h>", "#include <MFRC522.h>"]
+      globals: "MFRC522 ${name}_dev(${SDA}, ${RST});"
+      setup_once: ["SPI.begin();"]
+      setup: "${name}_dev.PCD_Init();"
+      api: |
+        // UID du badge présenté (ex. "DE AD BE EF") ou "" si aucun.
+        String ${name}_read_uid() {
+          if (!${name}_dev.PICC_IsNewCardPresent() || !${name}_dev.PICC_ReadCardSerial()) { return ""; }
+          String uid = "";
+          for (byte i = 0; i < ${name}_dev.uid.size; i++) {
+            if (${name}_dev.uid.uidByte[i] < 0x10) { uid += "0"; }
+            uid += String(${name}_dev.uid.uidByte[i], HEX);
+            if (i + 1 < ${name}_dev.uid.size) { uid += " "; }
+          }
+          ${name}_dev.PICC_HaltA();
+          uid.toUpperCase();
+          return uid;
+        }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x08_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" }
+  price_eur: 3.5
+  notes: ["Sur une carte 5 V (Uno), les lignes SPI devraient passer par un level shifter (le RC522 n'est pas officiellement tolérant 5 V)."]
+
+- id: microsd-module
+  name: Module carte micro-SD (SPI, régulateur + level shifter)
+  category: stockage
+  description: Enregistre des données (CSV) sur carte micro-SD FAT32.
+  aliases: [carte sd, sd card, micro sd, microsd]
+  supply_v: [4.5, 5.5]
+  current_ma: 80
+  pins:
+    - { name: GND, role: ground }
+    - { name: VCC, role: power }
+    - { name: MISO, role: spi_miso, output_v: 3.3 }
+    - { name: MOSI, role: spi_mosi }
+    - { name: SCK, role: spi_sck }
+    - { name: CS, role: spi_cs }
+  code:
+    default:
+      libraries: ["SD"]
+      includes: ["#include <SPI.h>", "#include <SD.h>"]
+      globals: "bool ${name}_ok = false;"
+      setup_once: ["SPI.begin();"]
+      setup: |
+        ${name}_ok = SD.begin(${CS});
+        if (!${name}_ok) { Serial.println(F("Carte SD absente")); }
+      api: |
+        // Ajoute une ligne au fichier (créé si besoin). Renvoie false en cas d'échec.
+        bool ${name}_append(const char* path, const String& line) {
+          if (!${name}_ok) { return false; }
+          File f = SD.open(path, FILE_WRITE);
+          if (!f) { return false; }
+          f.println(line); f.close();
+          return true;
+        }
+  wokwi: { type: wokwi-microsd-card, pins: { GND: GND, VCC: VCC, MISO: DO, MOSI: DI, SCK: SCK, CS: CS } }
+  kicad: { symbol: "Connector:Micro_SD_Card", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
+  price_eur: 2.0
+
+# ------------------------------------------------------------------ passifs
+- id: resistor
+  name: Résistance 1/4 W
+  category: passif
+  description: Résistance à couches métalliques ±1 % (valeur précisée dans la nomenclature).
+  aliases: [resistance, resistor, 220 ohm, 10k]
+  passive: true
+  is_module: false
+  pins:
+    - { name: "1", role: nc }
+    - { name: "2", role: nc }
+  wokwi: { type: wokwi-resistor, pins: { "1": "1", "2": "2" } }
+  kicad: { symbol: "Device:R", footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal" }
+  price_eur: 0.02
+
+- id: breadboard-830
+  name: Plaque d'essai sans soudure 830 points
+  category: outillage
+  passive: true
+  aliases: [breadboard, plaque essai, platine]
+  pins: []
+  price_eur: 3.0
+
+- id: jumper-wires
+  name: Lot de fils de prototypage Dupont (M-M, M-F, F-F)
+  category: outillage
+  passive: true
+  aliases: [dupont, jumper, fils, cables dupont]
+  pins: []
+  price_eur: 4.0
+
+- id: perfboard
+  name: Plaque à pastilles (perfboard) 7×9 cm
+  category: outillage
+  passive: true
+  aliases: [plaque a trous, stripboard, veroboard]
+  pins: []
+  price_eur: 1.5
+
+- id: battery-holder-4aa
+  name: Boîtier 4 piles AA (6 V) avec interrupteur
+  category: alimentation
+  passive: true
+  aliases: [piles, battery, boitier piles]
+  pins: []
+  price_eur: 2.0
+
+- id: usb-cable
+  name: Câble USB de données (adapté à la carte)
+  category: outillage
+  passive: true
+  aliases: [cable usb, usb]
+  pins: []
+  price_eur: 3.0

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head><title>Veille MicroForge</title></head>
+  <body>
+    <outline text="T3 - Réglementation" title="T3 - Réglementation">
+      <outline type="rss" text="CNIL - actualités" xmlUrl="https://www.cnil.fr/fr/rss.xml" htmlUrl="https://www.cnil.fr"/>
+      <outline type="rss" text="CERT-FR - avis" xmlUrl="https://www.cert.ssi.gouv.fr/avis/feed/" htmlUrl="https://www.cert.ssi.gouv.fr"/>
+      <outline type="rss" text="CERT-FR - alertes" xmlUrl="https://www.cert.ssi.gouv.fr/alerte/feed/" htmlUrl="https://www.cert.ssi.gouv.fr"/>
+    </outline>
+    <outline text="T1/T2 - IA et outillage" title="T1/T2 - IA et outillage">
+      <outline type="rss" text="Ollama releases" xmlUrl="https://github.com/ollama/ollama/releases.atom"/>
+      <outline type="rss" text="Ultralytics releases" xmlUrl="https://github.com/ultralytics/ultralytics/releases.atom"/>
+      <outline type="rss" text="RF-DETR releases" xmlUrl="https://github.com/roboflow/rf-detr/releases.atom"/>
+      <outline type="rss" text="LiteLLM releases" xmlUrl="https://github.com/BerriAI/litellm/releases.atom"/>
+      <outline type="rss" text="LangGraph releases" xmlUrl="https://github.com/langchain-ai/langgraph/releases.atom"/>
+      <outline type="rss" text="Hugging Face blog" xmlUrl="https://huggingface.co/blog/feed.xml" htmlUrl="https://huggingface.co/blog"/>
+      <outline type="rss" text="arXiv cs.CV" xmlUrl="https://rss.arxiv.org/rss/cs.CV"/>
+      <outline type="rss" text="Simon Willison" xmlUrl="https://simonwillison.net/atom/everything/" htmlUrl="https://simonwillison.net"/>
+    </outline>
+    <outline text="T5 - Maker" title="T5 - Maker">
+      <outline type="rss" text="Arduino ESP32 core releases" xmlUrl="https://github.com/espressif/arduino-esp32/releases.atom"/>
+      <outline type="rss" text="Hackaday" xmlUrl="https://hackaday.com/blog/feed/" htmlUrl="https://hackaday.com"/>
+      <outline type="rss" text="Arduino blog" xmlUrl="https://blog.arduino.cc/feed/" htmlUrl="https://blog.arduino.cc"/>
+    </outline>
+  </body>
+</opml>

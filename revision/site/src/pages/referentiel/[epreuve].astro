@@ -1,0 +1,36 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Checklist from '../../components/Checklist';
+import OralBlanc from '../../components/OralBlanc';
+import { base, bps, courses, ref } from '../../lib/data';
+
+export function getStaticPaths() {
+  return ref.epreuves.map((e: any) => ({ params: { epreuve: e.id.toLowerCase() }, props: { e } }));
+}
+const { e } = Astro.props;
+const comps = ref.competences.filter((c: any) => e.competences.includes(c.id));
+const title = (slug: string) => courses.find((c) => c.slug === slug)?.titre ?? slug;
+const bpTitle = (id: string) => bps.find((b) => b.id === id)?.titre ?? id;
+const headings = [...comps.map((c: any) => ({ depth: 2, slug: c.id.toLowerCase(), text: `${c.id} — ${c.titre}` })), { depth: 2, slug: 'oral', text: 'Oral blanc' }];
+---
+<StarlightPage frontmatter={{ title: `${e.id} — ${e.type}`, description: e.contexte }} headings={headings}>
+  <p>{e.contexte}</p>
+  <p><strong>Livrable :</strong> {e.livrable}. <strong>Évaluation :</strong> {e.evaluation.join(', ')}.</p>
+  <p class="mf-notice"><strong>Support dans MicroForge :</strong> {e.microforge}</p>
+  {comps.map((c: any) => (
+    <section>
+      <h2 id={c.id.toLowerCase()}>{c.id} — {c.titre}</h2>
+      <p>{c.enonce}</p>
+      <h3>Critères d’évaluation (coche ce qui est prêt)</h3>
+      <Checklist client:visible id={`${c.id}-criteres`} items={c.criteres} />
+      <h3>Livrables</h3>
+      <Checklist client:visible id={`${c.id}-livrables`} items={c.livrables} />
+      {c.cours.length > 0 && (<p><strong>Cours à réviser :</strong> {c.cours.map((s: string, i: number) => (<>{i > 0 && ', '}<a href={`${base}cours/${s}/`}>{title(s)}</a></>))}</p>)}
+      {c.boilerplates.length > 0 && (<p><strong>Boilerplates :</strong> {c.boilerplates.map((b: string, i: number) => (<>{i > 0 && ', '}{bps.some((x) => x.id === b) ? <a href={`${base}boilerplates/${b}/`}>{bpTitle(b)}</a> : <span>{bpTitle(b)} <em>(à venir)</em></span>}</>))}</p>)}
+      <p><strong>Dans MicroForge :</strong> {c.microforge.map((p: string) => <code style="margin-right:.4rem">{p}</code>)}</p>
+    </section>
+  ))}
+  <h2 id="oral">Oral blanc</h2>
+  <p>Un jury simulé (IA locale) te pose des questions tirées des critères de l’épreuve et évalue tes réponses.</p>
+  <OralBlanc client:load epreuve={e.id} />
+</StarlightPage>

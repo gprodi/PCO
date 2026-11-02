@@ -1,0 +1,67 @@
+# Profils matériel — choisis automatiquement par llm_gateway.profiles.detect_profile()
+# (forçables avec LLM_PROFILE). Les noms de modèles Ollama sont des valeurs par défaut :
+# vérifier avec `ollama list` et ajuster ici sans toucher au code.
+#
+# Rôles :
+#   text   -> rédaction, raisonnement (fiches de révision, guides de soudure)
+#   code   -> génération de firmware
+#   vision -> identification de composants sur photo (VLM)
+#   embed  -> embeddings pour le RAG
+profiles:
+  mac-m4-16:
+    description: Mac mini M4 16 Go unifiés — Ollama NATIF (Metal) ; Docker n'a pas accès au GPU.
+    ollama:
+      text: qwen3:8b
+      code: qwen3:8b
+      vision: qwen3-vl:8b
+      embed: bge-m3
+    yolo: { device: mps, weights: yolo11s.pt, imgsz: 640, batch: 8, workers: 4 }
+    spark: { driver_memory: 4g }
+
+  gpu-8gb:
+    description: PC bureau Windows 11, 128 Go RAM, GPU NVIDIA 8 Go (WSL2 + NVIDIA Container Toolkit).
+    ollama:
+      text: qwen3:14b      # déchargement partiel CPU possible grâce aux 128 Go de RAM
+      code: qwen3:8b
+      vision: qwen3-vl:8b
+      embed: bge-m3
+    yolo: { device: cuda, weights: yolo11m.pt, imgsz: 640, batch: 16, workers: 8 }
+    spark: { driver_memory: 16g }
+
+  gpu-6gb:
+    description: PC école Windows 11, 12 Go RAM, GPU NVIDIA 6–8 Go.
+    ollama:
+      text: qwen3:4b
+      code: qwen3:4b
+      vision: qwen3-vl:4b
+      embed: nomic-embed-text
+    yolo: { device: cuda, weights: yolo11n.pt, imgsz: 640, batch: 8, workers: 2 }
+    spark: { driver_memory: 3g }
+
+  cpu:
+    description: Aucun GPU exploitable — petits modèles locaux, vision déléguée à Gemini si configuré.
+    ollama:
+      text: qwen3:4b
+      code: qwen3:4b
+      vision: qwen3-vl:2b
+      embed: nomic-embed-text
+    yolo: { device: cpu, weights: yolo11n.pt, imgsz: 512, batch: 4, workers: 2 }
+    spark: { driver_memory: 2g }
+
+# Modèles des fournisseurs distants (indépendants du matériel)
+remote:
+  gemini:
+    text: gemini-flash-latest
+    code: gemini-flash-latest
+    vision: gemini-flash-latest
+    embed: gemini-embedding-001
+  anthropic:
+    text: claude-opus-5-5
+    code: claude-opus-5-5
+    vision: claude-opus-5-5
+  litellm:
+    # noms des "model_name" déclarés dans microforge/infra/litellm/config.yaml
+    text: mf-text
+    code: mf-code
+    vision: mf-vision
+    embed: mf-embed

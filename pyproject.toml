@@ -1,0 +1,76 @@
+[project]
+name = "pco-workspace"
+version = "0.1.0"
+description = "Monorepo PCO : MicroForge (projet de fin d'études) + Révisions DevIA"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/llm_gateway", "microforge", "revision"]
+
+[tool.uv.sources]
+llm-gateway = { workspace = true }
+microforge = { workspace = true }
+revision = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "hypothesis>=6.120",
+    "respx>=0.22",
+    "ruff>=0.8",
+    "pre-commit>=4.0",
+]
+docs = [
+    "sphinx>=8.0",
+    "furo>=2024.8",
+    "myst-parser>=4.0",
+    "sphinxcontrib-mermaid>=0.9",
+]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["cours", "referentiel", "revision/site", "**/node_modules", "**/*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = [
+    "S101",   # assert autorisé (tests)
+    "RUF001", "RUF002", "RUF003",  # caractères français (é, ’, «) dans les chaînes/commentaires
+    "B008",   # Depends() dans les signatures FastAPI
+    "E501",   # longueur de ligne gérée par `ruff format` (chaînes longues tolérées)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106", "S107", "S108", "S311", "S603", "S607"]
+"microforge/monitoring/traffic_generator.py" = ["S311"]  # aléatoire non cryptographique (simulation)
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["packages/llm_gateway/tests", "microforge/tests", "revision/tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: tests nécessitant des services (Postgres, Redis...)",
+    "network: tests nécessitant Internet (désactivés en CI)",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+branch = true
+source = ["llm_gateway", "microforge", "revision"]
+omit = ["*/tests/*", "*/app_streamlit/*", "*/ml/train.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80

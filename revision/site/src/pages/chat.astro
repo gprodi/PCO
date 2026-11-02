@@ -1,0 +1,9 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Chat from '../components/Chat';
+import { base } from '../lib/data';
+---
+<StarlightPage frontmatter={{ title: 'Chat avec mes cours', description: 'Questions-réponses avec citations des cours (RAG local).' }}>
+  <p>Les réponses s’appuient uniquement sur tes cours et citent leurs sources. Si l’information n’y est pas, l’assistant le dit.</p>
+  <Chat client:load base={base} />
+</StarlightPage>

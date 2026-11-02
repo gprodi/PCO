@@ -1,0 +1,36 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, themesIdees } from '../../lib/data';
+export function getStaticPaths() {
+  return themesIdees.map((t) => ({ params: { theme: t.id }, props: { t } }));
+}
+const { t } = Astro.props;
+const ideas = [...t.idees].sort((a, b) => a.difficulte - b.difficulte || a.titre.localeCompare(b.titre));
+---
+<StarlightPage frontmatter={{ title: `${t.icone} ${t.titre}`, description: t.description }}>
+  <p>{t.description}</p>
+  <p><a href={`${base}idees/`}>← Tous les thèmes</a></p>
+  <div class="mf-grid">
+    {ideas.map((i) => (
+      <article class="mf-card">
+        <h2 style="font-size:1.1rem;margin-top:0">{i.titre}</h2>
+        <p>
+          <span class="mf-badge" aria-label={`difficulté ${i.difficulte} sur 3`}>{'★'.repeat(i.difficulte)}</span>
+          <span class="mf-badge">{i.template ? 'générable' : 'conçu par l’IA'}</span>
+          {i.wifi && <span class="mf-badge">Wi-Fi</span>}
+        </p>
+        <p>{i.description}</p>
+        <p><small><strong>Composants :</strong> {i.composants_noms.join(', ')}</small></p>
+        <details>
+          <summary>Le construire</summary>
+          {i.template ? (
+            <pre><code>uv run microforge build {i.template} --board {i.wifi ? 'esp32-devkit-v1' : 'arduino-uno'}</code></pre>
+          ) : (
+            <pre><code>uv run microforge goal "{i.titre} : {i.description}"</code></pre>
+          )}
+          <p><small>Ou dans l’application MicroForge : page « Explorer par thème ».</small></p>
+        </details>
+      </article>
+    ))}
+  </div>
+</StarlightPage>

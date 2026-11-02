@@ -1,0 +1,17 @@
+# Configuration du scraping (C1). Les sélecteurs ci-dessous sont un EXEMPLE générique :
+# inspecter le site choisi (outils de développement du navigateur), vérifier ses CGU et son
+# robots.txt, puis adapter base_url / search_url / selectors. Ne jamais contourner un blocage.
+shops:
+  exemple:
+    name: Boutique exemple
+    base_url: https://boutique-exemple.fr
+    search_url: https://boutique-exemple.fr/recherche?q={query}
+    delay_s: 3
+    queries: [dht22, ssd1306, hc-sr04, servo sg90, esp32, bme280]
+    selectors:
+      item: "div.product"
+      name: ".product-title"
+      price: ".price"
+      link: "a.product-link"
+      stock: ".availability"
+      ref: ".reference"

@@ -1,0 +1,44 @@
+# Parcours de progression : de la première LED au robot autonome.
+# Chaque étape liste des modèles générables (câblage + code + guide) dans un ordre conseillé.
+
+- etape: 1
+  titre: "Premiers pas : sorties et entrées"
+  objectif: "Allumer une LED, lire un bouton, faire du son. Les bases de tout montage."
+  notions: [sortie numérique, résistance série, entrée avec pull-up, anti-rebond]
+  templates: [feu-tricolore-pieton, veilleuse-rgb, sonnette-melodie, jeu-reflexes]
+
+- etape: 2
+  titre: "Le monde réel : capteurs"
+  objectif: "Mesurer la lumière, la température, une ouverture de porte, une fuite d'eau."
+  notions: [lecture analogique, seuil et hystérésis, bus 1-Wire, capteurs numériques]
+  templates: [veilleuse-auto, alarme-porte, thermometre-ds18b20, alerte-inondation, detecteur-flamme]
+
+- etape: 3
+  titre: "Afficher : écrans et LED adressables"
+  objectif: "Montrer des valeurs, l'heure, des animations."
+  notions: [bus I2C et adresses, afficheurs 7 segments, matrices, NeoPixel]
+  templates: [station-meteo-oled, telemetre-oled, horloge-rtc-lcd, matrice-emotions, guirlande-animee]
+
+- etape: 4
+  titre: "Faire bouger : servos et moteurs"
+  objectif: "Ouvrir une barrière, orienter une tourelle, positionner un moteur pas à pas."
+  notions: [PWM, servomoteur, alimentation séparée, moteur pas à pas]
+  templates: [servo-potentiometre, barriere-servo, tourelle-joystick, moteur-pas-a-pas-potar, radar-balayage]
+
+- etape: 5
+  titre: "Automatiser la maison"
+  objectif: "Des systèmes qui décident seuls : arrosage, thermostat, ventilation, lampe tactile."
+  notions: [relais et sécurité, MOSFET de puissance, régulation, machines à états]
+  templates: [lampe-tactile, interrupteur-clap, thermostat-relais, arrosage-automatique, ventilateur-auto]
+
+- etape: 6
+  titre: "Connecter : Wi-Fi et données"
+  objectif: "Consulter ses capteurs depuis le téléphone, enregistrer des mesures."
+  notions: [serveur web embarqué, NTP, carte SD et CSV]
+  templates: [horloge-ntp-oled, station-meteo-web, enregistreur-sd]
+
+- etape: 7
+  titre: "Robots autonomes"
+  objectif: "Assembler capteurs, moteurs et logique : le robot prend ses décisions."
+  notions: [pont en H, boucle de régulation, évitement, suivi de ligne]
+  templates: [robot-suiveur-ligne, robot-evitement]

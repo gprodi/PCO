@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module fritzingVersion="0.9.3" moduleId="DHT22_module">
+  <title>DHT22 Humidity and Temperature Sensor</title>
+  <tags><tag>sensor</tag><tag>humidity</tag></tags>
+  <properties>
+    <property name="family">temperature sensor</property>
+    <property name="variant">DHT22</property>
+  </properties>
+  <connectors>
+    <connector id="connector0" name="VCC" type="male"><description>Alimentation 3.3-5V</description></connector>
+    <connector id="connector1" name="DATA" type="male"><description>Données</description></connector>
+    <connector id="connector2" name="GND" type="male"><description>Masse</description></connector>
+  </connectors>
+</module>

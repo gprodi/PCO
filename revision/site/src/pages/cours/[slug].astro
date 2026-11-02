@@ -1,0 +1,74 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Quiz from '../../components/Quiz';
+import Flashcards from '../../components/Flashcards';
+import MindMap from '../../components/MindMap';
+import Podcast from '../../components/Podcast';
+import { base, competence, contents, courses, md, themes } from '../../lib/data';
+
+export function getStaticPaths() {
+  return courses.map((c) => ({ params: { slug: c.slug }, props: { course: c } }));
+}
+const { course } = Astro.props;
+const c = contents[course.slug];
+const headings = c
+  ? [['fiche', 'Fiche'], ['qcm', 'QCM'], ['flashcards', 'Flashcards'], ['exercices', 'Exercices'], ['carte', 'Carte mentale'], ['podcast', 'Podcast'], ['competences', 'Compétences du référentiel']].map(([slug, text]) => ({ depth: 2, slug, text }))
+  : [];
+---
+<StarlightPage frontmatter={{ title: course.titre, description: c?.fiche.resume.slice(0, 150) }} headings={headings}>
+  <p><span class="mf-badge">{themes[course.theme]}</span>{c && <span class="mf-badge">{c.origine === 'seed' ? 'rédigé à la main' : 'généré par IA locale — à vérifier'}</span>}</p>
+  {!c && (
+    <div class="mf-notice">
+      <p>Contenu pas encore généré pour ce cours. En local : <code>uv run revise generate {course.slug}</code> puis <code>uv run revise export</code>.</p>
+    </div>
+  )}
+  {c && (
+    <>
+      <h2 id="fiche">Fiche</h2>
+      <p>{c.fiche.resume}</p>
+      {c.fiche.objectifs.length > 0 && (<><h3>Objectifs</h3><ul>{c.fiche.objectifs.map((o) => <li>{o}</li>)}</ul></>)}
+      {c.fiche.notions.length > 0 && (
+        <><h3>Notions clés</h3><dl>{c.fiche.notions.map((n) => (<><dt><strong>{n.terme}</strong></dt><dd>{n.definition}</dd></>))}</dl></>
+      )}
+      {c.fiche.points_cles.length > 0 && (<><h3>À retenir</h3><ul>{c.fiche.points_cles.map((p) => <li>{p}</li>)}</ul></>)}
+      {c.fiche.code.map((ex) => (
+        <>
+          <h3>{ex.titre}</h3>
+          <pre><code class={`language-${ex.lang}`}>{ex.code}</code></pre>
+          {ex.explication && <p>{ex.explication}</p>}
+        </>
+      ))}
+      {c.fiche.pieges.length > 0 && (<><h3>Pièges fréquents</h3><ul>{c.fiche.pieges.map((p) => <li>⚠️ {p}</li>)}</ul></>)}
+
+      <h2 id="qcm">QCM</h2>
+      <Quiz client:visible slug={course.slug} questions={c.quiz.questions} />
+
+      <h2 id="flashcards">Flashcards</h2>
+      <Flashcards client:visible slug={course.slug} cards={c.flashcards.cartes} />
+
+      <h2 id="exercices">Exercices</h2>
+      {c.exercices.exercices.map((ex, i) => (
+        <section class="mf-card" aria-labelledby={`ex-${i}`}>
+          <h3 id={`ex-${i}`}>{i + 1}. {ex.titre} <span class="mf-badge">niveau {ex.niveau}</span></h3>
+          <div set:html={md(ex.enonce)} />
+          {ex.indices.length > 0 && <details><summary>Indices</summary><ul>{ex.indices.map((h) => <li>{h}</li>)}</ul></details>}
+          <details><summary>Corrigé</summary><div set:html={md(ex.corrige)} /></details>
+        </section>
+      ))}
+
+      <h2 id="carte">Carte mentale</h2>
+      <MindMap client:visible markdown={c.mindmap.markdown} />
+
+      <h2 id="podcast">Podcast</h2>
+      <Podcast client:visible titre={c.podcast.titre} repliques={c.podcast.repliques} audioUrl={course.audio ? `${base}podcasts/${course.slug}.mp3` : undefined} />
+
+      <h2 id="competences">Compétences du référentiel</h2>
+      <ul>
+        {c.fiche.competences.map((id) => {
+          const comp = competence(id.toUpperCase());
+          return comp && <li><a href={`${base}referentiel/${comp.epreuve.toLowerCase()}/#${comp.id.toLowerCase()}`}>{comp.id} — {comp.titre}</a> ({comp.epreuve})</li>;
+        })}
+      </ul>
+    </>
+  )}
+</StarlightPage>
