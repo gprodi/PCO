@@ -1,0 +1,8 @@
+{"libraries": [
+  {"name": "DHT sensor library", "version": "1.4.4", "author": "Adafruit", "sentence": "Arduino library for DHT11, DHT22", "category": "Sensors", "architectures": ["*"], "providesIncludes": ["DHT.h", "DHT_U.h"], "repository": "https://github.com/adafruit/DHT-sensor-library.git", "dependencies": [{"name": "Adafruit Unified Sensor"}]},
+  {"name": "DHT sensor library", "version": "1.4.10", "author": "Adafruit", "sentence": "Arduino library for DHT11, DHT22", "category": "Sensors", "architectures": ["*"], "providesIncludes": ["DHT.h", "DHT_U.h"], "repository": "https://github.com/adafruit/DHT-sensor-library.git", "dependencies": [{"name": "Adafruit Unified Sensor"}]},
+  {"name": "DHT sensor library", "version": "1.4.9", "author": "Adafruit", "architectures": ["*"], "providesIncludes": ["DHT.h"]},
+  {"name": "Adafruit SSD1306", "version": "2.5.13", "author": "Adafruit", "architectures": ["*"], "providesIncludes": ["Adafruit_SSD1306.h"], "repository": "https://github.com/adafruit/Adafruit_SSD1306.git"},
+  {"name": "", "version": "1.0.0"},
+  {"name": "Sans version"}
+]}
