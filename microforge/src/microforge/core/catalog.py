@@ -110,6 +110,20 @@ class Catalog:
             return ref
         return self._aliases.get(normalize(ref))
 
+    def resolve_fuzzy(self, text: str) -> str | None:
+        """Résolution tolérante d'un libellé libre (ex. « carte ESP32 » -> esp32-devkit-v1).
+
+        On cherche l'alias le plus long contenu, mot pour mot, dans le libellé.
+        """
+        exact = self.resolve(text)
+        if exact:
+            return exact
+        padded = f" {normalize(text)} "
+        for alias in sorted(self._aliases, key=len, reverse=True):
+            if len(alias) >= 3 and f" {alias} " in padded:
+                return self._aliases[alias]
+        return None
+
     def search(self, query: str, limit: int = 10) -> list[ComponentDef | BoardDef]:
         """Recherche plein texte simple (id, nom, alias, description)."""
         q = normalize(query)

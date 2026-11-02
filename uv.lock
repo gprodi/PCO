@@ -1883,6 +1883,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.9.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/91/21/7fcd6780f61e9756aafaea760560509bb4111375daa2e23c1be7a89f33f1/dnspython-2.9.1.tar.gz", hash = "sha256:9a6d30e55f8dc63e6052597666112bff0586b95a2474a9deda03afbbf820d37a", size = 455302, upload-time = "2026-10-29T18:05:12.156Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/55/f90405bbbbd3dd8f788e92cec2d39964f5c09783f0570fc35f3bb3381485/dnspython-2.9.1-py3-none-any.whl", hash = "sha256:7c81caf8de1ed57b8cfc7e0ad4f528a0b8ceace473c7eb946df195dc9def751f", size = 360364, upload-time = "2026-10-29T18:05:10.206Z" },
+]
+
+[[package]]
 name = "docker"
 version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2154,6 +2163,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/71/e4/723ba469856bb493c948985e5bd562c8a65f2b93e70c896e9764ab76de00/dynaconf-3.3.5.tar.gz", hash = "sha256:a08f6ab44025034ef3c9f86b32548ab01efd4039094a74bd9f028a43c63d016f", size = 333426, upload-time = "2026-08-05T19:50:25.16Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/41/b38501c34c40c3261868a2af8ed5fffe3e6d889c680638708de27eb57788/dynaconf-3.3.5-py3-none-any.whl", hash = "sha256:b3b4a753d5c866fc85466b65fc58d4954f6ed7dc8aa67f2b15bcbfd85d184687", size = 271426, upload-time = "2026-08-05T19:50:23.802Z" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
 ]
 
 [[package]]
@@ -4508,6 +4530,7 @@ source = { editable = "microforge" }
 dependencies = [
     { name = "alembic" },
     { name = "cryptography" },
+    { name = "email-validator" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "llm-gateway" },
@@ -4576,6 +4599,7 @@ requires-dist = [
     { name = "codecarbon", marker = "extra == 'ml'", specifier = ">=2.7" },
     { name = "cryptography", specifier = ">=43" },
     { name = "dvc", extras = ["s3"], marker = "extra == 'ml'", specifier = ">=3.55" },
+    { name = "email-validator", specifier = ">=2.1" },
     { name = "evidently", marker = "extra == 'ml'", specifier = ">=0.4" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "flower", marker = "extra == 'worker'", specifier = ">=2.0" },

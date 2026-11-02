@@ -1,0 +1,43 @@
+# Classes du dataset de détection (YOLO) -> identifiant du catalogue MicroForge.
+# Le dataset agrège Roboflow Universe (CC BY 4.0), Mendeley « IoT kits » et les photos de Gaël.
+# Toute nouvelle classe doit être ajoutée ici ET dans ml/data/dataset.yaml (vérifié par les tests C12).
+classes:
+  arduino_uno: arduino-uno
+  arduino_nano: arduino-nano
+  arduino_mega: arduino-mega
+  esp32_devkit: esp32-devkit-v1
+  raspberry_pi_pico: rpi-pico
+  breadboard: breadboard-830
+  led: led
+  rgb_led: rgb-led
+  resistor: resistor
+  push_button: pushbutton
+  potentiometer: potentiometer-10k
+  buzzer: buzzer
+  dht11: dht11
+  dht22: dht22
+  ds18b20: ds18b20
+  hc_sr04: hc-sr04
+  pir_sensor: pir-hc-sr501
+  ldr_module: ldr-module
+  soil_moisture: soil-moisture-capacitive
+  mq2: mq2-gas
+  mpu6050: mpu6050
+  bme280: bme280
+  rtc_module: ds3231-rtc
+  oled_display: ssd1306-i2c
+  lcd_1602: lcd1602-i2c
+  seven_segment_4: tm1637-display
+  servo_sg90: sg90-servo
+  relay_module: relay-module-1ch
+  l298n: l298n-driver
+  stepper_28byj48: stepper-28byj48
+  dc_motor: dc-motor-tt
+  neopixel_ring: ws2812-ring-12
+  keypad_4x4: keypad-4x4
+  rfid_rc522: rc522-rfid
+  joystick: joystick-analog
+  rotary_encoder: rotary-encoder-ky040
+  sd_module: microsd-module
+  hx711: hx711-load-cell
+  jumper_wires: jumper-wires

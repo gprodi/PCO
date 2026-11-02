@@ -26,6 +26,7 @@ dependencies = [
     "prometheus-fastapi-instrumentator>=7.0",
     "prometheus-client>=0.20",
     "pillow>=10.4",
+    "email-validator>=2.1",
     # Sorties électroniques
     "schemdraw>=0.19",
 ]
