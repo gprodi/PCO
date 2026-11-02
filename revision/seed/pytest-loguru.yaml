@@ -1,0 +1,269 @@
+titre: "Pytest & Loguru"
+fiche:
+  titre: "Tester avec pytest et journaliser avec Loguru"
+  resume: >-
+    Deux outils de qualité qu'on retrouve dans tous les projets du titre. Loguru remplace le module logging
+    par un logger unique préconfiguré : six niveaux (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL), une
+    sortie colorée, et logger.add() pour écrire dans des fichiers avec rotation (taille ou heure), rétention
+    (durée ou nombre de fichiers), compression et enqueue pour les contextes multi-processus. Un fichier ne
+    reçoit que les messages de son niveau et des niveaux supérieurs. Pytest découvre automatiquement les
+    fonctions test_* des fichiers test_*.py et vérifie de simples assert. parametrize lance le même test sur
+    plusieurs jeux de données, les fixtures préparent et nettoient ce dont les tests ont besoin (base SQLite
+    en mémoire, données), et TestClient de FastAPI teste les routes d'une API sans lancer de serveur.
+  objectifs:
+    - Configurer Loguru pour la console et des fichiers avec rotation, rétention et compression
+    - Choisir le bon niveau de log selon l'événement
+    - Écrire des tests unitaires, paramétrés et avec fixtures
+    - Tester les routes d'une API FastAPI avec TestClient
+  notions:
+    - { terme: "Niveau de log", definition: "Gravité d'un message : TRACE < DEBUG < INFO < WARNING < ERROR < CRITICAL. Un sink n'enregistre que son niveau et au-dessus." }
+    - { terme: "Sink (logger.add)", definition: "Destination des logs (console, fichier, fonction) avec son niveau, son format et ses options." }
+    - { terme: "Rotation / rétention", definition: "Rotation : quand commencer un nouveau fichier (\"10 MB\", \"00:00\"). Rétention : combien en garder (\"7 days\", 5)." }
+    - { terme: "logger.exception", definition: "Journalise au niveau ERROR avec la trace complète de l'exception en cours." }
+    - { terme: "assert", definition: "Instruction vérifiée par pytest ; en cas d'échec, pytest affiche les valeurs comparées." }
+    - { terme: "parametrize", definition: "@pytest.mark.parametrize exécute un test pour chaque jeu de paramètres fourni." }
+    - { terme: "Fixture", definition: "Fonction @pytest.fixture qui fournit une ressource à un test ; le code après yield nettoie la ressource." }
+    - { terme: "conftest.py", definition: "Fichier où l'on place les fixtures partagées par tous les tests d'un dossier." }
+  points_cles:
+    - "logger.remove() puis logger.add(...) : on repart d'une configuration propre, différente en dev et en prod."
+    - "En production : niveau INFO, rotation et rétention pour ne jamais remplir le disque."
+    - "Ne jamais journaliser un mot de passe ou un jeton : on journalise l'utilisateur et le résultat, pas les secrets."
+    - "Un test = un comportement : arrange (préparer), act (agir), assert (vérifier)."
+    - "Les fixtures avec yield garantissent le nettoyage même si le test échoue."
+    - "TestClient appelle l'application FastAPI en mémoire : rapide, sans serveur ni réseau."
+  code:
+    - titre: "Configurer Loguru pour une API"
+      lang: python
+      code: |
+        from loguru import logger
+
+        logger.remove()   # repartir de zéro
+        logger.add(
+            "logs/app_{time}.log",
+            level="INFO",
+            rotation="10 MB",       # nouveau fichier tous les 10 Mo
+            retention="7 days",     # supprimer après 7 jours
+            compression="zip",
+            enqueue=True,           # sûr avec plusieurs processus (uvicorn --workers)
+            format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+        )
+
+        try:
+            1 / 0
+        except ZeroDivisionError:
+            logger.exception("Calcul impossible")   # niveau ERROR + trace complète
+      explication: "Le niveau INFO ignore DEBUG et TRACE ; la trace d'exception aide à diagnostiquer un incident (C21)."
+    - titre: "Tests paramétrés, fixture et API"
+      lang: python
+      code: |
+        import sqlite3
+        import pytest
+        from fastapi.testclient import TestClient
+        from main import app
+
+        @pytest.mark.parametrize("a, b, attendu", [(2, 3, 6), (0, 10, 0), (-1, 5, -5)])
+        def test_multiplier(a, b, attendu):
+            assert a * b == attendu
+
+        @pytest.fixture
+        def db():
+            conn = sqlite3.connect(":memory:")
+            conn.execute("CREATE TABLE users (name TEXT)")
+            conn.execute("INSERT INTO users VALUES ('admin')")
+            yield conn
+            conn.close()          # exécuté même si le test échoue
+
+        def test_admin_existe(db):
+            assert db.execute("SELECT count(*) FROM users").fetchone()[0] == 1
+
+        def test_route_racine():
+            reponse = TestClient(app).get("/")
+            assert reponse.status_code == 200
+            assert reponse.json()["message"] == "Bienvenue sur l'API"
+      explication: "Une base en mémoire par test : les tests sont isolés et ne touchent jamais la vraie base."
+  pieges:
+    - "Laisser la configuration Loguru par défaut en plus de la sienne : les messages s'affichent en double (oublier logger.remove())."
+    - "Journaliser des données personnelles ou des secrets dans les logs : c'est une fuite, et un problème RGPD."
+    - "Tests dépendants entre eux (l'un prépare la base pour l'autre) : ils échouent dès qu'on change l'ordre."
+    - "Tester contre la base de production ou une API externe réelle : tests lents, fragiles et dangereux."
+  aller_plus_loin:
+    - titre: "Mesurer la couverture et imposer un seuil"
+      contenu: "`pytest --cov=monpaquet --cov-report=term-missing` affiche les lignes jamais exécutées. Dans `pyproject.toml`, `fail_under = 80` fait échouer la CI sous 80 % : c'est la porte de qualité de MicroForge."
+      lien: "https://pytest-cov.readthedocs.io/"
+    - titre: "Mocker les dépendances externes"
+      contenu: "`monkeypatch.setattr(module, 'appel_api', faux)` remplace un appel réseau par une fonction contrôlée ; avec FastAPI, `app.dependency_overrides[get_db] = fausse_db` remplace une dépendance. Défi : teste le cas « API externe en panne » sans couper ta connexion."
+      lien: "https://docs.pytest.org/en/stable/how-to/monkeypatch.html"
+    - titre: "Logs structurés en JSON"
+      contenu: "`logger.add('app.json', serialize=True)` écrit chaque message en JSON (niveau, heure, fichier, ligne, champs ajoutés par `logger.bind(user_id=...)`). Loki ou Elastic les indexent ensuite : c'est la suite logique vers le cours Loki & Grafana."
+      lien: "https://loguru.readthedocs.io/en/stable/api/logger.html"
+  jury: >-
+    **E3 (C12) et E4/E5 (C18, C21)** : tests automatisés du modèle et de l'application, et journalisation qui
+    permet de diagnostiquer un incident. Dans MicroForge : dossier `microforge/tests` (fixtures dans
+    `conftest.py`, tests d'API avec TestClient, tests paramétrés), porte de couverture à 80 % dans la CI, et
+    Loguru dans le pipeline de données.
+  competences: [C12, C18, C21]
+  sources: []
+qcm:
+  - question: "Un fichier ajouté avec logger.add(\"warn.log\", level=\"WARNING\") reçoit :"
+    choix: ["Uniquement les WARNING", "WARNING, ERROR et CRITICAL", "Tous les messages", "DEBUG et INFO"]
+    bonne: 1
+    explication: "Un sink enregistre son niveau et tous les niveaux supérieurs."
+    difficulte: 1
+  - question: "Que signifie retention=\"7 days\" ?"
+    choix: ["Créer un fichier par jour pendant 7 jours", "Supprimer les fichiers de log de plus de 7 jours", "Compresser après 7 jours", "Écrire 7 fois par jour"]
+    bonne: 1
+    explication: "La rétention fixe la durée (ou le nombre) de fichiers conservés ; la rotation décide quand en créer un nouveau."
+    difficulte: 1
+  - question: "À quoi sert enqueue=True ?"
+    choix: ["À accélérer pytest", "À rendre l'écriture des logs sûre avec plusieurs threads ou processus", "À envoyer les logs par e-mail", "À trier les logs"]
+    bonne: 1
+    explication: "Les messages passent par une file, évitant les écritures concurrentes dans le fichier."
+    difficulte: 2
+  - question: "Comment pytest trouve-t-il les tests ?"
+    choix: ["Fonctions test_* dans des fichiers test_*.py", "Toutes les fonctions du projet", "Celles listées dans pytest.ini obligatoirement", "Les fonctions décorées @test"]
+    bonne: 0
+    explication: "C'est la convention de découverte par défaut."
+    difficulte: 1
+  - question: "Rôle du code placé après yield dans une fixture ?"
+    choix: ["Il ne s'exécute jamais", "Il nettoie la ressource après le test (fermeture, suppression)", "Il s'exécute avant le test", "Il remplace l'assert"]
+    bonne: 1
+    explication: "Tout ce qui suit yield est le « teardown », exécuté même si le test échoue."
+    difficulte: 2
+  - question: "Où place-t-on les fixtures partagées par plusieurs fichiers de tests ?"
+    choix: ["Dans __init__.py", "Dans conftest.py", "Dans main.py", "Dans requirements.txt"]
+    bonne: 1
+    explication: "pytest charge automatiquement conftest.py et rend ses fixtures disponibles."
+    difficulte: 1
+  - question: "Quel avantage de TestClient pour tester une API FastAPI ?"
+    choix: ["Il déploie l'API", "Il appelle l'application en mémoire, sans serveur ni réseau", "Il génère la documentation", "Il chiffre les requêtes"]
+    bonne: 1
+    explication: "Les requêtes sont envoyées directement à l'application ASGI."
+    difficulte: 1
+  - question: "Quel niveau choisir pour « mot de passe incorrect pour l'utilisateur X » ?"
+    choix: ["TRACE", "INFO ou WARNING, sans écrire le mot de passe", "CRITICAL avec le mot de passe tapé", "Aucun log"]
+    bonne: 1
+    explication: "C'est un événement normal mais à surveiller (tentatives répétées) ; on ne journalise jamais le secret."
+    difficulte: 2
+flashcards:
+  - { recto: "Importer le logger Loguru", verso: "from loguru import logger" }
+  - { recto: "Ordre des niveaux Loguru", verso: "TRACE < DEBUG < INFO < WARNING < ERROR < CRITICAL" }
+  - { recto: "Écrire les logs dans un fichier", verso: "logger.add(\"app.log\", level=\"INFO\", format=\"{time} {level} {message}\")" }
+  - { recto: "Rotation : trois exemples", verso: "\"10 MB\" (taille), \"1 week\" (durée), \"00:00\" (chaque jour à minuit)." }
+  - { recto: "Supprimer la configuration par défaut", verso: "logger.remove()" }
+  - { recto: "Journaliser une exception avec sa trace", verso: "logger.exception(\"message\") dans un bloc except." }
+  - { recto: "Lancer un seul fichier de tests", verso: "pytest tests/test_math.py (ajouter -v pour le détail, -x pour s'arrêter au premier échec)." }
+  - { recto: "Tester plusieurs cas d'un coup", verso: "@pytest.mark.parametrize(\"a, b, attendu\", [(...), (...)])" }
+  - { recto: "Déclarer une fixture", verso: "@pytest.fixture puis def ma_ressource(): ... yield objet ... nettoyage" }
+  - { recto: "Utiliser une fixture", verso: "La mettre en paramètre du test : def test_x(ma_ressource):" }
+  - { recto: "Base de test jetable", verso: "sqlite3.connect(\":memory:\") dans une fixture." }
+  - { recto: "Tester une route FastAPI", verso: "client = TestClient(app) ; r = client.get(\"/\") ; assert r.status_code == 200" }
+exercices:
+  - titre: "Fonction testée de bout en bout"
+    niveau: 1
+    enonce: "Écris `prix_ttc(ht: float, taux: float = 0.2) -> float` (arrondi à 2 décimales, ValueError si ht < 0). Teste trois cas avec parametrize et le cas d'erreur avec `pytest.raises`."
+    indices: ["round(x, 2)", "with pytest.raises(ValueError):"]
+    corrige: |
+      ```python
+      import pytest
+
+      def prix_ttc(ht: float, taux: float = 0.2) -> float:
+          if ht < 0:
+              raise ValueError("Prix négatif")
+          return round(ht * (1 + taux), 2)
+
+      @pytest.mark.parametrize("ht, taux, attendu", [(100, 0.2, 120.0), (10, 0.055, 10.55), (0, 0.2, 0.0)])
+      def test_prix_ttc(ht, taux, attendu):
+          assert prix_ttc(ht, taux) == attendu
+
+      def test_prix_negatif():
+          with pytest.raises(ValueError):
+              prix_ttc(-1)
+      ```
+  - titre: "Login journalisé et testé"
+    niveau: 2
+    enonce: "Reprends la route POST /login du cours (admin / secret). Configure Loguru (fichier `logs/api.log`, niveau INFO, rotation 1 Mo) et écris trois tests TestClient : succès (200), utilisateur inconnu (401), mauvais mot de passe (403)."
+    indices: ["data={...} pour un formulaire", "logger.remove() puis logger.add(...)"]
+    corrige: |
+      ```python
+      from fastapi.testclient import TestClient
+      from main import app
+
+      client = TestClient(app)
+
+      def test_login_ok():
+          r = client.post("/login", data={"username": "admin", "password": "secret"})
+          assert r.status_code == 200
+
+      def test_login_inconnu():
+          r = client.post("/login", data={"username": "bob", "password": "x"})
+          assert r.status_code == 401
+
+      def test_login_mauvais_mdp():
+          r = client.post("/login", data={"username": "admin", "password": "faux"})
+          assert r.status_code == 403
+      ```
+      Côté application : `logger.remove(); logger.add("logs/api.log", level="INFO", rotation="1 MB")`, et dans la route on journalise l'utilisateur et le résultat, jamais le mot de passe.
+  - titre: "Fixture de base partagée"
+    niveau: 3
+    enonce: "Crée un `conftest.py` avec une fixture `db` (SQLite en mémoire, table `stock(nom, quantite)` pré-remplie) et deux tests dans deux fichiers différents qui l'utilisent. Vérifie que la modification faite par le premier test n'affecte pas le second."
+    indices: ["Fixture de portée function (par défaut) : une base neuve par test", "yield puis close()"]
+    corrige: |
+      ```python
+      # tests/conftest.py
+      import sqlite3
+      import pytest
+
+      @pytest.fixture
+      def db():
+          conn = sqlite3.connect(":memory:")
+          conn.execute("CREATE TABLE stock (nom TEXT, quantite INT)")
+          conn.execute("INSERT INTO stock VALUES ('led', 10)")
+          yield conn
+          conn.close()
+
+      # tests/test_a.py
+      def test_retrait(db):
+          db.execute("UPDATE stock SET quantite = 0")
+          assert db.execute("SELECT quantite FROM stock").fetchone()[0] == 0
+
+      # tests/test_b.py
+      def test_stock_initial(db):
+          assert db.execute("SELECT quantite FROM stock").fetchone()[0] == 10
+      ```
+      La portée par défaut (`function`) recrée la base pour chaque test : les tests sont indépendants.
+mindmap: |
+  # Pytest & Loguru
+  ## Loguru
+  - logger unique
+  - Niveaux TRACE → CRITICAL
+  - logger.add (fichiers)
+    - rotation
+    - retention
+    - compression
+    - enqueue
+  - logger.exception
+  - Jamais de secrets
+  ## Pytest
+  - test_*.py / test_*
+  - assert
+  - parametrize
+  - fixtures + yield
+  - conftest.py
+  - TestClient (FastAPI)
+  ## Qualité
+  - Couverture (pytest-cov)
+  - CI
+podcast_titre: "Des logs utiles et des tests qui rassurent"
+podcast:
+  - { voix: A, texte: "Karim, mon API plante parfois en production, et je n'ai aucune idée de pourquoi." }
+  - { voix: B, texte: "Il te manque des logs. Avec Loguru, c'est trois lignes : logger remove, puis logger add vers un fichier, avec un niveau, une rotation et une rétention." }
+  - { voix: A, texte: "Rotation et rétention, c'est pareil ?" }
+  - { voix: B, texte: "Non. La rotation dit quand commencer un nouveau fichier, par exemple tous les dix mégaoctets. La rétention dit combien de temps on les garde, par exemple sept jours. Sans ça, le disque finit plein." }
+  - { voix: A, texte: "Et pour retrouver la cause d'un plantage ?" }
+  - { voix: B, texte: "logger point exception dans le except : tu as le message et toute la trace. Par contre, on ne journalise jamais un mot de passe ou un jeton." }
+  - { voix: A, texte: "Passons aux tests. pytest, c'est compliqué à mettre en place ?" }
+  - { voix: B, texte: "Pas du tout : un fichier test underscore quelque chose, une fonction test underscore, un assert. Tu lances pytest, il trouve tout seul." }
+  - { voix: A, texte: "Et si mon test a besoin d'une base de données ?" }
+  - { voix: B, texte: "Une fixture : elle crée une base SQLite en mémoire, la donne au test avec yield, et la ferme après. Chaque test a sa base neuve, donc ils sont indépendants." }
+  - { voix: A, texte: "Et pour l'API elle-même ?" }
+  - { voix: B, texte: "TestClient de FastAPI : tu appelles tes routes comme un vrai client, sans lancer de serveur. Ajoute la couverture avec un seuil dans la CI, et le jury verra que ton code est vraiment vérifié." }

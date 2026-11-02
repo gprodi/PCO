@@ -1,0 +1,343 @@
+{
+  "slug": "pandas-seaborn",
+  "titre": "Pandas & Seaborn",
+  "theme": "data",
+  "fiche": {
+    "titre": "Préparer des données pour un modèle : filtrer, nettoyer, visualiser",
+    "resume": "Avant d'entraîner un modèle, on prépare les données. Pandas charge un fichier (CSV, Excel) dans un DataFrame, puis on filtre : suppression des lignes incomplètes (dropna) ou remplacement des manques par une valeur par défaut comme la moyenne (fillna), sélection des lignes selon un critère et des seules colonnes utiles. Seaborn, construit sur Matplotlib, aide à comprendre ces données : un histogramme avec densité (histplot, kde=True) montre la distribution, un boxplot révèle les valeurs aberrantes. On nettoie ensuite : doublons supprimés, outliers filtrés par la règle de l'écart interquartile (IQR), variables catégorielles converties en nombres (encodage ordinal avec map, ou one-hot). describe() et info() restent les premiers réflexes pour vérifier le résultat à chaque étape.",
+    "objectifs": [
+      "Charger, inspecter et filtrer un DataFrame",
+      "Traiter les valeurs manquantes en choisissant entre suppression et imputation",
+      "Détecter et filtrer les valeurs aberrantes avec un boxplot et la règle IQR",
+      "Encoder les variables catégorielles pour un modèle"
+    ],
+    "notions": [
+      {
+        "terme": "Series / DataFrame",
+        "definition": "Series : une colonne étiquetée. DataFrame : table de Series partageant le même index."
+      },
+      {
+        "terme": "dropna / fillna",
+        "definition": "dropna supprime les lignes (ou colonnes) incomplètes ; fillna remplace les manques par une valeur (moyenne, médiane, constante)."
+      },
+      {
+        "terme": "Imputation",
+        "definition": "Remplacement d'une valeur manquante par une estimation ; la médiane résiste mieux aux valeurs extrêmes que la moyenne."
+      },
+      {
+        "terme": "Outlier",
+        "definition": "Valeur anormalement éloignée des autres (erreur de saisie ou cas rare) qui peut fausser un modèle."
+      },
+      {
+        "terme": "IQR",
+        "definition": "Écart interquartile Q3 − Q1 ; on considère aberrant ce qui sort de [Q1 − 1,5·IQR ; Q3 + 1,5·IQR]."
+      },
+      {
+        "terme": "Encodage ordinal",
+        "definition": "Remplacer des catégories ordonnées par des entiers (aucun=0, bac=1, bac+2=2…) avec map."
+      },
+      {
+        "terme": "One-hot encoding",
+        "definition": "Une colonne 0/1 par catégorie (pd.get_dummies) pour les catégories sans ordre (ville, couleur)."
+      }
+    ],
+    "points_cles": [
+      "Inspecter avant et après chaque transformation : shape, info(), describe(), isna().sum().",
+      "Supprimer les lignes incomplètes est simple mais fait perdre des données ; imputer garde les lignes mais invente une valeur.",
+      "Une imputation par la moyenne ou un filtrage d'outliers se calcule sur le jeu d'entraînement seulement, puis s'applique au jeu de test.",
+      "Encodage ordinal pour les catégories ordonnées ; one-hot pour les catégories sans ordre (sinon le modèle croit à un ordre).",
+      "Le boxplot et l'histogramme guident les décisions de nettoyage ; ils ne remplacent pas la connaissance métier."
+    ],
+    "code": [
+      {
+        "titre": "Pipeline de nettoyage",
+        "lang": "python",
+        "code": "import pandas as pd\n\ndf = pd.read_csv(\"data.csv\")\ndf = df.drop_duplicates()\ndf = df[[\"age\", \"revenu_estime_mois\", \"niveau_etude\"]]\ndf[\"revenu_estime_mois\"] = df[\"revenu_estime_mois\"].fillna(df[\"revenu_estime_mois\"].median())\n\nq1, q3 = df[\"revenu_estime_mois\"].quantile([0.25, 0.75])\niqr = q3 - q1\ndf = df[df[\"revenu_estime_mois\"].between(q1 - 1.5 * iqr, q3 + 1.5 * iqr)]\n\nordre = {\"aucun\": 0, \"bac\": 1, \"bac+2\": 2, \"master\": 3, \"doctorat\": 4}\ndf[\"niveau_etude\"] = df[\"niveau_etude\"].map(ordre)\nprint(df.describe(), df.isna().sum(), sep=\"\\n\")\n",
+        "explication": "On réaffecte la colonne au lieu d'utiliser inplace=True sur une colonne, qui n'a plus d'effet avec pandas 3."
+      },
+      {
+        "titre": "Explorer avant de nettoyer",
+        "lang": "python",
+        "code": "import seaborn as sns\nimport matplotlib.pyplot as plt\n\nfig, axes = plt.subplots(1, 2, figsize=(10, 4))\nsns.histplot(df[\"age\"], kde=True, ax=axes[0])\nsns.boxplot(x=df[\"revenu_estime_mois\"], ax=axes[1])\nplt.tight_layout()\nplt.show()\n\npd.get_dummies(df, columns=[\"ville\"], drop_first=True)   # one-hot si catégories sans ordre\n",
+        "explication": "Deux graphiques côte à côte : distribution des âges et repérage des revenus extrêmes."
+      }
+    ],
+    "pieges": [
+      "df['col'].fillna(..., inplace=True) : affectation en chaîne, sans effet avec le copy-on-write de pandas 3 ; écrire df['col'] = df['col'].fillna(...).",
+      "Calculer la moyenne d'imputation sur tout le jeu avant le découpage train/test : fuite de données.",
+      "Encoder des villes 0, 1, 2 : le modèle croit que la ville 2 « vaut plus » que la ville 1.",
+      "Supprimer tous les outliers à l'aveugle : certains sont des cas réels importants (fraude, panne)."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Pipeline scikit-learn reproductible",
+        "contenu": "`ColumnTransformer` + `SimpleImputer` + `OneHotEncoder` + `StandardScaler` dans un `Pipeline` : les étapes apprises sur le train sont rejouées à l'identique sur le test et en production. C'est la suite naturelle du cours Machine Learning.",
+        "lien": "https://scikit-learn.org/stable/modules/compose.html"
+      },
+      {
+        "titre": "Valider les données avec un schéma",
+        "contenu": "Pandera (ou Pydantic) décrit les colonnes attendues : type, plage, valeurs autorisées. Défi : écris un schéma qui refuse un âge négatif ou un niveau d'étude inconnu et fais échouer un test pytest.",
+        "lien": "https://pandera.readthedocs.io/"
+      },
+      {
+        "titre": "Polars pour les gros fichiers",
+        "contenu": "Polars lit et transforme des millions de lignes beaucoup plus vite que pandas, en mode paresseux (`scan_csv`). Il est utilisé dans le pipeline de données de MicroForge (dépendance `data`).",
+        "lien": "https://docs.pola.rs/"
+      }
+    ],
+    "jury": "**E1 (C3, C4)** : agréger et nettoyer les données, avec des règles explicites et justifiées (manquants, doublons, aberrants, normalisation). Dans le rapport E1 de MicroForge, montre les règles de nettoyage du pipeline (normalisation des références et des prix des composants) et un graphique avant/après.",
+    "competences": [
+      "C3",
+      "C4"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Que fait df.dropna() par défaut ?",
+        "choix": [
+          "Remplace les manques par 0",
+          "Supprime les lignes contenant au moins une valeur manquante",
+          "Supprime les colonnes vides",
+          "Compte les manques"
+        ],
+        "bonne": 1,
+        "explication": "Par défaut axis=0 et how='any'.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle imputation résiste le mieux aux valeurs extrêmes ?",
+        "choix": [
+          "La moyenne",
+          "La médiane",
+          "Le maximum",
+          "Zéro"
+        ],
+        "bonne": 1,
+        "explication": "La médiane n'est pas tirée par quelques valeurs énormes.",
+        "difficulte": 2
+      },
+      {
+        "question": "Selon la règle IQR, une valeur est aberrante si elle est :",
+        "choix": [
+          "Supérieure à la moyenne",
+          "Hors de [Q1 − 1,5·IQR ; Q3 + 1,5·IQR]",
+          "Négative",
+          "Différente de la médiane"
+        ],
+        "bonne": 1,
+        "explication": "IQR = Q3 − Q1 ; c'est aussi la règle des moustaches du boxplot.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel graphique sert à repérer des outliers ?",
+        "choix": [
+          "Camembert",
+          "Boxplot",
+          "Courbe temporelle",
+          "Carte"
+        ],
+        "bonne": 1,
+        "explication": "Les points au-delà des moustaches sont les valeurs atypiques.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment encoder une colonne « ville » (Paris, Lyon, Lille) pour un modèle linéaire ?",
+        "choix": [
+          "map vers 0, 1, 2",
+          "One-hot (pd.get_dummies)",
+          "La supprimer toujours",
+          "La laisser en texte"
+        ],
+        "bonne": 1,
+        "explication": "Sans ordre naturel, l'encodage ordinal introduirait un ordre fictif.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi éviter df['col'].fillna(v, inplace=True) en pandas récent ?",
+        "choix": [
+          "C'est plus lent",
+          "L'affectation en chaîne n'a plus d'effet avec le copy-on-write",
+          "Ça supprime la colonne",
+          "Ce n'est pas du Python valide"
+        ],
+        "bonne": 1,
+        "explication": "On écrit df['col'] = df['col'].fillna(v).",
+        "difficulte": 3
+      },
+      {
+        "question": "Pourquoi calculer la valeur d'imputation sur le jeu d'entraînement seulement ?",
+        "choix": [
+          "Pour aller plus vite",
+          "Pour éviter une fuite d'information du test vers l'entraînement",
+          "Parce que le test n'a pas de manques",
+          "Ce n'est pas nécessaire"
+        ],
+        "bonne": 1,
+        "explication": "Sinon l'évaluation est trop optimiste : le modèle a « vu » une statistique du test.",
+        "difficulte": 3
+      },
+      {
+        "question": "Quelle fonction donne d'un coup moyenne, écart type, min, quartiles et max des colonnes numériques ?",
+        "choix": [
+          "df.info()",
+          "df.describe()",
+          "df.head()",
+          "df.shape"
+        ],
+        "bonne": 1,
+        "explication": "info() montre plutôt les types et le nombre de valeurs non nulles.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Lire un fichier Excel",
+        "verso": "pd.read_excel(\"fichier.xlsx\") (dépend d'openpyxl).",
+        "tags": []
+      },
+      {
+        "recto": "Garder des colonnes",
+        "verso": "df[[\"age\", \"revenu\"]] (double crochet = DataFrame).",
+        "tags": []
+      },
+      {
+        "recto": "Filtrer les lignes",
+        "verso": "df[df[\"age\"] > 30]",
+        "tags": []
+      },
+      {
+        "recto": "Imputer par la médiane",
+        "verso": "df[\"c\"] = df[\"c\"].fillna(df[\"c\"].median())",
+        "tags": []
+      },
+      {
+        "recto": "Quartiles",
+        "verso": "q1, q3 = df[\"c\"].quantile([0.25, 0.75])",
+        "tags": []
+      },
+      {
+        "recto": "Filtre IQR en une ligne",
+        "verso": "df[df[\"c\"].between(q1 - 1.5*iqr, q3 + 1.5*iqr)]",
+        "tags": []
+      },
+      {
+        "recto": "Encodage ordinal",
+        "verso": "df[\"niveau\"] = df[\"niveau\"].map({\"aucun\": 0, \"bac\": 1, ...})",
+        "tags": []
+      },
+      {
+        "recto": "One-hot",
+        "verso": "pd.get_dummies(df, columns=[\"ville\"], drop_first=True)",
+        "tags": []
+      },
+      {
+        "recto": "Distribution + densité",
+        "verso": "sns.histplot(df[\"age\"], kde=True)",
+        "tags": []
+      },
+      {
+        "recto": "Boxplot d'une colonne",
+        "verso": "sns.boxplot(x=df[\"revenu\"])",
+        "tags": []
+      },
+      {
+        "recto": "Supprimer les doublons",
+        "verso": "df = df.drop_duplicates()",
+        "tags": []
+      },
+      {
+        "recto": "Types et valeurs non nulles",
+        "verso": "df.info()",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Nettoyage guidé",
+        "niveau": 1,
+        "enonce": "Sur le Titanic, garde les colonnes Survived, Pclass, Sex, Age, Fare ; impute l'âge par la médiane ; encode Sex en 0/1 ; vérifie qu'il ne reste aucune valeur manquante.",
+        "indices": [
+          "df[[...]]",
+          "map({'male': 0, 'female': 1})",
+          "isna().sum()"
+        ],
+        "corrige": "```python\ndf = df[[\"Survived\", \"Pclass\", \"Sex\", \"Age\", \"Fare\"]].copy()\ndf[\"Age\"] = df[\"Age\"].fillna(df[\"Age\"].median())\ndf[\"Sex\"] = df[\"Sex\"].map({\"male\": 0, \"female\": 1})\nassert df.isna().sum().sum() == 0\n```\n"
+      },
+      {
+        "titre": "Outliers : décider avec les graphiques",
+        "niveau": 2,
+        "enonce": "Trace le boxplot de Fare, compte les valeurs au-delà de Q3 + 1,5·IQR, puis compare la moyenne de Fare avant et après filtrage. Ces valeurs sont-elles des erreurs ?",
+        "indices": [
+          "quantile([0.25, 0.75])",
+          "len(df) avant/après"
+        ],
+        "corrige": "```python\nq1, q3 = df[\"Fare\"].quantile([0.25, 0.75])\nhaut = q3 + 1.5 * (q3 - q1)\nprint((df[\"Fare\"] > haut).sum(), \"valeurs hautes\")\nprint(df[\"Fare\"].mean(), df.loc[df[\"Fare\"] <= haut, \"Fare\"].mean())\n```\nCe ne sont pas des erreurs : ce sont des billets de première classe très chers. Les supprimer biaiserait l'étude de la survie selon la classe ; on préfère garder ces lignes, ou transformer la variable (log).\n"
+      },
+      {
+        "titre": "Préparation sans fuite",
+        "niveau": 3,
+        "enonce": "Découpe le jeu en train/test, calcule la médiane d'imputation et les bornes IQR sur le train uniquement, puis applique-les aux deux jeux. Explique pourquoi.",
+        "indices": [
+          "train_test_split",
+          "Calculer les statistiques sur X_train seulement"
+        ],
+        "corrige": "```python\nfrom sklearn.model_selection import train_test_split\n\ntrain, test = train_test_split(df, test_size=0.2, random_state=42)\nmed = train[\"Age\"].median()\nq1, q3 = train[\"Fare\"].quantile([0.25, 0.75])\nborne = q3 + 1.5 * (q3 - q1)\nfor part in (train, test):\n    part[\"Age\"] = part[\"Age\"].fillna(med)\n    part[\"Fare\"] = part[\"Fare\"].clip(upper=borne)\n```\nLe test simule des données jamais vues : utiliser ses statistiques pendant la préparation surestimerait la performance réelle du modèle.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Pandas & Seaborn\n## Charger\n- read_csv, read_excel\n- head, info, describe\n## Filtrer\n- Lignes : df[cond]\n- Colonnes : df[[...]]\n## Manquants\n- dropna\n- fillna (moyenne, médiane)\n## Explorer (Seaborn)\n- histplot + kde\n- boxplot\n## Nettoyer\n- drop_duplicates\n- Outliers (IQR)\n- Encodage ordinal (map)\n- One-hot (get_dummies)\n## Bonnes pratiques\n- Statistiques sur le train\n- Vérifier à chaque étape\n"
+  },
+  "podcast": {
+    "titre": "Des données propres avant tout modèle",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, on dit que la préparation des données prend 80 % du temps d'un projet d'IA. Vrai ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Souvent, oui. Et c'est là que se gagnent les points : un modèle moyen sur des données propres bat un super modèle sur des données sales."
+      },
+      {
+        "voix": "A",
+        "texte": "Première étape ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Regarder : info pour les types et les manques, describe pour les statistiques. Puis un histogramme et un boxplot avec Seaborn."
+      },
+      {
+        "voix": "A",
+        "texte": "Pour les valeurs manquantes, je supprime ou je remplace ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Ça dépend combien il en manque. Supprimer est simple mais perd des lignes. Remplacer par la médiane garde les lignes ; la médiane est moins sensible aux valeurs extrêmes que la moyenne."
+      },
+      {
+        "voix": "A",
+        "texte": "Et les valeurs extrêmes justement ?"
+      },
+      {
+        "voix": "B",
+        "texte": "La règle de l'écart interquartile les repère. Mais attention : un billet de première classe très cher n'est pas une erreur. On décide avec la connaissance du métier."
+      },
+      {
+        "voix": "A",
+        "texte": "Dernier point : les colonnes texte comme le niveau d'études."
+      },
+      {
+        "voix": "B",
+        "texte": "Si les catégories ont un ordre, on les remplace par des entiers avec map. Si elles n'en ont pas, comme des villes, on fait du one-hot. Et toutes ces statistiques se calculent sur l'entraînement seulement, pour éviter les fuites."
+      }
+    ]
+  },
+  "origine": "seed"
+}

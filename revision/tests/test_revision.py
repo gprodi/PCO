@@ -197,6 +197,39 @@ def test_seed_files_valid():
         assert content.mindmap.markdown.lstrip().startswith("# "), path.name
 
 
+def _python_snippets(content) -> list[tuple[str, str]]:
+    import re
+
+    snippets = [(f"fiche:{c.titre}", c.code) for c in content.fiche.code if c.lang == "python"]
+    for ex in content.exercices.exercices:
+        for i, block in enumerate(re.findall(r"```python\n(.*?)```", ex.corrige, re.S)):
+            snippets.append((f"corrigé:{ex.titre}#{i}", block))
+    return snippets
+
+
+@pytest.mark.parametrize("path", sorted(PATHS.seed.glob("*.yaml")), ids=lambda p: p.stem)
+def test_seed_python_code_is_valid(path):
+    """Tout le code Python des fiches et des corrigés est syntaxiquement valide."""
+    import textwrap
+
+    from revision.seed import load_seed
+
+    content = load_seed(path)
+    for where, code in _python_snippets(content):
+        compile(textwrap.dedent(code), f"{path.stem}/{where}", "exec")
+
+
+def test_seeds_have_jury_and_further_sections():
+    """Chaque cours rédigé à la main relie le cours au référentiel (jury) et propose d'aller plus loin."""
+    from revision.seed import load_seed
+
+    for path in sorted(PATHS.seed.glob("*.yaml")):
+        fiche = load_seed(path).fiche
+        assert fiche.competences, path.name
+        assert fiche.jury and any(f"E{i}" in fiche.jury for i in range(1, 6)), path.name
+        assert len(fiche.aller_plus_loin) >= 2, path.name
+
+
 def test_seed_loader_and_export(tmp_path):
     from revision.site_export import export
 

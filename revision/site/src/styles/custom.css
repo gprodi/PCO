@@ -26,3 +26,9 @@
 .mf-podcast p { margin: 0.4rem 0; }
 .mf-podcast .voix { font-weight: 700; margin-right: 0.4rem; }
 .mf-notice { border-left: 4px solid var(--sl-color-accent); padding: 0.6rem 1rem; background: var(--sl-color-gray-6); }
+
+/* Blocs de code des fiches et des corrigés : défilement dans le bloc, jamais de la page entière (mobile). */
+main pre {
+  overflow-x: auto;
+  max-width: 100%;
+}

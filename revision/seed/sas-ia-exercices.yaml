@@ -1,0 +1,249 @@
+titre: "SAS IA — exercices NumPy, Pandas, Seaborn"
+fiche:
+  titre: "Remise à niveau par la pratique : NumPy, Pyplot, Pandas, Seaborn et mini-jeux"
+  resume: >-
+    Ce sas d'entrée remet les bases en mouvement par des exercices progressifs. NumPy fournit des tableaux
+    (ndarray) sur lesquels on calcule sans boucle : somme, produit scalaire, statistiques, masques booléens
+    (np.where). Matplotlib (pyplot) trace courbes, histogrammes, barres, nuages de points, camemberts et
+    boxplots. Pandas charge des CSV réels (Titanic, ventes, températures) dans des DataFrames pour explorer,
+    filtrer, compter les valeurs manquantes, supprimer les doublons et créer des colonnes. Seaborn produit en
+    une ligne les graphiques statistiques (distribution, moyenne par groupe, corrélation). Des mini-projets
+    (pendu, morpion, pierre-feuille-ciseaux, devinette, code César, zorglangue) font travailler chaînes,
+    boucles, conditions, fonctions et saisies utilisateur, et une première série de tests pytest vérifie les
+    fonctions écrites.
+  objectifs:
+    - Calculer sur des tableaux NumPy sans boucle explicite (vectorisation, masques)
+    - Tracer les graphiques de base avec pyplot et seaborn
+    - Explorer et nettoyer un CSV avec pandas (filtres, manquants, doublons, nouvelles colonnes)
+    - Structurer un petit jeu en fonctions testables
+    - Écrire et lancer ses premiers tests pytest
+  notions:
+    - { terme: "ndarray", definition: "Tableau NumPy homogène et multidimensionnel ; les opérations s'appliquent élément par élément (vectorisation)." }
+    - { terme: "Masque booléen", definition: "Tableau de True/False obtenu par une comparaison (a < 5) qui sert à filtrer ou à remplacer : np.where(a < 5, 0, 1)." }
+    - { terme: "Produit scalaire", definition: "Somme des produits terme à terme de deux vecteurs : np.dot(a, b) ou a @ b." }
+    - { terme: "DataFrame", definition: "Table pandas à colonnes nommées et typées ; chaque colonne est une Series." }
+    - { terme: "Valeur manquante (NaN)", definition: "Absence de valeur ; df.isna().sum() les compte par colonne, dropna/fillna les traitent." }
+    - { terme: "Boxplot", definition: "Graphique qui résume une distribution : médiane, quartiles, moustaches et valeurs extrêmes." }
+    - { terme: "Matrice de corrélation", definition: "Tableau des corrélations entre variables numériques (df.corr(numeric_only=True)), souvent affiché en heatmap." }
+    - { terme: "Test unitaire", definition: "Fonction test_… qui vérifie par assert le résultat d'une fonction ; pytest les découvre et les exécute." }
+  points_cles:
+    - "Avec NumPy, on remplace la boucle par une opération sur tout le tableau : plus court et beaucoup plus rapide."
+    - "np.random.default_rng(42) crée un générateur reproductible : mêmes nombres à chaque exécution."
+    - "Toujours inspecter un CSV avant d'analyser : head(), info(), describe(), isna().sum()."
+    - "Filtrer un DataFrame : df[df['Survived'] == 1] ; combiner avec & et | entre parenthèses."
+    - "Un jeu bien découpé (afficher, saisir, vérifier la victoire) se teste fonction par fonction."
+    - "Les saisies utilisateur se convertissent et se valident dans un try/except (int(input()) peut échouer)."
+  code:
+    - titre: "NumPy vectorisé"
+      lang: python
+      code: |
+        import numpy as np
+
+        rng = np.random.default_rng(42)
+        a = np.arange(1, 11)                     # 1 à 10 inclus
+        b = rng.integers(1, 11, size=(3, 3))     # matrice 3x3 d'entiers 1–10
+        print(a.sum(), a.mean(), np.median(a), a.std())
+        print(np.dot(a, a))                      # produit scalaire
+        print(np.unique([3, 1, 3, 2]), np.sort(b, axis=None))
+        binaire = np.where(a < 5, 0, 1)          # < 5 -> 0, sinon 1
+
+        def premiers(t: np.ndarray) -> np.ndarray:
+            est_premier = lambda n: n > 1 and all(n % d for d in range(2, int(n**0.5) + 1))
+            return t[[est_premier(int(n)) for n in t]]
+      explication: "Les opérations s'appliquent à tout le tableau ; seul le test de primalité nécessite une fonction élément par élément."
+    - titre: "Explorer le Titanic avec pandas et seaborn"
+      lang: python
+      code: |
+        import pandas as pd
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+
+        url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+        df = pd.read_csv(url)
+        print(len(df), f"{df['Survived'].mean():.1%} de survivants")
+        print(df["Age"].mean(), df["Age"].mode()[0])
+        print(df["Fare"].agg(["min", "max", "mean", "median"]))
+        print(df.isna().sum())
+
+        sns.boxplot(data=df, x="Survived", y="Fare")
+        plt.figure()
+        sns.heatmap(df.corr(numeric_only=True), annot=True, cmap="coolwarm")
+        plt.show()
+      explication: "La moyenne d'une colonne 0/1 donne directement un pourcentage ; numeric_only évite l'erreur sur les colonnes texte."
+  pieges:
+    - "Confondre np.random.rand (flottants dans [0, 1[) et randint/integers (entiers, borne haute exclue)."
+    - "Oublier les parenthèses dans les filtres pandas : df[(df.Age > 18) & (df.Sex == 'male')]."
+    - "Modifier un sous-DataFrame filtré déclenche SettingWithCopyWarning : faire .copy() d'abord."
+    - "Lancer pytest depuis le mauvais dossier : les imports du projet échouent (installer le projet ou configurer pythonpath)."
+  aller_plus_loin:
+    - titre: "Broadcasting NumPy"
+      contenu: "Additionner une matrice (3, 3) et un vecteur (3,) fonctionne sans boucle : NumPy « étire » le vecteur. Défi : normalise chaque colonne d'une matrice (soustraire la moyenne de la colonne, diviser par son écart type) en une ligne."
+      lien: "https://numpy.org/doc/stable/user/basics.broadcasting.html"
+    - titre: "Morpion avec détection vectorisée"
+      contenu: "Représente la grille par un tableau 3×3 (1 pour X, -1 pour O). Une ligne, une colonne ou une diagonale gagnante a une somme de ±3 : `grille.sum(axis=0)`, `grille.sum(axis=1)`, `np.trace(grille)`, `np.trace(np.fliplr(grille))`. Écris les tests pytest de cette fonction."
+    - titre: "Seaborn objects et graphiques reproductibles"
+      contenu: "Fixe un thème (`sns.set_theme()`), sauvegarde avec `plt.savefig('fig.png', dpi=150, bbox_inches='tight')` et versionne le script plutôt que l'image : le graphique se régénère à l'identique."
+      lien: "https://seaborn.pydata.org/tutorial.html"
+  jury: >-
+    **E1 (C3)** : l'exploration et le nettoyage de données (manquants, doublons, valeurs aberrantes) sont
+    attendus dans le rapport E1. Dans MicroForge, montre l'étape d'agrégation du pipeline de données (prix et
+    caractéristiques des composants) et les contrôles qualité associés, avec un graphique d'exploration.
+  competences: [C3, C12]
+  sources: []
+qcm:
+  - question: "Que renvoie np.arange(1, 11) ?"
+    choix: ["Les entiers de 1 à 11", "Les entiers de 1 à 10", "10 flottants entre 1 et 11", "Une liste Python"]
+    bonne: 1
+    explication: "La borne haute est exclue, comme pour range."
+    difficulte: 1
+  - question: "Comment remplacer les éléments < 5 par 0 et les autres par 1 ?"
+    choix: ["np.replace(a, 5)", "np.where(a < 5, 0, 1)", "a.filter(5)", "[0 if x < 5 else 1 for x in a] est la seule façon"]
+    bonne: 1
+    explication: "np.where(condition, si_vrai, si_faux) est vectorisé ; la compréhension marche aussi mais boucle en Python."
+    difficulte: 1
+  - question: "Que calcule np.dot(a, b) pour deux vecteurs ?"
+    choix: ["Leur concaténation", "Le produit scalaire (somme des produits terme à terme)", "Le produit élément par élément", "La distance euclidienne"]
+    bonne: 1
+    explication: "Le produit élément par élément s'écrit a * b ; np.dot ou a @ b donne la somme de ces produits."
+    difficulte: 1
+  - question: "Comment compter les valeurs manquantes par colonne ?"
+    choix: ["df.count()", "df.isna().sum()", "df.null()", "df.describe()"]
+    bonne: 1
+    explication: "isna() donne un masque de booléens, sum() compte les True par colonne."
+    difficulte: 1
+  - question: "Pour obtenir le pourcentage de survivants dans une colonne Survived codée 0/1 :"
+    choix: ["df['Survived'].sum()", "df['Survived'].mean()", "df['Survived'].count()", "len(df['Survived'])"]
+    bonne: 1
+    explication: "La moyenne d'une variable 0/1 est la proportion de 1."
+    difficulte: 2
+  - question: "Quel graphique montre la médiane, les quartiles et les valeurs extrêmes d'une distribution ?"
+    choix: ["Camembert", "Boxplot", "Courbe", "Barres empilées"]
+    bonne: 1
+    explication: "Le boxplot (boîte à moustaches) résume la distribution."
+    difficulte: 1
+  - question: "Comment pytest repère-t-il les tests ?"
+    choix: ["Par les fonctions commençant par test_ dans des fichiers test_*.py", "Par un décorateur @test obligatoire", "Par les classes héritant de TestCase uniquement", "Il faut les lister dans un fichier"]
+    bonne: 0
+    explication: "Convention de découverte : fichiers test_*.py (ou *_test.py), fonctions test_*."
+    difficulte: 1
+  - question: "Pourquoi entourer int(input()) d'un try/except ValueError dans un jeu ?"
+    choix: ["Pour accélérer le jeu", "Parce que l'utilisateur peut taper des lettres et faire planter le programme", "Parce qu'input renvoie un entier", "C'est obligatoire en Python"]
+    bonne: 1
+    explication: "input() renvoie toujours une chaîne ; sa conversion peut échouer."
+    difficulte: 1
+flashcards:
+  - { recto: "Tableau des entiers de 1 à 10", verso: "np.arange(1, 11)" }
+  - { recto: "Générateur aléatoire reproductible", verso: "rng = np.random.default_rng(42) ; rng.random(5), rng.integers(1, 11, size=(3, 3))" }
+  - { recto: "Moyenne, médiane, écart type", verso: "a.mean(), np.median(a), a.std()" }
+  - { recto: "Valeurs uniques / tri", verso: "np.unique(a) ; np.sort(a)" }
+  - { recto: "Charger un CSV", verso: "pd.read_csv(chemin_ou_url)" }
+  - { recto: "Premier coup d'œil sur un DataFrame", verso: "df.head(), df.info(), df.describe(), df.isna().sum()" }
+  - { recto: "Supprimer les doublons", verso: "df.drop_duplicates() ; comparer len(df) avant/après." }
+  - { recto: "Valeur la plus fréquente d'une colonne", verso: "df['Age'].mode()[0]" }
+  - { recto: "Extraire l'extension d'un e-mail", verso: "df['email'].str.split('.').str[-1]" }
+  - { recto: "Histogramme seaborn", verso: "sns.histplot(data=df, x='Age')" }
+  - { recto: "Heatmap de corrélation", verso: "sns.heatmap(df.corr(numeric_only=True), annot=True)" }
+  - { recto: "Lancer les tests d'un dossier", verso: "pytest tests/ (ou pytest tests/test_jeu.py pour un fichier)." }
+exercices:
+  - titre: "Statistiques NumPy"
+    niveau: 1
+    enonce: "Écris `stats(t)` qui renvoie un dictionnaire {moyenne, mediane, ecart_type} d'un tableau NumPy, et `binariser(t, seuil=5)` qui remplace les valeurs < seuil par 0 et les autres par 1. Ajoute un test pytest pour chacune."
+    indices: ["np.median", "np.where", "assert ... == ..."]
+    corrige: |
+      ```python
+      import numpy as np
+
+      def stats(t: np.ndarray) -> dict:
+          return {"moyenne": t.mean(), "mediane": float(np.median(t)), "ecart_type": t.std()}
+
+      def binariser(t: np.ndarray, seuil: float = 5) -> np.ndarray:
+          return np.where(t < seuil, 0, 1)
+
+      # tests/test_stats.py
+      def test_stats():
+          assert stats(np.array([1, 2, 3]))["mediane"] == 2
+
+      def test_binariser():
+          assert binariser(np.array([1, 5, 9])).tolist() == [0, 1, 1]
+      ```
+  - titre: "Code César testé"
+    niveau: 2
+    enonce: "Écris `cesar(texte, decalage)` qui décale chaque lettre (majuscules et minuscules) en conservant espaces et ponctuation, puis `decoder(texte, decalage)`. Vérifie par un test que decoder(cesar(t, k), k) == t pour plusieurs k."
+    indices: ["ord / chr et le modulo 26", "pytest.mark.parametrize pour plusieurs décalages"]
+    corrige: |
+      ```python
+      import pytest
+
+      def cesar(texte: str, decalage: int) -> str:
+          res = []
+          for c in texte:
+              if c.isalpha():
+                  base = ord("A") if c.isupper() else ord("a")
+                  res.append(chr((ord(c) - base + decalage) % 26 + base))
+              else:
+                  res.append(c)
+          return "".join(res)
+
+      def decoder(texte: str, decalage: int) -> str:
+          return cesar(texte, -decalage)
+
+      @pytest.mark.parametrize("k", [1, 3, 13, 25])
+      def test_aller_retour(k):
+          t = "Bonjour, le Monde !"
+          assert decoder(cesar(t, k), k) == t
+      ```
+  - titre: "Analyse des notes d'étudiants"
+    niveau: 3
+    enonce: "Avec un DataFrame `grades` (colonnes ID, salle, note sur 17), convertis les notes sur 20, ajoute une colonne `result` (« Réussite » si >= 10, sinon « Échec »), affiche la moyenne par salle et trace avec seaborn le nombre de réussites et d'échecs."
+    indices: ["df['note'] * 20 / 17", "np.where pour result", "groupby('salle')['note20'].mean()", "sns.countplot"]
+    corrige: |
+      ```python
+      import numpy as np
+      import seaborn as sns
+      import matplotlib.pyplot as plt
+
+      grades["note20"] = grades["note"] * 20 / 17
+      grades["result"] = np.where(grades["note20"] >= 10, "Réussite", "Échec")
+      print(grades.groupby("salle")["note20"].mean().round(2))
+      sns.countplot(data=grades, x="result")
+      plt.show()
+      ```
+mindmap: |
+  # SAS IA — exercices
+  ## NumPy
+  - arange, random (rng)
+  - sum, mean, median, std
+  - dot, unique, sort
+  - np.where (masques)
+  ## Pyplot
+  - plot, hist, bar, scatter
+  - pie, boxplot
+  - plusieurs courbes
+  ## Pandas
+  - read_csv, head, info
+  - Filtres, isna, drop_duplicates
+  - Nouvelles colonnes, apply
+  ## Seaborn
+  - histplot, barplot, countplot
+  - boxplot, heatmap(corr)
+  ## Mini-projets
+  - Pendu, Morpion
+  - Pierre-feuille-ciseaux, devinette
+  - César, Zorglangue
+  ## Tests
+  - pytest, test_*
+  - fixtures (plus tard)
+podcast_titre: "Se remettre en jambes avec NumPy et pandas"
+podcast:
+  - { voix: A, texte: "Karim, le sas d'entrée, c'est une avalanche d'exercices. Par où je commence ?" }
+  - { voix: B, texte: "Par NumPy. L'idée clé : on ne boucle plus. Tu écris a point sum, a point mean, et l'opération s'applique à tout le tableau." }
+  - { voix: A, texte: "Même pour transformer des valeurs selon une condition ?" }
+  - { voix: B, texte: "Oui, avec un masque : np point where, a inférieur à 5, zéro, sinon un. Une ligne, et c'est beaucoup plus rapide qu'une boucle Python." }
+  - { voix: A, texte: "Ensuite le Titanic avec pandas. Quel est le premier réflexe ?" }
+  - { voix: B, texte: "Regarder avant d'analyser : head, info, describe, et isna point sum pour compter les trous. Sur le Titanic, l'âge et la cabine ont beaucoup de valeurs manquantes." }
+  - { voix: A, texte: "Et le pourcentage de survivants ?" }
+  - { voix: B, texte: "Astuce : la colonne Survived vaut zéro ou un, donc sa moyenne, c'est directement la proportion de survivants." }
+  - { voix: A, texte: "À quoi servent les petits jeux comme le pendu ou le morpion ?" }
+  - { voix: B, texte: "À s'entraîner à découper : une fonction pour afficher, une pour saisir, une pour vérifier la victoire. Et une fonction bien découpée, ça se teste avec pytest." }
+  - { voix: A, texte: "Les tests dès le début, vraiment ?" }
+  - { voix: B, texte: "Oui, c'est le réflexe que le jury attend en fin de formation. Commencer tôt, avec des fonctions simples comme le code César, rend la suite naturelle." }

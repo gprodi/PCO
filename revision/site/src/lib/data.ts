@@ -7,7 +7,8 @@ export type Course = { slug: string; titre: string; theme: string; disponible: b
 export type Content = {
   slug: string; titre: string; theme: string; origine: string;
   fiche: { titre: string; resume: string; objectifs: string[]; notions: { terme: string; definition: string }[]; points_cles: string[];
-    code: { titre: string; lang: string; code: string; explication: string }[]; pieges: string[]; competences: string[]; sources: string[] };
+    code: { titre: string; lang: string; code: string; explication: string }[]; pieges: string[]; competences: string[]; sources: string[];
+    aller_plus_loin?: { titre: string; contenu: string; lien?: string }[]; jury?: string };
   quiz: { questions: { question: string; choix: string[]; bonne: number; explication: string; difficulte: number }[] };
   flashcards: { cartes: { recto: string; verso: string; tags: string[] }[] };
   exercices: { exercices: { titre: string; niveau: number; enonce: string; indices: string[]; corrige: string }[] };

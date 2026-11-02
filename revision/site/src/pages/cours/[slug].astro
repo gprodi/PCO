@@ -12,7 +12,9 @@ export function getStaticPaths() {
 const { course } = Astro.props;
 const c = contents[course.slug];
 const headings = c
-  ? [['fiche', 'Fiche'], ['qcm', 'QCM'], ['flashcards', 'Flashcards'], ['exercices', 'Exercices'], ['carte', 'Carte mentale'], ['podcast', 'Podcast'], ['competences', 'Compétences du référentiel']].map(([slug, text]) => ({ depth: 2, slug, text }))
+  ? [['fiche', 'Fiche'], ['qcm', 'QCM'], ['flashcards', 'Flashcards'], ['exercices', 'Exercices'], ['carte', 'Carte mentale'], ['podcast', 'Podcast'],
+     ...((c.fiche.aller_plus_loin ?? []).length ? [['aller-plus-loin', 'Aller plus loin']] : []),
+     ['competences', 'Référentiel et jury']].map(([slug, text]) => ({ depth: 2, slug, text }))
   : [];
 ---
 <StarlightPage frontmatter={{ title: course.titre, description: c?.fiche.resume.slice(0, 150) }} headings={headings}>
@@ -62,7 +64,21 @@ const headings = c
       <h2 id="podcast">Podcast</h2>
       <Podcast client:visible titre={c.podcast.titre} repliques={c.podcast.repliques} audioUrl={course.audio ? `${base}podcasts/${course.slug}.mp3` : undefined} />
 
-      <h2 id="competences">Compétences du référentiel</h2>
+      {(c.fiche.aller_plus_loin ?? []).length > 0 && (
+        <>
+          <h2 id="aller-plus-loin">Aller plus loin</h2>
+          {c.fiche.aller_plus_loin.map((a) => (
+            <section class="mf-card">
+              <h3>{a.titre}</h3>
+              <div set:html={md(a.contenu)} />
+              {a.lien && <p><a href={a.lien} target="_blank" rel="noopener">Ressource officielle ↗</a></p>}
+            </section>
+          ))}
+        </>
+      )}
+
+      <h2 id="competences">Référentiel et jury</h2>
+      {c.fiche.jury && <div class="mf-notice" set:html={md(c.fiche.jury)} />}
       <ul>
         {c.fiche.competences.map((id) => {
           const comp = competence(id.toUpperCase());

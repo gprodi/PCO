@@ -1,0 +1,264 @@
+titre: "Python — cookbook"
+fiche:
+  titre: "Python : les bases indispensables, des types aux décorateurs"
+  resume: >-
+    Ce cookbook rassemble ce qu'il faut maîtriser pour écrire du Python propre. Les types de base (int, float,
+    str, bool) et les collections (list modifiable, tuple immuable, dict clé-valeur) se manipulent avec
+    l'indexation, le slicing [début:fin:pas] et les compréhensions de liste. Les boucles for parcourent
+    n'importe quel itérable ; enumerate() donne l'indice et zip() parcourt plusieurs listes en parallèle. Les
+    fonctions se documentent par une docstring et peuvent être typées, mais le typage n'est pas vérifié à
+    l'exécution. Les erreurs se gèrent avec try / except / else / finally en ciblant l'exception précise. Le
+    code s'organise en modules et packages (__init__.py) et if __name__ == "__main__" évite d'exécuter un
+    script à l'import. Enfin, la POO (classes, héritage, @property) et les décorateurs permettent de
+    structurer et d'enrichir le code sans le dupliquer.
+  objectifs:
+    - Manipuler listes, tuples et dictionnaires avec leurs méthodes et le slicing
+    - Écrire des boucles idiomatiques avec enumerate, zip et les compréhensions
+    - Définir des fonctions typées, documentées, qui gèrent leurs exceptions
+    - Organiser un projet en modules et packages
+    - Écrire une classe avec héritage, propriétés et un décorateur simple
+  notions:
+    - { terme: "Slicing", definition: "Extraction d'une sous-séquence s[début:fin:pas] ; fin exclue, s[::-1] inverse la séquence." }
+    - { terme: "Compréhension de liste", definition: "Construction concise d'une liste : [x * 2 for x in nombres if x > 0]." }
+    - { terme: "enumerate / zip", definition: "enumerate(liste) donne (indice, élément) ; zip(a, b) associe les éléments de même rang et s'arrête à la plus courte." }
+    - { terme: "Docstring", definition: "Chaîne en première ligne d'une fonction, classe ou module qui la documente (Args, Returns)." }
+    - { terme: "Exception", definition: "Erreur levée à l'exécution (TypeError, ValueError, KeyError…) que l'on intercepte avec try/except." }
+    - { terme: "Package", definition: "Dossier de modules contenant un __init__.py ; __all__ définit ce qu'exporte « from paquet import * »." }
+    - { terme: "@property", definition: "Décorateur qui transforme une méthode en attribut calculé (getter), avec un setter pour valider les affectations." }
+    - { terme: "Décorateur", definition: "Fonction qui reçoit une fonction et renvoie une fonction enveloppe qui ajoute un comportement (journal, chronomètre…)." }
+  points_cles:
+    - "is compare l'identité (même objet), == compare les valeurs : on écrit if x is None, mais if a == b."
+    - "Les annotations de type (a: int) -> int documentent et aident les outils, mais Python ne les vérifie pas à l'exécution."
+    - "Toujours intercepter une exception précise (except KeyError) plutôt qu'un except nu qui masque les bugs."
+    - "Le bloc else d'un try s'exécute seulement si aucune exception n'a été levée ; finally s'exécute toujours."
+    - "if __name__ == \"__main__\": isole le code à lancer en script de celui qu'on importe."
+    - "Les f-strings formatent tout : {pi:.2f}, {texte:=^20}, {date:%Y-%m-%d}."
+  code:
+    - titre: "Boucles idiomatiques et compréhensions"
+      lang: python
+      code: |
+        noms = ["Alice", "Bob", "Charlie"]
+        ages = [25, 30, 22]
+        for i, (nom, age) in enumerate(zip(noms, ages)):
+            print(f"{i}: {nom} a {age} ans")
+
+        majeurs = [nom for nom, age in zip(noms, ages) if age >= 25]   # ['Alice', 'Bob']
+        par_nom = {nom: age for nom, age in zip(noms, ages)}           # compréhension de dict
+        print("nohtyP"[::-1], [0, 1, 2, 3, 4][::2])                    # Python [0, 2, 4]
+      explication: "enumerate et zip évitent les range(len(...)) ; les compréhensions remplacent les boucles d'accumulation."
+    - titre: "Classe, propriété et décorateur"
+      lang: python
+      code: |
+        import time
+        from functools import wraps
+
+        def chrono(f):
+            @wraps(f)
+            def enveloppe(*args, **kwargs):
+                debut = time.perf_counter()
+                resultat = f(*args, **kwargs)
+                print(f"{f.__name__} : {time.perf_counter() - debut:.4f} s")
+                return resultat
+            return enveloppe
+
+        class Personne:
+            def __init__(self, nom: str, age: int):
+                self._nom, self.age = nom, age   # passe par le setter
+
+            @property
+            def age(self) -> int:
+                return self._age
+
+            @age.setter
+            def age(self, valeur: int) -> None:
+                if valeur < 0:
+                    raise ValueError("L'âge doit être positif.")
+                self._age = valeur
+
+        @chrono
+        def somme(n: int) -> int:
+            """Somme des entiers de 0 à n-1."""
+            return sum(range(n))
+      explication: "Le setter valide toute affectation, même dans __init__ ; @wraps conserve le nom et la docstring de la fonction décorée."
+  pieges:
+    - "Valeur par défaut mutable : def f(x=[]) partage la même liste entre tous les appels ; utiliser x=None puis x = x or []."
+    - "Modifier une liste pendant qu'on la parcourt : itérer sur une copie (for x in liste[:]) ou construire une nouvelle liste."
+    - "zip s'arrête silencieusement à la liste la plus courte : vérifier les longueurs (ou zip(..., strict=True))."
+    - "Un except: nu attrape aussi KeyboardInterrupt et masque les vraies erreurs."
+  aller_plus_loin:
+    - titre: "dataclasses et Pydantic : des classes sans code répétitif"
+      contenu: "`@dataclass` génère __init__, __repr__ et __eq__. Pydantic (`BaseModel`) ajoute la **validation à l'exécution** des types annotés — c'est ce qui manque au typage Python seul, et c'est la base de FastAPI et de SQLModel."
+      lien: "https://docs.pydantic.dev/latest/"
+    - titre: "Générateurs et yield"
+      contenu: "Une fonction avec `yield` produit les valeurs une par une sans tout garder en mémoire : idéal pour lire un gros CSV ligne à ligne. Défi : écris `def lire_par_paquets(chemin, n)` qui renvoie des listes de n lignes."
+      lien: "https://docs.python.org/fr/3/howto/functional.html#generators"
+    - titre: "Vérifier les types pour de vrai : mypy et ruff"
+      contenu: "`ruff check` repère les erreurs et le style (PEP 8) : il tourne dans la CI de MicroForge. `mypy` vérifie en plus les annotations sans exécuter le code. Défi : lance `uvx mypy microforge/src` et corrige les premières erreurs signalées."
+      lien: "https://docs.astral.sh/ruff/"
+  jury: >-
+    **E4 (C17)** : le code du projet doit être lisible, documenté et organisé en modules. Dans MicroForge,
+    montre un module typé avec docstrings (ex. `core/allocator.py`), la gestion explicite des erreurs et
+    l'usage de Pydantic pour les modèles de données.
+  competences: [C17]
+  sources: []
+qcm:
+  - question: "Que renvoie \"Python\"[1:4] ?"
+    choix: ["\"Pyt\"", "\"yth\"", "\"ytho\"", "\"tho\""]
+    bonne: 1
+    explication: "Début inclus (indice 1 = y), fin exclue (indice 4) : y, t, h."
+    difficulte: 1
+  - question: "Quelle structure est immuable ?"
+    choix: ["list", "dict", "tuple", "set"]
+    bonne: 2
+    explication: "Un tuple ne peut pas être modifié après sa création ; il peut servir de clé de dictionnaire."
+    difficulte: 1
+  - question: "Que fait zip([1, 2, 3], [\"a\", \"b\"]) ?"
+    choix: ["Lève une erreur", "Produit (1, 'a'), (2, 'b')", "Produit (1, 'a'), (2, 'b'), (3, None)", "Concatène les listes"]
+    bonne: 1
+    explication: "zip s'arrête à la plus courte des séquences."
+    difficulte: 2
+  - question: "Différence entre is et == ?"
+    choix: ["Aucune", "is compare l'identité (même objet), == compare les valeurs", "is compare les types", "== est plus lent"]
+    bonne: 1
+    explication: "Deux listes égales peuvent être deux objets distincts : [1] == [1] est vrai, [1] is [1] est faux."
+    difficulte: 2
+  - question: "Quand s'exécute le bloc else d'un try / except / else ?"
+    choix: ["Toujours", "Seulement si une exception a été levée", "Seulement si aucune exception n'a été levée", "Jamais avec finally"]
+    bonne: 2
+    explication: "finally s'exécute toujours ; else uniquement en l'absence d'exception."
+    difficulte: 2
+  - question: "Quelle exception lève {\"a\": 1}[\"b\"] ?"
+    choix: ["IndexError", "ValueError", "KeyError", "AttributeError"]
+    bonne: 2
+    explication: "Clé absente d'un dictionnaire : KeyError (dict.get('b') renverrait None)."
+    difficulte: 1
+  - question: "À quoi sert if __name__ == \"__main__\": ?"
+    choix: ["À déclarer la fonction principale obligatoire", "À exécuter du code seulement quand le fichier est lancé directement, pas importé", "À accélérer le script", "À définir un package"]
+    bonne: 1
+    explication: "À l'import, __name__ vaut le nom du module ; lancé en script, il vaut \"__main__\"."
+    difficulte: 1
+  - question: "Que fait un décorateur @chrono placé au-dessus d'une fonction ?"
+    choix: ["Il la supprime", "Il la remplace par chrono(fonction), une enveloppe qui ajoute un comportement", "Il la rend asynchrone", "Il la type automatiquement"]
+    bonne: 1
+    explication: "@chrono def f est équivalent à f = chrono(f)."
+    difficulte: 2
+flashcards:
+  - { recto: "Inverser une liste ou une chaîne", verso: "s[::-1]" }
+  - { recto: "Ajouter un élément / plusieurs éléments à une liste", verso: "liste.append(x) ; liste.extend([x, y]) ; liste.insert(i, x) pour une position." }
+  - { recto: "Supprimer dans une liste", verso: "remove(valeur) (1re occurrence), pop(i) (renvoie l'élément), del liste[i] ou del liste[a:b]." }
+  - { recto: "Lire une clé de dict sans risquer KeyError", verso: "d.get(\"cle\", valeur_par_defaut)" }
+  - { recto: "Parcourir indice et élément", verso: "for i, x in enumerate(liste):" }
+  - { recto: "Compréhension avec filtre", verso: "[f(x) for x in seq if condition(x)]" }
+  - { recto: "Division entière, modulo, puissance", verso: "10 // 3 = 3 ; 10 % 3 = 1 ; 2 ** 3 = 8 ; 10 / 5 = 2.0 (float)." }
+  - { recto: "Formater un flottant à 2 décimales", verso: "f\"{x:.2f}\"" }
+  - { recto: "Rôle de __init__.py", verso: "Marque un dossier comme package ; peut réexporter des fonctions et définir __all__." }
+  - { recto: "Appeler le constructeur parent", verso: "super().__init__(...) dans la sous-classe." }
+  - { recto: "Getter / setter pythonique", verso: "@property sur la méthode lecture, @attribut.setter sur la méthode d'écriture (validation)." }
+  - { recto: "ValueError vs TypeError", verso: "TypeError : mauvais type (\"1\" + 2). ValueError : bon type, mauvaise valeur (int(\"abc\"))." }
+exercices:
+  - titre: "Statistiques de notes"
+    niveau: 1
+    enonce: "À partir de `noms = [\"Ana\", \"Bo\", \"Cy\"]` et `notes = [12, 8, 15]`, construis un dictionnaire nom -> note, la liste des noms ayant la moyenne (>= 10) et affiche la moyenne générale avec deux décimales."
+    indices: ["Compréhension de dictionnaire avec zip", "sum(...) / len(...)"]
+    corrige: |
+      ```python
+      noms = ["Ana", "Bo", "Cy"]
+      notes = [12, 8, 15]
+      bulletin = {nom: note for nom, note in zip(noms, notes)}
+      admis = [nom for nom, note in bulletin.items() if note >= 10]
+      moyenne = sum(notes) / len(notes)
+      print(bulletin, admis, f"{moyenne:.2f}")   # {...} ['Ana', 'Cy'] 11.67
+      ```
+  - titre: "Conversion robuste"
+    niveau: 2
+    enonce: "Écris une fonction typée et documentée `en_entier(texte: str) -> int | None` qui renvoie l'entier lu, ou None si le texte n'est pas un nombre, sans jamais planter. Teste-la sur \"42\", \" 7 \" et \"abc\"."
+    indices: ["int() lève ValueError sur un texte non numérique", "strip() enlève les espaces"]
+    corrige: |
+      ```python
+      def en_entier(texte: str) -> int | None:
+          """Convertit un texte en entier.
+
+          Args:
+              texte: la saisie à convertir.
+          Returns:
+              L'entier lu, ou None si le texte n'est pas un entier.
+          """
+          try:
+              return int(texte.strip())
+          except ValueError:
+              return None
+
+      print(en_entier("42"), en_entier(" 7 "), en_entier("abc"))   # 42 7 None
+      ```
+  - titre: "Compte bancaire"
+    niveau: 3
+    enonce: "Crée une classe `Compte` avec un solde protégé, une propriété `solde` en lecture seule, des méthodes `deposer` et `retirer` (ValueError si montant négatif ou solde insuffisant), puis une sous-classe `CompteEpargne` qui ajoute `appliquer_interets(taux)`."
+    indices: ["self._solde + @property sans setter", "super().__init__"]
+    corrige: |
+      ```python
+      class Compte:
+          def __init__(self, titulaire: str, solde: float = 0.0):
+              self.titulaire = titulaire
+              self._solde = solde
+
+          @property
+          def solde(self) -> float:
+              return self._solde
+
+          def deposer(self, montant: float) -> None:
+              if montant <= 0:
+                  raise ValueError("Montant positif attendu.")
+              self._solde += montant
+
+          def retirer(self, montant: float) -> None:
+              if montant <= 0 or montant > self._solde:
+                  raise ValueError("Montant invalide ou solde insuffisant.")
+              self._solde -= montant
+
+      class CompteEpargne(Compte):
+          def appliquer_interets(self, taux: float) -> None:
+              self.deposer(self._solde * taux)
+
+      c = CompteEpargne("Ana", 100)
+      c.appliquer_interets(0.03)
+      print(c.solde)   # 103.0
+      ```
+mindmap: |
+  # Python — cookbook
+  ## Données
+  - int, float, str, bool
+  - list (modifiable), tuple (immuable), dict
+  - Slicing [début:fin:pas]
+  ## Contrôle
+  - if / elif / else
+  - for, while
+  - enumerate, zip
+  - Compréhensions
+  ## Fonctions
+  - Paramètres par défaut
+  - Typage (non vérifié)
+  - Docstring
+  - try / except / else / finally
+  ## Organisation
+  - Modules, packages, __init__.py
+  - if __name__ == "__main__"
+  - .gitignore, requirements.txt
+  ## Objet
+  - Classe, __init__, self
+  - Héritage, super()
+  - @property
+  - Décorateurs
+podcast_titre: "Écrire du Python qui a l'air pro"
+podcast:
+  - { voix: A, texte: "Karim, je code en Python depuis un mois et j'écris encore des boucles avec range de len. C'est grave ?" }
+  - { voix: B, texte: "Pas grave, mais pas idiomatique. Si tu veux l'indice et l'élément, utilise enumerate. Si tu parcours deux listes ensemble, zip." }
+  - { voix: A, texte: "Et pour construire une nouvelle liste à partir d'une autre ?" }
+  - { voix: B, texte: "Une compréhension de liste : crochet, l'expression, for, et éventuellement un if pour filtrer. Une ligne au lieu de quatre." }
+  - { voix: A, texte: "J'ai mis des annotations de type partout, mais Python accepte quand même une chaîne là où j'attends un entier…" }
+  - { voix: B, texte: "Normal : les annotations ne sont pas vérifiées à l'exécution. Elles servent à la documentation, à l'éditeur et aux outils comme mypy. Pour vraiment valider, il faut du code, ou Pydantic." }
+  - { voix: A, texte: "Et quand une conversion plante ?" }
+  - { voix: B, texte: "try, except en visant l'exception précise, par exemple ValueError. Jamais un except tout seul, qui avalerait aussi tes vrais bugs." }
+  - { voix: A, texte: "Dernier mystère : le if name égal main en bas des scripts." }
+  - { voix: B, texte: "Ça veut dire : exécute ce bloc seulement si on lance le fichier directement. Si un autre module l'importe, ce code-là ne tourne pas. Indispensable dès que ton projet a plusieurs fichiers." }
+  - { voix: A, texte: "Et les décorateurs, je les rencontre partout, avec FastAPI par exemple." }
+  - { voix: B, texte: "Un décorateur, c'est une fonction qui enveloppe une autre fonction pour lui ajouter un comportement. Arobase app point get dans FastAPI, c'est exactement ça : il enregistre ta fonction comme route." }
