@@ -65,7 +65,7 @@ def wiring_svg(spec: ProjectSpec, board: BoardDef, alloc: Allocation, catalog: C
         f'<rect x="{BOARD_X}" y="40" width="{BOARD_W}" height="{len(board_points) * ROW + 40}" '
         'rx="10" fill="#0f3d2e" stroke="#0b2b20" stroke-width="2"/>',
         f'<text x="{BOARD_X + 12}" y="60" fill="#ffffff" font-weight="700">'
-        f"{escape(board.name[:30])}</text>",
+        f"{escape(board.name.split(' (')[0][:26])}</text>",
     ]
     for label, by in board_y.items():
         out.append(

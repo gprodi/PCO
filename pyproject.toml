@@ -26,12 +26,18 @@ dev = [
     "ruff>=0.8",
     "pre-commit>=4.0",
 ]
+docs = [
+    "sphinx>=8.0",
+    "furo>=2024.8",
+    "myst-parser>=4.0",
+    "sphinxcontrib-mermaid>=0.9",
+]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["cours", "referentiel", "revision/site", "**/node_modules"]
+extend-exclude = ["cours", "referentiel", "revision/site", "**/node_modules", "**/*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
@@ -44,6 +50,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106", "S107", "S108", "S311", "S603", "S607"]
+"microforge/monitoring/traffic_generator.py" = ["S311"]  # aléatoire non cryptographique (simulation)
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

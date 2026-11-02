@@ -1,0 +1,13 @@
+[theme]
+# Contrastes vérifiés AA (texte #0f172a sur #ffffff ; primaire #0f766e sur blanc = 5,4:1)
+primaryColor = "#0f766e"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f5f9"
+textColor = "#0f172a"
+font = "sans serif"
+
+[server]
+maxUploadSize = 8
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,40 @@
+// Grafana Alloy : collecte des logs des conteneurs Docker vers Loki (remplace Promtail, fin de vie 2026).
+discovery.docker "conteneurs" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "microforge" {
+  targets = discovery.docker.conteneurs.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.microforge.output
+  forward_to = [loki.process.json.receiver]
+}
+
+// Les services émettent du JSON (loguru serialize=True) : extraction du niveau et du request_id.
+loki.process "json" {
+  stage.json {
+    expressions = { level = "record.level.name", request_id = "record.extra.request_id" }
+  }
+  stage.labels {
+    values = { level = "" }
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

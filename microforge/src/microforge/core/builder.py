@@ -183,7 +183,7 @@ arduino-cli upload --fqbn {board.fqbn} -p <PORT> {name}
 {issues}
 
 ---
-*Généré par MicroForge — vérifiez toujours le câblage avant la mise sous tension.*
+*Généré automatiquement par MicroForge (logique et textes pouvant provenir d'une IA — transparence AI Act art. 50). Vérifiez toujours le câblage avant la mise sous tension.*
 """
 
     def bundle(self, result: BuildResult) -> bytes:
