@@ -37,6 +37,25 @@ def _boilerplates(root: Path) -> list[dict]:
     return out
 
 
+MF_DATA = PATHS.root / "microforge" / "src" / "microforge" / "core" / "data"
+
+
+def _ideas() -> list[dict]:
+    """Idées de projets MicroForge par thème (lues directement depuis les YAML du catalogue)."""
+    path = MF_DATA / "idees.yaml"
+    if not path.exists():
+        return []
+    names: dict[str, str] = {}
+    for comp_file in sorted((MF_DATA / "components").glob("*.yaml")):
+        for comp in yaml.safe_load(comp_file.read_text(encoding="utf-8")):
+            names[comp["id"]] = comp["name"]
+    themes = yaml.safe_load(path.read_text(encoding="utf-8"))["themes"]
+    for theme in themes:
+        for idea in theme["idees"]:
+            idea["composants_noms"] = [names.get(c, c) for c in idea["composants"]]
+    return themes
+
+
 def export(site_data: Path | None = None, content_dir: Path | None = None) -> dict[str, int]:
     site_data = site_data or PATHS.site_data
     content_dir = content_dir or PATHS.content
@@ -74,8 +93,13 @@ def export(site_data: Path | None = None, content_dir: Path | None = None) -> di
     (site_data / "boilerplates.json").write_text(
         json.dumps(bps, ensure_ascii=False, indent=1), encoding="utf-8"
     )
+    ideas = _ideas()
+    (site_data / "idees.json").write_text(
+        json.dumps(ideas, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
     return {
         "courses": len(courses),
         "with_content": sum(c["disponible"] for c in courses),
         "boilerplates": len(bps),
+        "idees": sum(len(t["idees"]) for t in ideas),
     }

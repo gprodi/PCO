@@ -1,0 +1,20 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, bps, courses } from '../../lib/data';
+export function getStaticPaths() {
+  return bps.map((b) => ({ params: { id: b.id }, props: { b } }));
+}
+const { b } = Astro.props;
+const title = (slug: string) => courses.find((c) => c.slug === slug)?.titre ?? slug;
+---
+<StarlightPage frontmatter={{ title: b.titre, description: b.description }}>
+  <p>{b.description}</p>
+  <h2>Utilisation</h2>
+  <pre><code>uvx copier copy gh:gprodi/PCO --vcs-ref main --subdirectory revision/boilerplates/{b.id} mon-projet</code></pre>
+  {b.cours.length > 0 && (<p><strong>Cours liés :</strong> {b.cours.map((s: string, i: number) => (<>{i > 0 && ', '}<a href={`${base}cours/${s}/`}>{title(s)}</a></>))}</p>)}
+  {b.competences.length > 0 && <p><strong>Compétences :</strong> {b.competences.join(', ')}</p>}
+  <h2>Arborescence</h2>
+  <ul>{b.fichiers.map((f: string) => <li><code>{f}</code></li>)}</ul>
+  <h2>Aperçu des fichiers</h2>
+  {Object.entries(b.apercu).map(([f, content]) => (<details><summary><code>{f}</code></summary><pre><code>{content as string}</code></pre></details>))}
+</StarlightPage>

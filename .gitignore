@@ -48,3 +48,10 @@ microforge/docs/_build/
 logs/
 *.log
 .chroma/
+
+# Révisions : contenus générés à partir des seeds / du LLM (régénérés par « revise seed/export »)
+revision/content/*/source.md
+revision/content/*/chunks.json
+revision/content/_index.json
+revision/site/src/data/
+revision/site/public/podcasts/

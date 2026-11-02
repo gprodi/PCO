@@ -15,9 +15,10 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from microforge.api_ia.deps import Principal, current_principal, services, user_key
-from microforge.api_ia.schemas import BuildIn, BuildOut, GoalIn, IdeasIn, InventoryIn
+from microforge.api_ia.schemas import BuildIn, BuildOut, ExploreIn, GoalIn, IdeasIn, InventoryIn
 from microforge.common.settings import get_settings, setup_logging
 from microforge.core.allocator import AllocationError
+from microforge.core.ideas import explore
 from microforge.core.models import BuildResult, ProjectSpec
 from microforge.core.suggest import suggest_projects
 from microforge.vision import ScanResult
@@ -179,8 +180,13 @@ def create_app() -> FastAPI:
     ) -> BuildOut:
         """« Je veux construire… » : le LLM choisit les composants, le cœur déterministe câble."""
         svc = services()
-        spec = svc.generator.from_goal(body.goal, body.inventory, body.board)
+        spec = svc.generator.from_goal(body.goal, body.inventory, body.board, body.components)
         return _build_out(svc.builder.build(spec))
+
+    @app.post("/v1/ideas/explore", tags=["projets"])
+    def explore_ideas(body: ExploreIn, _p: Principal = Depends(current_principal)) -> list[dict]:
+        """Idées de projets par thème (plantes, intérieur, extérieur, sécurité…), annotées avec le stock."""
+        return explore(body.inventory, services().builder.catalog)
 
     @app.post("/v1/builds/ideas", tags=["projets"])
     @limiter.limit("20/hour")

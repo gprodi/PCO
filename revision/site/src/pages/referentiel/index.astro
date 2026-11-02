@@ -1,0 +1,16 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, ref } from '../../lib/data';
+---
+<StarlightPage frontmatter={{ title: `Référentiel ${ref.rncp}`, description: ref.intitule }}>
+  <p>{ref.intitule} — niveau {ref.niveau}. {ref.competences.length} compétences, {ref.epreuves.length} épreuves.</p>
+  <table>
+    <thead><tr><th scope="col">Épreuve</th><th scope="col">Type</th><th scope="col">Compétences</th><th scope="col">Livrable</th></tr></thead>
+    <tbody>
+      {ref.epreuves.map((e: any) => (
+        <tr><td><a href={`${base}referentiel/${e.id.toLowerCase()}/`}>{e.id}</a></td><td>{e.type}</td><td>{e.competences.join(', ')}</td><td>{e.livrable}</td></tr>
+      ))}
+    </tbody>
+  </table>
+  {ref.blocs.map((b: any) => (<><h2>{b.id} — {b.titre}</h2><p>Épreuves : {b.epreuves.join(', ')}</p></>))}
+</StarlightPage>

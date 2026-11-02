@@ -1,0 +1,8 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import AddCourse from '../components/AddCourse';
+---
+<StarlightPage frontmatter={{ title: 'Ajouter un cours', description: 'Un nouveau support est transformé automatiquement par l’IA locale.' }}>
+  <p>Dépose un support (ou une URL) : il est converti, indexé, puis l’IA locale génère fiche, QCM, flashcards, exercices, carte mentale et script de podcast.</p>
+  <AddCourse client:load />
+</StarlightPage>

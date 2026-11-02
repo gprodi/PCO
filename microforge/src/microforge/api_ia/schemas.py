@@ -27,6 +27,11 @@ class GoalIn(BaseModel):
     goal: str = Field(min_length=5, max_length=500)
     board: str | None = None
     inventory: dict[str, int] | None = None
+    components: list[str] | None = Field(default=None, max_length=20)
+
+
+class ExploreIn(BaseModel):
+    inventory: dict[str, int] | None = Field(default=None, max_length=300)
 
 
 class IdeasIn(BaseModel):

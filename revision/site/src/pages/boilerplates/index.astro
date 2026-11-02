@@ -1,0 +1,16 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, bps } from '../../lib/data';
+---
+<StarlightPage frontmatter={{ title: 'Boilerplates', description: 'Squelettes de projets prêts à copier, issus des cours.' }}>
+  <p>Chaque boilerplate est un modèle <a href="https://copier.readthedocs.io">copier</a> :</p>
+  <pre><code>uvx copier copy gh:gprodi/PCO --vcs-ref main --subdirectory revision/boilerplates/&lt;nom&gt; mon-projet</code></pre>
+  <div class="mf-grid">
+    {bps.map((b) => (
+      <a class="mf-card" href={`${base}boilerplates/${b.id}/`} style="text-decoration:none">
+        <strong>{b.titre}</strong><br /><small>{b.description}</small><br />
+        {b.competences.map((c: string) => <span class="mf-badge">{c}</span>)}
+      </a>
+    ))}
+  </div>
+</StarlightPage>

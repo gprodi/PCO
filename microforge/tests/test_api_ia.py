@@ -219,3 +219,15 @@ def test_from_goal_and_ideas(ia_client):
 def test_metrics_expose_model_and_llm(ia_client):
     text = ia_client.get("/metrics").text
     assert "mf_detection_confidence" in text or "http_request" in text
+
+
+def test_explore_ideas_endpoint(ia_client):
+    r = ia_client.post(
+        "/v1/ideas/explore",
+        json={"inventory": {"uno": 1, "led": 3, "pushbutton": 2, "buzzer": 1}},
+        headers=token_header(),
+    )
+    assert r.status_code == 200
+    jeux = next(t for t in r.json() if t["id"] == "jeux")
+    assert jeux["idees"][0]["realisable"] is True
+    assert ia_client.post("/v1/ideas/explore", json={}).status_code == 401

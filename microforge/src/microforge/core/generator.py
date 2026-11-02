@@ -142,7 +142,11 @@ class ProjectGenerator:
 
     # ------------------------------------------------------------------ LLM
     def from_goal(
-        self, goal: str, inventory: dict[str, int] | None = None, board: str | None = None
+        self,
+        goal: str,
+        inventory: dict[str, int] | None = None,
+        board: str | None = None,
+        components: list[str] | None = None,
     ) -> ProjectSpec:
         """« Je veux construire… » -> ProjectSpec (avec repli sur un modèle du catalogue)."""
         stock = ""
@@ -153,6 +157,7 @@ class ProjectGenerator:
         prompt = (
             f"Objectif de l'utilisateur : {goal}\n"
             + (f"Carte imposée : {board}\n" if board else "")
+            + (f"Composants suggérés : {', '.join(components)}\n" if components else "")
             + f"{stock}\n\n{catalog_prompt(self.catalog)}\n\n"
             "Propose UN projet complet."
         )

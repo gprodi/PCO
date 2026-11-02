@@ -58,7 +58,7 @@ def synthesize(
                 str(out_mp3),
             ],
             check=True,
-        )  # noqa: S603, S607
+        )
         wav_path.unlink()
         return out_mp3
     return wav_path

@@ -1,0 +1,20 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { base, contents, courses, themes } from '../../lib/data';
+---
+<StarlightPage frontmatter={{ title: 'Tous les cours', description: 'Les cours de l’année, classés par thème.' }}>
+  <p>{courses.length} cours — {Object.keys(contents).length} avec fiche, QCM, flashcards, exercices, carte mentale et podcast.</p>
+  {Object.entries(themes).map(([key, label]) => (
+    <>
+      <h2>{label}</h2>
+      <div class="mf-grid">
+        {courses.filter((c) => c.theme === key).map((c) => (
+          <a class="mf-card" href={`${base}cours/${c.slug}/`} style="text-decoration:none">
+            <strong>{c.titre}</strong><br />
+            <small>{contents[c.slug] ? `${contents[c.slug].quiz.questions.length} QCM · ${contents[c.slug].flashcards.cartes.length} cartes · ${contents[c.slug].exercices.exercices.length} exercices` : 'à générer'}</small>
+          </a>
+        ))}
+      </div>
+    </>
+  ))}
+</StarlightPage>

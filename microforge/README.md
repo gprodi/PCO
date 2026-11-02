@@ -35,6 +35,7 @@ Interface : http://localhost:8501 · API données : http://localhost:8000/docs �
 | `infra/` | Docker Compose par profils, LiteLLM | E2, E4 |
 | `veille/`, `benchmark/` | veille, benchmark des services d'IA | E2 |
 | `docs/` | documentation Sphinx + dossiers E1 à E5 | toutes |
+| Idées par thème | 64 idées (plantes, intérieur, extérieur, sécurité, robotique, jeux, temps, animaux, énergie) : page Streamlit « Explorer par thème » et site de révision `/idees/` | E4 |
 
 ## Qualité
 `uv run pytest --cov` (couverture > 90 %), `uv run ruff check .` ; firmwares vérifiés par `g++` (en-têtes simulés)

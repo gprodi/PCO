@@ -480,3 +480,43 @@ def test_cli_commands(tmp_path, monkeypatch):
     res = runner.invoke(app, ["goal", "une veilleuse automatique", "--out", str(tmp_path)])
     assert res.exit_code == 0, res.output
     assert re.search(r'"ok": (true|false)', res.output)
+
+
+# ---------------------------------------------------------------- idées par thème
+def test_ideas_catalog_consistent():
+    from microforge.core.ideas import load_themes
+
+    themes = load_themes()
+    assert {t.id for t in themes} >= {
+        "plantes",
+        "interieur",
+        "exterieur",
+        "securite",
+        "robotique",
+        "jeux",
+    }
+    total = 0
+    for t in themes:
+        assert len(t.idees) >= 4, t.id
+        for idea in t.idees:
+            total += 1
+            for comp in idea.composants:
+                assert CAT.resolve(comp) == comp, f"{t.id}/{idea.titre}: {comp}"
+            if idea.template:
+                assert idea.template in CAT.templates, idea.template
+    assert total >= 60
+    used = {i.template for t in themes for i in t.idees if i.template}
+    assert used == set(CAT.templates), set(CAT.templates) - used
+
+
+def test_explore_with_inventory():
+    from microforge.core.ideas import explore, goal_for, load_themes
+
+    plain = explore()
+    assert plain[0]["idees"][0]["realisable"] is None
+    res = explore({"esp32": 1, "soil-moisture-capacitive": 1, "rgb-led": 1})
+    plantes = next(t for t in res if t["id"] == "plantes")
+    first = plantes["idees"][0]
+    assert first["titre"] == "Moniteur d'humidité du sol à LED" and first["realisable"]
+    assert any(i["manquants"] for i in plantes["idees"])
+    assert "Composants suggérés" in goal_for(load_themes()[0].idees[1])
