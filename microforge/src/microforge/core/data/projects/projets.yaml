@@ -1,0 +1,585 @@
+# Modèles de projets. `logic` = corps de loop() ; il n'utilise QUE les fonctions générées
+# pour chaque instance (<instance>_<fonction>, cf. `api` des composants du catalogue).
+# Textes affichés sur écran : ASCII uniquement (les polices embarquées n'ont pas les accents).
+
+- id: station-meteo-oled
+  title: Station météo OLED
+  description: Affiche la température et l'humidité sur un petit écran OLED, rafraîchies toutes les 2 s.
+  difficulty: 1
+  tags: [météo, écran, débutant, i2c]
+  learning: [bus I2C, lecture capteur numérique, gestion des erreurs NAN]
+  parts:
+    - { name: dht, component: dht22 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    float t = dht_temperature();
+    float h = dht_humidity();
+    if (isnan(t) || isnan(h)) {
+      ecran_print("Capteur ?", "Verifier DATA");
+    } else {
+      ecran_print(String(t, 1) + " C", "Humidite : " + String(h, 0) + " %", "", true);
+      Serial.print(t); Serial.print(" C  "); Serial.print(h); Serial.println(" %");
+    }
+    delay(2000);
+
+- id: station-meteo-lcd
+  title: Station météo LCD 16x2
+  description: Température et humidité sur un afficheur LCD 2 lignes rétroéclairé.
+  difficulty: 1
+  tags: [météo, écran, i2c]
+  learning: [bus I2C, adresse I2C, afficheur caractères]
+  parts:
+    - { name: dht, component: dht22 }
+    - { name: lcd, component: lcd1602-i2c }
+  logic: |
+    float t = dht_temperature();
+    float h = dht_humidity();
+    if (isnan(t)) {
+      lcd_print("Capteur absent", "Verifier DATA");
+    } else {
+      lcd_print("Temp : " + String(t, 1) + " C", "Humid: " + String(h, 0) + " %");
+    }
+    delay(2000);
+
+- id: mini-station-bme280
+  title: Mini station météo BME280 (pression)
+  description: Température, humidité et pression atmosphérique (tendance météo) sur OLED.
+  difficulty: 2
+  tags: [météo, pression, i2c]
+  learning: [deux périphériques sur le même bus I2C, capteur 3,3 V]
+  parts:
+    - { name: capteur, component: bme280 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    ecran_print(String(capteur_temperature(), 1) + " C  " + String(capteur_humidity(), 0) + " %",
+                String(capteur_pressure_hpa(), 1) + " hPa",
+                "Alt. " + String(capteur_altitude_m(), 0) + " m");
+    delay(2000);
+
+- id: veilleuse-auto
+  title: Veilleuse automatique
+  description: Une LED s'allume toute seule quand la pièce devient sombre.
+  difficulty: 1
+  tags: [lumière, débutant, analogique]
+  learning: [entrée analogique, seuil, hystérésis]
+  parts:
+    - { name: lumiere, component: ldr-module }
+    - { name: led, component: led, attrs: { color: yellow } }
+  logic: |
+    int l = lumiere_light_percent();
+    if (l < 30) { led_on(); }
+    else if (l > 40) { led_off(); }  // hystérésis : évite le clignotement au seuil
+    Serial.println(l);
+    delay(200);
+
+- id: radar-de-recul
+  title: Radar de recul
+  description: Bips de plus en plus rapides à l'approche d'un obstacle, comme sur une voiture.
+  difficulty: 1
+  tags: [distance, son, débutant]
+  learning: [capteur ultrason, temps de vol, buzzer]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: bip, component: buzzer }
+    - { name: led, component: led, attrs: { color: red } }
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < 100) {
+      led_on();
+      bip_beep(1500, 60);
+      delay(constrain((int)(d * 8), 60, 800));
+      led_off();
+    } else {
+      led_off();
+      delay(200);
+    }
+
+- id: telemetre-oled
+  title: Télémètre à ultrasons
+  description: Mesure une distance et l'affiche en grand sur l'écran OLED.
+  difficulty: 1
+  tags: [distance, écran]
+  learning: [pulseIn, conversion temps -> distance]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    float d = sonar_distance_cm();
+    ecran_print(d < 0 ? String("---") : String(d, 0) + " cm", "Telemetre", "", true);
+    delay(250);
+
+- id: barriere-servo
+  title: Barrière de parking à bouton
+  description: Un appui ouvre la barrière (servo à 90°), un second la referme.
+  difficulty: 1
+  tags: [servo, bouton, débutant]
+  learning: [PWM servo, détection de front, variable d'état]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: barriere, component: sg90-servo }
+  globals_extra: |
+    bool ouverte = false;
+  setup_extra: |
+    barriere_angle(0);
+  logic: |
+    if (bouton_clicked()) {
+      ouverte = !ouverte;
+      barriere_angle(ouverte ? 90 : 0);
+      Serial.println(ouverte ? "Ouverte" : "Fermee");
+    }
+
+- id: servo-potentiometre
+  title: Servo piloté par potentiomètre
+  description: Tourner le bouton fait tourner le servomoteur de 0 à 180°.
+  difficulty: 1
+  tags: [servo, analogique, débutant]
+  learning: [map(), conversion analogique -> angle]
+  parts:
+    - { name: potar, component: potentiometer-10k }
+    - { name: servo, component: sg90-servo }
+  logic: |
+    servo_angle(map(potar_percent(), 0, 100, 0, 180));
+    delay(15);
+
+- id: alarme-pir
+  title: Alarme de présence
+  description: Détecte un mouvement et déclenche une sirène et un voyant.
+  difficulty: 1
+  tags: [sécurité, son]
+  learning: [capteur PIR, sortie numérique]
+  parts:
+    - { name: pir, component: pir-hc-sr501 }
+    - { name: sirene, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: red } }
+  logic: |
+    if (pir_motion()) {
+      voyant_on();
+      sirene_beep(2000, 200);
+      delay(250);
+      sirene_beep(1400, 200);
+      delay(250);
+    } else {
+      voyant_off();
+      delay(100);
+    }
+
+- id: arrosage-automatique
+  title: Arrosage automatique de plante
+  description: Mesure l'humidité de la terre et déclenche une pompe quand elle est trop sèche.
+  difficulty: 2
+  tags: [jardin, relais, analogique]
+  learning: [calibration capteur, relais, temporisation]
+  parts:
+    - { name: sol, component: soil-moisture-capacitive }
+    - { name: relais, component: relay-module-1ch }
+    - { name: pompe, component: water-pump-5v }
+  globals_extra: |
+    const int SEUIL_SEC = 35;          // % en dessous duquel on arrose
+    const unsigned long ARROSAGE_MS = 3000;
+  logic: |
+    int h = sol_percent();
+    Serial.print("Humidite sol : "); Serial.print(h); Serial.println(" %");
+    if (h < SEUIL_SEC) {
+      relais_on();
+      delay(ARROSAGE_MS);
+      relais_off();
+      delay(60000);  // laisser l'eau diffuser avant de remesurer
+    }
+    delay(5000);
+
+- id: thermostat-relais
+  title: Thermostat à hystérésis
+  description: Maintient une température de consigne en commandant un relais (chauffage basse tension).
+  difficulty: 2
+  tags: [température, relais, régulation]
+  learning: [régulation tout-ou-rien, hystérésis, sonde 1-Wire]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: chauffage, component: relay-module-1ch }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    const float CONSIGNE = 20.0f;
+    const float HYSTERESIS = 0.5f;
+  logic: |
+    float t = sonde_temperature();
+    afficheur_number((int)(t * 10));  // 215 = 21,5 °C
+    if (t < CONSIGNE - HYSTERESIS) { chauffage_on(); }
+    else if (t > CONSIGNE + HYSTERESIS) { chauffage_off(); }
+    delay(1000);
+
+- id: detecteur-gaz
+  title: Détecteur de gaz / fumée
+  description: Alerte sonore et visuelle si la concentration de gaz dépasse un seuil.
+  difficulty: 2
+  tags: [sécurité, analogique]
+  learning: [capteur à chauffage, seuil d'alerte]
+  parts:
+    - { name: gaz, component: mq2-gas }
+    - { name: sirene, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: red } }
+  logic: |
+    int niveau = gaz_level_percent();
+    Serial.println(niveau);
+    if (niveau > 40) {
+      voyant_on();
+      sirene_beep(2500, 300);
+      delay(400);
+    } else {
+      voyant_off();
+      delay(500);
+    }
+
+- id: lampe-ambiance-neopixel
+  title: Lampe d'ambiance arc-en-ciel
+  description: Le potentiomètre choisit la teinte d'un anneau de 12 LED adressables.
+  difficulty: 1
+  tags: [led, couleur, débutant]
+  learning: [LED adressables, couleurs HSV]
+  parts:
+    - { name: potar, component: potentiometer-10k }
+    - { name: anneau, component: ws2812-ring-12 }
+  logic: |
+    anneau_wheel(map(potar_percent(), 0, 100, 0, 255));
+    delay(30);
+
+- id: jauge-distance-neopixel
+  title: Jauge de distance lumineuse
+  description: Plus l'obstacle est proche, plus l'anneau de LED se remplit (vert -> rouge).
+  difficulty: 2
+  tags: [distance, led]
+  learning: [jauge visuelle, contrainte de valeurs]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: anneau, component: ws2812-ring-12 }
+  logic: |
+    float d = sonar_distance_cm();
+    int pourcent = d < 0 ? 0 : 100 - constrain((int)d, 0, 100);
+    anneau_gauge(pourcent);
+    delay(100);
+
+- id: niveau-a-bulle
+  title: Niveau à bulle électronique
+  description: Affiche l'inclinaison sur deux axes grâce à un accéléromètre.
+  difficulty: 2
+  tags: [mouvement, écran, i2c]
+  learning: [accéléromètre, trigonométrie atan2]
+  parts:
+    - { name: imu, component: mpu6050 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    ecran_print("X: " + String(imu_tilt_x(), 1) + " deg", "Y: " + String(imu_tilt_y(), 1) + " deg");
+    delay(150);
+
+- id: horloge-rtc-lcd
+  title: Horloge autonome (RTC)
+  description: Heure et date précises, conservées même hors tension grâce à la pile du DS3231.
+  difficulty: 1
+  tags: [horloge, écran, i2c]
+  learning: [horloge temps réel, pile de sauvegarde]
+  parts:
+    - { name: rtc, component: ds3231-rtc }
+    - { name: lcd, component: lcd1602-i2c }
+  logic: |
+    lcd_print("   " + rtc_time(), "  " + rtc_date());
+    delay(500);
+
+- id: horloge-ntp-oled
+  title: Horloge Wi-Fi synchronisée (NTP)
+  description: L'ESP32 récupère l'heure exacte sur Internet et l'affiche sur l'OLED.
+  difficulty: 2
+  tags: [wifi, horloge, iot]
+  learning: [Wi-Fi, protocole NTP, fuseau horaire]
+  requires_wifi: true
+  board_families: [esp32]
+  parts:
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    ecran_print(mf_time_hhmm(), WiFi.status() == WL_CONNECTED ? "Wi-Fi OK" : "Wi-Fi ...", "", true);
+    delay(1000);
+
+- id: station-meteo-web
+  title: Station météo consultable en Wi-Fi
+  description: L'ESP32 sert une page web avec la température et l'humidité, consultable depuis un téléphone.
+  difficulty: 3
+  tags: [wifi, iot, web, météo]
+  learning: [serveur HTTP embarqué, HTML, adresse IP]
+  requires_wifi: true
+  board_families: [esp32]
+  parts:
+    - { name: dht, component: dht22 }
+  globals_extra: |
+    #include <WebServer.h>
+    WebServer serveur(80);
+  setup_extra: |
+    serveur.on("/", []() {
+      String page = "<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+                    "<meta name='viewport' content='width=device-width'><title>Station</title></head>"
+                    "<body><h1>Station meteo</h1><p>Temperature : " + String(dht_temperature(), 1) +
+                    " &deg;C</p><p>Humidite : " + String(dht_humidity(), 0) + " %</p></body></html>";
+      serveur.send(200, "text/html", page);
+    });
+    serveur.begin();
+    Serial.print("Page : http://"); Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    delay(2);
+
+- id: serrure-rfid
+  title: Serrure à badge RFID
+  description: Un badge autorisé ouvre le verrou (servo) ; les autres déclenchent une alerte.
+  difficulty: 3
+  tags: [sécurité, rfid, spi, servo]
+  learning: [bus SPI, identifiant unique, contrôle d'accès]
+  parts:
+    - { name: lecteur, component: rc522-rfid }
+    - { name: verrou, component: sg90-servo }
+    - { name: led_ok, component: led, attrs: { color: green } }
+    - { name: led_ko, component: led, attrs: { color: red } }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    const String BADGE_AUTORISE = "DE AD BE EF";  // remplacer par l'UID lu dans le moniteur série
+  setup_extra: |
+    verrou_angle(0);
+  logic: |
+    String uid = lecteur_read_uid();
+    if (uid.length() > 0) {
+      Serial.println("Badge : " + uid);
+      if (uid == BADGE_AUTORISE) {
+        led_ok_on(); bip_beep(2000, 100);
+        verrou_angle(90); delay(3000); verrou_angle(0);
+        led_ok_off();
+      } else {
+        led_ko_on(); bip_beep(300, 500);
+        delay(1000);
+        led_ko_off();
+      }
+    }
+
+- id: digicode
+  title: Digicode à clavier
+  description: Saisir le bon code puis # active la gâche (relais) pendant 3 s.
+  difficulty: 2
+  tags: [sécurité, clavier, relais]
+  learning: [clavier matriciel, chaînes de caractères, machine à états]
+  parts:
+    - { name: clavier, component: keypad-4x4 }
+    - { name: gache, component: relay-module-1ch }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    String saisie = "";
+    const String CODE = "1234";
+  logic: |
+    char k = clavier_key();
+    if (k) {
+      bip_beep(1200, 40);
+      if (k == '#') {
+        if (saisie == CODE) { gache_on(); bip_beep(2000, 300); delay(3000); gache_off(); }
+        else { bip_beep(300, 600); }
+        saisie = "";
+      } else if (k == '*') {
+        saisie = "";
+      } else {
+        saisie += k;
+      }
+    }
+
+- id: compteur-encodeur
+  title: Compteur à molette
+  description: Une molette crantée incrémente/décrémente un compteur affiché sur 4 chiffres.
+  difficulty: 1
+  tags: [entrée, afficheur]
+  learning: [encodeur rotatif, scrutation (polling)]
+  parts:
+    - { name: molette, component: rotary-encoder-ky040 }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    int compteur = 0;
+  setup_extra: |
+    afficheur_number(0);
+  logic: |
+    int d = molette_delta();
+    if (d != 0) { compteur += d; afficheur_number(compteur); }
+    if (molette_pressed()) { compteur = 0; afficheur_number(0); delay(200); }
+
+- id: robot-evitement
+  title: Robot évitant les obstacles
+  description: Châssis 2 roues qui avance et tourne quand un obstacle approche.
+  difficulty: 3
+  tags: [robot, moteurs, distance]
+  learning: [pont en H, PWM de vitesse, alimentation séparée]
+  parts:
+    - { name: moteurs, component: l298n-driver }
+    - { name: sonar, component: hc-sr04 }
+    - { name: roue_gauche, component: dc-motor-tt }
+    - { name: roue_droite, component: dc-motor-tt }
+    - { name: piles, component: battery-holder-4aa }
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < 20) {
+      moteurs_motors(-180, -180); delay(300);   // recule
+      moteurs_motors(180, -180); delay(350);    // pivote
+    } else {
+      moteurs_motors(200, 200);                 // avance
+    }
+    delay(50);
+
+- id: balance-cuisine
+  title: Balance de cuisine
+  description: Pèse jusqu'à 5 kg et affiche le poids ; le bouton fait la tare.
+  difficulty: 2
+  tags: [mesure, écran]
+  learning: [cellule de charge, calibration, tare]
+  parts:
+    - { name: balance, component: hx711-load-cell }
+    - { name: ecran, component: ssd1306-i2c }
+    - { name: tare, component: pushbutton }
+  logic: |
+    if (tare_clicked()) { balance_tare(); }
+    float g = balance_grams();
+    ecran_print(isnan(g) ? String("...") : String(g, 0) + " g", "Bouton = tare", "", true);
+    delay(200);
+
+- id: enregistreur-sd
+  title: Enregistreur de données météo sur carte SD
+  description: Enregistre date, heure, température et humidité chaque minute dans un fichier CSV.
+  difficulty: 3
+  tags: [données, sd, horloge, météo]
+  learning: [stockage SD, format CSV, horodatage]
+  parts:
+    - { name: dht, component: dht22 }
+    - { name: rtc, component: ds3231-rtc }
+    - { name: carte, component: microsd-module }
+  logic: |
+    String ligne = rtc_date() + " " + rtc_time() + ";" + String(dht_temperature(), 1) + ";" +
+                   String(dht_humidity(), 0);
+    Serial.println(ligne);
+    if (!carte_append("/meteo.csv", ligne)) { Serial.println("Ecriture SD impossible"); }
+    delay(60000);
+
+- id: tourelle-joystick
+  title: Tourelle pan/tilt au joystick
+  description: Deux servos orientés par un joystick (support de caméra ou de laser jouet).
+  difficulty: 2
+  tags: [servo, joystick]
+  learning: [deux axes analogiques, alimentation des servos]
+  parts:
+    - { name: manette, component: joystick-analog }
+    - { name: pan, component: sg90-servo }
+    - { name: tilt, component: sg90-servo }
+  logic: |
+    pan_angle(map(manette_x(), -100, 100, 0, 180));
+    tilt_angle(map(manette_y(), -100, 100, 0, 180));
+    delay(20);
+
+- id: feu-tricolore-pieton
+  title: Feu tricolore avec appel piéton
+  description: Cycle vert/orange/rouge ; le bouton piéton raccourcit le vert.
+  difficulty: 1
+  tags: [led, bouton, débutant]
+  learning: [séquence temporelle, millis()]
+  parts:
+    - { name: rouge, component: led, attrs: { color: red } }
+    - { name: orange, component: led, attrs: { color: orange } }
+    - { name: vert, component: led, attrs: { color: green } }
+    - { name: appel, component: pushbutton }
+  logic: |
+    vert_on(); orange_off(); rouge_off();
+    unsigned long debut = millis();
+    while (millis() - debut < 5000 && !appel_pressed()) { delay(10); }
+    vert_off(); orange_on(); delay(1500);
+    orange_off(); rouge_on(); delay(4000);
+    rouge_off();
+
+- id: jeu-reflexes
+  title: Jeu de réflexes
+  description: La LED s'allume au hasard ; appuie le plus vite possible, ton temps s'affiche.
+  difficulty: 1
+  tags: [jeu, bouton, débutant]
+  learning: [random(), mesure de temps]
+  parts:
+    - { name: led, component: led, attrs: { color: blue } }
+    - { name: bouton, component: pushbutton }
+    - { name: bip, component: buzzer }
+  setup_extra: |
+    randomSeed(micros());
+  logic: |
+    delay(random(1500, 4000));
+    led_on(); bip_beep(1000, 50);
+    unsigned long debut = millis();
+    while (!bouton_pressed() && millis() - debut < 3000) { }
+    unsigned long temps = millis() - debut;
+    led_off();
+    Serial.print("Temps de reaction : "); Serial.print(temps); Serial.println(" ms");
+    delay(1500);
+
+- id: thermometre-ds18b20
+  title: Thermomètre à sonde étanche
+  description: Mesure la température d'un liquide (aquarium, cuisine) et l'affiche sur OLED.
+  difficulty: 1
+  tags: [température, écran]
+  learning: [bus 1-Wire, résistance de tirage]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    float t = sonde_temperature();
+    ecran_print(t < -100 ? String("Sonde ?") : String(t, 1) + " C", "Sonde DS18B20", "", true);
+    delay(1000);
+
+- id: moteur-pas-a-pas-potar
+  title: Positionneur pas à pas
+  description: Le moteur pas à pas suit la position du potentiomètre (un tour complet).
+  difficulty: 2
+  tags: [moteur, analogique]
+  learning: [moteur pas à pas, asservissement en position]
+  parts:
+    - { name: moteur, component: stepper-28byj48 }
+    - { name: potar, component: potentiometer-10k }
+  globals_extra: |
+    int position = 0;
+  logic: |
+    int cible = map(potar_percent(), 0, 100, 0, 2048);
+    if (abs(cible - position) > 8) {
+      moteur_steps(cible - position);
+      position = cible;
+    }
+    delay(50);
+
+- id: veilleuse-rgb
+  title: Veilleuse RGB à modes
+  description: Chaque appui change la couleur de la LED RGB (rouge, vert, bleu, éteinte).
+  difficulty: 1
+  tags: [led, couleur, bouton, débutant]
+  learning: [PWM, mélange additif des couleurs]
+  parts:
+    - { name: lampe, component: rgb-led }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    int mode = 0;
+  logic: |
+    if (bouton_clicked()) { mode = (mode + 1) % 4; }
+    if (mode == 0) { lampe_color(255, 0, 0); }
+    else if (mode == 1) { lampe_color(0, 255, 0); }
+    else if (mode == 2) { lampe_color(0, 0, 255); }
+    else { lampe_color(0, 0, 0); }
+    delay(10);
+
+- id: sonnette-melodie
+  title: Sonnette mélodique
+  description: Un appui joue une petite mélodie sur le buzzer.
+  difficulty: 1
+  tags: [son, bouton, débutant]
+  learning: [tableaux, fréquences des notes]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: hp, component: buzzer }
+  globals_extra: |
+    const int NOTES[] = {659, 587, 523, 587, 659, 659, 659};
+    const int DUREES[] = {300, 300, 300, 300, 300, 300, 600};
+  logic: |
+    if (bouton_clicked()) {
+      for (int i = 0; i < 7; i++) {
+        hp_beep(NOTES[i], DUREES[i]);
+        delay(DUREES[i] + 50);
+      }
+    }

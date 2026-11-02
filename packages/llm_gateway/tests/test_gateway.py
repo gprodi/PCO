@@ -7,13 +7,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from pydantic import BaseModel
-
 from llm_gateway import FakeProvider, Gateway, GatewaySettings, LLMError, StructuredOutputError
 from llm_gateway.profiles import HardwareInfo, choose_profile_name, load_profile
 from llm_gateway.providers.anthropic_provider import AnthropicProvider
 from llm_gateway.providers.openai_compat import OpenAICompatProvider
 from llm_gateway.schema_utils import example_from_schema, extract_json, strict_schema
+from pydantic import BaseModel
 
 
 class Composant(BaseModel):
@@ -119,7 +118,13 @@ def test_openai_compat_payload_and_fallback_on_http_error():
         return httpx.Response(
             200,
             json={
-                "choices": [{"message": {"content": '{"reference":"BME280","categorie":"capteur","tension_v":3.3}'}}],
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"reference":"BME280","categorie":"capteur","tension_v":3.3}'
+                        }
+                    }
+                ],
                 "usage": {"prompt_tokens": 10, "completion_tokens": 5},
             },
         )
@@ -132,12 +137,17 @@ def test_openai_compat_payload_and_fallback_on_http_error():
     body = seen["body"]
     assert body["model"] == "qwen3-vl:8b"
     assert body["response_format"]["type"] == "json_schema"
-    assert body["messages"][1]["content"][1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+    assert body["messages"][1]["content"][1]["image_url"]["url"].startswith(
+        "data:image/jpeg;base64,"
+    )
     assert gw.embed(["a"]) == [[0.1, 0.2]]
 
     down = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503, text="down")))
     gw2 = Gateway(
-        [OpenAICompatProvider("ollama", "http://x/v1", client=down), FakeProvider(default_text="secours")],
+        [
+            OpenAICompatProvider("ollama", "http://x/v1", client=down),
+            FakeProvider(default_text="secours"),
+        ],
         load_profile("cpu"),
     )
     assert gw2.chat("x") == "secours"
@@ -151,7 +161,12 @@ def test_anthropic_provider_with_stub_client():
         return SimpleNamespace(
             stop_reason="end_turn",
             model=kwargs["model"],
-            content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text='{"reference":"SG90","categorie":"servo","tension_v":5}')],
+            content=[
+                SimpleNamespace(type="thinking", thinking=""),
+                SimpleNamespace(
+                    type="text", text='{"reference":"SG90","categorie":"servo","tension_v":5}'
+                ),
+            ],
             usage=SimpleNamespace(input_tokens=12, output_tokens=7),
         )
 
@@ -169,10 +184,14 @@ def test_anthropic_provider_with_stub_client():
 
 def test_anthropic_refusal_falls_through():
     def create(**kwargs):
-        return SimpleNamespace(stop_reason="refusal", stop_details=SimpleNamespace(category="cyber"), content=[])
+        return SimpleNamespace(
+            stop_reason="refusal", stop_details=SimpleNamespace(category="cyber"), content=[]
+        )
 
     stub = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
-    gw = Gateway([AnthropicProvider(None, client=stub), FakeProvider(default_text="ok")], load_profile("cpu"))
+    gw = Gateway(
+        [AnthropicProvider(None, client=stub), FakeProvider(default_text="ok")], load_profile("cpu")
+    )
     assert gw.chat("x") == "ok"
 
 

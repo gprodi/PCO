@@ -181,7 +181,9 @@ class Gateway:
                     f"{prompt}\n\nTa réponse précédente était invalide ({exc}). "
                     "Corrige-la en respectant strictement le schéma JSON."
                 )
-        raise StructuredOutputError(f"Sortie non conforme au schéma {schema.__name__}: {last_error}")
+        raise StructuredOutputError(
+            f"Sortie non conforme au schéma {schema.__name__}: {last_error}"
+        )
 
     def vision(self, prompt: str, images: list[bytes], **kwargs: Any) -> str:
         """Description d'image(s) par un modèle vision."""

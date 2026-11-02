@@ -80,9 +80,7 @@ def _ram_gb() -> float | None:
 
 
 def _nvidia() -> tuple[str | None, float | None]:
-    out = _run(
-        ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"]
-    )
+    out = _run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
     if not out:
         return None, None
     first = out.splitlines()[0]

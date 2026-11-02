@@ -24,6 +24,7 @@ class SignalRole(StrEnum):
     GROUND = "ground"
     GPIO_IN = "gpio_in"
     GPIO_OUT = "gpio_out"
+    GPIO_IO = "gpio_io"  # bidirectionnel (DHT, 1-Wire, DIO) : interdit sur les broches entrée seule
     PWM = "pwm"
     ADC = "adc"
     I2C_SDA = "i2c_sda"
@@ -56,6 +57,8 @@ class PinSpec(BaseModel):
     output_v: float | None = None
     #: Résistance de tirage nécessaire si le module ne l'intègre pas.
     pullup_ohm: int | None = None
+    #: Le code utilise INPUT_PULLUP : interdit sur les broches « entrée seule » de l'ESP32.
+    needs_internal_pullup: bool = False
     description: str = ""
 
 
@@ -65,6 +68,7 @@ class CodeTemplate(BaseModel):
     libraries: list[str] = Field(default_factory=list)  # noms arduino-cli / Library Manager
     includes: list[str] = Field(default_factory=list)
     globals: str = ""
+    setup_once: list[str] = Field(default_factory=list)  # lignes dédoublonnées (Wire.begin()…)
     setup: str = ""
     api: str = ""  # fonctions utilitaires exposées à la logique du projet
 
@@ -86,7 +90,9 @@ class ComponentDef(BaseModel):
     is_module: bool = True  # breakout prêt à câbler (vs composant nu)
     passive: bool = False  # résistance, condensateur… (pas de code)
     needs_series_resistor_ohm: dict[str, int] | None = None  # LED : {"3.3": 150, "5": 220}
-    code: dict[str, CodeTemplate] = Field(default_factory=dict)  # "default", "esp32", "avr", "rp2040"
+    code: dict[str, CodeTemplate] = Field(
+        default_factory=dict
+    )  # "default", "esp32", "avr", "rp2040"
     wokwi: dict[str, Any] | None = None  # {"type": "...", "pins": {pin: wokwi_pin}, "attrs": {...}}
     kicad: dict[str, str] = Field(default_factory=dict)  # {"symbol": ..., "footprint": ...}
     price_eur: float | None = None
@@ -94,7 +100,11 @@ class ComponentDef(BaseModel):
 
     def signal_pins(self) -> list[PinSpec]:
         """Broches à relier à un GPIO de la carte."""
-        return [p for p in self.pins if p.role not in (SignalRole.POWER, SignalRole.GROUND, SignalRole.NC)]
+        return [
+            p
+            for p in self.pins
+            if p.role not in (SignalRole.POWER, SignalRole.GROUND, SignalRole.NC)
+        ]
 
     def code_for(self, family: str) -> CodeTemplate:
         """Fragment de code adapté à la famille de MCU (repli sur ``default``)."""
@@ -133,10 +143,14 @@ class BoardDef(BaseModel):
     platformio_board: str = ""
     pins: list[BoardPin]
     default_i2c: dict[str, int] = Field(default_factory=dict)  # {"sda": 21, "scl": 22}
-    default_spi: dict[str, int] = Field(default_factory=dict)  # {"mosi":..,"miso":..,"sck":..,"cs":..}
+    default_spi: dict[str, int] = Field(
+        default_factory=dict
+    )  # {"mosi":..,"miso":..,"sck":..,"cs":..}
     default_uart: dict[str, int] = Field(default_factory=dict)  # {"rx":.., "tx":..}
     preferred_order: list[int] = Field(default_factory=list)
-    wokwi: dict[str, Any] = Field(default_factory=dict)  # {"type": ..., "gnd": "GND.1", "rails": {...}}
+    wokwi: dict[str, Any] = Field(
+        default_factory=dict
+    )  # {"type": ..., "gnd": "GND.1", "rails": {...}}
     kicad: dict[str, str] = Field(default_factory=dict)
     price_eur: float | None = None
     notes: list[str] = Field(default_factory=list)
@@ -155,6 +169,7 @@ class PartInstance(BaseModel):
     name: str  # identifiant C++ valide : dht, oled, led_rouge…
     component: str  # id du catalogue
     label: str | None = None
+    attrs: dict[str, str] = Field(default_factory=dict)  # ex. {"color": "red"} pour Wokwi
 
 
 class ProjectSpec(BaseModel):
@@ -198,16 +213,27 @@ class Assignment(BaseModel):
     board_label: str
     net: str
     note: str = ""
+    i2c_address: int | None = None
 
 
 class AddedPart(BaseModel):
-    """Composant ajouté automatiquement (résistance série, pont diviseur, pull-up…)."""
+    """Composant passif ajouté automatiquement par MicroForge.
+
+    ``kind`` :
+      * ``series``   : résistance série entre le GPIO et la broche (LED) ;
+      * ``divider``  : pont diviseur haut (``name``) + bas (``name_bas``) pour abaisser 5 V -> 3,3 V ;
+      * ``pullup``   : résistance de tirage entre la broche et le rail ``rail``.
+    """
 
     name: str
-    component: str
+    component: str = "resistor"
+    kind: str
+    part: str
+    pin: str
     value: str
     reason: str
-    between: tuple[str, str]  # ("dht.DATA", "3V3")
+    rail: str | None = None
+    value_low: str | None = None  # résistance basse du pont diviseur
 
 
 class Severity(StrEnum):
@@ -256,6 +282,7 @@ class BuildResult(BaseModel):
     issues: list[ERCIssue] = Field(default_factory=list)
     bom: list[BOMLine] = Field(default_factory=list)
     firmware: str = ""
+    firmware_files: dict[str, str] = Field(default_factory=dict)  # {"projet/projet.ino": ...}
     libraries: list[str] = Field(default_factory=list)
     wiring_table_md: str = ""
     soldering_guide_md: str = ""

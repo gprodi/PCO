@@ -94,7 +94,9 @@ class OpenAICompatProvider(Provider):
         try:
             text = data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as exc:
-            raise ProviderUnavailableError(f"{self.name} : réponse inattendue {data!r:.300}") from exc
+            raise ProviderUnavailableError(
+                f"{self.name} : réponse inattendue {data!r:.300}"
+            ) from exc
         usage = data.get("usage") or {}
         logger.debug("{} {} en {:.2f}s", self.name, model, latency)
         return ChatResult(

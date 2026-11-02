@@ -12,9 +12,11 @@ Client IA commun à **MicroForge** et **Révisions DevIA**.
 from llm_gateway import Gateway
 from pydantic import BaseModel
 
+
 class Composant(BaseModel):
     reference: str
     categorie: str
+
 
 gw = Gateway.from_env()
 print(gw.chat("Explique le rôle d'une résistance de pull-up", role="text"))
