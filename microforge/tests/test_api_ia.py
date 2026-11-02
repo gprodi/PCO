@@ -231,3 +231,34 @@ def test_explore_ideas_endpoint(ia_client):
     jeux = next(t for t in r.json() if t["id"] == "jeux")
     assert jeux["idees"][0]["realisable"] is True
     assert ia_client.post("/v1/ideas/explore", json={}).status_code == 401
+
+
+def test_inspiration_endpoint(ia_client):
+    r = ia_client.get("/v1/ideas/inspiration", headers=token_header())
+    assert r.status_code == 200
+    body = r.json()
+    assert body["chiffres"]["modeles_generables"] >= 45
+    assert body["chiffres"]["idees"] >= 120
+    assert [s["etape"] for s in body["parcours"]] == sorted(s["etape"] for s in body["parcours"])
+    assert body["parcours"][-1]["projets"][0]["id"].startswith("robot")
+    assert all(v["url"].startswith("https://") for v in body["vitrine"])
+    assert ia_client.get("/v1/ideas/inspiration").status_code == 401
+
+
+def test_streamlit_client_routes_exist_in_apis(data_client, ia_client):
+    """Contrat : chaque route appelée par le client Streamlit existe dans api_data ou api_ia."""
+    import re
+    from pathlib import Path
+
+    from microforge.app_streamlit import client as client_mod
+
+    source = Path(client_mod.__file__).read_text(encoding="utf-8")
+    used = set(re.findall(r'"(/v1/[a-z0-9/_\-{}]+)"', source))
+    routes = {
+        re.sub(r"\{[^}]+\}", "{}", p)
+        for c in (data_client, ia_client)
+        for p in c.get("/openapi.json").json()["paths"]
+    }
+    missing = {u for u in used if re.sub(r"\{[^}]+\}", "{}", u) not in routes}
+    assert not missing, f"routes inconnues des API : {missing}"
+    assert "/v1/ideas/explore" in used and "/v1/ideas/inspiration" in used

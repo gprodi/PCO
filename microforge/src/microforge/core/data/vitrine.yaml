@@ -1,0 +1,101 @@
+# Vitrine : de vrais projets open source construits par des makers avec des microcontrôleurs.
+# Objectif : montrer jusqu'où on peut aller, et relier chacun à ce qu'on apprend dans MicroForge.
+# Liens vérifiés par recherche web le 02/11/2026.
+
+- nom: WLED
+  url: https://kno.wled.ge/
+  categorie: Lumière
+  carte: ESP32 / ESP8266
+  description: "Firmware qui transforme un ESP32 en contrôleur de rubans LED Wi-Fi : plus de 100 effets, appli mobile, synchronisation musicale."
+  commencer_par: [guirlande-animee, lampe-ambiance-neopixel, vu-metre-lumineux]
+
+- nom: ESPHome + Home Assistant
+  url: https://esphome.io/
+  categorie: Domotique
+  carte: ESP32 / ESP8266 / RP2040
+  description: "On décrit ses capteurs dans un fichier YAML et ils apparaissent dans Home Assistant, la box domotique libre la plus utilisée."
+  commencer_par: [station-meteo-web, thermostat-relais, lampe-tactile]
+
+- nom: Tasmota
+  url: https://tasmota.github.io/docs/
+  categorie: Domotique
+  carte: ESP32 / ESP8266
+  description: "Firmware libre pour prises et interrupteurs connectés du commerce : on reprend le contrôle, sans cloud."
+  commencer_par: [telecommande-lampe, interrupteur-clap]
+
+- nom: OpenBikeSensor
+  url: https://github.com/openbikesensor/OpenBikeSensorFirmware
+  categorie: Vélo & ville
+  carte: ESP32
+  description: "Un boîtier sur le vélo mesure aux ultrasons la distance de dépassement des voitures ; les données servent à des études de sécurité routière."
+  commencer_par: [telemetre-oled, radar-de-recul, enregistreur-sd]
+
+- nom: Otto DIY
+  url: https://github.com/OttoDIY/OttoDIYLib
+  categorie: Robotique
+  carte: Arduino Nano
+  description: "Petit robot bipède imprimé en 3D (4 servos + un capteur à ultrasons) qui marche, danse et évite les obstacles."
+  commencer_par: [servo-potentiometre, radar-balayage, robot-evitement]
+
+- nom: InMoov
+  url: https://inmoov.fr/
+  categorie: Robotique
+  carte: Arduino Mega
+  description: "Robot humanoïde grandeur nature, imprimé en 3D, conçu par le Français Gaël Langevin et construit dans le monde entier."
+  commencer_par: [tourelle-joystick, servo-potentiometre]
+
+- nom: Meshtastic
+  url: https://meshtastic.org/
+  categorie: Communication
+  carte: ESP32 + LoRa
+  description: "Messagerie hors réseau : des petits modules radio LoRa relaient les messages de proche en proche, sans téléphone ni Internet."
+  commencer_par: [horloge-ntp-oled, station-meteo-web]
+
+- nom: Watchy
+  url: https://watchy.sqfmi.com/
+  categorie: Objet portable
+  carte: ESP32
+  description: "Montre à écran e-paper entièrement open source (matériel et logiciel), programmable avec l'IDE Arduino."
+  commencer_par: [horloge-rtc-lcd, pomodoro-vibrant]
+
+- nom: AirGradient
+  url: https://reference.arduino.cc/reference/en/libraries/airgradient-air-quality-sensor
+  categorie: Environnement
+  carte: ESP32-C3 / ESP8266
+  description: "Moniteurs de qualité de l'air (particules, CO2, COV) open source, utilisés dans des écoles."
+  commencer_par: [detecteur-gaz, mini-station-bme280]
+
+- nom: Sensor.Community
+  url: https://sensor.community/
+  categorie: Environnement
+  carte: ESP8266
+  description: "Réseau citoyen de capteurs de particules fines : des milliers de stations faites maison alimentent une carte mondiale de la pollution."
+  commencer_par: [station-meteo-oled, enregistreur-sd]
+
+- nom: OpenSprinkler
+  url: https://opensprinkler.com/
+  categorie: Jardin
+  carte: ESP8266
+  description: "Programmateur d'arrosage open source qui ajuste l'arrosage selon la météo."
+  commencer_par: [arrosage-automatique, horloge-ntp-oled]
+
+- nom: Marlin
+  url: https://marlinfw.org/
+  categorie: Fabrication
+  carte: AVR / ARM
+  description: "Le firmware de la plupart des imprimantes 3D : moteurs pas à pas, capteurs de température, régulation de chauffe."
+  commencer_par: [moteur-pas-a-pas-potar, thermostat-relais]
+
+- nom: QMK
+  url: https://qmk.fm/
+  categorie: Claviers
+  carte: AVR / RP2040
+  description: "Firmware des claviers mécaniques faits maison : chaque touche est un bouton dans une matrice, comme le clavier 4×4."
+  commencer_par: [digicode, compteur-encodeur]
+
+- nom: ArduPilot
+  url: https://ardupilot.org/
+  categorie: Drones & véhicules
+  carte: ARM (contrôleurs de vol)
+  description: "Pilote automatique libre pour drones, avions, bateaux et rovers : centrale inertielle, GPS, régulation."
+  commencer_par: [niveau-a-bulle, robot-suiveur-ligne]

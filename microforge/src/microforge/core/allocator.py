@@ -419,7 +419,7 @@ class PinAllocator:
                             part=name,
                             pin=pin.name,
                             value=_fmt_ohm(ohm),
-                            reason=f"limite le courant de {name}.{pin.name} à ~10 mA en {board.logic_v:g} V",
+                            reason=f"limite le courant de « {name} » (broche {pin.name}) à ~10 mA en {board.logic_v:g} V",
                         )
                     )
                 # Pull-up externe (sonde 1-Wire nue…)

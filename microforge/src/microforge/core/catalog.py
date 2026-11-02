@@ -15,7 +15,7 @@ from typing import Any
 
 import yaml
 
-from microforge.core.models import BoardDef, BoardPin, ComponentDef, ProjectTemplate
+from microforge.core.models import BoardDef, BoardPin, ComponentDef, ProjectTemplate, Reference
 
 _DATA = "microforge.core.data"
 
@@ -84,6 +84,14 @@ class Catalog:
             if entry.name.endswith(".yaml"):
                 for raw in yaml.safe_load(entry.read_text(encoding="utf-8")):
                     templates.append(ProjectTemplate.model_validate(raw))
+        refs = (
+            yaml.safe_load(
+                resources.files(_DATA).joinpath("references.yaml").read_text(encoding="utf-8")
+            )
+            or {}
+        )
+        for tpl in templates:
+            tpl.references = [Reference.model_validate(r) for r in refs.get(tpl.id, [])]
         return cls(components, boards, templates)
 
     # ------------------------------------------------------------------ accès

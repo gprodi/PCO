@@ -357,13 +357,13 @@ def test_esp32_servo_uses_esp32servo():
 
 
 @pytest.mark.skipif(shutil.which("g++") is None, reason="g++ absent")
-@pytest.mark.parametrize("tid", sorted(CAT.templates))
-def test_generated_firmware_compiles_syntax(tid, tmp_path):
-    """Chaque modèle génère du C++ valide (vérifié avec des en-têtes Arduino simulés)."""
-    tpl = CAT.templates[tid]
-    board = {"esp32": "esp32-devkit-v1", "avr": "arduino-uno", "rp2040": "rpi-pico-w"}[
-        tpl.board_families[0]
-    ]
+@pytest.mark.parametrize(
+    ("tid", "family"),
+    [(tid, fam) for tid in sorted(CAT.templates) for fam in CAT.templates[tid].board_families],
+)
+def test_generated_firmware_compiles_syntax(tid, family, tmp_path):
+    """Chaque modèle génère du C++ valide sur chaque famille compatible (en-têtes Arduino simulés)."""
+    board = {"esp32": "esp32-devkit-v1", "avr": "arduino-uno", "rp2040": "rpi-pico-w"}[family]
     defines = {
         "esp32-devkit-v1": "-DESP32",
         "arduino-uno": "-DARDUINO_ARCH_AVR",
@@ -520,3 +520,45 @@ def test_explore_with_inventory():
     assert first["titre"] == "Moniteur d'humidité du sol à LED" and first["realisable"]
     assert any(i["manquants"] for i in plantes["idees"])
     assert "Composants suggérés" in goal_for(load_themes()[0].idees[1])
+
+
+# ---------------------------------------------------------------- références externes
+def test_every_template_has_public_references():
+    """Chaque modèle renvoie vers au moins un tutoriel public équivalent (recoupement)."""
+    urls = []
+    for tid, tpl in CAT.templates.items():
+        assert tpl.references, f"{tid} : aucune référence dans data/references.yaml"
+        for ref in tpl.references:
+            assert ref.url.startswith("https://"), ref.url
+            urls.append(ref.url)
+    assert len(urls) == len(set(urls)), "URL de référence en double"
+
+
+def test_references_file_has_no_unknown_template():
+    from importlib import resources
+
+    import yaml
+
+    refs = yaml.safe_load(
+        resources.files("microforge.core.data").joinpath("references.yaml").read_text()
+    )
+    assert set(refs) <= set(CAT.templates)
+
+
+def test_readme_states_verification_level():
+    r = BUILDER.build(BUILDER.spec_from_template("alarme-porte", "arduino-uno"))
+    readme = BUILDER.readme(r)
+    assert "Niveau de vérification" in readme
+    assert "Pas encore monté sur du vrai matériel" in readme
+    assert "arduinogetstarted.com" in readme
+
+
+def test_cli_lists_libraries_per_board():
+    from microforge.core.cli import app, templates_for_board
+    from typer.testing import CliRunner
+
+    uno = CAT.boards["arduino-uno"]
+    ids = templates_for_board(CAT, uno)
+    assert "alarme-porte" in ids and all(not CAT.templates[t].requires_wifi for t in ids)
+    out = CliRunner().invoke(app, ["libs", "--fqbn", "arduino:avr:uno"]).output
+    assert "IRremote" in out and "LedControl" in out and "ESP32Servo" not in out

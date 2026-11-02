@@ -53,13 +53,15 @@ def show_build(build: dict, key: str) -> None:
             "Simulation Wokwi",
             "KiCad",
             "Nomenclature",
+            "Fiabilité & sources",
         ]
     )
     with tabs[0]:
         st.markdown(files["cablage.md"])
     with tabs[1]:
+        # SVG passé en texte : Streamlit l'affiche tel quel (en octets, il passerait par Pillow -> erreur).
         st.image(
-            files["cablage.svg"].encode(),
+            files["cablage.svg"],
             caption="Schéma de câblage (texte alternatif intégré au SVG)",
         )
     with tabs[2]:
@@ -81,3 +83,12 @@ def show_build(build: dict, key: str) -> None:
         st.code(files["kicad/projet.net"], language="lisp")
     with tabs[6]:
         st.dataframe(build["bom"], use_container_width=True)
+    with tabs[7]:
+        readme = files.get("README.md", "")
+        part = readme.split("## Niveau de vérification", 1)
+        if len(part) == 2:
+            st.markdown("## Niveau de vérification" + part[1].split("\n---", 1)[0])
+        else:
+            st.info(
+                "Projet conçu par l'IA : pas de tutoriel de référence, vérifie le câblage avec soin."
+            )

@@ -18,7 +18,7 @@ from microforge.api_ia.deps import Principal, current_principal, services, user_
 from microforge.api_ia.schemas import BuildIn, BuildOut, ExploreIn, GoalIn, IdeasIn, InventoryIn
 from microforge.common.settings import get_settings, setup_logging
 from microforge.core.allocator import AllocationError
-from microforge.core.ideas import explore
+from microforge.core.ideas import explore, inspiration
 from microforge.core.models import BuildResult, ProjectSpec
 from microforge.core.suggest import suggest_projects
 from microforge.vision import ScanResult
@@ -187,6 +187,11 @@ def create_app() -> FastAPI:
     def explore_ideas(body: ExploreIn, _p: Principal = Depends(current_principal)) -> list[dict]:
         """Idées de projets par thème (plantes, intérieur, extérieur, sécurité…), annotées avec le stock."""
         return explore(body.inventory, services().builder.catalog)
+
+    @app.get("/v1/ideas/inspiration", tags=["projets"])
+    def ideas_inspiration(_p: Principal = Depends(current_principal)) -> dict:
+        """Parcours de progression (1re LED -> robot), vitrine de vrais projets open source, chiffres clés."""
+        return inspiration(services().builder.catalog)
 
     @app.post("/v1/builds/ideas", tags=["projets"])
     @limiter.limit("20/hour")

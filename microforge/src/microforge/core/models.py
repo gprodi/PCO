@@ -186,6 +186,15 @@ class ProjectSpec(BaseModel):
     template_id: str | None = None
 
 
+class Reference(BaseModel):
+    """Tutoriel public décrivant le même montage (pour recouper câblage et code)."""
+
+    site: str
+    title: str
+    url: str
+    proche: bool = False  # variante (autre capteur/afficheur) plutôt que montage identique
+
+
 class ProjectTemplate(BaseModel):
     """Modèle de projet du catalogue (suggestions)."""
 
@@ -201,6 +210,10 @@ class ProjectTemplate(BaseModel):
     setup_extra: str = ""
     globals_extra: str = ""
     learning: list[str] = Field(default_factory=list)  # notions apprises
+    references: list[Reference] = Field(default_factory=list)  # data/references.yaml
+    hardware_tested: list[str] = Field(
+        default_factory=list
+    )  # cartes sur lesquelles un humain l'a monté
 
 
 class Assignment(BaseModel):

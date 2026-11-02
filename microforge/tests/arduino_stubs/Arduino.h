@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdlib>
+#include <algorithm>
 typedef uint8_t byte;
 typedef bool boolean;
 #define HIGH 1
@@ -26,6 +27,9 @@ typedef bool boolean;
 #define A7 21
 using std::isnan;
 using std::abs;
+// Comme arduino-esp32 / arduino-pico (sur AVR ce sont des macros) : mêmes types obligatoires des deux côtés
+using std::min;
+using std::max;
 void pinMode(uint8_t, uint8_t);
 void digitalWrite(uint8_t, uint8_t);
 int digitalRead(uint8_t);

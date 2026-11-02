@@ -275,7 +275,7 @@
   wokwi: { type: wokwi-relay-module, pins: { VCC: VCC, GND: GND, IN: IN } }
   kicad: { symbol: "Relay:SANYOU_SRD_Form_C", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
   price_eur: 2.0
-  notes: ["DANGER 230 V : ne jamais câbler le secteur sans formation ni boîtier isolant. Préférer des charges basse tension (pompe 5 V, ruban LED 12 V)."]
+  notes: ["DANGER 230 V : ne jamais câbler le secteur sans formation ni boîtier isolant. Préférer des charges basse tension (pompe 5 V, ruban LED 12 V).", "Selon les modules, l'entrée est active à l'état bas (le plus courant) ou haut : constante <nom>_ACTIF_BAS en tête du code.", "Carte 3,3 V (ESP32, Pico) + module 5 V actif bas : le relais peut rester collé. Prendre un module 3,3 V ou à déclenchement réglable (cavalier H/L)."]
 
 - id: water-pump-5v
   name: Mini pompe à eau immergée 3–5 V
@@ -361,3 +361,89 @@
   wokwi: null
   kicad: { symbol: "Connector:Conn_01x06_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
   price_eur: 4.0
+
+- id: max7219-matrix
+  name: Matrice 8×8 LED rouges MAX7219
+  category: afficheur
+  description: "64 LED pilotées par 3 fils : icônes, émoticônes, défilement."
+  aliases: [max7219, matrice led, led matrix, 8x8]
+  supply_v: [4.5, 5.5]
+  current_ma: 100
+  peak_ma: 320
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DIN, role: gpio_out }
+    - { name: CS, role: gpio_out }
+    - { name: CLK, role: gpio_out }
+  code:
+    default:
+      libraries: ["LedControl"]
+      includes: ["#include <LedControl.h>"]
+      globals: "LedControl ${name}_dev(${DIN}, ${CLK}, ${CS}, 1);"
+      setup: |
+        ${name}_dev.shutdown(0, false);
+        ${name}_dev.setIntensity(0, 4);
+        ${name}_dev.clearDisplay(0);
+      api: |
+        // Affiche une image 8×8 (8 octets, un par ligne).
+        void ${name}_show(const byte img[8]) { for (int r = 0; r < 8; r++) { ${name}_dev.setRow(0, r, img[r]); } }
+        void ${name}_clear() { ${name}_dev.clearDisplay(0); }
+        // Barre-graphe : n colonnes allumées (0–8).
+        void ${name}_bars(int n) { for (int c = 0; c < 8; c++) { ${name}_dev.setColumn(0, c, c < n ? 0xFF : 0x00); } }
+  wokwi: { type: wokwi-max7219-matrix, pins: { VCC: V+, GND: GND, DIN: DIN, CS: CS, CLK: CLK } }
+  kicad: { symbol: "Connector:Conn_01x05_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 3.0
+
+- id: mosfet-module
+  name: Module MOSFET (IRF520 / IRLZ44N) pour charge 5–24 V
+  category: actionneur
+  description: Commande en PWM un ventilateur, un ruban LED 12 V ou une pompe, sans bruit de relais.
+  aliases: [mosfet, irf520, irlz44n, transistor de puissance]
+  supply_v: [0, 50]
+  current_ma: 0
+  pins:
+    - { name: SIG, role: pwm }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${SIG}, OUTPUT);"
+      api: |
+        void ${name}_power(int percent) { analogWrite(${SIG}, map(constrain(percent, 0, 100), 0, 100, 0, 255)); }
+        void ${name}_off() { analogWrite(${SIG}, 0); }
+  wokwi: null
+  kicad: { symbol: "Transistor_FET:IRLZ44N", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["L'IRF520 ne conduit bien qu'avec 10 V de grille : préférer un module IRLZ44N (niveau logique) en 3,3 V.", "Ajouter une diode de roue libre sur les charges inductives (moteur, pompe)."]
+
+- id: vibration-motor
+  name: Module moteur vibreur
+  category: actionneur
+  description: "Retour haptique : vibre comme un téléphone."
+  aliases: [vibreur, vibration motor, haptique]
+  supply_v: [3.0, 5.3]
+  current_ma: 60
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: IN, role: gpio_out }
+  code:
+    default:
+      setup: "pinMode(${IN}, OUTPUT);"
+      api: |
+        void ${name}_buzz(unsigned long ms) { digitalWrite(${IN}, HIGH); delay(ms); digitalWrite(${IN}, LOW); }
+  wokwi: null
+  kicad: { symbol: "Motor:Motor_DC", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
+  price_eur: 1.5
+
+- id: fan-12v
+  name: Ventilateur 12 V (40–80 mm)
+  category: actionneur
+  description: Ventilation de serre, de boîtier ou d'imprimante ; se commande avec un module MOSFET.
+  aliases: [ventilateur, fan]
+  supply_v: [10, 13]
+  current_ma: 150
+  passive: true
+  pins: []
+  price_eur: 3.0
+  notes: ["Alimentation 12 V séparée ; masse commune avec la carte via le module MOSFET."]

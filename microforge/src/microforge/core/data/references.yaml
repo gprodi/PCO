@@ -1,0 +1,123 @@
+# Tutoriels publics décrivant le même montage (ou un montage très proche) que chaque modèle.
+# Repérés par recherche web le 02/11/2026. Ils servent à recouper le câblage et le code générés.
+# MicroForge ne copie pas leur code : il génère le sien à partir du catalogue de composants.
+# « proche: true » = même principe, mais avec une variante (autre capteur, autre afficheur…).
+
+alarme-porte:
+  - { site: ArduinoGetStarted, title: "Arduino - Door Sensor - Piezo Buzzer", url: "https://arduinogetstarted.com/tutorials/arduino-door-sensor-piezo-buzzer" }
+  - { site: Random Nerd Tutorials, title: "Monitor your door using a magnetic reed switch and Arduino", url: "https://randomnerdtutorials.com/monitor-your-door-using-magnetic-reed-switch-and-arduino/" }
+lampe-tactile:
+  - { site: Circuit Digest, title: "Control Home Lights with Touch using TTP223 Touch Sensor and Arduino UNO", url: "https://circuitdigest.com/microcontroller-projects/arduino-ttp223-touch-sensor-interfacing-to-turn-on-lights-with-touch" }
+  - { site: Electronic Clinic, title: "TTP223 Touch sensor with Arduino", url: "https://www.electroniclinic.com/ttp223-touch-sensor-with-arduino-interfacing-and-programming/" }
+interrupteur-clap:
+  - { site: Instructables, title: "Clap-on Switch", url: "https://www.instructables.com/Clap-on-Switch" }
+  - { site: Electronic Clinic, title: "KY-038 Sound Sensor with Arduino, Clap project", url: "https://www.electroniclinic.com/ky-038-sound-sensor-with-arduino-circuit-code-clap-project/" }
+alerte-inondation:
+  - { site: Instructables, title: "Basement Flood Alarm - Arduino", url: "https://www.instructables.com/Basement-Flood-Alarm-Arduino" }
+  - { site: ArduinoGetStarted, title: "Arduino - Water Sensor - Relay", url: "https://arduinogetstarted.com/tutorials/arduino-water-sensor-relay" }
+detecteur-flamme:
+  - { site: Electronic Clinic, title: "Flame sensor Arduino, circuit diagram & programming", url: "https://www.electroniclinic.com/flame-sensor-arduino-fire-sensor-arduino-circuit-diagram-programming/" }
+  - { site: Hackster, title: "Flame Sensor Module with Arduino", url: "https://www.hackster.io/rachnajain/flame-sensor-module-with-arduino-0813e4" }
+matrice-emotions:
+  - { site: Instructables, title: "DOT Matrix (8x8) Using Arduino (smiley)", url: "https://www.instructables.com/DOT-Matrix-8x8-Using-Arduino" }
+  - { site: HowToMechatronics, title: "8x8 LED Matrix MAX7219 Tutorial", url: "https://howtomechatronics.com/tutorials/arduino/8x8-led-matrix-max7219-tutorial-scrolling-text-android-control-via-bluetooth/" }
+vu-metre-lumineux:
+  - { site: ThinkRobotics, title: "VU Meter Ring (WS2812B + micro)", url: "https://thinkrobotics.com/blogs/learn/vu-meter-ring", proche: true }
+telecommande-lampe:
+  - { site: HowToMechatronics, title: "Control any Electronics with a TV Remote", url: "https://howtomechatronics.com/tutorials/arduino/control-any-electronics-with-a-tv-remote-arduino-ir-tutorial/" }
+  - { site: Circuit Basics, title: "Arduino IR Remote Receiver Tutorial", url: "https://www.circuitbasics.com/arduino-ir-remote-receiver-tutorial/" }
+ventilateur-auto:
+  - { site: ArduinoGetStarted, title: "Arduino - Cooling System using DHT Sensor", url: "https://arduinogetstarted.com/tutorials/arduino-cooling-system-using-dht-sensor", proche: true }
+  - { site: Hackster, title: "Temperature Controlled Fan using Arduino (PWM)", url: "https://www.hackster.io/1NextPCB/temperature-controlled-fan-using-arduino-925f23", proche: true }
+robot-suiveur-ligne:
+  - { site: Hackster, title: "Line Follower Robot using Arduino", url: "https://www.hackster.io/webotricks/line-follower-robot-using-arduino-1ee882" }
+  - { site: Electromaker, title: "How To Build A Line Follower Robot With Arduino", url: "https://www.electromaker.io/project/view/how-to-build-a-line-follower-robot-with-arduino" }
+radar-balayage:
+  - { site: HowToMechatronics, title: "Arduino Radar Project", url: "https://howtomechatronics.com/projects/arduino-radar-project/" }
+  - { site: Instructables, title: "DIY Radar", url: "https://www.instructables.com/DIY-Radar" }
+pomodoro-vibrant:
+  - { site: Arduino Project Hub, title: "Simple & Versatile Arduino Kitchen Timer with TM1637", url: "https://projecthub.arduino.cc/mircemk/simple-versatile-arduino-kitchen-timer-with-tm1637-display-5b7db0", proche: true }
+  - { site: GitHub, title: "timer_arduino (TM1637, mm:ss)", url: "https://github.com/gavinlyonsrepo/timer_arduino", proche: true }
+guirlande-animee:
+  - { site: Instructables, title: "Intro to Neopixels (bouton + animations)", url: "https://www.instructables.com/Intro-to-Neopixels" }
+sablier-lumineux:
+  - { site: Adafruit Learn, title: "Circuit Playground Hourglass", url: "https://learn.adafruit.com/circuit-playground-hourglass", proche: true }
+station-meteo-oled:
+  - { site: Random Nerd Tutorials, title: "ESP32/ESP8266: DHT Readings in OLED Display", url: "https://randomnerdtutorials.com/esp32-esp8266-dht-temperature-and-humidity-oled-display/" }
+  - { site: ESP32IO, title: "ESP32 - DHT22 - OLED", url: "https://esp32io.com/tutorials/esp32-dht22-oled" }
+station-meteo-lcd:
+  - { site: ArduinoGetStarted, title: "Arduino - DHT22 - LCD", url: "https://arduinogetstarted.com/tutorials/arduino-dht22-lcd" }
+mini-station-bme280:
+  - { site: Microcontrollers Lab, title: "BME280 with Arduino: Display Readings on OLED", url: "https://microcontrollerslab.com/bme280-arduino-display-readings-oled-arduino-ide/" }
+veilleuse-auto:
+  - { site: Instructables, title: "Arduino Night Light", url: "https://www.instructables.com/Arduino-Night-Light" }
+  - { site: Hackster, title: "How to Use Light Sensors with Arduino (lesson 10)", url: "https://www.hackster.io/lucasfernando/how-to-use-light-sensors-with-arduino-lesson-10-38759c" }
+radar-de-recul:
+  - { site: Luis Llamas, title: "Arduino parking sensor with HC-SR04", url: "https://www.luisllamas.es/en/arduino-parking-sensor-hcsr04/" }
+  - { site: Instructables, title: "Arduino Ultra-Sound Car Parking Sensor", url: "https://www.instructables.com/Arduino-Parking-Sensor" }
+telemetre-oled:
+  - { site: Electronic Clinic, title: "Distance Measurement Using Arduino Ultrasonic Sensor and OLED", url: "https://www.electroniclinic.com/distance-measurement-using-arduino-ultrasonic-sensor-and-oled/" }
+barriere-servo:
+  - { site: SunFounder, title: "Barrier Gate 3.0", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/barrier_gate3.0.html" }
+servo-potentiometre:
+  - { site: Arduino (officiel), title: "Knob — servo et potentiomètre", url: "https://www.arduino.cc/en/Tutorial/Knob/" }
+alarme-pir:
+  - { site: How2Electronics, title: "How to use HC-SR501 PIR Motion Sensor with Arduino", url: "https://how2electronics.com/how-to-use-hc-sr501-pir-motion-sensor-with-arduino/" }
+arrosage-automatique:
+  - { site: How2Electronics, title: "Automatic Plant Watering System with Arduino", url: "https://how2electronics.com/automatic-plant-watering-system-with-arduino-soil-moisture-sensor/" }
+  - { site: Hackster, title: "Automatic Irrigation and Plant Watering System", url: "https://www.hackster.io/rau7han/automatic-irrigation-and-plant-watering-system-13b32d" }
+thermostat-relais:
+  - { site: ArduinoGetStarted, title: "Arduino - Temperature Sensor - Relay", url: "https://arduinogetstarted.com/tutorials/arduino-temperature-sensor-relay" }
+detecteur-gaz:
+  - { site: Random Nerd Tutorials, title: "Guide for MQ-2 Gas/Smoke Sensor with Arduino", url: "https://randomnerdtutorials.com/guide-for-mq-2-gas-smoke-sensor-with-arduino/" }
+  - { site: Arduino Project Hub, title: "Smoke detector using MQ-2 Gas sensor", url: "https://projecthub.arduino.cc/electronicsfan123/smoke-detector-using-mq-2-gas-sensor-1506ec" }
+lampe-ambiance-neopixel:
+  - { site: Envato Tuts+, title: "How to Build an Arduino Mood Lamp", url: "https://code.tutsplus.com/how-to-build-an-arduino-mood-lamp--cms-21372t" }
+  - { site: Hackster, title: "Neo Pixels Ring with Arduino Nano", url: "https://www.hackster.io/pradeeplogu0/neo-pixels-ring-with-arduino-nano-d5d09c" }
+jauge-distance-neopixel:
+  - { site: Instructables, title: "HCSR04 With RGB and Arduino", url: "https://www.instructables.com/HCSR04-With-RGB-and-Arduino", proche: true }
+niveau-a-bulle:
+  - { site: GitHub, title: "digital_spirit_level (MPU6050 + OLED)", url: "https://github.com/DesignBuildDestroy/digital_spirit_level" }
+  - { site: Arduino Project Hub, title: "IoT Spirit Level", url: "https://projecthub.arduino.cc/the_electro_artist/iot-spirit-level-9d052d" }
+horloge-rtc-lcd:
+  - { site: ArduinoGetStarted, title: "Arduino - LCD Clock (DS3231)", url: "https://arduinogetstarted.com/tutorials/arduino-lcd-clock" }
+  - { site: Circuit Basics, title: "How to Use a Real Time Clock Module with the Arduino", url: "https://www.circuitbasics.com/how-to-use-a-real-time-clock-module-with-the-arduino/" }
+horloge-ntp-oled:
+  - { site: Microcontrollers Lab, title: "IoT Analog and Digital Clock using OLED and ESP32", url: "https://microcontrollerslab.com/iot-analog-digital-clock-oled-esp32-esp8266/" }
+  - { site: Circuit Digest, title: "Internet Clock using ESP32 and OLED Display", url: "https://circuitdigest.com/microcontroller-projects/esp32-internet-clock" }
+station-meteo-web:
+  - { site: Random Nerd Tutorials, title: "ESP32 DHT11/DHT22 Web Server", url: "https://randomnerdtutorials.com/esp32-dht11-dht22-temperature-humidity-web-server-arduino-ide/" }
+serrure-rfid:
+  - { site: ArduinoGetStarted, title: "Arduino - RFID/NFC - Servo Motor", url: "https://arduinogetstarted.com/tutorials/arduino-rfid-nfc-servo-motor" }
+  - { site: Instructables, title: "Arduino RFID 'Smart Door' Tutorial", url: "https://www.instructables.com/Arduino-RFID-Smart-Door-Tutorial" }
+digicode:
+  - { site: Instructables, title: "Arduino Door Lock With Password", url: "https://www.instructables.com/Arduino-door-lock-with-password" }
+compteur-encodeur:
+  - { site: Circuit Digest, title: "What is Rotary Encoder and How to Use It with Arduino", url: "https://circuitdigest.com/microcontroller-projects/interfacing-rotary-encoder-with-arduino" }
+robot-evitement:
+  - { site: GitHub (Circuit Digest), title: "Obstacle Avoiding Car Using Arduino", url: "https://github.com/Circuit-Digest/Obstacle-Avoiding-Car-Using-Arduino" }
+  - { site: Instructables, title: "DIY Obstacle Avoiding Robot", url: "https://www.instructables.com/DIY-Obstacle-Avoiding-Robot" }
+balance-cuisine:
+  - { site: Random Nerd Tutorials, title: "Arduino with Load Cell and HX711 (Digital Scale)", url: "https://randomnerdtutorials.com/arduino-load-cell-hx711/" }
+  - { site: Instructables, title: "Arduino Kitchen Scale", url: "https://www.instructables.com/Arduino-Kitchen-Scale" }
+enregistreur-sd:
+  - { site: Random Nerd Tutorials, title: "Arduino Temperature Data Logger with SD Card Module", url: "https://randomnerdtutorials.com/arduino-temperature-data-logger-with-sd-card-module/" }
+tourelle-joystick:
+  - { site: ArduinoGetStarted, title: "Arduino - Joystick - Servo Motor (pan-tilt)", url: "https://arduinogetstarted.com/tutorials/arduino-joystick-servo-motor" }
+feu-tricolore-pieton:
+  - { site: SunFounder, title: "Pedestrian Crossing Button", url: "https://docs.sunfounder.com/projects/vincent-kit/en/latest/arduino/3.2_Pedestrian_Crossing_Button.html" }
+  - { site: O'Reilly (Beginning Arduino), title: "Project 4 — Interactive Traffic Lights", url: "https://www.oreilly.com/library/view/beginning-arduino/9781430232407/project_4_interactive_traffic_lights.html" }
+jeu-reflexes:
+  - { site: Instructables, title: "Arduino LED Reaction Time Game", url: "https://www.instructables.com/LED-Reaction-Time-Game-Tutorial" }
+  - { site: SunFounder, title: "Reaction Game", url: "https://docs.sunfounder.com/projects/3in1-kit-v2/en/latest/basic_project/ar_reaction_game.html" }
+thermometre-ds18b20:
+  - { site: Random Nerd Tutorials, title: "Guide for DS18B20 Temperature Sensor with Arduino", url: "https://randomnerdtutorials.com/guide-for-ds18b20-temperature-sensor-with-arduino" }
+  - { site: ArduinoGetStarted, title: "Arduino - Temperature Sensor", url: "https://arduinogetstarted.com/tutorials/arduino-temperature-sensor" }
+moteur-pas-a-pas-potar:
+  - { site: Circuit Digest, title: "Control Stepper Motor using Potentiometer and Arduino", url: "https://circuitdigest.com/microcontroller-projects/stepper-motor-control-with-potentiometer-arduino/" }
+  - { site: ArduinoGetStarted, title: "Arduino - 28BYJ-48 Stepper Motor (ULN2003)", url: "https://arduinogetstarted.com/tutorials/arduino-controls-28byj-48-stepper-motor-using-uln2003-driver" }
+veilleuse-rgb:
+  - { site: Instructables, title: "RGB LED Controlled by Arduino (bouton, couleurs, modes)", url: "https://www.instructables.com/RGB-LED-Controlled-by-Arduino" }
+sonnette-melodie:
+  - { site: ArduinoGetStarted, title: "Arduino - Button - Piezo Buzzer (mélodie)", url: "https://arduinogetstarted.com/tutorials/arduino-button-piezo-buzzer" }
+  - { site: Instructables, title: "Arduino Doorbell", url: "https://www.instructables.com/Arduino-Doorbell/" }

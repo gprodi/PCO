@@ -112,22 +112,54 @@ def goal(
     typer.echo(f"Projet écrit dans {path}")
 
 
-@app.command("compile-demo")
-def compile_demo(
-    fqbn: str = typer.Option("arduino:avr:uno"),
-    out: Path = typer.Option(Path("build/demo")),
-) -> None:
-    """Génère les projets de démonstration et les compile avec arduino-cli (CI)."""
+def _board_for_fqbn(fqbn: str):
     cat = get_catalog()
     board = next((b for b in cat.boards.values() if b.fqbn == fqbn), None)
     if board is None:
         raise typer.BadParameter(f"Aucune carte du catalogue avec le FQBN {fqbn}")
+    return cat, board
+
+
+def templates_for_board(cat, board, only_demo: bool = False) -> list[str]:
+    """Modèles compatibles avec la famille de la carte (Wi-Fi exigé -> carte Wi-Fi)."""
+    ids = DEMO_TEMPLATES if only_demo else sorted(cat.templates)
+    return [
+        tid
+        for tid in ids
+        if board.family in cat.templates[tid].board_families
+        and (board.wifi or not cat.templates[tid].requires_wifi)
+    ]
+
+
+@app.command("libs")
+def libs(fqbn: str = typer.Option("arduino:avr:uno")) -> None:
+    """Bibliothèques Arduino nécessaires à tous les modèles compatibles (une par ligne, pour la CI)."""
+    cat, board = _board_for_fqbn(fqbn)
+    b = ProjectBuilder(cat)
+    needed: set[str] = set()
+    for tid in templates_for_board(cat, board):
+        needed |= set(b.build(b.spec_from_template(tid, board.id)).libraries)
+    for name in sorted(needed):
+        typer.echo(name)
+
+
+@app.command("compile-demo")
+def compile_demo(
+    fqbn: str = typer.Option("arduino:avr:uno"),
+    out: Path = typer.Option(Path("build/demo")),
+    all_templates: bool = typer.Option(
+        True, "--all/--demo", help="Tous les modèles ou seulement la démo"
+    ),
+) -> None:
+    """Génère les projets et les compile VRAIMENT avec arduino-cli (job « firmware » de la CI)."""
+    cat, board = _board_for_fqbn(fqbn)
     cli = shutil.which("arduino-cli")
     if cli is None:
         raise typer.Exit("arduino-cli introuvable")
     b = ProjectBuilder(cat)
-    failures = 0
-    for tid in DEMO_TEMPLATES:
+    failures: list[str] = []
+    targets = templates_for_board(cat, board, only_demo=not all_templates)
+    for tid in targets:
         result = b.build(b.spec_from_template(tid, board.id))
         write_project(b, result, out / tid)
         sketch = next((out / tid).glob("*/*.ino")).parent
@@ -135,11 +167,21 @@ def compile_demo(
             [cli, "compile", "--fqbn", fqbn, str(sketch)], capture_output=True, text=True
         )
         status = "OK" if proc.returncode == 0 else "ÉCHEC"
-        typer.echo(f"{status:5s} {tid}")
+        size = next(
+            (
+                ln
+                for ln in proc.stdout.splitlines()
+                if "Sketch uses" in ln or "Le croquis utilise" in ln
+            ),
+            "",
+        )
+        typer.echo(f"{status:5s} {tid:28s} {size}")
         if proc.returncode != 0:
-            failures += 1
+            failures.append(tid)
             typer.echo(proc.stdout[-2000:] + proc.stderr[-2000:])
+    typer.echo(f"\n{len(targets) - len(failures)}/{len(targets)} projets compilés pour {fqbn}")
     if failures:
+        typer.echo("Échecs : " + ", ".join(failures))
         raise typer.Exit(code=1)
 
 

@@ -137,7 +137,22 @@ class MicroForgeClient:
             "/v1/builds/bundle", json={"template_id": template_id, "board": board, "spec": spec}
         )
 
-    def from_goal(self, goal: str, board: str | None, inventory: dict[str, int] | None) -> dict:
+    def from_goal(
+        self,
+        goal: str,
+        board: str | None,
+        inventory: dict[str, int] | None,
+        components: list[str] | None = None,
+    ) -> dict:
         return self.ia_post(
-            "/v1/builds/from-goal", json={"goal": goal, "board": board, "inventory": inventory}
+            "/v1/builds/from-goal",
+            json={"goal": goal, "board": board, "inventory": inventory, "components": components},
         )
+
+    def explore(self, inventory: dict[str, int] | None) -> list[dict]:
+        """Thèmes et idées de projets, annotés avec le stock."""
+        return self.ia_post("/v1/ideas/explore", json={"inventory": inventory})
+
+    def inspiration(self) -> dict:
+        """Parcours de progression, vitrine de vrais projets, chiffres clés."""
+        return self._call(self.ia, "GET", "/v1/ideas/inspiration")

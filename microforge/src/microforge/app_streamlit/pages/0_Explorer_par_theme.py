@@ -33,7 +33,50 @@ for i, t in enumerate(themes):
 
 theme = next((t for t in themes if t["id"] == st.session_state.theme), None)
 if theme is None:
-    st.info("Choisis un thème pour voir les projets.")
+    # Pas de thème choisi : on donne envie avec le parcours et la vitrine.
+    try:
+        insp = c.inspiration()
+    except ApiError as exc:
+        show_error(exc)
+        st.stop()
+    n = insp["chiffres"]
+    m = st.columns(4)
+    m[0].metric("Projets générables", n["modeles_generables"])
+    m[1].metric("Idées", n["idees"])
+    m[2].metric("Thèmes", n["themes"])
+    m[3].metric("Composants connus", n["composants"])
+
+    st.header("🪜 Parcours : de la première LED au robot autonome")
+    for step in insp["parcours"]:
+        with st.expander(f"Étape {step['etape']} — {step['titre']}", expanded=step["etape"] == 1):
+            st.write(step["objectif"])
+            st.caption("Tu apprends : " + ", ".join(step["notions"]))
+            for p in step["projets"]:
+                cols_p = st.columns([4, 1])
+                cols_p[0].markdown(f"**{p['titre']}** {'★' * p['difficulte']} — {p['description']}")
+                if cols_p[1].button("Générer", key=f"path-{step['etape']}-{p['id']}"):
+                    with st.spinner("Génération du câblage, du code et du guide…"):
+                        try:
+                            st.session_state.build = c.generate(
+                                template_id=p["id"], board="arduino-uno"
+                            )
+                        except ApiError as exc:
+                            show_error(exc)
+
+    st.header("🌍 Ce que les makers construisent vraiment")
+    st.caption(
+        "De vrais projets open source à base de microcontrôleurs, et par quoi commencer pour y arriver."
+    )
+    vcols = st.columns(2)
+    for i, v in enumerate(insp["vitrine"]):
+        with vcols[i % 2].container(border=True):
+            st.markdown(f"**[{v['nom']}]({v['url']})** · {v['categorie']} · *{v['carte']}*")
+            st.write(v["description"])
+            st.caption("Pour t'y préparer : " + ", ".join(p["titre"] for p in v["commencer_par"]))
+    if st.session_state.get("build"):
+        st.divider()
+        st.subheader(st.session_state.build["spec"]["title"])
+        show_build(st.session_state.build, "path")
     st.stop()
 
 st.header(f"{theme['icone']} {theme['titre']}")

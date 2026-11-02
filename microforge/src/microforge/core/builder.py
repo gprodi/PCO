@@ -153,6 +153,7 @@ class ProjectBuilder:
             or "- aucun"
         )
         libs = " ".join(f'"{lib}"' for lib in result.libraries)
+        verification = self.verification_markdown(spec.template_id)
         return f"""# {spec.title}
 
 {spec.description}
@@ -182,9 +183,34 @@ arduino-cli upload --fqbn {board.fqbn} -p <PORT> {name}
 ## Contrôle électrique
 {issues}
 
+{verification}
+
 ---
 *Généré automatiquement par MicroForge (logique et textes pouvant provenir d'une IA — transparence AI Act art. 50). Vérifiez toujours le câblage avant la mise sous tension.*
 """
+
+    def verification_markdown(self, template_id: str | None) -> str:
+        """Ce qui a été vérifié (et ce qui ne l'a pas été) + tutoriels équivalents pour recouper."""
+        tpl = self.catalog.templates.get(template_id or "")
+        lines = [
+            "## Niveau de vérification",
+            "- ✅ Allocation des broches et contrôle électrique (ERC) : automatiques, à chaque génération.",
+            "- ✅ Syntaxe C++ : vérifiée par les tests du dépôt (g++ avec en-têtes Arduino simulés).",
+            "- ✅ Compilation réelle (arduino-cli, cœurs AVR / ESP32 / RP2040) : job « firmware » de la CI GitHub.",
+        ]
+        if tpl is not None and tpl.hardware_tested:
+            lines.append(f"- ✅ Monté et testé sur : {', '.join(tpl.hardware_tested)}.")
+        else:
+            lines.append(
+                "- ⚠️ Pas encore monté sur du vrai matériel : teste d'abord sur breadboard (ou dans Wokwi)."
+            )
+        if tpl is not None and tpl.references:
+            lines += ["", "## Tutoriels équivalents (pour recouper câblage et code)"]
+            lines += [
+                f"- [{r.title}]({r.url}) — {r.site}" + (" *(variante proche)*" if r.proche else "")
+                for r in tpl.references
+            ]
+        return "\n".join(lines)
 
     def bundle(self, result: BuildResult) -> bytes:
         """Archive zip du projet complet."""

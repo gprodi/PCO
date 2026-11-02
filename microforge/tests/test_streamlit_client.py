@@ -50,3 +50,22 @@ def test_errors_and_logout():
     c.refresh_token = "r"
     c.logout()
     assert c.refresh_token is None
+
+
+def test_explore_inspiration_and_goal_with_components():
+    seen: dict[str, object] = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen[req.url.path] = req.content
+        if req.url.path == "/v1/auth/token":
+            return httpx.Response(200, json={"access_token": "a", "refresh_token": "r"})
+        if req.url.path == "/v1/ideas/inspiration":
+            return httpx.Response(200, json={"parcours": [], "vitrine": [], "chiffres": {}})
+        return httpx.Response(200, json=[] if "explore" in req.url.path else {"spec": {}})
+
+    c = MicroForgeClient("http://data", "http://ia", transport=httpx.MockTransport(handler))
+    c.login("gael", "x")
+    assert c.explore({"led": 1}) == []
+    assert c.inspiration()["parcours"] == []
+    c.from_goal("Alarme de cave", None, None, ["water-level-sensor", "buzzer"])
+    assert b"water-level-sensor" in seen["/v1/builds/from-goal"]
