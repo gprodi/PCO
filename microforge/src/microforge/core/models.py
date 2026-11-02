@@ -162,6 +162,7 @@ class BoardDef(BaseModel):
     )
     zigbee_thread: bool = False
     representative: bool = False  # carte de référence de sa famille (tests, CI, démo)
+    ci_compile_all: bool = False  # variante de puce dont TOUS les projets sont compilés en CI
     source: str = ""  # brochage officiel ayant servi à décrire la carte
     fqbn_note: str = ""
 

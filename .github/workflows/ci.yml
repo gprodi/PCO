@@ -46,27 +46,31 @@ jobs:
           name: coverage-${{ matrix.python }}
           path: coverage.xml
 
+  firmware-matrix:
+    # La matrice vient du catalogue : une entrée par famille de cartes (+ variantes de puce).
+    name: Matrice des cartes (catalogue)
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - id: m
+        run: echo "matrix=$(uv run python -m microforge.core.cli ci-matrix)" >> "$GITHUB_OUTPUT"
+
   firmware:
-    # Compilation RÉELLE de tous les modèles de projets, sur les 3 familles de cartes.
-    name: Compilation des firmwares générés (${{ matrix.name }})
+    # Compilation RÉELLE (arduino-cli) de tous les modèles sur la carte de référence de chaque
+    # famille et sur chaque variante de puce, + un croquis de fumée par carte du catalogue.
+    name: Firmwares (${{ matrix.name }})
+    needs: firmware-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: Arduino Uno (AVR)
-            fqbn: arduino:avr:uno
-            core: arduino:avr
-            index: ""
-          - name: ESP32 DevKit
-            fqbn: esp32:esp32:esp32
-            core: esp32:esp32
-            index: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-          - name: Raspberry Pi Pico W (RP2040)
-            fqbn: rp2040:rp2040:rpipicow
-            core: rp2040:rp2040
-            index: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+      matrix: ${{ fromJSON(needs.firmware-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -88,9 +92,12 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install "$CORE"
           uv run python -m microforge.core.cli libs --fqbn "$FQBN" | tee libs.txt
-          xargs -d '\n' -a libs.txt arduino-cli lib install
+          if [ -s libs.txt ]; then xargs -d '\n' -a libs.txt arduino-cli lib install; fi
       - name: Générer et compiler TOUS les modèles compatibles
         run: uv run python -m microforge.core.cli compile-demo --all --fqbn "${{ matrix.fqbn }}" --out build/firmware
+      - name: Croquis de fumée sur chaque carte de la famille
+        if: ${{ matrix.smoke }}
+        run: uv run python -m microforge.core.cli board-smoke --family "${{ matrix.family }}"
 
   secrets:
     name: Détection de secrets (gitleaks)

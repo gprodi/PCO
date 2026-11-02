@@ -7,7 +7,6 @@
   family: rp2040
   mcu: RP2040 double cœur Cortex-M0+ 133 MHz
   aliases: [pico, raspberry pi pico, rp2040, pico h]
-  representative: true
   source: "https://github.com/earlephilhower/arduino-pico/blob/master/variants/rpipico/pins_arduino.h"
   logic_v: 3.3
   five_v_tolerant: false
@@ -39,6 +38,7 @@
   family: rp2040
   mcu: RP2040 + CYW43439
   aliases: [pico w, raspberry pi pico w, pico wh]
+  representative: true  # Wi-Fi : couvre aussi les projets connectés de la famille
   source: "https://datasheets.raspberrypi.com/picow/pico-w-datasheet.pdf"
   logic_v: 3.3
   five_v_tolerant: false
@@ -97,6 +97,7 @@
   pins: []
 
 - id: rpi-pico-2-w
+  ci_compile_all: true  # RP2350 : tous les projets compilés en CI
   name: Raspberry Pi Pico 2 W (RP2350 + Wi-Fi)
   family: rp2040
   mcu: RP2350 + CYW43439

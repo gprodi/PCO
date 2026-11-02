@@ -139,22 +139,28 @@ def templates_for_board(cat, board, only_demo: bool = False) -> list[str]:
 
 @app.command("ci-matrix")
 def ci_matrix() -> None:
-    """Matrice JSON de la CI : une entrée par famille (carte de référence, cœur, index)."""
+    """Matrice JSON de la CI.
+
+    Une entrée par famille (carte de référence : tous les projets + croquis de fumée de chaque
+    carte de la famille), plus une entrée par variante de puce marquée ``ci_compile_all``
+    (ESP32-S3, C3, C6, RP2350 : tous les projets).
+    """
     cat = get_catalog()
     include = []
     for fam in cat.families.values():
-        board = cat.representative(fam.id)
-        others = [b.fqbn for b in cat.boards.values() if b.family == fam.id and b.id != board.id]
-        include.append(
-            {
-                "name": f"{fam.label.split(' (')[0]} — {board.name.split(' (')[0]}",
-                "family": fam.id,
-                "fqbn": board.fqbn,
-                "core": fam.core,
-                "index": fam.index_url,
-                "others": " ".join(others),
-            }
-        )
+        rep = cat.representative(fam.id)
+        boards = [rep] + [b for b in cat.boards.values() if b.family == fam.id and b.ci_compile_all]
+        for board in boards:
+            include.append(
+                {
+                    "name": f"{fam.label.split(' (')[0]} — {board.name.split(' (')[0]}",
+                    "family": fam.id,
+                    "fqbn": board.fqbn,
+                    "core": fam.core,
+                    "index": fam.index_url,
+                    "smoke": board is rep,
+                }
+            )
     typer.echo(json.dumps({"include": include}, ensure_ascii=False))
 
 
@@ -169,7 +175,11 @@ def board_smoke(
     if cli is None:
         raise typer.Exit("arduino-cli introuvable")
     failures = []
+    seen: set[str] = set()
     for board in (b for b in cat.boards.values() if b.family == family):
+        if board.fqbn in seen:  # ex. DevKit V1 et WROVER : même FQBN, une compilation suffit
+            continue
+        seen.add(board.fqbn)
         free = [
             p for p in board.pins if "digital" in p.caps and not p.reserved and not p.input_only
         ]

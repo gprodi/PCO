@@ -153,7 +153,7 @@
   fqbn: arduino:avr:leonardo
   platformio_board: leonardo
   default_i2c: { sda: 2, scl: 3 }
-  default_spi: { mosi: 16, miso: 14, sck: 15, cs: 17 }
+  default_spi: { mosi: 16, miso: 14, sck: 15, cs: 10 }  # SS (D17) = LED RX, non sorti : CS sur D10
   preferred_order: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 18, 19, 20, 21, 22, 23, 2, 3]
   price_eur: 20.0
   source: "https://github.com/arduino/ArduinoCore-avr/blob/master/variants/leonardo/pins_arduino.h"
