@@ -609,3 +609,41 @@ def test_no_avr_only_header_outside_avr_variants():
             if re.search(r"#include\s*<avr/", text):
                 assert family == "avr", f"{comp.id} ({family}) inclut un en-tête AVR"
             assert "LedControl" not in tpl.libraries, comp.id
+
+
+# ---------------------------------------------------------------- catalogue de cartes
+def test_each_family_has_exactly_one_representative():
+    for fam in CAT.families:
+        reps = [b.id for b in CAT.boards.values() if b.family == fam and b.representative]
+        assert len(reps) == 1, (fam, reps)
+    assert CAT.representative("rp2040").wifi  # couvre aussi les projets Wi-Fi de la famille
+
+
+@pytest.mark.parametrize("board_id", sorted(CAT.boards))
+def test_board_definition_is_consistent(board_id):
+    """Source officielle, FQBN du bon cœur, bus par défaut sur des broches existantes et libres."""
+    board = CAT.boards[board_id]
+    fam = CAT.families[board.family]
+    assert board.source.startswith("https://"), "brochage officiel manquant"
+    assert board.fqbn.startswith(fam.core + ":"), (board.fqbn, fam.core)
+    pins = {p.gpio: p for p in board.pins}
+    for bus in (board.default_i2c, board.default_spi):
+        for role, gpio in bus.items():
+            assert gpio in pins, f"{role}={gpio} absent des broches"
+            assert not pins[gpio].reserved, f"{role}={gpio} est réservée"
+    for role in ("sda", "scl", "mosi", "sck", "cs"):
+        gpio = board.default_i2c.get(role, board.default_spi.get(role))
+        if gpio is not None:
+            assert not pins[gpio].input_only, f"{role}={gpio} est en entrée seule"
+
+
+def test_ci_matrix_covers_every_family_and_chip_variant():
+    from microforge.core.cli import app
+    from typer.testing import CliRunner
+
+    res = CliRunner().invoke(app, ["ci-matrix"])
+    include = json.loads(res.output)["include"]
+    assert {e["family"] for e in include} == set(CAT.families)
+    assert sum(e["smoke"] for e in include) == len(CAT.families)  # fumée : une fois par famille
+    fqbns = {e["fqbn"] for e in include}
+    assert {"esp32:esp32:esp32s3", "esp32:esp32:esp32c3", "esp32:esp32:esp32c6"} <= fqbns

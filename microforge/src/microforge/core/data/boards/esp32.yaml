@@ -204,6 +204,7 @@
     - { gpio: 46, label: IO46, wokwi: "46", caps: [digital], strapping: true, input_only: true }
 
 - id: esp32-s3-devkitc-1
+  ci_compile_all: true  # variante de puce : tous les projets compilés en CI
   name: ESP32-S3 DevKitC-1 (N8R8, double cœur, USB natif)
   family: esp32
   mcu: ESP32-S3 (Xtensa LX7 double cœur 240 MHz, IA vectorielle)
@@ -254,6 +255,7 @@
     - { gpio: 48, label: IO48, wokwi: "48", caps: [digital, pwm], note: "LED RVB (v1.0)" }
 
 - id: esp32-c3-devkitm-1
+  ci_compile_all: true  # variante de puce : tous les projets compilés en CI
   name: ESP32-C3 DevKitM-1 (RISC-V, Wi-Fi + BLE)
   family: esp32
   mcu: ESP32-C3 (RISC-V 160 MHz)
@@ -340,6 +342,7 @@
     - { gpio: 21, label: TX,   wokwi: TX,   caps: [digital, pwm, uart] }
 
 - id: esp32-c6-devkitc-1
+  ci_compile_all: true  # variante de puce : tous les projets compilés en CI
   name: ESP32-C6 DevKitC-1 (Wi-Fi 6, BLE, Zigbee/Thread)
   family: esp32
   mcu: ESP32-C6 (RISC-V 160 MHz + cœur basse consommation)

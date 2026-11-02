@@ -12,11 +12,11 @@ check-lists du référentiel sont enregistrés **dans ton navigateur** uniquemen
 uv sync --all-packages
 uv run llm-gateway doctor          # vérifie ta machine et les modèles Ollama conseillés
 uv run revise seed && uv run revise export   # contenu + données du site
-uv run revise index                 # index sémantique pour le chat
-uv run revise serve                 # API locale (port 8765)
-cd revision/site && npm install && npm run dev
+uv run revise index                 # index sémantique pour le chat (une fois, avec Ollama)
+uv run revise start                 # API locale (port 8765) + site, ouvre le navigateur ; Ctrl+C arrête tout
 ```
-Ouvre http://localhost:4321/PCO/ : le **chat**, l'**ajout de cours** et l'**oral blanc** sont actifs.
+http://localhost:4321/PCO/ s'ouvre : le **chat**, l'**ajout de cours** et l'**oral blanc** sont actifs.
+Marche sous Windows, macOS et Linux (la première fois, `revise start` installe aussi les dépendances du site).
 
 ## Ajouter un cours
 - Depuis le site local : page « Ajouter un cours » (PDF, PowerPoint, Word, HTML, Markdown, notebook, texte ou URL).

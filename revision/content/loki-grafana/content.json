@@ -1,0 +1,336 @@
+{
+  "slug": "loki-grafana",
+  "titre": "Tuto — enquête d'incident avec Loki & Grafana",
+  "theme": "monitoring",
+  "fiche": {
+    "titre": "Enquête d'incident : dashboards, alerte et LogQL sur une stack Grafana / Loki / Prometheus",
+    "resume": "Le tutoriel « TVA » met en scène un incident réel de MLOps : une API de détection de fraude sert deux versions en A/B test, le modèle de référence v1.0-sacred et une variante v2.0-variant-loki qui, après quelques minutes, fait exploser les temps de réponse et produit des erreurs 500. La stack Docker Compose réunit Loki (stockage des logs), Promtail (collecte des logs des conteneurs via le socket Docker), Prometheus et cAdvisor (métriques CPU et mémoire des conteneurs, sans modifier l'API) et Grafana (visualisation). On construit d'abord des panneaux : CPU en PromQL, puis en LogQL la latence moyenne et le p95 par version (unwrap inference_time_ms) et le débit par version. On pose une alerte sur le nombre d'erreurs 500 en 2 minutes. Quand elle se déclenche, on enquête dans Explore : filtre sur « 500 », parsing JSON pour attribuer 100 % des erreurs à la variante, puis isolement de la branche fautive. On corrige par un rollback (retrait de la variante), on vérifie le retour au vert et on rédige un post-mortem : cause, impact, détection, correction, prévention.",
+    "objectifs": [
+      "Déployer une stack d'observabilité (Loki, Promtail, Prometheus, cAdvisor, Grafana) avec Compose",
+      "Écrire des requêtes LogQL de filtrage, de parsing JSON et d'agrégation (latence, p95, débit)",
+      "Créer une alerte Grafana et mener une enquête d'incident jusqu'au rollback",
+      "Rédiger un post-mortem utile"
+    ],
+    "notions": [
+      {
+        "terme": "Loki",
+        "definition": "Base de logs de Grafana : indexe seulement les labels (container, app), pas le contenu, ce qui la rend légère."
+      },
+      {
+        "terme": "Promtail / Alloy",
+        "definition": "Agents qui collectent les logs (ici via le socket Docker) et les envoient à Loki ; Alloy est le successeur de Promtail."
+      },
+      {
+        "terme": "cAdvisor",
+        "definition": "Exporte les métriques CPU/mémoire des conteneurs pour Prometheus, sans toucher au code de l'application."
+      },
+      {
+        "terme": "Sélecteur de flux LogQL",
+        "definition": "{container=~\".*fraudguard.*\"} choisit les flux de logs par leurs labels."
+      },
+      {
+        "terme": "Filtres et parsing",
+        "definition": "|= \"500\" filtre le texte ; | json extrait les champs ; | status = 500 filtre sur un champ extrait."
+      },
+      {
+        "terme": "unwrap",
+        "definition": "Transforme un champ numérique du log en valeur à agréger (avg_over_time, quantile_over_time)."
+      },
+      {
+        "terme": "A/B testing de modèle",
+        "definition": "Une partie du trafic est envoyée à une nouvelle version pour la comparer à la référence en conditions réelles."
+      },
+      {
+        "terme": "Post-mortem",
+        "definition": "Compte rendu sans recherche de coupable : cause racine, impact, détection, correction, prévention."
+      }
+    ],
+    "points_cles": [
+      "Réflexe d'enquête : du général au particulier — métriques (quoi ?) puis logs (où, quelle version, quelle branche ?).",
+      "Toujours ventiler par version du modèle (model_version) : c'est ce qui révèle la variante fautive.",
+      "Le p95 montre les pics qui cassent le SLA ; la moyenne les dilue.",
+      "Une alerte bien posée (seuil, fenêtre, période d'attente) évite de surveiller les écrans en permanence.",
+      "Un incident n'est clos qu'après vérification du correctif et post-mortem rédigé.",
+      "En labels Loki, uniquement des valeurs stables (app, env, container) ; un score ou un identifiant en label fait exploser l'index."
+    ],
+    "code": [
+      {
+        "titre": "Requêtes LogQL de l'enquête",
+        "lang": "bash",
+        "code": "# Latence moyenne par version (5 min)\navg by (model_version) (avg_over_time({container=~\".*tva-fraudguard.*\"} | json | unwrap inference_time_ms [5m]))\n\n# Latence p95 par version\nquantile_over_time(0.95, {container=~\".*tva-fraudguard.*\"} | json | unwrap inference_time_ms [5m]) by (model_version)\n\n# Débit (requêtes/s) par version\nsum by (model_version) (rate({container=~\".*tva-fraudguard.*\"} | json [1m]))\n\n# Alerte : erreurs 500 sur 2 min (déclenchement au-dessus de 3)\nsum(count_over_time({container=~\".*tva-fraudguard.*\"} | json | status = 500 [2m]))\n\n# Enquête : qui produit les 500 ? puis quelle branche est lente ?\n{container=~\".*tva-fraudguard.*\"} | json | status = 500\n{container=~\".*tva-fraudguard.*\"} | json | model_version = \"v2.0-variant-loki\" and inference_time_ms > 300\n",
+        "explication": "Les requêtes métriques (avg_over_time, rate, count_over_time) alimentent panneaux et alertes ; les requêtes de logs servent à l'enquête."
+      },
+      {
+        "titre": "Logs JSON structurés côté API",
+        "lang": "python",
+        "code": "import json\nimport random\nimport sys\nimport time\n\ndef journaliser(**champs) -> None:\n    print(json.dumps({\"ts\": time.time(), **champs}), file=sys.stdout, flush=True)\n\ndef predire(transaction: dict) -> dict:\n    version = random.choice([\"v1.0-sacred\", \"v2.0-variant-loki\"])   # A/B test\n    debut = time.perf_counter()\n    score = random.random()\n    duree_ms = round((time.perf_counter() - debut) * 1000, 2)\n    journaliser(model_version=version, branche=transaction[\"branche\"],\n                status=200, inference_time_ms=duree_ms, fraud_score=round(score, 3))\n    return {\"fraude\": score > 0.9, \"version\": version}\n",
+        "explication": "Un log JSON par prédiction, avec la version et la durée : tout ce dont l'enquête a besoin, sans données personnelles."
+      }
+    ],
+    "pieges": [
+      "Oublier le socket Docker dans Promtail/Alloy : aucun log n'apparaît dans Loki.",
+      "Mettre fraud_score ou un identifiant de transaction en label : un flux par valeur, l'index explose (cardinalité).",
+      "Conclure sur une moyenne alors que seuls 5 % des appels sont très lents.",
+      "Faire le rollback sans vérifier ensuite que l'alerte repasse au vert et que la latence redescend.",
+      "Garder les logs indéfiniment : définir une rétention (limits_config.retention_period).",
+      "Laisser Grafana en admin/admin en dehors d'un environnement de formation."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Variables de dashboard",
+        "contenu": "Une variable Grafana `$model_version` (alimentée par `label_values` ou une requête) rend le dashboard réutilisable pour toutes les versions futures, au lieu d'écrire la version en dur dans chaque panneau.",
+        "lien": "https://grafana.com/docs/grafana/latest/dashboards/variables/"
+      },
+      {
+        "titre": "Rollback automatique d'un A/B test",
+        "contenu": "Garde-fou : si le taux d'erreurs de la variante dépasse un seuil pendant N minutes, le routage revient automatiquement à 100 % sur la référence (feature flag, poids dans le reverse proxy ou alias MLflow). Défi : décris ce mécanisme dans la partie « prévention » de ton post-mortem.",
+        "lien": ""
+      },
+      {
+        "titre": "Alloy, le successeur de Promtail",
+        "contenu": "Promtail est en fin de vie au profit de Grafana Alloy, qui collecte logs, métriques et traces avec un seul agent. MicroForge utilise déjà Alloy (`microforge/monitoring/alloy/config.alloy`).",
+        "lien": "https://grafana.com/docs/alloy/latest/"
+      }
+    ],
+    "jury": "**E5 (C20, C21)** : surveiller une application d'IA et résoudre un incident. Le déroulé du tuto (détection par alerte → enquête LogQL → rollback → vérification → post-mortem) est le modèle à suivre pour raconter un incident au jury. MicroForge dispose de la même chaîne : logs collectés par Alloy vers Loki, métriques Prometheus et dashboards Grafana « application » et « modèle ».",
+    "competences": [
+      "C20",
+      "C21"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Pourquoi Loki est-il plus léger qu'un moteur de recherche plein texte ?",
+        "choix": [
+          "Il compresse moins",
+          "Il n'indexe que les labels, pas le contenu des logs",
+          "Il ne garde pas les logs",
+          "Il n'accepte que le JSON"
+        ],
+        "bonne": 1,
+        "explication": "Le contenu est filtré à la lecture.",
+        "difficulte": 2
+      },
+      {
+        "question": "À quoi sert cAdvisor dans la stack ?",
+        "choix": [
+          "Collecter les logs",
+          "Exporter les métriques CPU/mémoire des conteneurs vers Prometheus",
+          "Afficher les dashboards",
+          "Envoyer les alertes"
+        ],
+        "bonne": 1,
+        "explication": "Sans modifier le code de l'API.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que fait | json dans une requête LogQL ?",
+        "choix": [
+          "Formate la sortie",
+          "Extrait les champs du log JSON pour les filtrer ou les agréger",
+          "Convertit en CSV",
+          "Supprime les logs"
+        ],
+        "bonne": 1,
+        "explication": "Ensuite | status = 500 filtre sur le champ extrait.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel opérateur transforme inference_time_ms en valeur numérique agrégeable ?",
+        "choix": [
+          "| line_format",
+          "| unwrap inference_time_ms",
+          "|= \"inference\"",
+          "| label_format"
+        ],
+        "bonne": 1,
+        "explication": "Indispensable pour avg_over_time ou quantile_over_time.",
+        "difficulte": 2
+      },
+      {
+        "question": "Première étape une fois l'alerte « crashs 500 » déclenchée ?",
+        "choix": [
+          "Redémarrer tous les conteneurs",
+          "Enquêter dans les logs : quelles requêtes, quelle version, quelle branche",
+          "Supprimer l'alerte",
+          "Réentraîner le modèle"
+        ],
+        "bonne": 1,
+        "explication": "On diagnostique avant de corriger.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi ne pas mettre fraud_score en label Loki ?",
+        "choix": [
+          "C'est un secret",
+          "Valeur presque toujours différente : un flux par valeur, l'index explose",
+          "Loki refuse les nombres",
+          "Il serait arrondi"
+        ],
+        "bonne": 1,
+        "explication": "Labels = valeurs stables uniquement.",
+        "difficulte": 2
+      },
+      {
+        "question": "Que contient un post-mortem ?",
+        "choix": [
+          "Le nom du coupable",
+          "Cause racine, impact, détection, action corrective, action préventive",
+          "Uniquement les logs bruts",
+          "Le code source complet"
+        ],
+        "bonne": 1,
+        "explication": "Un post-mortem vise l'amélioration, sans recherche de coupable.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quand l'incident est-il réellement clos ?",
+        "choix": [
+          "Dès le rollback",
+          "Après vérification du retour à la normale et rédaction du post-mortem",
+          "Quand l'alerte est supprimée",
+          "Après une nuit sans erreur"
+        ],
+        "bonne": 1,
+        "explication": "La vérification prouve que la correction fonctionne.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Rôles de la stack",
+        "verso": "Loki : logs ; Promtail/Alloy : collecte ; Prometheus + cAdvisor : métriques ; Grafana : visualisation et alertes.",
+        "tags": []
+      },
+      {
+        "recto": "Sélectionner des flux LogQL",
+        "verso": "{container=~\".*fraudguard.*\"}",
+        "tags": []
+      },
+      {
+        "recto": "Filtrer le texte",
+        "verso": "|= \"500\" (contient) ; != \"debug\" (ne contient pas)",
+        "tags": []
+      },
+      {
+        "recto": "Filtrer sur un champ JSON",
+        "verso": "| json | status = 500",
+        "tags": []
+      },
+      {
+        "recto": "Latence moyenne LogQL",
+        "verso": "avg_over_time(... | json | unwrap inference_time_ms [5m])",
+        "tags": []
+      },
+      {
+        "recto": "p95 LogQL",
+        "verso": "quantile_over_time(0.95, ... | unwrap inference_time_ms [5m]) by (model_version)",
+        "tags": []
+      },
+      {
+        "recto": "Compter des événements",
+        "verso": "count_over_time({...} | json | status = 500 [2m])",
+        "tags": []
+      },
+      {
+        "recto": "CPU d'un conteneur (PromQL)",
+        "verso": "rate(container_cpu_usage_seconds_total{name=~\".*api.*\"}[1m])",
+        "tags": []
+      },
+      {
+        "recto": "Paramètres d'une alerte Grafana",
+        "verso": "Requête, condition (seuil), dossier, groupe d'évaluation (intervalle), pending period, notification.",
+        "tags": []
+      },
+      {
+        "recto": "Rollback dans le tuto",
+        "verso": "MODELS = [\"v1.0-sacred\"] puis docker compose restart de l'API.",
+        "tags": []
+      },
+      {
+        "recto": "5 rubriques du post-mortem",
+        "verso": "Cause racine, impact, détection, action corrective, action préventive.",
+        "tags": []
+      },
+      {
+        "recto": "Rétention des logs Loki",
+        "verso": "limits_config.retention_period (sinon conservation illimitée).",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Post-mortem express",
+        "niveau": 1,
+        "enonce": "Rédige le post-mortem en 5 lignes de l'incident du tuto (variante v2.0 en A/B test, latence > 400 ms et erreurs 500 sur la branche timeline-us-nexus, alerte à plus de 3 erreurs 500 en 2 minutes, rollback).",
+        "indices": [],
+        "corrige": "- **Cause racine** : la variante v2.0-variant-loki déployée en A/B test dégrade fortement l'inférence sur la branche timeline-us-nexus (latence > 400 ms, erreurs 500).\n- **Impact** : la part du trafic routée vers la variante, sur cette branche, pendant la durée entre le début de l'anomalie et le rollback (≈ quelques minutes).\n- **Détection** : alerte Grafana « Crashs 500 » (plus de 3 erreurs 500 en 2 min), confirmée par les panneaux de latence par version.\n- **Correction** : retrait de la variante du trafic (`MODELS = [\"v1.0-sacred\"]`), redémarrage de l'API, vérification du retour au vert.\n- **Prévention** : élargir un A/B test par paliers, avec un seuil automatique de rollback (taux d'erreurs et p95 par version), et des tests de charge sur la variante avant exposition.\n"
+      },
+      {
+        "titre": "Requêtes d'enquête",
+        "niveau": 2,
+        "enonce": "Écris les requêtes LogQL pour : (1) le taux d'erreurs 500 en pourcentage par version sur 5 min ; (2) les 20 dernières requêtes les plus lentes de la variante.",
+        "indices": [
+          "Diviser deux sum by (model_version) (count_over_time(...))",
+          "Filtre inference_time_ms > seuil sur la variante"
+        ],
+        "corrige": "```bash\n# (1) Taux d'erreurs par version, en %\n100 * sum by (model_version) (count_over_time({container=~\".*tva-fraudguard.*\"} | json | status = 500 [5m]))\n    / sum by (model_version) (count_over_time({container=~\".*tva-fraudguard.*\"} | json [5m]))\n\n# (2) Requêtes lentes de la variante (l'interface Explore limite le nombre de lignes affichées)\n{container=~\".*tva-fraudguard.*\"} | json | model_version = \"v2.0-variant-loki\" and inference_time_ms > 400\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Enquête d'incident Loki & Grafana\n## Contexte\n- API anti-fraude\n- A/B test v1.0 vs v2.0\n## Stack\n- Loki, Promtail/Alloy\n- Prometheus, cAdvisor\n- Grafana\n## Dashboards\n- CPU (PromQL)\n- Latence moyenne et p95 (LogQL unwrap)\n- Débit par version\n## Alerte\n- count_over_time status=500\n- Seuil, fenêtre, pending\n## Enquête\n- |= \"500\"\n- | json | status = 500\n- Branche fautive\n## Clôture\n- Rollback\n- Vérification\n- Post-mortem\n"
+  },
+  "podcast": {
+    "titre": "Agents, nous avons un problème",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, dans le tuto TVA, deux versions du modèle tournent en même temps. Pourquoi ?"
+      },
+      {
+        "voix": "B",
+        "texte": "C'est un A/B test : on envoie une partie du trafic à la nouvelle version pour la comparer à la référence. Sauf qu'ici, la variante déraille au bout de quelques minutes."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment on s'en rend compte ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Avec des panneaux Grafana : latence par version et débit par version. Les logs JSON de l'API contiennent model version et inference time, et LogQL sait les agréger avec unwrap."
+      },
+      {
+        "voix": "A",
+        "texte": "Et je dois fixer l'écran toute la journée ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Non : une alerte compte les erreurs 500 sur deux minutes. Au-dessus de trois, elle se déclenche."
+      },
+      {
+        "voix": "A",
+        "texte": "L'alerte sonne. Je fais quoi ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Tu enquêtes dans Explore : tu filtres les 500, tu parses le JSON, et tu vois que cent pour cent viennent de la variante, sur une seule branche. Diagnostic posé."
+      },
+      {
+        "voix": "A",
+        "texte": "Puis rollback ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui, tu retires la variante, tu vérifies que tout repasse au vert, et tu écris le post-mortem : cause, impact, détection, correction, prévention. C'est la meilleure histoire à raconter au jury pour C21."
+      }
+    ]
+  },
+  "origine": "seed"
+}

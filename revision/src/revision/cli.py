@@ -1,4 +1,4 @@
-"""CLI ``revise`` : ingest | seed | generate | index | add | export | serve | podcast | status."""
+"""CLI ``revise`` : start | ingest | seed | generate | index | add | export | serve | podcast | status."""
 
 from __future__ import annotations
 
@@ -90,6 +90,107 @@ def serve(port: int = 8765) -> None:
     import uvicorn
 
     uvicorn.run("revision.api:app", host="127.0.0.1", port=port)
+
+
+SITE_URL = "http://localhost:4321/PCO/"
+
+
+def _ollama_hint() -> str:
+    """Une ligne d'état sur l'IA locale (le site fonctionne sans, le chat non)."""
+    import httpx
+    from llm_gateway.config import GatewaySettings
+
+    url = GatewaySettings().ollama_base_url
+    try:
+        models = [m["name"] for m in httpx.get(f"{url}/api/tags", timeout=1.5).json()["models"]]
+    except (httpx.HTTPError, KeyError, ValueError):
+        return (
+            "IA locale : Ollama introuvable. Le site, les QCM et les flashcards marchent ; "
+            "pour le chat et l'ajout de cours, installer https://ollama.com puis « ollama pull qwen3:4b »."
+        )
+    if not models:
+        return "IA locale : Ollama tourne mais n'a aucun modèle : « ollama pull qwen3:4b »."
+    return f"IA locale : Ollama prêt ({', '.join(models[:4])})."
+
+
+@app.command()
+def start(
+    port: int = 8765,
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="ouvrir le navigateur"),
+) -> None:
+    """Lance TOUT l'outil de révision : API locale + site (http://localhost:4321/PCO/)."""
+    import shutil
+    import subprocess
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    npm = shutil.which("npm")
+    if npm is None:
+        typer.echo(
+            "Node.js est requis pour le site : https://nodejs.org (version 22 ou plus).", err=True
+        )
+        raise typer.Exit(1)
+    site = PATHS.revision / "site"
+    if not (site / "node_modules").exists():
+        typer.echo("Première utilisation : installation des dépendances du site (npm install)…")
+        subprocess.run([npm, "install"], cwd=site, check=True)  # noqa: S603 — npm trouvé par which
+    typer.echo(_ollama_hint())
+    proc = subprocess.Popen([npm, "run", "dev"], cwd=site, **_new_group())  # noqa: S603
+    typer.echo(f"Site : {SITE_URL}   API : http://127.0.0.1:{port}   (Ctrl+C pour tout arrêter)")
+    if open_browser:
+        threading.Timer(5.0, webbrowser.open, [SITE_URL]).start()
+    try:
+        uvicorn.run("revision.api:app", host="127.0.0.1", port=port)
+    finally:
+        _stop_tree(proc)
+
+
+def _new_group() -> dict:
+    """npm lance « sh -c astro dev » puis node : on les met dans un groupe pour tout arrêter d'un coup."""
+    import subprocess
+    import sys
+
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _stop_tree(proc) -> None:
+    """Arrête npm ET ses descendants (sinon le serveur du site survit à Ctrl+C)."""
+    import contextlib
+    import os
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    if sys.platform == "win32":
+        if proc.poll() is not None:
+            return
+        subprocess.run(  # noqa: S603 — outil système Windows, PID entier
+            ["taskkill", "/T", "/F", "/PID", str(proc.pid)],  # noqa: S607
+            capture_output=True,
+            check=False,
+        )
+        return
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    # Le serveur du site s'arrête proprement en quelques secondes ; au-delà de 10 s, arrêt forcé.
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        proc.poll()
+        try:
+            os.killpg(proc.pid, 0)  # reste-t-il un membre du groupe ?
+        except ProcessLookupError:
+            return
+        time.sleep(0.2)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
 
 
 @app.command()

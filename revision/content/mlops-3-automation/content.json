@@ -1,0 +1,337 @@
+{
+  "slug": "mlops-3-automation",
+  "titre": "MLOps 3 — automatisation avec Prefect",
+  "theme": "mlops",
+  "fiche": {
+    "titre": "Prefect : transformer des scripts en pipelines fiables, planifiés et déployés",
+    "resume": "Le MLOps ne consiste pas seulement à emballer du code dans Docker : il faut que les données circulent de façon fiable et que les modèles restent performants dans le temps (collecte, entraînement, détection de dérive). Prefect transforme des fonctions Python en workflows. Le décorateur @flow marque le point d'entrée d'un pipeline (name, description, log_prints pour capturer les print) ; @task marque une étape unitaire, avec des tentatives automatiques (retries, retry_delay_seconds), des tags qui limitent la concurrence et un cache (cache_key_fn) pour ne pas recalculer ce qui n'a pas changé. task.submit() lance des tâches en parallèle et renvoie des futures. En développement, flow.serve() planifie un flow (interval, cron, rrule) tant que le terminal reste ouvert, avec une interface sur le port 4200. En production, on décrit les déploiements dans prefect.yaml (build et push de l'image, répertoire de travail, work pool, paramètres, planification), on lance prefect deploy, puis des workers qui exécutent les runs dans des conteneurs ; le serveur Prefect et sa base PostgreSQL tournent dans Docker Compose.",
+    "objectifs": [
+      "Écrire des flows et des tasks avec retries, tags et cache",
+      "Paralléliser des tâches avec submit et récupérer les résultats",
+      "Planifier un flow (interval, cron) en local avec serve",
+      "Déployer avec prefect.yaml, un work pool Docker et un worker"
+    ],
+    "notions": [
+      {
+        "terme": "@flow",
+        "definition": "Fonction orchestratrice : point d'entrée du pipeline, visible et suivi dans l'interface Prefect."
+      },
+      {
+        "terme": "@task",
+        "definition": "Étape unitaire d'un flow, avec retries, délai entre essais, tags et cache."
+      },
+      {
+        "terme": "Retries",
+        "definition": "Nouvelles tentatives automatiques après une erreur (réseau, API momentanément indisponible)."
+      },
+      {
+        "terme": "Futures / submit",
+        "definition": "task.submit() lance la tâche sans attendre ; future.result() récupère son résultat."
+      },
+      {
+        "terme": "Limite de concurrence par tag",
+        "definition": "Un tag (ex. calcul_max) peut être limité à N exécutions simultanées pour ne pas saturer une ressource."
+      },
+      {
+        "terme": "Deployment",
+        "definition": "Flow empaqueté avec sa planification, ses paramètres et son infrastructure d'exécution."
+      },
+      {
+        "terme": "Work pool / worker",
+        "definition": "Le work pool regroupe les runs à exécuter ; un worker y prend les runs et les lance (ex. dans des conteneurs Docker)."
+      },
+      {
+        "terme": "Planification",
+        "definition": "interval (secondes), cron (\"0 9 * * *\" = chaque jour à 9 h) ou rrule (règles complexes)."
+      }
+    ],
+    "points_cles": [
+      "Les retries rendent un pipeline robuste aux pannes passagères ; ils ne corrigent pas un bug déterministe.",
+      "serve() est pratique en développement mais s'arrête avec le terminal ; en production : deploy + worker.",
+      "Dans un conteneur, PREFECT_API_URL doit pointer vers le serveur (http://server:4200/api ou host.docker.internal), pas vers 127.0.0.1.",
+      "Le serveur Prefect garde son historique dans une base (PostgreSQL) persistée par un volume.",
+      "Un pipeline MLOps typique : collecter → valider les données → entraîner → évaluer → enregistrer dans MLflow → surveiller la dérive."
+    ],
+    "code": [
+      {
+        "titre": "Flow avec tâches parallèles, retries et planification",
+        "lang": "python",
+        "code": "import httpx\nfrom prefect import flow, task\n\n@task(retries=3, retry_delay_seconds=10, tags=[\"api_calcul\"])\ndef appeler_api(a: int, b: int) -> int:\n    with httpx.Client(timeout=10.0) as client:\n        r = client.get(\"http://localhost:8000/calcul\", params={\"a\": a, \"b\": b})\n        r.raise_for_status()\n        return r.json()[\"resultat\"]\n\n@flow(name=\"Calculs en parallèle\", log_prints=True)\ndef pipeline_calcul(n: int = 10) -> list[int]:\n    futures = [appeler_api.submit(i, i + 1) for i in range(n)]\n    resultats = [f.result() for f in futures]\n    print(f\"{len(resultats)} calculs terminés\")\n    return resultats\n\nif __name__ == \"__main__\":\n    pipeline_calcul.serve(name=\"calcul-auto\", cron=\"0 9 * * *\")   # tous les jours à 9 h\n",
+        "explication": "Chaque appel est réessayé 3 fois ; la limite du tag api_calcul (prefect concurrency-limit create api_calcul 2) évite de saturer l'API."
+      },
+      {
+        "titre": "prefect.yaml : déploiement Docker",
+        "lang": "yaml",
+        "code": "name: pipeline-ml\nprefect-version: 3.6.21\nbuild:\n  - prefect_docker.deployments.steps.build_docker_image:\n      id: build_image\n      requires: prefect-docker>=0.3.1\n      image_name: moncompte/pipeline-ml\n      tag: \"1.0.0\"\n      dockerfile: Dockerfile\npush:\n  - prefect_docker.deployments.steps.push_docker_image:\n      requires: prefect-docker>=0.3.1\n      image_name: \"{{ build_image.image_name }}\"\n      tag: \"{{ build_image.tag }}\"\npull:\n  - prefect.deployments.steps.set_working_directory:\n      directory: /app\ndeployments:\n  - name: entrainement-quotidien\n    entrypoint: flows/train.py:entrainer\n    work_pool:\n      name: docker-pool\n      job_variables:\n        image: \"{{ build_image.image }}\"\n    parameters:\n      seuil_accuracy: 0.9\n    schedule:\n      cron: \"0 2 * * *\"\n# prefect work-pool create docker-pool --type docker\n# prefect deploy --all\n# prefect worker start --pool docker-pool\n",
+        "explication": "Le worker tire l'image et exécute le flow à 2 h chaque nuit avec les paramètres déclarés."
+      }
+    ],
+    "pieges": [
+      "Compter sur serve() en production : la planification s'arrête quand le terminal se ferme.",
+      "Retries sur une tâche non idempotente (ex. insertion en base) : doublons à chaque nouvelle tentative.",
+      "PREFECT_API_URL=http://127.0.0.1:4200/api dans un conteneur : il pointe vers le conteneur lui-même.",
+      "Tag d'image latest dans prefect.yaml : impossible de savoir quel code a tourné pour un run donné.",
+      "Pas de volume pour la base du serveur Prefect : tout l'historique des runs disparaît au redémarrage."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Détecter la dérive des données dans un flow",
+        "contenu": "Une tâche compare chaque jour la distribution des nouvelles données à celle de l'entraînement (test de Kolmogorov-Smirnov, PSI, ou Evidently). Si la dérive dépasse un seuil, le flow déclenche un ré-entraînement et une alerte. C'est le chaînon entre MLOps 3 automatisation et monitoring.",
+        "lien": "https://docs.evidentlyai.com/"
+      },
+      {
+        "titre": "Automatisations et notifications Prefect",
+        "contenu": "Les automations déclenchent une action sur un événement (run en échec → message Slack/Discord/e-mail). Défi : alerte quand l'entraînement quotidien échoue deux fois de suite.",
+        "lien": "https://docs.prefect.io/v3/automate/events/automations-triggers"
+      },
+      {
+        "titre": "Pipeline d'entraînement complet",
+        "contenu": "Chaîne : tâche de collecte (cache par date) → validation (Pandera) → entraînement → évaluation → enregistrement MLflow si meilleur → alias Production. Chaque tâche est testable seule avec pytest (`ma_tache.fn(...)` appelle la fonction sans Prefect).",
+        "lien": "https://docs.prefect.io/v3/develop/write-tasks"
+      }
+    ],
+    "jury": "**E3 (C11, C13)** et **E5 (C19)** : automatiser la chaîne du modèle et la livraison. Un flow planifié qui réentraîne, évalue, enregistre et promeut est une preuve directe de C13. Dans MicroForge, le pipeline de données (`mf-pipeline`) et la chaîne `ml/train.py` → `evaluate.py` → `register.py` sont les candidats naturels à orchestrer ainsi.",
+    "competences": [
+      "C11",
+      "C13",
+      "C19"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Quel décorateur marque le point d'entrée d'un pipeline Prefect ?",
+        "choix": [
+          "@task",
+          "@flow",
+          "@pipeline",
+          "@app.get"
+        ],
+        "bonne": 1,
+        "explication": "Le flow orchestre ; les tasks sont les étapes.",
+        "difficulte": 1
+      },
+      {
+        "question": "À quoi sert retries=3 sur une task ?",
+        "choix": [
+          "Lancer 3 copies en parallèle",
+          "Réessayer jusqu'à 3 fois après une erreur",
+          "Mettre en cache 3 résultats",
+          "Limiter à 3 runs par jour"
+        ],
+        "bonne": 1,
+        "explication": "Avec retry_delay_seconds entre deux essais.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que renvoie ma_tache.submit(x) ?",
+        "choix": [
+          "Le résultat directement",
+          "Un future dont on récupère le résultat avec .result()",
+          "Rien",
+          "Un déploiement"
+        ],
+        "bonne": 1,
+        "explication": "submit permet d'exécuter plusieurs tâches en parallèle.",
+        "difficulte": 2
+      },
+      {
+        "question": "Que signifie cron=\"0 9 * * *\" ?",
+        "choix": [
+          "Toutes les 9 minutes",
+          "Chaque jour à 9 h 00",
+          "Le 9 de chaque mois",
+          "9 fois par heure"
+        ],
+        "bonne": 1,
+        "explication": "Minute 0, heure 9, tous les jours.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi serve() ne suffit-il pas en production ?",
+        "choix": [
+          "Il est payant",
+          "La planification s'arrête quand le processus (terminal) s'arrête",
+          "Il ne gère pas les retries",
+          "Il n'a pas d'interface"
+        ],
+        "bonne": 1,
+        "explication": "En production : deploy + worker supervisé.",
+        "difficulte": 2
+      },
+      {
+        "question": "Rôle d'un worker Prefect ?",
+        "choix": [
+          "Afficher l'interface",
+          "Prendre les runs d'un work pool et les exécuter (par ex. dans un conteneur)",
+          "Stocker les logs",
+          "Construire l'image"
+        ],
+        "bonne": 1,
+        "explication": "Le serveur planifie, le worker exécute.",
+        "difficulte": 1
+      },
+      {
+        "question": "Danger des retries sur une tâche qui insère une ligne en base ?",
+        "choix": [
+          "Aucun",
+          "Des doublons si l'insertion a réussi mais que la réponse a échoué",
+          "Les retries sont interdits",
+          "La base est supprimée"
+        ],
+        "bonne": 1,
+        "explication": "Les tâches réessayées doivent être idempotentes.",
+        "difficulte": 3
+      },
+      {
+        "question": "Dans le conteneur d'un worker, PREFECT_API_URL doit viser :",
+        "choix": [
+          "http://127.0.0.1:4200/api",
+          "L'adresse du serveur Prefect accessible depuis le conteneur (http://server:4200/api)",
+          "Docker Hub",
+          "Le port 5000"
+        ],
+        "bonne": 1,
+        "explication": "127.0.0.1 désigne le conteneur lui-même.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "@flow vs @task",
+        "verso": "Flow : orchestrateur (point d'entrée). Task : étape unitaire avec retries, tags, cache.",
+        "tags": []
+      },
+      {
+        "recto": "Retries",
+        "verso": "@task(retries=3, retry_delay_seconds=10)",
+        "tags": []
+      },
+      {
+        "recto": "Capturer les print",
+        "verso": "@flow(log_prints=True)",
+        "tags": []
+      },
+      {
+        "recto": "Paralléliser",
+        "verso": "futures = [t.submit(x) for x in xs] ; [f.result() for f in futures]",
+        "tags": []
+      },
+      {
+        "recto": "Limiter la concurrence",
+        "verso": "Tag sur la task + prefect concurrency-limit create <tag> <N>",
+        "tags": []
+      },
+      {
+        "recto": "Planifier en local",
+        "verso": "mon_flow.serve(name=..., interval=60) ou cron=\"0 9 * * *\"",
+        "tags": []
+      },
+      {
+        "recto": "Interface Prefect",
+        "verso": "prefect server start → http://localhost:4200",
+        "tags": []
+      },
+      {
+        "recto": "Créer un work pool Docker",
+        "verso": "prefect work-pool create docker-pool --type docker",
+        "tags": []
+      },
+      {
+        "recto": "Déployer",
+        "verso": "prefect deploy --all (lit prefect.yaml)",
+        "tags": []
+      },
+      {
+        "recto": "Démarrer un worker",
+        "verso": "prefect worker start --pool docker-pool",
+        "tags": []
+      },
+      {
+        "recto": "Sections de prefect.yaml",
+        "verso": "build, push, pull, deployments (entrypoint, work_pool, parameters, schedule).",
+        "tags": []
+      },
+      {
+        "recto": "Tester une task sans Prefect",
+        "verso": "ma_tache.fn(arguments) appelle la fonction brute.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Pipeline ETL robuste",
+        "niveau": 1,
+        "enonce": "Écris un flow `etl` avec trois tâches : `extraire()` (appel HTTP, 3 retries), `transformer(donnees)` (supprime les lignes vides) et `charger(donnees)` (écrit un CSV). Le flow affiche le nombre de lignes chargées.",
+        "indices": [
+          "@task(retries=3, retry_delay_seconds=5)",
+          "@flow(log_prints=True)"
+        ],
+        "corrige": "```python\nimport csv\n\nimport httpx\nfrom prefect import flow, task\n\n@task(retries=3, retry_delay_seconds=5)\ndef extraire(url: str) -> list[dict]:\n    r = httpx.get(url, timeout=10)\n    r.raise_for_status()\n    return r.json()\n\n@task\ndef transformer(lignes: list[dict]) -> list[dict]:\n    return [l for l in lignes if all(v not in (None, \"\") for v in l.values())]\n\n@task\ndef charger(lignes: list[dict], chemin: str = \"sortie.csv\") -> int:\n    if lignes:\n        with open(chemin, \"w\", newline=\"\", encoding=\"utf-8\") as f:\n            w = csv.DictWriter(f, fieldnames=list(lignes[0]))\n            w.writeheader()\n            w.writerows(lignes)\n    return len(lignes)\n\n@flow(log_prints=True)\ndef etl(url: str):\n    n = charger(transformer(extraire(url)))\n    print(f\"{n} lignes chargées\")\n```\n"
+      },
+      {
+        "titre": "Tester une tâche",
+        "niveau": 2,
+        "enonce": "Écris un test pytest de la tâche `transformer` de l'exercice précédent, sans démarrer de serveur Prefect.",
+        "indices": [
+          "transformer.fn(...) appelle la fonction d'origine"
+        ],
+        "corrige": "```python\nfrom etl import transformer\n\ndef test_transformer_supprime_les_lignes_incompletes():\n    lignes = [{\"a\": 1, \"b\": \"x\"}, {\"a\": None, \"b\": \"y\"}, {\"a\": 2, \"b\": \"\"}]\n    assert transformer.fn(lignes) == [{\"a\": 1, \"b\": \"x\"}]\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# MLOps 3 — Prefect\n## Pourquoi\n- Données fiables\n- Modèles surveillés\n- Retries, planification, dérive\n## Décorateurs\n- @flow (name, log_prints)\n- @task (retries, tags, cache)\n## Exécution\n- submit + futures\n- Limites de concurrence\n## Planification\n- serve (local)\n- interval, cron, rrule\n## Déploiement\n- prefect.yaml (build, push, pull)\n- Work pool + worker\n- prefect deploy\n## Infrastructure\n- Serveur Prefect (4200)\n- PostgreSQL + volume\n- Docker Compose\n"
+  },
+  "podcast": {
+    "titre": "Des pipelines qui se relancent tout seuls",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, mon script d'entraînement tourne bien… quand je pense à le lancer. Comment l'automatiser proprement ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Avec Prefect : tu décores ta fonction principale avec arobase flow, et chaque étape avec arobase task. Ton script devient un pipeline suivi dans une interface."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si l'API que j'appelle est en panne deux minutes ?"
+      },
+      {
+        "voix": "B",
+        "texte": "retries égal trois sur la task : Prefect réessaie tout seul, avec un délai. Attention quand même : une tâche qui insère en base doit être idempotente, sinon tu crées des doublons."
+      },
+      {
+        "voix": "A",
+        "texte": "Je peux lancer plusieurs appels en même temps ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui, avec submit, qui renvoie des futures. Et un tag avec une limite de concurrence évite de saturer le service appelé."
+      },
+      {
+        "voix": "A",
+        "texte": "Pour le lancer tous les jours ?"
+      },
+      {
+        "voix": "B",
+        "texte": "En développement, serve avec un cron. Mais si tu fermes le terminal, c'est fini. En production, prefect point yaml, prefect deploy et un worker qui exécute les runs dans des conteneurs."
+      },
+      {
+        "voix": "A",
+        "texte": "Et ça sert à quoi pour un modèle ?"
+      },
+      {
+        "voix": "B",
+        "texte": "À fermer la boucle : chaque nuit, collecter, vérifier la dérive, réentraîner, évaluer, et promouvoir dans MLflow si c'est mieux. C'est exactement la compétence C13."
+      }
+    ]
+  },
+  "origine": "seed"
+}

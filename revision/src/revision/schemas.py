@@ -17,6 +17,14 @@ class CodeExample(BaseModel):
     explication: str = ""
 
 
+class AllerPlusLoin(BaseModel):
+    """Piste pour dépasser le cours : notion avancée, défi, ressource officielle."""
+
+    titre: str
+    contenu: str
+    lien: str = ""
+
+
 class Fiche(BaseModel):
     titre: str
     resume: str = Field(description="5 à 8 phrases")
@@ -25,6 +33,11 @@ class Fiche(BaseModel):
     points_cles: list[str] = Field(default_factory=list)
     code: list[CodeExample] = Field(default_factory=list)
     pieges: list[str] = Field(default_factory=list)
+    aller_plus_loin: list[AllerPlusLoin] = Field(default_factory=list)
+    jury: str = Field(
+        default="",
+        description="épreuve(s) E1–E5 concernée(s) et comment le prouver dans le projet (MicroForge)",
+    )
     competences: list[str] = Field(default_factory=list, description="identifiants C1..C21")
     sources: list[str] = Field(
         default_factory=list, description="identifiants de passages <slug>#n"

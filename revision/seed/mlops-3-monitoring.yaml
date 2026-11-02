@@ -1,0 +1,217 @@
+titre: "MLOps 3 — monitoring (Uptime Kuma, Prometheus, Grafana)"
+fiche:
+  titre: "Surveiller une application d'IA : disponibilité, métriques, tableaux de bord et alertes"
+  resume: >-
+    Une application en production doit être surveillée à plusieurs niveaux, et le support le décline pour
+    chaque bloc du titre : base de données, API et modules, santé des conteneurs, métriques de l'API et des
+    ressources, logs (bloc 1) ; service d'IA, éventuel LLM et métriques du modèle (bloc 2) ; application et
+    ses ressources (bloc 3). Uptime Kuma vérifie la disponibilité (sondes HTTP régulières sur /health) et
+    alerte, par exemple par webhook Discord. Prometheus collecte des métriques temporelles en interrogeant
+    (scrape) un point /metrics exposé par chaque API ; Grafana les affiche en tableaux de bord et déclenche
+    des alertes, avec des sources de données et des dashboards provisionnés par fichiers (datasources.yml,
+    dashboards.yml, JSON). Docker Compose suffit pour le développement, les tests et une application sur un
+    seul serveur, mais il ne fait ni auto-réparation ni mise à l'échelle automatique : au-delà, on passe à un
+    orchestrateur comme Kubernetes.
+  objectifs:
+    - Distinguer disponibilité (Uptime Kuma), métriques (Prometheus) et visualisation/alertes (Grafana)
+    - Instrumenter une API FastAPI pour exposer des métriques Prometheus
+    - Provisionner Grafana (sources et dashboards) par fichiers versionnés
+    - Définir ce qu'il faut surveiller pour une API, un modèle et une application
+  notions:
+    - { terme: "Monitoring de disponibilité", definition: "Sonde régulière (HTTP, TCP, ping) qui vérifie qu'un service répond ; Uptime Kuma la configure par interface web." }
+    - { terme: "Métrique", definition: "Valeur numérique horodatée : compteur (requêtes), jauge (mémoire), histogramme (latences)." }
+    - { terme: "Scrape", definition: "Prometheus interroge périodiquement les cibles (/metrics) déclarées dans prometheus.yml." }
+    - { terme: "PromQL", definition: "Langage de requête de Prometheus : rate(), sum by (...), histogram_quantile()." }
+    - { terme: "Provisioning Grafana", definition: "Sources de données et dashboards décrits par des fichiers YAML/JSON chargés au démarrage : reproductibles et versionnés." }
+    - { terme: "Alerte", definition: "Règle évaluée périodiquement (ex. taux d'erreurs 5xx > 5 % pendant 5 min) qui notifie un canal." }
+    - { terme: "Métriques du modèle", definition: "Latence d'inférence, distribution des prédictions, scores de confiance, dérive des entrées, version servie." }
+  points_cles:
+    - "Une route /health légère permet aux sondes (Uptime Kuma, Docker healthcheck) de vérifier le service."
+    - "Les quatre signaux clés d'une API : latence, trafic, erreurs, saturation."
+    - "Pour un modèle, surveiller aussi la qualité : distribution des sorties, confiance moyenne, dérive des données, version utilisée."
+    - "Les latences se suivent par percentiles (p95, p99) : une moyenne masque les pics qui cassent le SLA."
+    - "Provisionner Grafana par fichiers : le monitoring se redéploie à l'identique, comme le reste de l'infrastructure."
+    - "Compose : développement, tests, serveur unique ; pas d'auto-guérison ni de mise à l'échelle automatique."
+  code:
+    - titre: "Exposer des métriques depuis FastAPI"
+      lang: python
+      code: |
+        import time
+
+        from fastapi import FastAPI
+        from prometheus_client import Counter, Histogram, make_asgi_app
+
+        app = FastAPI()
+        app.mount("/metrics", make_asgi_app())          # point de scrape pour Prometheus
+
+        PREDICTIONS = Counter("predictions_total", "Prédictions servies", ["version", "classe"])
+        LATENCE = Histogram("inference_seconds", "Durée d'inférence", ["version"],
+                            buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5))
+
+        @app.get("/health")
+        def health():
+            return {"status": "ok"}
+
+        @app.post("/predict")
+        def predict(x: float):
+            debut = time.perf_counter()
+            classe = "fraude" if x > 0.8 else "normal"     # modèle simulé
+            LATENCE.labels(version="v1").observe(time.perf_counter() - debut)
+            PREDICTIONS.labels(version="v1", classe=classe).inc()
+            return {"classe": classe}
+      explication: "Le compteur par classe permet de suivre la distribution des prédictions ; l'histogramme donne les percentiles de latence."
+    - titre: "prometheus.yml et requêtes PromQL"
+      lang: yaml
+      code: |
+        # prometheus/prometheus.yml
+        global:
+          scrape_interval: 15s
+        scrape_configs:
+          - job_name: api_ia
+            static_configs:
+              - targets: ["api_ia:8001"]       # nom du service Compose + port interne
+
+        # Requêtes Grafana (PromQL) :
+        #   sum by (classe) (rate(predictions_total[5m]))                       -> prédictions/s par classe
+        #   histogram_quantile(0.95, sum by (le) (rate(inference_seconds_bucket[5m])))   -> latence p95
+        #   sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))  -> taux d'erreurs
+      explication: "rate() calcule une vitesse à partir d'un compteur ; histogram_quantile() reconstruit un percentile."
+  pieges:
+    - "Surveiller seulement « le conteneur tourne » : une API peut répondre 500 à toutes les requêtes."
+    - "Mettre des valeurs à forte cardinalité en labels (identifiant utilisateur, texte d'entrée) : Prometheus explose."
+    - "Dashboards créés à la main dans l'interface et jamais exportés : perdus au prochain redéploiement."
+    - "Alertes trop sensibles (chaque pic) : fatigue d'alerte, plus personne ne les lit."
+    - "Exposer Grafana avec admin/admin ou Prometheus sans protection sur Internet."
+  aller_plus_loin:
+    - titre: "Les trois piliers de l'observabilité"
+      contenu: "Métriques (Prometheus), logs (Loki) et traces (OpenTelemetry + Tempo). Une trace suit une requête à travers front → API → modèle et montre où le temps est perdu. MicroForge collecte logs et métriques avec Grafana Alloy (`microforge/monitoring/alloy/config.alloy`)."
+      lien: "https://opentelemetry.io/docs/languages/python/"
+    - titre: "SLO et budget d'erreur"
+      contenu: "Définis un objectif (ex. 99 % des prédictions en moins de 300 ms sur 30 jours) et alerte quand le budget d'erreur se consomme trop vite, plutôt que sur chaque pic. Défi : écris la requête PromQL de ton SLO."
+      lien: "https://sre.google/workbook/alerting-on-slos/"
+    - titre: "Surveiller la dérive du modèle"
+      contenu: "Expose en métrique une statistique des entrées (moyenne, part de valeurs hors plage) et la confiance moyenne des prédictions ; une alerte sur leur évolution détecte une dérive avant que les utilisateurs ne se plaignent."
+      lien: "https://docs.evidentlyai.com/"
+  jury: >-
+    **E3 (C11)** et **E5 (C20)** : monitorer le modèle et surveiller l'application. MicroForge expose
+    `/metrics` dans `api_data` et `api_ia`, fournit deux dashboards Grafana provisionnés
+    (`monitoring/grafana/dashboards/application.json` et `modele.json`), un générateur de trafic pour les
+    démontrer, Uptime Kuma et Alloy dans le profil `monitoring`. Montre une alerte déclenchée puis résolue.
+  competences: [C11, C20]
+  sources: []
+qcm:
+  - question: "Quel outil vérifie simplement que /health répond toutes les minutes et alerte sur Discord ?"
+    choix: ["Prometheus", "Uptime Kuma", "MLflow", "Loki"]
+    bonne: 1
+    explication: "Surveillance de disponibilité simple avec notifications."
+    difficulte: 1
+  - question: "Comment Prometheus récupère-t-il les métriques d'une API ?"
+    choix: ["L'API les pousse par e-mail", "Il interroge (scrape) régulièrement l'URL /metrics de chaque cible", "Il lit les logs", "Grafana les lui envoie"]
+    bonne: 1
+    explication: "Modèle « pull » configuré dans prometheus.yml."
+    difficulte: 1
+  - question: "Quel type de métrique pour mesurer des latences et calculer un p95 ?"
+    choix: ["Counter", "Gauge", "Histogram", "Info"]
+    bonne: 2
+    explication: "histogram_quantile(0.95, ...) s'appuie sur les buckets."
+    difficulte: 2
+  - question: "Pourquoi préférer un percentile à la moyenne pour la latence ?"
+    choix: ["C'est plus rapide à calculer", "La moyenne masque les pics qui touchent une partie des utilisateurs", "Prometheus ne calcule pas de moyenne", "Pour réduire le stockage"]
+    bonne: 1
+    explication: "Le p95 dit : 95 % des requêtes sont plus rapides que cette valeur."
+    difficulte: 2
+  - question: "Que surveiller en plus pour un modèle d'IA (par rapport à une API classique) ?"
+    choix: ["Rien de plus", "Distribution des prédictions, confiance, dérive des données, version servie", "Uniquement la RAM", "Le nombre de commits"]
+    bonne: 1
+    explication: "Un modèle peut répondre vite et sans erreur… mais se tromper de plus en plus."
+    difficulte: 2
+  - question: "Intérêt du provisioning Grafana par fichiers ?"
+    choix: ["Changer la couleur des graphiques", "Recréer sources et dashboards à l'identique à chaque déploiement", "Accélérer Prometheus", "Supprimer les alertes"]
+    bonne: 1
+    explication: "Le monitoring devient du code versionné."
+    difficulte: 1
+  - question: "Limite de Docker Compose citée dans le cours ?"
+    choix: ["Il ne lance qu'un conteneur", "Pas d'auto-guérison ni de mise à l'échelle automatique", "Il ne gère pas les volumes", "Il ne fonctionne pas sous Linux"]
+    bonne: 1
+    explication: "D'où Kubernetes pour la production à grande échelle."
+    difficulte: 1
+  - question: "Pourquoi éviter un label user_id sur une métrique Prometheus ?"
+    choix: ["Il est trop long", "Forte cardinalité : une série par utilisateur, la base explose", "Il est interdit", "Il ralentit Grafana uniquement"]
+    bonne: 1
+    explication: "Les labels doivent avoir peu de valeurs possibles."
+    difficulte: 3
+flashcards:
+  - { recto: "Rôle d'Uptime Kuma", verso: "Sondes de disponibilité (HTTP, TCP) + notifications (Discord, e-mail…)." }
+  - { recto: "Rôle de Prometheus", verso: "Collecte et stockage de métriques temporelles par scrape de /metrics." }
+  - { recto: "Rôle de Grafana", verso: "Tableaux de bord et alertes sur Prometheus, Loki, etc." }
+  - { recto: "Exposer /metrics dans FastAPI", verso: "app.mount(\"/metrics\", prometheus_client.make_asgi_app())" }
+  - { recto: "Types de métriques", verso: "Counter (cumulatif), Gauge (valeur instantanée), Histogram (distribution)." }
+  - { recto: "Débit d'un compteur", verso: "rate(compteur_total[5m])" }
+  - { recto: "Latence p95", verso: "histogram_quantile(0.95, sum by (le) (rate(x_bucket[5m])))" }
+  - { recto: "Quatre signaux clés", verso: "Latence, trafic, erreurs, saturation." }
+  - { recto: "Fichiers de provisioning Grafana", verso: "provisioning/datasources/*.yml, provisioning/dashboards/*.yml + JSON des dashboards." }
+  - { recto: "Cible de scrape dans Compose", verso: "targets: [\"nom_service:port_interne\"]" }
+  - { recto: "Quand Compose suffit", verso: "Développement, tests, application simple sur un seul serveur." }
+  - { recto: "Métriques spécifiques au modèle", verso: "Version servie, distribution des classes, confiance, latence d'inférence, dérive." }
+exercices:
+  - titre: "Plan de monitoring"
+    niveau: 1
+    enonce: "Pour une API de détection de fraude, liste ce que tu surveilles, avec l'outil, la métrique ou la sonde, et le seuil d'alerte, pour : la disponibilité, la performance de l'API, le modèle, les ressources."
+    corrige: |
+      | Niveau | Outil | Mesure | Alerte |
+      |---|---|---|---|
+      | Disponibilité | Uptime Kuma | GET /health chaque minute | 2 échecs consécutifs |
+      | API | Prometheus/Grafana | taux de 5xx, latence p95 | 5xx > 2 % sur 5 min ; p95 > 300 ms |
+      | Modèle | Prometheus/Grafana | part de « fraude » prédite, confiance moyenne, version | part de fraude × 3 par rapport à la semaine précédente |
+      | Ressources | cAdvisor/Prometheus | CPU, mémoire du conteneur | mémoire > 90 % de la limite |
+  - titre: "Instrumenter et requêter"
+    niveau: 2
+    enonce: "Ajoute à l'API du cours un compteur d'erreurs par type d'exception, puis écris la requête PromQL du nombre d'erreurs par minute et par type."
+    corrige: |
+      ```python
+      from prometheus_client import Counter
+
+      ERREURS = Counter("prediction_errors_total", "Erreurs de prédiction", ["type"])
+
+      def predire_en_securite(x: float) -> dict:
+          try:
+              return {"classe": "fraude" if x > 0.8 else "normal"}
+          except Exception as e:
+              ERREURS.labels(type=type(e).__name__).inc()
+              raise
+      ```
+      PromQL : `sum by (type) (rate(prediction_errors_total[5m])) * 60` (erreurs par minute, lissées sur 5 minutes).
+mindmap: |
+  # Monitoring
+  ## Quoi surveiller
+  - Base, API, conteneurs
+  - Service d'IA, LLM, modèle
+  - Application, ressources
+  - Logs
+  ## Uptime Kuma
+  - Sondes /health
+  - Webhook Discord
+  ## Prometheus
+  - /metrics, scrape
+  - Counter, Gauge, Histogram
+  - PromQL : rate, histogram_quantile
+  ## Grafana
+  - Dashboards
+  - Provisioning (YAML, JSON)
+  - Alertes
+  ## Limites de Compose
+  - Pas d'auto-guérison
+  - Pas de scaling auto
+  - → Kubernetes
+podcast_titre: "Savoir que ça casse avant les utilisateurs"
+podcast:
+  - { voix: A, texte: "Karim, mon API est déployée. Comment je sais si elle va bien ?" }
+  - { voix: B, texte: "Trois niveaux. D'abord, est-ce qu'elle répond : Uptime Kuma appelle slash health chaque minute et te prévient sur Discord si ça tombe." }
+  - { voix: A, texte: "Et si elle répond, mais lentement ?" }
+  - { voix: B, texte: "Là, il faut des métriques. Ton API expose slash metrics, Prometheus vient les lire toutes les quinze secondes, et Grafana les affiche." }
+  - { voix: A, texte: "Je mesure la latence moyenne ?" }
+  - { voix: B, texte: "Plutôt le percentile 95 : la moyenne cache les pics. Avec un histogramme, histogram quantile te donne le p95." }
+  - { voix: A, texte: "Et pour le modèle lui-même ?" }
+  - { voix: B, texte: "C'est le niveau que beaucoup oublient : un modèle peut répondre vite et se tromper de plus en plus. Suis la répartition des prédictions, la confiance, la version servie, et la dérive des données." }
+  - { voix: A, texte: "Et les tableaux de bord, je les fais à la main ?" }
+  - { voix: B, texte: "Tu les fais une fois, puis tu les exportes en JSON et tu les provisionnes par fichiers. Ton monitoring se redéploie comme le reste. C'est exactement ce que le jury attend pour C11 et C20." }

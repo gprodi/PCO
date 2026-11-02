@@ -1,0 +1,329 @@
+{
+  "slug": "idees-projets-hf",
+  "titre": "Idées de projets Hugging Face",
+  "theme": "projets",
+  "fiche": {
+    "titre": "Cinq projets Hugging Face complets : contraintes communes et architecture type",
+    "resume": "Ce brief propose cinq projets qui combinent plusieurs modèles pré-entraînés de Hugging Face, avec des contraintes communes qui forment une architecture professionnelle : environnement virtuel, fichier .env (hôtes, ports et nom de la base SQLite), requirements.txt, README, .gitignore qui exclut les modèles, découpage en couches (données, application, IA), tests pytest, journalisation Loguru, interface Streamlit ou Gradio, deux API FastAPI séparées (données et IA) validées par Pydantic, base SQLite via l'ORM SQLAlchemy, mots de passe hachés et informations personnelles chiffrées, et un module de création de compte utilisateur. Les projets : (1) détection d'objets en temps réel à la webcam (OpenCV, DETR ou YOLO) avec description de l'image par un modèle image-to-text ; (2) chatbot dont chaque message est traduit en anglais et analysé en sentiment ; (3) génération d'images à partir de la parole (speech-to-text, LLM pour le prompt, Stable Diffusion) ; (4) segmentation d'images et résumé ; (5) extraction de documents et résumé intelligent. Les modèles cités ne sont que des exemples : il faut explorer le Hub pour en trouver de meilleurs.",
+    "objectifs": [
+      "Appliquer une architecture en couches avec deux API (données et IA) et une interface",
+      "Chaîner plusieurs modèles Hugging Face (vision, texte, audio) dans une même application",
+      "Protéger les données utilisateur (hachage des mots de passe, chiffrement des données personnelles)",
+      "Choisir et justifier des modèles plus adaptés que ceux proposés"
+    ],
+    "notions": [
+      {
+        "terme": "Pipeline multi-modèles",
+        "definition": "Enchaînement de modèles (ex. parole → texte → prompt → image) où la sortie de l'un alimente l'autre."
+      },
+      {
+        "terme": "Image-to-text",
+        "definition": "Modèle qui génère une description textuelle d'une image (captioning)."
+      },
+      {
+        "terme": "Détection d'objets",
+        "definition": "Localiser et classer les objets d'une image (boîtes englobantes) : DETR, YOLO."
+      },
+      {
+        "terme": "Segmentation",
+        "definition": "Attribuer une classe à chaque pixel (sémantique) ou délimiter chaque objet (instances)."
+      },
+      {
+        "terme": "Speech-to-text",
+        "definition": "Transcription de la parole en texte (wav2vec2, Whisper)."
+      },
+      {
+        "terme": "Hachage vs chiffrement",
+        "definition": "Hachage : irréversible, pour les mots de passe. Chiffrement : réversible avec une clé, pour les données personnelles à relire."
+      },
+      {
+        "terme": "Architecture en couches",
+        "definition": "Données (API data + base), IA (API IA + modèles), application (interface) séparées et testables."
+      }
+    ],
+    "points_cles": [
+      "Les modèles téléchargés (plusieurs Go) ne vont jamais dans Git : .gitignore et cache Hugging Face.",
+      "Deux API séparées : la base et les comptes d'un côté, les modèles (souvent GPU) de l'autre.",
+      "Mot de passe : hachage lent (bcrypt, argon2). E-mail, ville : chiffrement (Fernet) si on doit les relire.",
+      "Les modèles proposés sont anciens pour certains (DialoGPT, GPT-2, SD 1.5) : en choisir de plus récents et le justifier.",
+      "Chaque modèle se charge une seule fois au démarrage de l'API IA, pas à chaque requête."
+    ],
+    "code": [
+      {
+        "titre": "Projet 2 : traduction et sentiment pour chaque message",
+        "lang": "python",
+        "code": "from functools import lru_cache\n\nfrom transformers import pipeline\n\n@lru_cache(maxsize=1)\ndef modeles():\n    \"\"\"Chargés une seule fois au démarrage de l'API IA.\"\"\"\n    return {\n        \"traduction\": pipeline(\"translation\", model=\"Helsinki-NLP/opus-mt-fr-en\"),\n        \"sentiment\": pipeline(\"sentiment-analysis\",\n                              model=\"nlptown/bert-base-multilingual-uncased-sentiment\"),\n    }\n\ndef analyser(message: str) -> dict:\n    m = modeles()\n    etoiles = int(m[\"sentiment\"](message)[0][\"label\"].split()[0])   # « 4 stars » -> 4\n    sentiment = \"positif\" if etoiles >= 4 else \"négatif\" if etoiles <= 2 else \"neutre\"\n    return {\"original\": message,\n            \"anglais\": m[\"traduction\"](message)[0][\"translation_text\"],\n            \"sentiment\": sentiment}\n",
+        "explication": "lru_cache garantit un chargement unique ; le modèle de sentiment renvoie 1 à 5 étoiles, ramenées à trois classes."
+      },
+      {
+        "titre": "Comptes : hachage et chiffrement",
+        "lang": "python",
+        "code": "from cryptography.fernet import Fernet\nfrom pwdlib import PasswordHash\n\nhasher = PasswordHash.recommended()\nfernet = Fernet(Fernet.generate_key())      # en vrai : clé lue depuis l'environnement (.env)\n\ndef creer_compte(pseudo: str, mot_de_passe: str, email: str, ville: str) -> dict:\n    return {\n        \"pseudo\": pseudo,\n        \"mot_de_passe\": hasher.hash(mot_de_passe),          # irréversible\n        \"email\": fernet.encrypt(email.encode()).decode(),    # relisible avec la clé\n        \"ville\": fernet.encrypt(ville.encode()).decode(),\n    }\n\ncompte = creer_compte(\"gael\", \"secret123\", \"gael@exemple.fr\", \"Lyon\")\nassert hasher.verify(\"secret123\", compte[\"mot_de_passe\"])\nprint(fernet.decrypt(compte[\"email\"].encode()).decode())     # gael@exemple.fr\n",
+        "explication": "On vérifie un mot de passe sans jamais pouvoir le relire ; l'e-mail chiffré reste utilisable par l'application. PasswordHash.recommended() utilise argon2 : installer pwdlib[argon2] (sinon erreur HasherNotAvailable)."
+      }
+    ],
+    "pieges": [
+      "Commiter les poids des modèles ou le dossier de cache : dépôt de plusieurs Go.",
+      "Charger les pipelines dans la fonction de la route : chaque requête attend le chargement du modèle.",
+      "Chiffrer les mots de passe (réversible) au lieu de les hacher.",
+      "Garder la clé de chiffrement dans le code : le chiffrement ne protège plus rien.",
+      "Utiliser sans réflexion un modèle anglais (gpt2, DialoGPT) pour une application en français."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Remplacer les modèles par des versions récentes",
+        "contenu": "Whisper (parole), BLIP ou Florence (description d'images), YOLO11 (détection), SAM (segmentation), modèles de diffusion plus récents. Défi : pour ton projet, compare l'ancien et le nouveau modèle sur 20 exemples (qualité, temps, mémoire) et présente le tableau.",
+        "lien": "https://huggingface.co/models"
+      },
+      {
+        "titre": "Gradio pour une démo rapide",
+        "contenu": "`gr.Interface(fn, inputs, outputs)` crée une démo en quelques lignes, publiable sur un Space ; pratique pour montrer un modèle au jury avant d'avoir l'application complète.",
+        "lien": "https://www.gradio.app/guides/quickstart"
+      },
+      {
+        "titre": "RGPD et données personnelles",
+        "contenu": "Liste les données collectées, leur finalité et leur durée de conservation ; prévois la suppression du compte. La CNIL publie des fiches pratiques pour les développeurs.",
+        "lien": "https://www.cnil.fr/fr/guide-rgpd-du-developpeur"
+      }
+    ],
+    "jury": "**E1 à E4** : ces projets réunissent données (C4, C5), services d'IA (C7, C8), API de modèle (C9, C10) et application (C17). MicroForge suit les mêmes contraintes : deux API FastAPI séparées (`api_data`, `api_ia`), Streamlit, Loguru, tests, mots de passe hachés et modèles exclus du dépôt — un projet de cette liste est un bon entraînement, MicroForge en est la version complète.",
+    "competences": [
+      "C4",
+      "C7",
+      "C9",
+      "C17"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Pourquoi deux API séparées (données et IA) ?",
+        "choix": [
+          "Pour doubler le code",
+          "Pour séparer les responsabilités : base et comptes d'un côté, modèles (souvent lourds, GPU) de l'autre",
+          "Parce que FastAPI l'impose",
+          "Pour éviter Streamlit"
+        ],
+        "bonne": 1,
+        "explication": "Chaque service évolue et se met à l'échelle indépendamment.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment protéger un mot de passe utilisateur ?",
+        "choix": [
+          "Le chiffrer avec Fernet",
+          "Le hacher (bcrypt, argon2)",
+          "Le stocker en clair dans un fichier séparé",
+          "L'encoder en base64"
+        ],
+        "bonne": 1,
+        "explication": "Irréversible : on vérifie sans pouvoir le relire.",
+        "difficulte": 1
+      },
+      {
+        "question": "Et l'adresse e-mail que l'application doit pouvoir relire ?",
+        "choix": [
+          "La hacher",
+          "La chiffrer avec une clé gardée hors du code",
+          "La stocker en clair",
+          "Ne jamais la stocker"
+        ],
+        "bonne": 1,
+        "explication": "Le chiffrement est réversible avec la clé.",
+        "difficulte": 2
+      },
+      {
+        "question": "Où charger les modèles Hugging Face dans l'API IA ?",
+        "choix": [
+          "Dans chaque route",
+          "Une seule fois au démarrage (cache)",
+          "Dans le front",
+          "Dans la base de données"
+        ],
+        "bonne": 1,
+        "explication": "Sinon chaque requête attend le chargement.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que doit exclure le .gitignore de ces projets ?",
+        "choix": [
+          "Le README",
+          "Les modèles téléchargés, le .venv et le .env",
+          "Les tests",
+          "Le requirements.txt"
+        ],
+        "bonne": 1,
+        "explication": "Poids lourds, environnements et secrets.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel enchaînement pour le projet 3 (parole → image) ?",
+        "choix": [
+          "Image → texte → parole",
+          "Speech-to-text → LLM pour le prompt → modèle de diffusion",
+          "Traduction → sentiment",
+          "Segmentation → résumé"
+        ],
+        "bonne": 1,
+        "explication": "Trois modèles chaînés.",
+        "difficulte": 1
+      },
+      {
+        "question": "Différence entre détection et segmentation ?",
+        "choix": [
+          "Aucune",
+          "La détection place des boîtes autour des objets ; la segmentation classe chaque pixel ou délimite chaque objet",
+          "La segmentation est plus rapide",
+          "La détection ne marche qu'en vidéo"
+        ],
+        "bonne": 1,
+        "explication": "Deux niveaux de précision spatiale.",
+        "difficulte": 2
+      },
+      {
+        "question": "Les modèles cités dans le brief (gpt2, DialoGPT…) :",
+        "choix": [
+          "Sont obligatoires",
+          "Sont des exemples : il faut chercher et justifier de meilleurs modèles",
+          "Sont interdits",
+          "Ne fonctionnent pas"
+        ],
+        "bonne": 1,
+        "explication": "C'est un exercice de veille et de benchmark (E2).",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Contraintes communes",
+        "verso": "venv, .env, requirements, README, .gitignore, couches, pytest, Loguru, Streamlit/Gradio, 2 API FastAPI + Pydantic, SQLite/SQLAlchemy, hachage/chiffrement.",
+        "tags": []
+      },
+      {
+        "recto": "Les 5 projets",
+        "verso": "Webcam + description, chatbot traduit + sentiment, parole → image, segmentation + résumé, documents + résumé.",
+        "tags": []
+      },
+      {
+        "recto": "Détection d'objets",
+        "verso": "DETR (facebook/detr-resnet-50) ou YOLO11.",
+        "tags": []
+      },
+      {
+        "recto": "Description d'image",
+        "verso": "Modèle image-to-text (ex. vit-gpt2, BLIP).",
+        "tags": []
+      },
+      {
+        "recto": "Traduction fr → en",
+        "verso": "Helsinki-NLP/opus-mt-fr-en",
+        "tags": []
+      },
+      {
+        "recto": "Sentiment multilingue (étoiles)",
+        "verso": "nlptown/bert-base-multilingual-uncased-sentiment (1 à 5 étoiles).",
+        "tags": []
+      },
+      {
+        "recto": "Parole → texte",
+        "verso": "wav2vec2 ou Whisper.",
+        "tags": []
+      },
+      {
+        "recto": "Hacher un mot de passe",
+        "verso": "PasswordHash.recommended().hash(mdp)",
+        "tags": []
+      },
+      {
+        "recto": "Chiffrer une donnée",
+        "verso": "Fernet(cle).encrypt(texte.encode()) ; decrypt pour relire.",
+        "tags": []
+      },
+      {
+        "recto": "Charger un modèle une fois",
+        "verso": "@lru_cache sur la fonction qui crée les pipelines (ou au démarrage de l'API).",
+        "tags": []
+      },
+      {
+        "recto": "Tables communes",
+        "verso": "Utilisateur (nom, prénom, pseudo, mot de passe, e-mail, ville) sur deux tables.",
+        "tags": []
+      },
+      {
+        "recto": "Démo rapide",
+        "verso": "Gradio : gr.Interface(fn, inputs, outputs).launch()",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Architecture du projet 1",
+        "niveau": 1,
+        "enonce": "Dessine l'architecture du projet webcam (détection + description) : composants, routes de chaque API, ce qui est stocké en base.",
+        "indices": [],
+        "corrige": "- **Front** (Streamlit/Gradio) : flux webcam, prise de photo, dépôt d'image, affichage des boîtes et de la description.\n- **API IA** : `POST /detect` (image → objets + boîtes), `POST /caption` (image → description) ; modèles chargés au démarrage.\n- **API données** : `POST /users`, `POST /login`, `POST /analyses` (historique : date, objets détectés, description — pas l'image si inutile).\n- **Base SQLite** : comptes (mot de passe haché, e-mail et ville chiffrés), analyses liées à l'utilisateur.\n"
+      },
+      {
+        "titre": "Tester le compte utilisateur",
+        "niveau": 2,
+        "enonce": "Écris deux tests pour `creer_compte` : le mot de passe stocké n'est pas le mot de passe en clair et se vérifie ; l'e-mail stocké est différent de l'original mais se déchiffre.",
+        "indices": [],
+        "corrige": "```python\ndef test_mot_de_passe_hache():\n    c = creer_compte(\"ana\", \"s3cret!\", \"ana@ex.fr\", \"Paris\")\n    assert c[\"mot_de_passe\"] != \"s3cret!\"\n    assert hasher.verify(\"s3cret!\", c[\"mot_de_passe\"])\n\ndef test_email_chiffre():\n    c = creer_compte(\"ana\", \"s3cret!\", \"ana@ex.fr\", \"Paris\")\n    assert c[\"email\"] != \"ana@ex.fr\"\n    assert fernet.decrypt(c[\"email\"].encode()).decode() == \"ana@ex.fr\"\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Projets Hugging Face\n## Contraintes communes\n- venv, .env, requirements, README\n- .gitignore (modèles)\n- Couches : données, IA, application\n- pytest, Loguru\n- 2 API FastAPI + Pydantic\n- SQLite + SQLAlchemy\n- Hachage, chiffrement\n- Comptes utilisateurs\n## Projets\n- Webcam : détection + description\n- Chat : traduction + sentiment\n- Parole → image\n- Segmentation + résumé\n- Documents + résumé\n## Démarche\n- Explorer le Hub\n- Benchmarker\n- Justifier\n"
+  },
+  "podcast": {
+    "titre": "Cinq projets pour s'entraîner avant le chef-d'œuvre",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, ces cinq projets Hugging Face, c'est juste pour jouer avec des modèles ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Non, ce sont des répétitions générales. Les contraintes communes, c'est l'architecture attendue au titre : deux API, une interface, une base, des tests, des logs."
+      },
+      {
+        "voix": "A",
+        "texte": "Pourquoi deux API ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Une pour les données et les comptes, une pour les modèles, souvent gourmands en mémoire ou en GPU. Chacune évolue et se teste à part."
+      },
+      {
+        "voix": "A",
+        "texte": "Et les mots de passe ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Hachés, jamais chiffrés : on doit pouvoir les vérifier, pas les relire. Par contre l'e-mail, l'application doit le relire : là, on chiffre, avec une clé hors du code."
+      },
+      {
+        "voix": "A",
+        "texte": "Les modèles proposés sont un peu anciens, non ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui, et c'est voulu : le brief dit d'explorer le Hub. Compare l'ancien et un modèle récent sur quelques exemples, et tu as un benchmark pour l'épreuve E2."
+      },
+      {
+        "voix": "A",
+        "texte": "Et le lien avec MicroForge ?"
+      },
+      {
+        "voix": "B",
+        "texte": "MicroForge applique exactement ces contraintes, en plus complet. Ces projets sont l'entraînement, ton chef-d'œuvre est le match."
+      }
+    ]
+  },
+  "origine": "seed"
+}

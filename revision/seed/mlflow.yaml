@@ -49,6 +49,20 @@ fiche:
     - "Oublier set_experiment : tous les runs finissent dans « Default »."
     - "Journaliser une métrique dans une boucle sans step : la courbe est illisible (utiliser step=epoch)."
     - "Stocker les artefacts en local sur un serveur partagé : les autres machines ne les retrouvent pas (utiliser un stockage S3)."
+  aller_plus_loin:
+    - titre: "Autolog et signature de modèle"
+      contenu: "`mlflow.sklearn.autolog()` journalise automatiquement paramètres, métriques et modèle. Ajoute une **signature** (`infer_signature(X, model.predict(X))`) : MLflow refusera ensuite une entrée au mauvais format lors du service."
+      lien: "https://mlflow.org/docs/latest/ml/tracking/autolog/"
+    - titre: "Évaluer avant de promouvoir"
+      contenu: "`mlflow.evaluate()` calcule un jeu de métriques standard et compare à un modèle de référence. Défi : n'attribue l'alias `@production` que si la nouvelle version bat l'ancienne de 1 point d'accuracy (seuil codé dans la CI)."
+      lien: "https://mlflow.org/docs/latest/ml/evaluation/"
+    - titre: "Servir le modèle"
+      contenu: "`mlflow models serve -m models:/iris@production -p 5001` expose une API REST `/invocations` sans écrire de code — utile pour comparer avec ta propre API FastAPI."
+      lien: "https://mlflow.org/docs/latest/ml/deployment/"
+  jury: >-
+    **E3 (C11, C12, C13)** : le suivi des expériences et le registre de modèles prouvent la traçabilité et
+    le versionnage du modèle. Dans MicroForge, le modèle de vision (détection de composants) est journalisé
+    dans MLflow : montre la comparaison des runs, la version promue et le chargement par alias dans l'API.
   competences: [C11, C12, C13]
   sources: []
 qcm:
@@ -82,6 +96,16 @@ qcm:
     bonne: 1
     explication: "On déplace l'alias vers la nouvelle version ; l'API recharge par alias."
     difficulte: 2
+  - question: "Que garantit une signature de modèle (infer_signature) ?"
+    choix: ["Que le modèle est chiffré", "Que les entrées et sorties ont le format attendu au moment de servir le modèle", "Que le modèle est plus rapide", "Que l'accuracy dépasse 90 %"]
+    bonne: 1
+    explication: "La signature décrit colonnes et types d'entrée/sortie ; une entrée non conforme est refusée."
+    difficulte: 3
+  - question: "Comment retrouver par code le meilleur run d'une expérience ?"
+    choix: ["mlflow.best_run()", "mlflow.search_runs(..., order_by=['metrics.accuracy DESC'])", "mlflow.ui()", "En lisant les fichiers à la main"]
+    bonne: 1
+    explication: "search_runs renvoie un DataFrame trié ; la première ligne contient le run_id du meilleur."
+    difficulte: 2
 flashcards:
   - { recto: "Commande pour lancer l'interface MLflow en local ?", verso: "mlflow ui (par défaut sur http://127.0.0.1:5000)." }
   - { recto: "Différence paramètre / métrique ?", verso: "Paramètre : choisi avant l'entraînement. Métrique : mesurée pendant/après." }
@@ -91,6 +115,10 @@ flashcards:
   - { recto: "Rôle du Model Registry ?", verso: "Versionner les modèles et leur associer des alias (staging, production)." }
   - { recto: "Backend store vs artifact store ?", verso: "Backend : métadonnées (SQLite/PostgreSQL). Artifact : fichiers (disque, S3/MinIO)." }
   - { recto: "Comment tracer une courbe d'apprentissage ?", verso: "mlflow.log_metric('loss', valeur, step=epoch) à chaque epoch." }
+  - { recto: "Journalisation automatique", verso: "mlflow.sklearn.autolog() (ou mlflow.autolog()) avant l'entraînement." }
+  - { recto: "Ajouter une étiquette à un run", verso: "mlflow.set_tag(\"auteur\", \"gael\") — pour filtrer ensuite dans l'interface." }
+  - { recto: "Charger un modèle quel que soit le framework", verso: "mlflow.pyfunc.load_model(uri).predict(X)" }
+  - { recto: "Pointer vers un serveur de suivi distant", verso: "mlflow.set_tracking_uri(\"http://serveur:5000\") ou variable MLFLOW_TRACKING_URI." }
 exercices:
   - titre: "Mon premier run"
     niveau: 1

@@ -1,0 +1,333 @@
+{
+  "slug": "sphinx",
+  "titre": "Documentation avec Sphinx",
+  "theme": "bases",
+  "fiche": {
+    "titre": "Sphinx : une documentation vivante générée depuis le code",
+    "resume": "Sphinx transforme le code source et quelques fichiers de texte en un site de documentation. On l'installe avec uv (thème sphinx-rtd-theme ou Furo, myst_parser pour le Markdown), on initialise le dossier docs avec sphinx-quickstart, puis on compile en HTML avec sphinx-build. Le fichier conf.py déclare les extensions (autodoc pour lire les docstrings, napoleon pour le style Google/NumPy, mathjax pour les formules, viewcode pour afficher le source, myst_parser pour le Markdown), le thème et le chemin vers le code (sys.path). index.rst est la page d'accueil : sa directive toctree décide quelles pages existent et dans quel ordre. automodule génère la référence d'un module, sphinx-apidoc crée ces fichiers automatiquement, sphinxcontrib-bibtex gère les citations, et un workflow GitHub Actions publie le site sur GitHub Pages à chaque push. Objectif : une documentation qui survit au départ de son auteur.",
+    "objectifs": [
+      "Initialiser et compiler une documentation Sphinx avec uv",
+      "Configurer conf.py (extensions, thème, chemin du code)",
+      "Générer la référence d'API depuis les docstrings (autodoc, apidoc)",
+      "Publier automatiquement la documentation sur GitHub Pages"
+    ],
+    "notions": [
+      {
+        "terme": "conf.py",
+        "definition": "Fichier de configuration de Sphinx : extensions, thème, logo, titre, chemins vers le code."
+      },
+      {
+        "terme": "index.rst / toctree",
+        "definition": "Page d'accueil ; la directive toctree liste les pages du site — une page absente du toctree n'apparaît pas dans le menu."
+      },
+      {
+        "terme": "autodoc / automodule",
+        "definition": "Extension qui importe un module et produit sa documentation à partir des docstrings (:members:, :undoc-members:)."
+      },
+      {
+        "terme": "napoleon",
+        "definition": "Extension qui comprend les docstrings au style Google (Args:, Returns:) ou NumPy."
+      },
+      {
+        "terme": "myst_parser",
+        "definition": "Extension qui permet d'écrire les pages en Markdown et d'inclure le README.md."
+      },
+      {
+        "terme": "sphinx-apidoc",
+        "definition": "Commande qui génère les fichiers .rst d'un package entier (-f écraser, -e une page par module, -o dossier de sortie)."
+      },
+      {
+        "terme": "reStructuredText (rST)",
+        "definition": "Langage de balisage natif de Sphinx (titres soulignés, directives .. nom::)."
+      }
+    ],
+    "points_cles": [
+      "La documentation se génère depuis les docstrings : documenter le code, c'est déjà écrire la doc.",
+      "Sphinx importe les modules : sys.path doit pointer vers le code, et les dépendances doivent être installées.",
+      "Le README peut être inclus tel quel grâce à myst_parser (.. include:: avec :parser:).",
+      "La compilation dans la CI (sphinx-build) détecte les références cassées ; ajouter -W transforme les avertissements en erreurs.",
+      "GitHub Pages en mode « GitHub Actions » publie le dossier HTML produit par le workflow."
+    ],
+    "code": [
+      {
+        "titre": "Installer, initialiser, compiler",
+        "lang": "bash",
+        "code": "uv add --dev sphinx sphinx-rtd-theme myst-parser\nmkdir docs && cd docs && uv run sphinx-quickstart     # crée source/conf.py et index.rst\ncd ..\nuv run sphinx-apidoc -f -e -o docs/source ./app     # un .rst par module\nuv run sphinx-build -b html docs/source public       # site HTML dans public/\n",
+        "explication": "Le dossier public/ est ce que le workflow publie sur GitHub Pages."
+      },
+      {
+        "titre": "conf.py et page de référence",
+        "lang": "python",
+        "code": "# docs/source/conf.py\nimport os, sys\nsys.path.insert(0, os.path.abspath(\"../..\"))   # racine du projet\n\nextensions = [\n    \"sphinx.ext.autodoc\",\n    \"sphinx.ext.napoleon\",\n    \"sphinx.ext.mathjax\",\n    \"sphinx.ext.viewcode\",\n    \"myst_parser\",\n]\nhtml_theme = \"sphinx_rtd_theme\"\nhtml_title = \"Documentation — mon API\"\n\n# docs/source/mon_api.rst contient :\n#   Référence de l'API\n#   ==================\n#   .. automodule:: mon_api.api\n#      :members:\n#      :undoc-members:\n",
+        "explication": "automodule lit les docstrings de mon_api/api.py ; napoleon interprète les sections Args/Returns."
+      }
+    ],
+    "pieges": [
+      "Une page existe dans le dossier mais n'est pas dans le toctree : elle n'apparaît pas (avertissement « document isn't included in any toctree »).",
+      "Mauvais sys.path : autodoc échoue avec « No module named ... » et la page de référence est vide.",
+      "Dans un toctree, oublier la ligne vide entre les options (:caption:) et la liste des pages.",
+      "Docstrings incohérentes avec le code : la doc générée ment. Les relire en revue de code comme le code lui-même."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Doctests : des exemples qui sont aussi des tests",
+        "contenu": "Les exemples `>>> calculer_moyenne(np.array([1, 2, 3]))` suivis du résultat attendu peuvent être exécutés avec `sphinx.ext.doctest` ou `pytest --doctest-modules` : la documentation ne peut plus devenir fausse sans que la CI échoue.",
+        "lien": "https://www.sphinx-doc.org/fr/master/usage/extensions/doctest.html"
+      },
+      {
+        "titre": "Documenter une architecture avec des diagrammes",
+        "contenu": "`sphinxcontrib-mermaid` affiche des diagrammes Mermaid (séquence, composants) écrits en texte dans les pages. Défi : documente le trajet « photo du stock → API IA → liste de composants » de MicroForge en diagramme de séquence.",
+        "lien": "https://github.com/mgaitan/sphinxcontrib-mermaid"
+      },
+      {
+        "titre": "Thème Furo et versions de la doc",
+        "contenu": "Le thème Furo est plus moderne ; Read the Docs héberge gratuitement plusieurs versions (latest, v1.0) de la documentation d'un projet open source.",
+        "lien": "https://pradyunsg.me/furo/"
+      }
+    ],
+    "jury": "**E4 (C15, C17) et E5 (C19)** : la documentation technique fait partie du cadre technique et de la maintenabilité. MicroForge a déjà une configuration Sphinx (`microforge/docs/conf.py`, `index.md`, `installation.md`) : montre la référence générée depuis les docstrings et sa publication automatique.",
+    "competences": [
+      "C15",
+      "C17",
+      "C19"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Quel fichier contient les extensions et le thème de Sphinx ?",
+        "choix": [
+          "index.rst",
+          "conf.py",
+          "pyproject.toml",
+          "Makefile"
+        ],
+        "bonne": 1,
+        "explication": "conf.py est le fichier de configuration de la documentation.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle extension extrait la documentation des docstrings ?",
+        "choix": [
+          "sphinx.ext.mathjax",
+          "sphinx.ext.autodoc",
+          "myst_parser",
+          "sphinx.ext.viewcode"
+        ],
+        "bonne": 1,
+        "explication": "autodoc importe les modules et lit leurs docstrings ; napoleon l'aide à comprendre le style Google.",
+        "difficulte": 1
+      },
+      {
+        "question": "Une page .rst présente dans le dossier n'apparaît pas dans le site. Cause la plus probable ?",
+        "choix": [
+          "Le thème",
+          "Elle n'est référencée dans aucun toctree",
+          "Elle est trop longue",
+          "Il manque mathjax"
+        ],
+        "bonne": 1,
+        "explication": "Le toctree de index.rst (ou d'une page qu'il inclut) définit la navigation.",
+        "difficulte": 2
+      },
+      {
+        "question": "À quoi sert myst_parser ?",
+        "choix": [
+          "À écrire les pages en Markdown",
+          "À compiler en PDF",
+          "À tester les docstrings",
+          "À publier sur GitHub"
+        ],
+        "bonne": 0,
+        "explication": "Il ajoute le support du Markdown (MyST), utile pour inclure le README.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que fait sphinx-apidoc -f -e -o docs/source ./app ?",
+        "choix": [
+          "Il compile le HTML",
+          "Il génère (en écrasant) un fichier .rst par module du package app",
+          "Il publie la doc",
+          "Il supprime la doc"
+        ],
+        "bonne": 1,
+        "explication": "-f force l'écrasement, -e sépare chaque module sur sa page, -o indique la sortie.",
+        "difficulte": 2
+      },
+      {
+        "question": "autodoc échoue avec « No module named mon_api ». Que vérifier en premier ?",
+        "choix": [
+          "Le thème",
+          "Le sys.path dans conf.py (et l'installation des dépendances)",
+          "Le fichier .gitignore",
+          "La version de Git"
+        ],
+        "bonne": 1,
+        "explication": "Sphinx importe réellement le module : il doit le trouver et pouvoir importer ses dépendances.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quelle extension permet de supporter les sections Args: / Returns: des docstrings Google ?",
+        "choix": [
+          "napoleon",
+          "bibtex",
+          "mathjax",
+          "viewcode"
+        ],
+        "bonne": 0,
+        "explication": "sphinx.ext.napoleon convertit les styles Google et NumPy.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pour publier automatiquement la doc sur GitHub Pages, on utilise :",
+        "choix": [
+          "Un workflow GitHub Actions qui lance sphinx-build puis deploy-pages",
+          "Un commit du dossier .venv",
+          "Un e-mail à GitHub",
+          "pip install pages"
+        ],
+        "bonne": 0,
+        "explication": "Le workflow construit le HTML et le déploie à chaque push sur main.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Initialiser une doc Sphinx",
+        "verso": "uv run sphinx-quickstart dans le dossier docs/",
+        "tags": []
+      },
+      {
+        "recto": "Compiler en HTML",
+        "verso": "uv run sphinx-build -b html docs/source public",
+        "tags": []
+      },
+      {
+        "recto": "Trois extensions indispensables",
+        "verso": "sphinx.ext.autodoc, sphinx.ext.napoleon, myst_parser (+ viewcode, mathjax).",
+        "tags": []
+      },
+      {
+        "recto": "Changer le thème",
+        "verso": "html_theme = \"sphinx_rtd_theme\" (ou \"furo\") dans conf.py.",
+        "tags": []
+      },
+      {
+        "recto": "Rôle de toctree",
+        "verso": "Lister les pages du site, leur ordre et le menu de navigation.",
+        "tags": []
+      },
+      {
+        "recto": "Documenter un module",
+        "verso": ".. automodule:: paquet.module avec :members: et :undoc-members:",
+        "tags": []
+      },
+      {
+        "recto": "Générer tous les .rst d'un package",
+        "verso": "sphinx-apidoc -f -e -o docs/source ./app",
+        "tags": []
+      },
+      {
+        "recto": "Inclure le README.md",
+        "verso": ".. include:: ../../README.md avec :parser: myst_parser.sphinx_",
+        "tags": []
+      },
+      {
+        "recto": "Écrire une formule dans une docstring",
+        "verso": "Directive .. math:: (extension mathjax), docstring brute r\"\"\"...\"\"\".",
+        "tags": []
+      },
+      {
+        "recto": "Citer un article (BibTeX)",
+        "verso": "sphinxcontrib-bibtex, bibtex_bibfiles = ['refs.bib'], puis :cite:p:`cle`.",
+        "tags": []
+      },
+      {
+        "recto": "Rendre les avertissements bloquants",
+        "verso": "sphinx-build -W (utile dans la CI).",
+        "tags": []
+      },
+      {
+        "recto": "Réglage GitHub pour Pages",
+        "verso": "Settings > Pages > Build and deployment : GitHub Actions.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Documenter un module de calcul",
+        "niveau": 1,
+        "enonce": "Écris un module `outils/maths.py` avec `moyenne(valeurs: list[float]) -> float` documentée au style Google (Args, Returns, Raises si liste vide), puis la page `.rst` qui l'affiche avec automodule.",
+        "indices": [
+          "Docstring avec sections Args:, Returns:, Raises:",
+          ".. automodule:: outils.maths"
+        ],
+        "corrige": "```python\ndef moyenne(valeurs: list[float]) -> float:\n    \"\"\"Calcule la moyenne arithmétique.\n\n    Args:\n        valeurs: nombres à moyenner.\n\n    Returns:\n        La moyenne des valeurs.\n\n    Raises:\n        ValueError: si la liste est vide.\n    \"\"\"\n    if not valeurs:\n        raise ValueError(\"Liste vide\")\n    return sum(valeurs) / len(valeurs)\n```\n```rst\nOutils mathématiques\n====================\n\n.. automodule:: outils.maths\n   :members:\n```\n"
+      },
+      {
+        "titre": "Doc publiée à chaque push",
+        "niveau": 2,
+        "enonce": "Écris le workflow `.github/workflows/docs.yml` qui, à chaque push sur main, installe le projet avec uv, compile la doc avec `-W` et la publie sur GitHub Pages.",
+        "indices": [
+          "actions/upload-pages-artifact puis actions/deploy-pages",
+          "permissions pages: write, id-token: write"
+        ],
+        "corrige": "```yaml\nname: docs\non:\n  push:\n    branches: [main]\npermissions:\n  contents: read\n  pages: write\n  id-token: write\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: astral-sh/setup-uv@v6\n      - run: uv sync --all-extras\n      - run: uv run sphinx-build -W -b html docs/source public\n      - uses: actions/upload-pages-artifact@v3\n        with:\n          path: public\n  deploy:\n    needs: build\n    runs-on: ubuntu-latest\n    environment:\n      name: github-pages\n    steps:\n      - uses: actions/deploy-pages@v4\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Sphinx\n## Installation\n- uv add sphinx, thème, myst_parser\n- sphinx-quickstart\n- sphinx-build -b html\n## conf.py\n- extensions\n  - autodoc, napoleon\n  - mathjax, viewcode\n  - myst_parser, bibtex\n- html_theme, logo\n- sys.path\n## Contenu\n- index.rst + toctree\n- automodule\n- sphinx-apidoc\n- README inclus\n## Publication\n- Workflow GitHub Actions\n- GitHub Pages\n"
+  },
+  "podcast": {
+    "titre": "Une doc qui se écrit presque toute seule",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, la documentation, honnêtement, personne ne la lit et elle est toujours périmée."
+      },
+      {
+        "voix": "B",
+        "texte": "C'est pour ça qu'on la génère depuis le code. Avec Sphinx, tes docstrings deviennent des pages web."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment Sphinx lit mes docstrings ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Avec l'extension autodoc : elle importe ton module et récupère ses docstrings. napoleon comprend le style Google, avec Args et Returns."
+      },
+      {
+        "voix": "A",
+        "texte": "J'ai créé une page, mais elle n'apparaît pas dans le site."
+      },
+      {
+        "voix": "B",
+        "texte": "Classique : elle n'est pas dans le toctree de index point rst. C'est lui qui définit le menu."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si j'ai vingt modules, j'écris vingt pages à la main ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Non, sphinx-apidoc les génère toutes. Ensuite sphinx-build produit le HTML."
+      },
+      {
+        "voix": "A",
+        "texte": "Pour la mettre en ligne ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Un workflow GitHub Actions qui compile et publie sur GitHub Pages à chaque push. Ajoute l'option tiret W : le moindre lien cassé fait échouer la CI. Ta doc ne peut plus pourrir en silence."
+      }
+    ]
+  },
+  "origine": "seed"
+}

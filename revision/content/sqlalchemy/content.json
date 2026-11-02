@@ -1,0 +1,353 @@
+{
+  "slug": "sqlalchemy",
+  "titre": "SQL, Merise & SQLAlchemy",
+  "theme": "data",
+  "fiche": {
+    "titre": "Concevoir une base (Merise), l'interroger en SQL et la manipuler en Python (SQLAlchemy)",
+    "resume": "Une base de données relationnelle range les données en tables reliées par des clés. On choisit pour chaque colonne le type le plus juste (TINYINT pour un petit choix, VARCHAR pour un nom, DECIMAL pour un prix) car le volume compte en IA. Les requêtes de lecture combinent SELECT, FROM, WHERE, GROUP BY, ORDER BY et LIMIT ; les jointures (JOIN … ON) reconstituent l'information répartie entre tables, et les sous-requêtes comparent à une valeur calculée (AVG). La méthode Merise conçoit la base en trois temps : MCD (entités, associations, cardinalités), MLD (clés primaires et étrangères), MPD (types physiques prêts à créer). Une relation plusieurs-à-plusieurs se résout par une table d'association. SQLAlchemy relie ce monde au Python : le moteur (create_engine) exécute du SQL brut avec text(), et l'ORM représente chaque table par une classe, les relations par ForeignKey et relationship, les opérations par une session (add, commit, rollback).",
+    "objectifs": [
+      "Écrire des requêtes SELECT avec filtres, agrégats, jointures et sous-requêtes",
+      "Concevoir un MCD, en déduire le MLD et le MPD avec les bonnes cardinalités",
+      "Créer des tables et des relations 1-N avec l'ORM SQLAlchemy",
+      "Réaliser un CRUD complet avec une session et une gestion d'erreur transactionnelle"
+    ],
+    "notions": [
+      {
+        "terme": "Clé primaire (PK)",
+        "definition": "Colonne (ou groupe) qui identifie chaque ligne de façon unique."
+      },
+      {
+        "terme": "Clé étrangère (FK)",
+        "definition": "Colonne qui référence la clé primaire d'une autre table et matérialise la relation."
+      },
+      {
+        "terme": "Jointure",
+        "definition": "SELECT … FROM a JOIN b ON a.fk = b.pk : réunit les lignes liées de deux tables (INNER par défaut, LEFT garde tout a)."
+      },
+      {
+        "terme": "Sous-requête",
+        "definition": "Requête entre parenthèses utilisée comme valeur ou ensemble : WHERE length > (SELECT AVG(length) FROM film)."
+      },
+      {
+        "terme": "Cardinalité",
+        "definition": "Nombre minimum et maximum de participations d'une entité à une association : (0,1), (1,1), (0,N), (1,N)."
+      },
+      {
+        "terme": "MCD / MLD / MPD",
+        "definition": "Modèles conceptuel (entités, associations), logique (tables, PK, FK) et physique (types SQL, contraintes) de Merise."
+      },
+      {
+        "terme": "Table d'association",
+        "definition": "Table qui résout une relation N-N avec deux clés étrangères (+ éventuels attributs, ex. quantité)."
+      },
+      {
+        "terme": "ORM",
+        "definition": "Object-Relational Mapper : une classe = une table, un objet = une ligne, un attribut = une colonne."
+      },
+      {
+        "terme": "Session",
+        "definition": "Unité de travail SQLAlchemy : on y ajoute des objets, puis commit valide la transaction et rollback l'annule."
+      }
+    ],
+    "points_cles": [
+      "Ordre d'écriture : SELECT … FROM … JOIN … WHERE … GROUP BY … HAVING … ORDER BY … LIMIT.",
+      "Séparer une information répétée dans sa propre table (pays, ville) évite la redondance et les incohérences.",
+      "Une relation N-N devient toujours une table d'association au passage MCD → MLD.",
+      "La clé étrangère se place du côté « N » d'une relation 1-N (la commande porte l'id du client).",
+      "back_populates rend une relation navigable dans les deux sens : client.commandes et commande.client.",
+      "Toujours paramétrer les requêtes (text(\"… WHERE id = :id\") avec params) : jamais de concaténation, sinon injection SQL."
+    ],
+    "code": [
+      {
+        "titre": "SQL : jointure et sous-requête sur Sakila",
+        "lang": "sql",
+        "code": "-- Acteurs et nombre de films, les plus prolifiques d'abord\nSELECT a.first_name, a.last_name, COUNT(fa.film_id) AS nb_films\nFROM actor AS a\nJOIN film_actor AS fa ON fa.actor_id = a.actor_id\nGROUP BY a.actor_id\nORDER BY nb_films DESC\nLIMIT 10;\n\n-- Films plus longs que la moyenne\nSELECT title, length FROM film\nWHERE length > (SELECT AVG(length) FROM film);\n",
+        "explication": "film_actor est la table d'association N-N entre film et actor."
+      },
+      {
+        "titre": "ORM SQLAlchemy 2.0 : modèle 1-N et CRUD",
+        "lang": "python",
+        "code": "from sqlalchemy import ForeignKey, create_engine, select\nfrom sqlalchemy.exc import SQLAlchemyError\nfrom sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship\n\nclass Base(DeclarativeBase):\n    pass\n\nclass Client(Base):\n    __tablename__ = \"clients\"\n    id: Mapped[int] = mapped_column(primary_key=True)\n    nom: Mapped[str]\n    commandes: Mapped[list[\"Commande\"]] = relationship(back_populates=\"client\")\n\nclass Commande(Base):\n    __tablename__ = \"commandes\"\n    id: Mapped[int] = mapped_column(primary_key=True)\n    montant: Mapped[float]\n    client_id: Mapped[int] = mapped_column(ForeignKey(\"clients.id\"))\n    client: Mapped[Client] = relationship(back_populates=\"commandes\")\n\nengine = create_engine(\"sqlite:///boutique.db\")\nBase.metadata.create_all(engine)\n\nwith Session(engine) as session:\n    try:\n        alice = Client(nom=\"Alice\", commandes=[Commande(montant=200), Commande(montant=50)])\n        session.add(alice)\n        session.commit()\n        total = sum(c.montant for c in session.scalars(select(Commande).where(Commande.client_id == alice.id)))\n    except SQLAlchemyError:\n        session.rollback()\n        raise\n",
+        "explication": "Style 2.0 (Mapped, select) ; le cours montre aussi l'ancien style declarative_base / session.query, encore très présent dans le code existant."
+      }
+    ],
+    "pieges": [
+      "Oublier la condition ON d'une jointure : produit cartésien (chaque ligne × chaque ligne).",
+      "Mettre la clé étrangère du mauvais côté d'une relation 1-N, ou tenter une relation N-N sans table d'association.",
+      "Oublier session.commit() : rien n'est écrit en base ; oublier rollback() après une erreur : la session reste inutilisable.",
+      "Construire une requête par f-string avec une saisie utilisateur : injection SQL.",
+      "session.dispose() n'existe pas : on ferme la session (close, ou bloc with) et on libère le moteur avec engine.dispose()."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Index et plan d'exécution",
+        "contenu": "Un index sur une colonne filtrée ou jointe accélère énormément les lectures (au prix des écritures). `EXPLAIN QUERY PLAN` (SQLite) ou `EXPLAIN ANALYZE` (PostgreSQL) montre si la base parcourt toute la table. Défi : mesure une requête sur `payment.customer_id` avant et après `CREATE INDEX`.",
+        "lien": "https://www.postgresql.org/docs/current/using-explain.html"
+      },
+      {
+        "titre": "Schémas en étoile et en flocon",
+        "contenu": "La veille demandée par le cours : en décisionnel, une table de faits (ventes) entourée de tables de dimensions (date, produit, magasin) forme une étoile ; normaliser les dimensions donne un flocon. Plusieurs tables de faits partageant des dimensions forment une galaxie.",
+        "lien": "https://fr.wikipedia.org/wiki/%C3%89toile_(mod%C3%A8le_de_donn%C3%A9es)"
+      },
+      {
+        "titre": "Migrations avec Alembic",
+        "contenu": "`create_all` ne modifie jamais une table existante. Alembic versionne le schéma : `alembic revision --autogenerate -m '...'` puis `alembic upgrade head`. MicroForge l'utilise (dossier `microforge/migrations`, 14 tables).",
+        "lien": "https://alembic.sqlalchemy.org/"
+      }
+    ],
+    "jury": "**E1 (C2, C4)** : requêtes SQL d'extraction et base conforme au RGPD, conçue avec une méthode (MCD/MLD/MPD). Dans MicroForge : modèle de données de 14 tables versionné par Alembic, requêtes d'extraction documentées dans le rapport E1, et données personnelles limitées au strict nécessaire (purge prévue).",
+    "competences": [
+      "C2",
+      "C4"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Où place-t-on la clé étrangère dans une relation 1-N Client (1) — Commande (N) ?",
+        "choix": [
+          "Dans Client",
+          "Dans Commande",
+          "Dans une table d'association",
+          "Dans les deux tables"
+        ],
+        "bonne": 1,
+        "explication": "Chaque commande porte l'identifiant de son unique client.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment représenter « un film a plusieurs acteurs et un acteur joue dans plusieurs films » ?",
+        "choix": [
+          "Une FK dans film",
+          "Une FK dans actor",
+          "Une table d'association film_actor",
+          "Une seule table"
+        ],
+        "bonne": 2,
+        "explication": "Une relation N-N se résout toujours par une table d'association.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle requête trouve les films plus longs que la moyenne ?",
+        "choix": [
+          "SELECT title FROM film WHERE length > AVG(length)",
+          "SELECT title FROM film WHERE length > (SELECT AVG(length) FROM film)",
+          "SELECT AVG(title) FROM film",
+          "SELECT title FROM film GROUP BY length"
+        ],
+        "bonne": 1,
+        "explication": "Un agrégat ne s'utilise pas directement dans WHERE : on passe par une sous-requête.",
+        "difficulte": 2
+      },
+      {
+        "question": "Que signifie la cardinalité (0,N) côté Client dans « Client passe Commande » ?",
+        "choix": [
+          "Un client passe exactement une commande",
+          "Un client peut passer zéro ou plusieurs commandes",
+          "Une commande a plusieurs clients",
+          "Aucun client ne commande"
+        ],
+        "bonne": 1,
+        "explication": "Minimum 0 (client sans commande), maximum N.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel modèle Merise introduit les types physiques (INT, VARCHAR(50)) ?",
+        "choix": [
+          "MCD",
+          "MLD",
+          "MPD",
+          "MCT"
+        ],
+        "bonne": 2,
+        "explication": "Le MPD est le modèle prêt à être créé dans le SGBD.",
+        "difficulte": 1
+      },
+      {
+        "question": "Dans SQLAlchemy, que fait session.commit() ?",
+        "choix": [
+          "Crée les tables",
+          "Valide la transaction et écrit les changements en base",
+          "Ferme le moteur",
+          "Annule les changements"
+        ],
+        "bonne": 1,
+        "explication": "Sans commit, les objets ajoutés ne sont pas persistés.",
+        "difficulte": 1
+      },
+      {
+        "question": "À quoi sert back_populates dans relationship ?",
+        "choix": [
+          "À créer un index",
+          "À rendre la relation navigable dans les deux sens et cohérente",
+          "À supprimer en cascade",
+          "À chiffrer la colonne"
+        ],
+        "bonne": 1,
+        "explication": "client.commandes et commande.client restent synchronisés.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi utiliser text(\"SELECT * FROM users WHERE nom = :nom\") avec un paramètre ?",
+        "choix": [
+          "C'est plus joli",
+          "Pour éviter l'injection SQL",
+          "C'est obligatoire avec SQLite",
+          "Pour accélérer l'affichage"
+        ],
+        "bonne": 1,
+        "explication": "Le pilote échappe la valeur ; une concaténation laisserait passer du SQL malveillant.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Ordre des clauses SQL",
+        "verso": "SELECT, FROM, JOIN … ON, WHERE, GROUP BY, HAVING, ORDER BY, LIMIT.",
+        "tags": []
+      },
+      {
+        "recto": "Alias de table",
+        "verso": "FROM actor AS a (ou FROM actor a), puis a.first_name.",
+        "tags": []
+      },
+      {
+        "recto": "INNER JOIN vs LEFT JOIN",
+        "verso": "INNER : seulement les lignes liées des deux côtés. LEFT : toutes les lignes de gauche, NULL si pas de correspondance.",
+        "tags": []
+      },
+      {
+        "recto": "WHERE vs HAVING",
+        "verso": "WHERE filtre les lignes avant le GROUP BY ; HAVING filtre les groupes après agrégation.",
+        "tags": []
+      },
+      {
+        "recto": "Les 3 modèles Merise",
+        "verso": "MCD (entités, associations, cardinalités) → MLD (PK, FK) → MPD (types, contraintes).",
+        "tags": []
+      },
+      {
+        "recto": "Résoudre une relation N-N",
+        "verso": "Table d'association avec deux FK (et éventuellement des attributs comme la quantité).",
+        "tags": []
+      },
+      {
+        "recto": "Se connecter à SQLite avec SQLAlchemy",
+        "verso": "engine = create_engine(\"sqlite:///ma_base.db\")",
+        "tags": []
+      },
+      {
+        "recto": "Exécuter du SQL brut",
+        "verso": "with engine.connect() as conn: conn.execute(text(\"SELECT ...\"), {\"id\": 3})",
+        "tags": []
+      },
+      {
+        "recto": "Créer toutes les tables de l'ORM",
+        "verso": "Base.metadata.create_all(engine)",
+        "tags": []
+      },
+      {
+        "recto": "Lire avec l'ORM (style 2.0)",
+        "verso": "session.scalars(select(Client).where(Client.nom == \"Alice\")).first()",
+        "tags": []
+      },
+      {
+        "recto": "Insérer plusieurs objets",
+        "verso": "session.add_all([o1, o2, o3]) puis session.commit()",
+        "tags": []
+      },
+      {
+        "recto": "Annuler après une erreur",
+        "verso": "except SQLAlchemyError: session.rollback()",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Requêtes Sakila",
+        "niveau": 1,
+        "enonce": "Sur la base Sakila : (1) les 5 catégories qui ont le plus de films ; (2) le chiffre d'affaires total par client, trié décroissant.",
+        "indices": [
+          "film_category relie film et category",
+          "payment contient amount et customer_id"
+        ],
+        "corrige": "```sql\nSELECT c.name, COUNT(*) AS nb\nFROM category c JOIN film_category fc ON fc.category_id = c.category_id\nGROUP BY c.category_id ORDER BY nb DESC LIMIT 5;\n\nSELECT cu.first_name, cu.last_name, SUM(p.amount) AS ca\nFROM customer cu JOIN payment p ON p.customer_id = cu.customer_id\nGROUP BY cu.customer_id ORDER BY ca DESC;\n```\n"
+      },
+      {
+        "titre": "Merise : factures",
+        "niveau": 2,
+        "enonce": "À partir des données « NumeroFacture, DateDeTransaction, MontantHT, NomClient, EmailClient, NomVendeur, MagasinVendeur », propose le MCD (avec cardinalités), puis le MLD.",
+        "indices": [
+          "Trois entités : Facture, Client, Vendeur",
+          "Une facture concerne exactement un client et un vendeur"
+        ],
+        "corrige": "**MCD** : CLIENT (0,N) — possède — (1,1) FACTURE (1,1) — réalise — (0,N) VENDEUR.\n\n**MLD** :\n- Client(**id**, nom VARCHAR(50), email VARCHAR(255))\n- Vendeur(**id**, nom VARCHAR(50), magasin VARCHAR(100))\n- Facture(**id**, numero VARCHAR(8), date DATE, montant_ht DECIMAL(10,2), *#id_client*, *#id_vendeur*)\n\nLes FK sont du côté (1,1) : chaque facture référence un client et un vendeur.\n"
+      },
+      {
+        "titre": "CRUD ORM avec transaction",
+        "niveau": 3,
+        "enonce": "Avec le modèle Client/Commande : crée un client et trois commandes en une transaction, augmente de 10 % la plus petite commande, supprime la plus grande, puis affiche le total. Toute erreur doit annuler l'ensemble.",
+        "indices": [
+          "session.add_all puis un seul commit",
+          "min/max avec key=",
+          "try/except SQLAlchemyError + rollback"
+        ],
+        "corrige": "```python\nwith Session(engine) as session:\n    try:\n        neo = Client(nom=\"Neo\", commandes=[Commande(montant=m) for m in (50, 150, 25)])\n        session.add(neo)\n        session.flush()            # envoie les INSERT (sans valider) : les objets ont un id\n        petite = min(neo.commandes, key=lambda c: c.montant)   # 25\n        grande = max(neo.commandes, key=lambda c: c.montant)   # 150\n        petite.montant *= 1.10     # 27.5\n        session.delete(grande)     # possible car l'objet est déjà en base (flush)\n        session.commit()           # tout est validé d'un coup\n        print(sum(c.montant for c in neo.commandes))   # 50 + 27.5 = 77.5\n    except SQLAlchemyError:\n        session.rollback()\n        raise\n```\n`flush` écrit dans la transaction sans la valider ; un seul `commit` à la fin : si une étape échoue, `rollback` annule tout (atomicité). Supprimer un objet jamais envoyé en base (`delete` avant `flush`) lève une erreur.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# SQL, Merise & SQLAlchemy\n## SQL\n- SELECT, WHERE, GROUP BY, LIMIT\n- Jointures (INNER, LEFT)\n- Sous-requêtes\n- Types (INT, VARCHAR, DECIMAL)\n## Merise\n- MCD : entités, associations\n- Cardinalités (0,1) (1,1) (0,N) (1,N)\n- MLD : PK, FK\n- MPD : types physiques\n- Table d'association (N-N)\n## SQLAlchemy\n- create_engine, text()\n- ORM : classe = table\n- ForeignKey + relationship\n- Session : add, commit, rollback\n## Bonnes pratiques\n- Requêtes paramétrées\n- Normaliser\n- Migrations (Alembic)\n"
+  },
+  "podcast": {
+    "titre": "De Merise à SQLAlchemy",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, pourquoi passer du temps sur Merise alors que je pourrais créer mes tables directement ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Parce qu'une base mal conçue te poursuit pendant tout le projet. Merise te force à identifier les entités, leurs liens et leurs cardinalités avant de coder."
+      },
+      {
+        "voix": "A",
+        "texte": "Les cardinalités, c'est le un-un, zéro-N…"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui. Un client passe zéro ou plusieurs commandes, une commande appartient à exactement un client. Et ça te dit où mettre la clé étrangère : côté commande."
+      },
+      {
+        "voix": "A",
+        "texte": "Et quand c'est plusieurs dans les deux sens, comme films et acteurs ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Table d'association. Dans Sakila, c'est film underscore actor : deux clés étrangères, et le tour est joué."
+      },
+      {
+        "voix": "A",
+        "texte": "Côté Python, SQLAlchemy ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Deux façons : du SQL brut avec text, ou l'ORM, où chaque table devient une classe. relationship te permet d'écrire client point commandes au lieu d'une jointure."
+      },
+      {
+        "voix": "A",
+        "texte": "Et si une insertion plante au milieu ?"
+      },
+      {
+        "voix": "B",
+        "texte": "C'est le rôle de la session : tant que tu n'as pas fait commit, rien n'est écrit. En cas d'erreur, rollback annule tout. Et surtout, des requêtes paramétrées, jamais de f-string avec une saisie utilisateur."
+      }
+    ]
+  },
+  "origine": "seed"
+}

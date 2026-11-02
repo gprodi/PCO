@@ -1,0 +1,343 @@
+{
+  "slug": "sqlmodel",
+  "titre": "SQLModel (Pydantic + SQLAlchemy)",
+  "theme": "data",
+  "fiche": {
+    "titre": "SQLModel : une seule classe pour valider l'API et définir la table",
+    "resume": "Une API FastAPI branchée sur une base SQL demande classiquement deux modèles par entité : un modèle Pydantic pour valider le JSON et un modèle SQLAlchemy pour la table. Les écrire deux fois crée un risque de désynchronisation silencieuse (drift). SQLModel, du même auteur que FastAPI, est une fine couche compatible avec les deux : une classe qui hérite de SQLModel est un schéma Pydantic ; avec table=True, elle devient aussi une table SQLAlchemy inscrite dans SQLModel.metadata. Par héritage, on décline une entité en plusieurs modèles sans réécrire les champs communs : XBase (champs partagés), X (table, avec id), XCreate (entrée d'API) et XPublic (sortie, avec id). Field() porte la clé primaire, la clé étrangère et les contraintes (gt=0) ; Relationship(back_populates=…) relie deux tables côté Python. Piège à connaître : construire directement un objet table=True ne déclenche pas la validation Pydantic.",
+    "objectifs": [
+      "Distinguer un schéma (sans table=True) d'une table (table=True)",
+      "Appliquer le motif Base / table / Create / Public par héritage",
+      "Déclarer clés primaires, clés étrangères, champs optionnels et contraintes avec Field",
+      "Relier deux tables avec Relationship et back_populates"
+    ],
+    "notions": [
+      {
+        "terme": "SQLModel",
+        "definition": "Bibliothèque qui fusionne Pydantic (validation) et SQLAlchemy (ORM) dans une seule déclaration de classe."
+      },
+      {
+        "terme": "table=True",
+        "definition": "Argument de classe qui fait du modèle une vraie table en base ; sans lui, la classe reste un schéma de données."
+      },
+      {
+        "terme": "Drift",
+        "definition": "Désynchronisation entre ce que l'API accepte (schéma) et ce que la base stocke (table) quand on les écrit séparément."
+      },
+      {
+        "terme": "Field",
+        "definition": "Déclare les options d'un champ : default, primary_key, foreign_key, index, contraintes (gt, max_length…)."
+      },
+      {
+        "terme": "Champ optionnel",
+        "definition": "description: str | None = None — accepte l'absence de valeur."
+      },
+      {
+        "terme": "Motif Base/Create/Public",
+        "definition": "XBase porte les champs communs ; X (table) ajoute id et champs internes ; XCreate l'entrée ; XPublic la sortie exposée."
+      },
+      {
+        "terme": "Relationship",
+        "definition": "Attribut de navigation entre objets liés ; back_populates synchronise les deux côtés."
+      }
+    ],
+    "points_cles": [
+      "Une seule classe sur quatre a table=True : les schémas d'entrée et de sortie restent de simples modèles Pydantic.",
+      "id: int | None = Field(default=None, primary_key=True) : None à la création, la base attribue la valeur.",
+      "Ne jamais exposer directement la table dans l'API : XPublic choisit les champs visibles (pas de mot de passe haché).",
+      "La clé étrangère vise le nom de table, en minuscules par défaut : foreign_key=\"author.id\".",
+      "Les contraintes Field(gt=0) protègent l'API sur les schémas ; on construit l'objet table depuis un schéma déjà validé (Product.model_validate(donnees))."
+    ],
+    "code": [
+      {
+        "titre": "Motif Base / table / Create / Public",
+        "lang": "python",
+        "code": "from sqlmodel import Field, SQLModel\n\nclass HeroBase(SQLModel):\n    name: str\n    age: int | None = None\n\nclass Hero(HeroBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    secret_name: str\n\nclass HeroCreate(HeroBase):\n    secret_name: str\n\nclass HeroPublic(HeroBase):\n    id: int          # secret_name n'est jamais renvoyé\n\n# Dans une route FastAPI :\n# @app.post(\"/heroes\", response_model=HeroPublic)\n# def create(hero: HeroCreate, session: SessionDep):\n#     db_hero = Hero.model_validate(hero)\n#     session.add(db_hero); session.commit(); session.refresh(db_hero)\n#     return db_hero\n",
+        "explication": "name et age ne sont écrits qu'une fois ; response_model filtre la sortie."
+      },
+      {
+        "titre": "Relation 1-N et session",
+        "lang": "python",
+        "code": "from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select\n\nclass Author(SQLModel, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    name: str\n    novels: list[\"Novel\"] = Relationship(back_populates=\"author\")\n\nclass Novel(SQLModel, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    title: str\n    author_id: int | None = Field(default=None, foreign_key=\"author.id\")\n    author: Author | None = Relationship(back_populates=\"novels\")\n\nengine = create_engine(\"sqlite:///livres.db\")\nSQLModel.metadata.create_all(engine)\nwith Session(engine) as session:\n    asimov = Author(name=\"Asimov\")\n    session.add(Novel(title=\"Fondation\", author=asimov))\n    session.commit()\n    print([n.title for n in session.exec(select(Author)).first().novels])\n",
+        "explication": "Novel(title=..., author=asimov) renseigne aussi asimov.novels grâce à back_populates."
+      }
+    ],
+    "pieges": [
+      "Croire que Product(name=\"x\", price=-10) sera refusé : sur une classe table=True, la construction directe ne valide pas.",
+      "Mettre table=True sur HeroCreate ou HeroPublic : on crée des tables parasites.",
+      "Renvoyer l'objet table dans l'API sans response_model : fuite de champs internes (secret_name, mot de passe haché).",
+      "Se tromper de nom dans foreign_key (\"Author.id\" au lieu de \"author.id\") : erreur à la création des tables."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Valider avant d'écrire : model_validate",
+        "contenu": "`Product.model_validate({...})` valide **même** sur une classe `table=True` (vérifié avec SQLModel 0.0.48) : `price=-1` lève `ValidationError`. C'est la façon sûre de construire l'objet table depuis le schéma d'entrée.",
+        "lien": "https://sqlmodel.tiangolo.com/tutorial/fastapi/multiple-models/"
+      },
+      {
+        "titre": "Mise à jour partielle (PATCH)",
+        "contenu": "Un modèle `HeroUpdate` dont tous les champs sont optionnels, puis `donnees = hero.model_dump(exclude_unset=True)` et `db_hero.sqlmodel_update(donnees)` : seuls les champs envoyés sont modifiés. Défi : implémente PATCH /heroes/{id} avec un test TestClient.",
+        "lien": "https://sqlmodel.tiangolo.com/tutorial/fastapi/update/"
+      },
+      {
+        "titre": "Relations N-N avec link_model",
+        "contenu": "`Relationship(back_populates=..., link_model=HeroTeamLink)` gère une table d'association (Merise N-N) sans écrire les jointures. Dans MicroForge, c'est le cas des composants utilisés par plusieurs projets.",
+        "lien": "https://sqlmodel.tiangolo.com/tutorial/many-to-many/"
+      }
+    ],
+    "jury": "**E1 (C4, C5)** : base de données et API REST de mise à disposition. MicroForge définit ses tables avec SQLModel (`microforge/src/microforge/api_data/db.py` : User, RefreshToken, Category…) : montre le motif table / Create / Public qui évite d'exposer les champs sensibles, et les migrations Alembic.",
+    "competences": [
+      "C4",
+      "C5"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Que fait table=True dans class Tag(SQLModel, table=True) ?",
+        "choix": [
+          "Active la validation du JSON entrant",
+          "Fait de la classe une vraie table en base",
+          "Rend les champs optionnels",
+          "Crée automatiquement une API"
+        ],
+        "bonne": 1,
+        "explication": "Sans table=True, la classe est un simple schéma Pydantic.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi créer HeroCreate et HeroPublic en plus de Hero ?",
+        "choix": [
+          "SQLModel l'exige",
+          "Pour adapter les champs à chaque usage sans réécrire les champs communs",
+          "Pour accélérer SQL",
+          "Pour dupliquer la base"
+        ],
+        "bonne": 1,
+        "explication": "Pas d'id à la création, id présent en lecture, champs secrets jamais exposés.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment déclarer une clé primaire auto-attribuée ?",
+        "choix": [
+          "id: int",
+          "id: int | None = Field(default=None, primary_key=True)",
+          "id = PrimaryKey()",
+          "id: int = 0"
+        ],
+        "bonne": 1,
+        "explication": "None à la création, la base fournit la valeur à l'insertion.",
+        "difficulte": 1
+      },
+      {
+        "question": "Product(name=\"x\", price=-10) avec price: float = Field(gt=0) sur une classe table=True :",
+        "choix": [
+          "Lève ValidationError",
+          "Crée l'objet sans erreur",
+          "Corrige le prix à 0",
+          "Supprime la table"
+        ],
+        "bonne": 1,
+        "explication": "La construction directe d'un modèle table ne valide pas ; utiliser un schéma ou model_validate.",
+        "difficulte": 3
+      },
+      {
+        "question": "Quel paramètre relie Novel à Author en base ?",
+        "choix": [
+          "Relationship(\"author\")",
+          "Field(foreign_key=\"author.id\")",
+          "back_populates=\"author\"",
+          "table=\"author\""
+        ],
+        "bonne": 1,
+        "explication": "foreign_key crée la contrainte SQL ; Relationship sert à naviguer côté Python.",
+        "difficulte": 2
+      },
+      {
+        "question": "Rôle de back_populates ?",
+        "choix": [
+          "Créer la table",
+          "Synchroniser les deux côtés de la relation",
+          "Remplir la base de données",
+          "Valider les types"
+        ],
+        "bonne": 1,
+        "explication": "Ajouter un roman à un auteur renseigne aussi roman.author.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel problème SQLModel résout-il principalement ?",
+        "choix": [
+          "La lenteur de SQLite",
+          "La double déclaration Pydantic / SQLAlchemy et le risque de drift",
+          "L'absence de typage en Python",
+          "Le déploiement"
+        ],
+        "bonne": 1,
+        "explication": "Une seule source de vérité pour la validation et la table.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment déclarer un champ texte optionnel ?",
+        "choix": [
+          "description: str = \"\"",
+          "description: str | None = None",
+          "description: Optional",
+          "description = None: str"
+        ],
+        "bonne": 1,
+        "explication": "Type union avec None et valeur par défaut None.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Schéma ou table ?",
+        "verso": "Sans table=True : schéma Pydantic. Avec table=True : table SQLAlchemy (+ schéma).",
+        "tags": []
+      },
+      {
+        "recto": "Clé primaire SQLModel",
+        "verso": "id: int | None = Field(default=None, primary_key=True)",
+        "tags": []
+      },
+      {
+        "recto": "Clé étrangère SQLModel",
+        "verso": "author_id: int | None = Field(default=None, foreign_key=\"author.id\")",
+        "tags": []
+      },
+      {
+        "recto": "Relation navigable",
+        "verso": "author: Author | None = Relationship(back_populates=\"novels\")",
+        "tags": []
+      },
+      {
+        "recto": "Contrainte « strictement positif »",
+        "verso": "price: float = Field(gt=0) (ge=0 pour « positif ou nul »).",
+        "tags": []
+      },
+      {
+        "recto": "Les 4 classes du motif",
+        "verso": "XBase (communs), X (table + id), XCreate (entrée), XPublic (sortie avec id).",
+        "tags": []
+      },
+      {
+        "recto": "Créer les tables",
+        "verso": "SQLModel.metadata.create_all(engine)",
+        "tags": []
+      },
+      {
+        "recto": "Lire avec SQLModel",
+        "verso": "session.exec(select(Hero).where(Hero.age > 18)).all()",
+        "tags": []
+      },
+      {
+        "recto": "Convertir un schéma validé en objet table",
+        "verso": "db_hero = Hero.model_validate(hero_create)",
+        "tags": []
+      },
+      {
+        "recto": "Récupérer l'id attribué après insertion",
+        "verso": "session.commit() puis session.refresh(objet)",
+        "tags": []
+      },
+      {
+        "recto": "Filtrer la réponse d'une route",
+        "verso": "@app.get(..., response_model=HeroPublic)",
+        "tags": []
+      },
+      {
+        "recto": "Piège de validation",
+        "verso": "Objet table=True construit directement : pas de validation Pydantic.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Catégorie avec description",
+        "niveau": 1,
+        "enonce": "Crée une table `Category` (id clé primaire, name obligatoire, description texte optionnelle) et un schéma `TagRead` (name seul, pas une table).",
+        "indices": [
+          "table=True seulement sur Category",
+          "str | None = None"
+        ],
+        "corrige": "```python\nfrom sqlmodel import Field, SQLModel\n\nclass Category(SQLModel, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    name: str\n    description: str | None = None\n\nclass TagRead(SQLModel):\n    name: str\n```\n"
+      },
+      {
+        "titre": "Livres : le motif complet",
+        "niveau": 2,
+        "enonce": "Écris BookBase (title, author), Book (table, + id et isbn), BookCreate (+ isbn) et BookPublic (+ id), sans jamais réécrire title ni author.",
+        "indices": [
+          "Trois classes héritent de BookBase",
+          "Une seule a table=True"
+        ],
+        "corrige": "```python\nfrom sqlmodel import Field, SQLModel\n\nclass BookBase(SQLModel):\n    title: str\n    author: str\n\nclass Book(BookBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    isbn: str\n\nclass BookCreate(BookBase):\n    isbn: str\n\nclass BookPublic(BookBase):\n    id: int\n```\n"
+      },
+      {
+        "titre": "Route d'API sûre",
+        "niveau": 3,
+        "enonce": "Avec Product (table) et ProductCreate (price > 0), écris la route POST /products qui refuse un prix négatif (422), enregistre le produit et renvoie un ProductPublic. Ajoute le test TestClient du cas refusé.",
+        "indices": [
+          "Le paramètre de route est typé ProductCreate",
+          "Product.model_validate(p)",
+          "assert r.status_code == 422"
+        ],
+        "corrige": "```python\nfrom fastapi import FastAPI\nfrom fastapi.testclient import TestClient\nfrom sqlalchemy.pool import StaticPool\nfrom sqlmodel import Field, Session, SQLModel, create_engine\n\nclass ProductBase(SQLModel):\n    name: str\n    price: float = Field(gt=0)\n\nclass Product(ProductBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n\nclass ProductCreate(ProductBase):\n    pass\n\nclass ProductPublic(ProductBase):\n    id: int\n\n# Base en mémoire partagée : sans StaticPool, chaque connexion aurait sa propre base vide\nengine = create_engine(\"sqlite://\", connect_args={\"check_same_thread\": False}, poolclass=StaticPool)\nSQLModel.metadata.create_all(engine)\napp = FastAPI()\n\n@app.post(\"/products\", response_model=ProductPublic)\ndef create(p: ProductCreate):\n    with Session(engine) as session:\n        db = Product.model_validate(p)\n        session.add(db)\n        session.commit()\n        session.refresh(db)\n        return db\n\ndef test_prix_negatif_refuse():\n    r = TestClient(app).post(\"/products\", json={\"name\": \"x\", \"price\": -10})\n    assert r.status_code == 422\n\ndef test_creation():\n    r = TestClient(app).post(\"/products\", json={\"name\": \"led\", \"price\": 0.1})\n    assert r.status_code == 200 and r.json()[\"id\"] == 1\n```\nPiège classique des tests : `sqlite://` (mémoire) crée une base **par connexion** ; `StaticPool` + `check_same_thread=False` partage la même base entre l'application et le client de test.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# SQLModel\n## Pourquoi\n- Pydantic + SQLAlchemy\n- Une seule déclaration\n- Fin du drift\n## table=True\n- Schéma vs table\n- SQLModel.metadata\n## Champs\n- Field(primary_key)\n- Field(foreign_key)\n- Optionnels (| None)\n- Contraintes (gt, max_length)\n## Héritage\n- Base\n- Table\n- Create\n- Public\n## Relations\n- Relationship\n- back_populates\n- link_model (N-N)\n## Piège\n- Pas de validation à la construction d'une table\n- model_validate\n"
+  },
+  "podcast": {
+    "titre": "SQLModel, la fin des modèles en double",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, dans mon API j'ai un modèle Pydantic et un modèle SQLAlchemy pour chaque table. C'est normal d'écrire tout deux fois ?"
+      },
+      {
+        "voix": "B",
+        "texte": "C'était l'usage, et c'est source de bugs : tu renommes un champ d'un côté, tu oublies l'autre. SQLModel règle ça : une seule classe pour les deux."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment il sait si c'est une table ou un simple schéma ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Avec table égal True. Sans, c'est un schéma Pydantic ; avec, c'est aussi une table en base."
+      },
+      {
+        "voix": "A",
+        "texte": "Mais je ne veux pas renvoyer le mot de passe haché dans l'API…"
+      },
+      {
+        "voix": "B",
+        "texte": "D'où le motif en quatre classes : une base avec les champs communs, la table avec l'id, un modèle de création pour l'entrée et un modèle public pour la sortie. Tu choisis précisément ce qui sort."
+      },
+      {
+        "voix": "A",
+        "texte": "Et les contraintes, comme un prix positif ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Field gt zéro. Attention au piège : si tu construis directement l'objet table, la validation ne se déclenche pas. On valide avec le schéma de création, puis model validate pour fabriquer l'objet table."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour relier deux tables ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Une clé étrangère avec Field foreign key pour la base, et Relationship avec back populates pour naviguer en Python, d'auteur à romans et inversement."
+      }
+    ]
+  },
+  "origine": "seed"
+}

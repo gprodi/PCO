@@ -1,0 +1,243 @@
+titre: "MLOps 1 — Docker Compose"
+fiche:
+  titre: "Docker Compose : orchestrer API, IA, front, base et MLflow"
+  resume: >-
+    Docker Compose décrit dans un fichier YAML une application multi-conteneurs : chaque service (API de
+    données, API d'IA, front, base, MLflow) est un conteneur construit (build) ou tiré (image), avec ses ports,
+    variables d'environnement, volumes, réseaux, dépendances (depends_on), commande et politique de
+    redémarrage. Les secrets et paramètres vivent dans un fichier .env, ignoré par Git, accompagné d'un
+    .env.example sans valeurs ; Compose les injecte avec la syntaxe ${VARIABLE} et une valeur par défaut
+    possible ${PORT:-3310}. Les services d'un même réseau se joignent par leur nom (db:5432), sans publier de
+    port. Les volumes nommés (ou les dossiers montés) rendent les données persistantes : sans eux, base,
+    runs MLflow et modèles disparaissent au docker compose down. On limite la mémoire de chaque service,
+    on contrôle la santé (healthcheck) pour attendre qu'une dépendance soit réellement prête, et on vérifie
+    dans la CI qu'aucun secret n'est commité (Gitleaks).
+  objectifs:
+    - Écrire un compose.yml multi-services avec build, image, ports, environment, volumes, networks et depends_on
+    - Gérer la configuration et les secrets par .env et .env.example
+    - Rendre les données persistantes avec des volumes et faire communiquer les services par leur nom
+    - Utiliser les commandes Compose pour démarrer, observer et dépanner une stack
+  notions:
+    - { terme: "Service", definition: "Un conteneur décrit dans compose.yml (image ou build, ports, variables…)." }
+    - { terme: ".env / .env.example", definition: ".env contient les valeurs réelles (ignoré par Git) ; .env.example liste les clés sans valeurs (versionné)." }
+    - { terme: "Interpolation", definition: "${VAR} remplace par la valeur du .env ; ${VAR:-défaut} fournit une valeur par défaut." }
+    - { terme: "Réseau Compose", definition: "Réseau privé où les services se résolvent par leur nom (http://api_ia:8002)." }
+    - { terme: "Volume nommé", definition: "Stockage géré par Docker qui survit aux conteneurs (db_data:/var/lib/postgresql/data)." }
+    - { terme: "Bind mount", definition: "Dossier de la machine monté dans le conteneur (./modeles:/app/modeles)." }
+    - { terme: "depends_on + healthcheck", definition: "Ordre de démarrage ; avec condition: service_healthy, on attend que la dépendance réponde vraiment." }
+    - { terme: "Limites de ressources", definition: "mem_limit ou deploy.resources.limits.memory : un service ne peut pas consommer toute la RAM." }
+  points_cles:
+    - "Entre conteneurs, on utilise le nom du service et le port interne (db:5432), jamais localhost."
+    - "Seuls les services à atteindre depuis la machine publient un port ; une base n'a pas à être exposée."
+    - "depends_on seul ne garantit pas que la base est prête : healthcheck + condition: service_healthy."
+    - "docker compose down -v supprime aussi les volumes : à utiliser en connaissance de cause."
+    - "Une image de base épinglée (postgres:16-alpine) plutôt que :latest rend la stack reproductible."
+    - "La clé version: en tête de fichier est obsolète avec Compose v2 : on l'omet."
+  code:
+    - titre: "compose.yml d'un projet d'IA"
+      lang: yaml
+      code: |
+        services:
+          db:
+            image: postgres:16-alpine
+            environment:
+              POSTGRES_USER: ${POSTGRES_USER}
+              POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+              POSTGRES_DB: ${POSTGRES_DB}
+            volumes: [db_data:/var/lib/postgresql/data]
+            healthcheck:
+              test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+              interval: 5s
+              retries: 10
+            networks: [backend]                      # aucun port publié
+
+          api_data:
+            build: ./api_data
+            environment:
+              DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            depends_on:
+              db: {condition: service_healthy}
+            ports: ["${API_DATA_PORT:-8001}:8001"]
+            mem_limit: 512m
+            networks: [backend]
+
+          api_ia:
+            build: ./api_ia
+            environment:
+              MLFLOW_TRACKING_URI: http://mlflow:5000
+            volumes: [./modeles:/app/modeles]
+            networks: [backend]
+
+          front:
+            build: ./front
+            environment:
+              API_DATA_URL: http://api_data:8001
+              API_IA_URL: http://api_ia:8002
+            ports: ["8501:8501"]
+            depends_on: [api_data, api_ia]
+            networks: [backend]
+
+        volumes:
+          db_data:
+
+        networks:
+          backend:
+      explication: "La base n'est pas exposée, les API se joignent par leur nom, les données de la base survivent au down."
+    - titre: "Lire la configuration et piloter la stack"
+      lang: bash
+      code: |
+        cp .env.example .env               # puis remplir les valeurs (jamais commité)
+        docker compose up -d --build       # construire et démarrer en arrière-plan
+        docker compose ps                  # état et santé des services
+        docker compose logs -f api_data    # suivre les logs d'un service
+        docker compose exec db psql -U "$POSTGRES_USER"   # commande dans un conteneur
+        docker compose down                # arrêter (les volumes nommés sont conservés)
+      explication: "Côté Python, os.getenv(\"DATABASE_URL\") lit la variable injectée par Compose."
+  pieges:
+    - "Écrire localhost dans DATABASE_URL d'un conteneur : localhost désigne le conteneur lui-même."
+    - "Base sans volume : toutes les données disparaissent au docker compose down."
+    - "Mots de passe en clair dans compose.yml (comme PMA_PASSWORD=rootpassword) au lieu du .env."
+    - "Exposer la base (5432) ou une console d'admin sur toutes les interfaces : la limiter à 127.0.0.1 ou ne pas la publier."
+    - "Commiter le .env ; ou oublier .env.example, et personne ne sait quelles variables définir."
+    - "Compter sur depends_on pour attendre une base prête : l'API démarre avant et plante à la connexion."
+  aller_plus_loin:
+    - titre: "Profils Compose"
+      contenu: "`profiles: [core]`, `[ai]`, `[monitoring]` permettent de lancer seulement une partie de la stack : `docker compose --profile core up`. C'est ce que fait `microforge/infra/docker-compose.yml` (profils core, ai, ai-gpu, mlops, monitoring, veille)."
+      lien: "https://docs.docker.com/compose/how-tos/profiles/"
+    - titre: "Secrets Compose et fichiers d'override"
+      contenu: "La section `secrets:` monte un secret dans `/run/secrets/...` au lieu d'une variable d'environnement visible dans `docker inspect`. `compose.override.yml` ajoute des réglages de développement (rechargement à chaud, ports de débogage) sans toucher au fichier principal."
+      lien: "https://docs.docker.com/compose/how-tos/use-secrets/"
+    - titre: "Corriger les compose du cours"
+      contenu: "Défi des slides « où sont les erreurs ? » : `version:` obsolète, images en `latest`, base sans volume et sans healthcheck, mot de passe en clair, port de base publié, `depends_on` sans condition, MLflow dont le stockage d'artefacts ne correspond pas aux volumes montés. Réécris chaque fichier proprement."
+  jury: >-
+    **E5 (C19)** et **E4 (C15)** : un environnement de déploiement reproductible. MicroForge décrit sa stack
+    dans `microforge/infra/docker-compose.yml` avec des profils, des limites mémoire et des interfaces
+    d'admin limitées à 127.0.0.1. Montre le `.env.example`, la commande de démarrage et la persistance des
+    données entre deux redémarrages.
+  competences: [C15, C19]
+  sources: []
+qcm:
+  - question: "Comment l'API joint-elle la base PostgreSQL dans Compose ?"
+    choix: ["localhost:5432", "db:5432 (nom du service)", "127.0.0.1:5432", "Par un volume"]
+    bonne: 1
+    explication: "Les services d'un réseau Compose se résolvent par leur nom."
+    difficulte: 1
+  - question: "Que se passe-t-il pour une base sans volume après docker compose down ?"
+    choix: ["Rien", "Les données sont perdues", "Elles sont envoyées sur Docker Hub", "Elles sont compressées"]
+    bonne: 1
+    explication: "Le système de fichiers du conteneur est supprimé avec lui."
+    difficulte: 1
+  - question: "Que vaut ${DB_PORT:-3310} si DB_PORT n'est pas défini ?"
+    choix: ["Une erreur", "3310", "Une chaîne vide", "3306"]
+    bonne: 1
+    explication: "La syntaxe :- fournit une valeur par défaut."
+    difficulte: 1
+  - question: "Quel fichier versionner pour documenter les variables attendues ?"
+    choix: [".env", ".env.example (clés sans valeurs)", "compose.override.yml", "Aucun"]
+    bonne: 1
+    explication: ".env reste local et ignoré par Git."
+    difficulte: 1
+  - question: "Comment attendre que la base soit réellement prête avant de démarrer l'API ?"
+    choix: ["depends_on: [db] suffit", "healthcheck sur db + depends_on avec condition: service_healthy", "sleep 30 dans le Dockerfile", "restart: always"]
+    bonne: 1
+    explication: "depends_on seul ne garantit que l'ordre de création."
+    difficulte: 2
+  - question: "Différence entre volume nommé et bind mount ?"
+    choix: ["Aucune", "Le volume nommé est géré par Docker ; le bind mount monte un dossier précis de la machine", "Le bind mount est plus sûr", "Le volume nommé est temporaire"]
+    bonne: 1
+    explication: "db_data:/... (nommé) vs ./modeles:/app/modeles (bind)."
+    difficulte: 2
+  - question: "Pourquoi ne pas publier le port de la base de données ?"
+    choix: ["Pour économiser de la RAM", "Elle n'a besoin d'être jointe que par les autres services du réseau : moins de surface d'attaque", "Compose l'interdit", "Pour accélérer les requêtes"]
+    bonne: 1
+    explication: "Moindre exposition."
+    difficulte: 2
+  - question: "Quel outil détecte les secrets commités dans la CI ?"
+    choix: ["ruff", "Gitleaks", "pytest", "uv"]
+    bonne: 1
+    explication: "Avec fetch-depth: 0 pour analyser tout l'historique."
+    difficulte: 1
+flashcards:
+  - { recto: "Démarrer en arrière-plan", verso: "docker compose up -d (--build pour reconstruire)" }
+  - { recto: "Arrêter et supprimer", verso: "docker compose down (-v supprime aussi les volumes)" }
+  - { recto: "État des services", verso: "docker compose ps" }
+  - { recto: "Logs d'un service", verso: "docker compose logs -f <service>" }
+  - { recto: "Commande dans un conteneur", verso: "docker compose exec <service> <commande>" }
+  - { recto: "Lire une variable en Python", verso: "from dotenv import load_dotenv ; load_dotenv() ; os.getenv(\"VAR\")" }
+  - { recto: "Valeur par défaut Compose", verso: "${VAR:-defaut}" }
+  - { recto: "Persister une base", verso: "volumes: [db_data:/var/lib/postgresql/data] + section volumes: db_data:" }
+  - { recto: "Attendre une dépendance prête", verso: "healthcheck + depends_on: {db: {condition: service_healthy}}" }
+  - { recto: "Limiter la mémoire", verso: "mem_limit: 512m (ou deploy.resources.limits.memory)" }
+  - { recto: "Joindre un autre service", verso: "http://<nom_du_service>:<port interne>" }
+  - { recto: "Ne pas exposer à l'extérieur", verso: "ports: [\"127.0.0.1:4000:4000\"] ou aucun ports:" }
+exercices:
+  - titre: "Trouver les erreurs"
+    niveau: 1
+    enonce: "Dans ce service : `db: {image: postgres:latest, ports: ['5432:5432'], environment: {POSTGRES_PASSWORD: mon_mot_de_passe}}` et une API avec `DATABASE_URL=postgresql://user:pwd@localhost:5432/base`, liste les problèmes."
+    corrige: |
+      1. `postgres:latest` : version non épinglée.
+      2. Port 5432 publié sur toutes les interfaces : inutile et risqué.
+      3. Mot de passe en clair dans le fichier : à mettre dans `.env` (`${POSTGRES_PASSWORD}`).
+      4. Aucun volume : données perdues au `down`.
+      5. `localhost` dans l'URL de l'API : il faut `db:5432`.
+      6. Pas de healthcheck : l'API peut démarrer avant la base.
+  - titre: "Stack complète avec MLflow"
+    niveau: 2
+    enonce: "Ajoute un service MLflow (image épinglée) dont les métadonnées et artefacts persistent sur la machine, joignable par l'API d'IA via MLFLOW_TRACKING_URI, et accessible dans le navigateur uniquement depuis la machine locale."
+    indices: ["--backend-store-uri et --artifacts-destination", "ports: ['127.0.0.1:5000:5000']"]
+    corrige: |
+      ```yaml
+      mlflow:
+        image: ghcr.io/mlflow/mlflow:v2.22.0
+        command: >
+          mlflow server --host 0.0.0.0 --port 5000
+          --backend-store-uri sqlite:////mlflow/mlflow.db
+          --artifacts-destination /mlflow/artifacts
+        volumes: ["./mlflow:/mlflow"]
+        ports: ["127.0.0.1:5000:5000"]
+        restart: unless-stopped
+        networks: [backend]
+
+      api_ia:
+        environment:
+          MLFLOW_TRACKING_URI: http://mlflow:5000
+        depends_on: [mlflow]
+      ```
+      Métadonnées (SQLite) et artefacts sont dans le même dossier monté : ils survivent aux redémarrages, et l'interface n'est accessible que depuis la machine.
+mindmap: |
+  # Docker Compose
+  ## Fichier compose.yml
+  - services
+  - image / build
+  - ports, environment, command
+  - depends_on (+ healthcheck)
+  - restart, mem_limit
+  ## Configuration
+  - .env (ignoré)
+  - .env.example (versionné)
+  - ${VAR:-défaut}
+  ## Réseau
+  - Noms de services
+  - Ports internes vs publiés
+  ## Données
+  - Volumes nommés
+  - Bind mounts
+  - down -v
+  ## Commandes
+  - up -d, down, ps, logs, exec, build
+  ## Sécurité
+  - Gitleaks
+  - Ports limités
+  - Images épinglées
+podcast_titre: "Cinq conteneurs, un seul fichier"
+podcast:
+  - { voix: A, texte: "Karim, mon projet a une base, deux API, un Streamlit et MLflow. Je lance cinq docker run à la main ?" }
+  - { voix: B, texte: "Non : un fichier compose point yml décrit les cinq services, et docker compose up les lance tous ensemble, dans le bon ordre." }
+  - { voix: A, texte: "Et mon API se connecte comment à la base ? localhost ?" }
+  - { voix: B, texte: "Surtout pas : dans un conteneur, localhost, c'est le conteneur lui-même. Tu utilises le nom du service : db deux-points 5432." }
+  - { voix: A, texte: "Et les mots de passe ?" }
+  - { voix: B, texte: "Dans un fichier point env que Git ignore, et un point env point example versionné sans les valeurs. Compose remplace dollar accolade par la valeur." }
+  - { voix: A, texte: "J'ai fait un down et ma base est vide…" }
+  - { voix: B, texte: "Il manquait un volume. Un volume nommé garde les données en dehors du conteneur. Pareil pour les runs MLflow et les modèles." }
+  - { voix: A, texte: "Et mon API qui plante parce que la base n'est pas encore prête ?" }
+  - { voix: B, texte: "Ajoute un healthcheck à la base et depends on avec condition service healthy. Et pour finir, Gitleaks dans la CI pour qu'aucun secret ne parte sur GitHub." }

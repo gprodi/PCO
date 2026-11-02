@@ -4150,17 +4150,23 @@ dependencies = [
 anthropic = [
     { name = "anthropic" },
 ]
+pgvector = [
+    { name = "psycopg", extra = ["binary"] },
+    { name = "sqlalchemy" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=2.0,<3" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "loguru", specifier = ">=0.7" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'pgvector'", specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.8" },
     { name = "pydantic-settings", specifier = ">=2.4" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "sqlalchemy", marker = "extra == 'pgvector'", specifier = ">=2.0" },
 ]
-provides-extras = ["anthropic"]
+provides-extras = ["anthropic", "pgvector"]
 
 [[package]]
 name = "loguru"

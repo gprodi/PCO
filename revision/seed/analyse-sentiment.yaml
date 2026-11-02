@@ -1,0 +1,225 @@
+titre: "Brief — analyse de sentiment (FastAPI + Streamlit)"
+fiche:
+  titre: "Brief analyse de sentiment : une API d'IA, une API de données et un front Streamlit"
+  resume: >-
+    Ce brief assemble une application complète et modulaire. Une API d'IA FastAPI expose POST
+    /analyse_sentiment/ : elle valide le corps de la requête avec un modèle Pydantic (Texte), appelle le
+    modèle VADER de NLTK (SentimentIntensityAnalyzer) et renvoie quatre scores : neg, neu, pos (proportions
+    entre 0 et 1) et compound, un score global normalisé entre −1 et +1. Une seconde API gère la base de
+    citations (suite du projet précédent). Le front Streamlit affiche une citation recherchée par son
+    identifiant, envoie son texte à l'API d'IA avec requests et interprète compound avec les seuils usuels
+    (≥ 0,05 positif, ≤ −0,05 négatif, sinon neutre). Loguru journalise les requêtes, résultats et erreurs
+    des deux côtés, les try/except rendent client et serveur robustes, et un fichier .env porte l'hôte et le
+    port. Le projet respecte les contraintes de base : .venv, requirements.txt, README.md et .gitignore.
+  objectifs:
+    - Exposer un modèle d'IA par une route FastAPI validée par Pydantic
+    - Interpréter les scores VADER et le seuil du score composé
+    - Appeler l'API depuis Streamlit et gérer proprement les erreurs réseau et HTTP
+    - Journaliser côté client et côté serveur, et configurer l'application par variables d'environnement
+  notions:
+    - { terme: "VADER", definition: "Analyseur de sentiment à base de lexique et de règles (NLTK), conçu pour l'anglais des réseaux sociaux ; pas d'entraînement nécessaire." }
+    - { terme: "Score compound", definition: "Somme normalisée des valences du texte, entre −1 (très négatif) et +1 (très positif)." }
+    - { terme: "neg / neu / pos", definition: "Proportions du texte jugées négatives, neutres et positives ; elles somment à 1." }
+    - { terme: "Modèle Pydantic", definition: "Classe BaseModel qui décrit et valide le JSON reçu ; une requête non conforme renvoie 422." }
+    - { terme: "Variables d'environnement", definition: "Paramètres (hôte, port, URL de l'API) lus au démarrage depuis .env, hors du code." }
+    - { terme: "HTTPException", definition: "Exception FastAPI qui produit une réponse d'erreur HTTP avec un code et un détail." }
+    - { terme: "Architecture modulaire", definition: "Modèle, logique de traitement et interface séparés : chacun se teste et se remplace seul." }
+  points_cles:
+    - "VADER est anglophone : sur du français, il renvoie presque toujours « neutre » — à signaler et à comparer avec un modèle français."
+    - "Seuils standard du compound : ≥ 0,05 positif, ≤ −0,05 négatif, entre les deux neutre."
+    - "Côté client : timeout, raise_for_status, et except requests.exceptions.RequestException pour les erreurs réseau."
+    - "Côté serveur : un échec du modèle devient une HTTPException 500 journalisée, jamais une trace brute renvoyée au client."
+    - "L'URL de l'API vient d'une variable d'environnement : le même code tourne en local, en Docker et en production."
+    - "Journaliser des textes saisis par des utilisateurs, c'est stocker des données potentiellement personnelles : limiter et purger (RGPD)."
+  code:
+    - titre: "API d'IA : route validée et journalisée"
+      lang: python
+      code: |
+        import nltk
+        from fastapi import FastAPI, HTTPException
+        from loguru import logger
+        from nltk.sentiment import SentimentIntensityAnalyzer
+        from pydantic import BaseModel, Field
+
+        nltk.download("vader_lexicon", quiet=True)
+        logger.add("logs/sentiment_api.log", rotation="10 MB", retention="14 days", level="INFO")
+        app = FastAPI(title="API sentiment")
+        sia = SentimentIntensityAnalyzer()
+
+        class Texte(BaseModel):
+            texte: str = Field(min_length=1, max_length=5000)
+
+        @app.post("/analyse_sentiment/")
+        def analyse_sentiment(t: Texte) -> dict[str, float]:
+            logger.info("Analyse d'un texte de {} caractères", len(t.texte))
+            try:
+                scores = sia.polarity_scores(t.texte)
+            except Exception:
+                logger.exception("Échec de l'analyse")
+                raise HTTPException(status_code=500, detail="Analyse impossible") from None
+            return {k: scores[k] for k in ("neg", "neu", "pos", "compound")}
+      explication: "Pydantic refuse un texte vide ou trop long (422) ; on journalise la longueur plutôt que le texte complet."
+    - titre: "Front Streamlit : appel et interprétation"
+      lang: python
+      code: |
+        import os
+
+        import requests
+        import streamlit as st
+        from loguru import logger
+
+        API_IA = os.getenv("API_IA_URL", "http://127.0.0.1:9000")
+        texte = st.text_area("Texte à analyser")
+        if st.button("Analyser"):
+            if not texte.strip():
+                st.warning("Veuillez entrer du texte.")
+            else:
+                try:
+                    r = requests.post(f"{API_IA}/analyse_sentiment/", json={"texte": texte}, timeout=10)
+                    r.raise_for_status()
+                    s = r.json()
+                    etiquette = "Positif 😀" if s["compound"] >= 0.05 else "Négatif 🙁" if s["compound"] <= -0.05 else "Neutre 😐"
+                    st.metric("Sentiment global", etiquette, f"compound = {s['compound']:.3f}")
+                    st.bar_chart({"négatif": s["neg"], "neutre": s["neu"], "positif": s["pos"]})
+                except requests.exceptions.RequestException as e:
+                    logger.error("API IA injoignable : {}", e)
+                    st.error("Le service d'analyse est indisponible, réessayez plus tard.")
+      explication: "Le message à l'utilisateur reste simple ; le détail technique va dans les logs."
+  pieges:
+    - "Analyser du français avec VADER et conclure que tout est « neutre » : c'est une limite du lexique anglais, pas du texte."
+    - "Afficher à l'utilisateur la trace complète d'une exception (fuite d'informations techniques)."
+    - "Coder en dur http://127.0.0.1:9000 : l'application casse dès qu'elle passe dans Docker (utiliser une variable d'environnement)."
+    - "Oublier de télécharger vader_lexicon au démarrage : LookupError au premier appel."
+    - "Journaliser intégralement chaque texte reçu sans politique de rétention."
+  aller_plus_loin:
+    - titre: "Remplacer VADER par un modèle français"
+      contenu: "Garde la même route et le même format de réponse, mais branche un modèle Hugging Face français (ex. famille CamemBERT). Défi : mesure les deux modèles sur 100 avis français étiquetés (accuracy, latence) — c'est un mini-benchmark pour l'épreuve E2."
+      lien: "https://huggingface.co/models?pipeline_tag=text-classification&language=fr"
+    - titre: "Tests de l'API et du contrat"
+      contenu: "Avec TestClient : texte positif → compound > 0, texte vide → 422, et un test qui vérifie que la réponse contient exactement les clés neg/neu/pos/compound. Le front peut alors évoluer sans casser le contrat."
+      lien: "https://fastapi.tiangolo.com/tutorial/testing/"
+    - titre: "Conteneuriser les trois services"
+      contenu: "Un `compose.yml` avec api_data, api_ia et front ; le front reçoit `API_IA_URL=http://api_ia:9000`. C'est la transition vers le cours MLOps 1 (Docker Compose)."
+      lien: "https://docs.docker.com/compose/"
+  jury: >-
+    **E3 (C9, C10)** : développer une API exposant un modèle et l'intégrer dans une application, avec
+    journalisation et gestion d'erreurs. Ce brief en est la version minimale ; dans MicroForge, `api_ia` suit
+    le même schéma (routes validées, erreurs propres, logs) et Streamlit l'appelle via un client HTTP dédié.
+  competences: [C9, C10, C17]
+  sources: []
+qcm:
+  - question: "Que représente le score compound de VADER ?"
+    choix: ["Le nombre de mots", "Un sentiment global normalisé entre −1 et +1", "La proportion de mots neutres", "La langue du texte"]
+    bonne: 1
+    explication: "neg/neu/pos sont des proportions ; compound résume l'ensemble."
+    difficulte: 1
+  - question: "Avec les seuils usuels, compound = 0,02 donne :"
+    choix: ["Positif", "Négatif", "Neutre", "Erreur"]
+    bonne: 2
+    explication: "Neutre entre −0,05 et +0,05."
+    difficulte: 1
+  - question: "Pourquoi VADER classe-t-il presque tout texte français en neutre ?"
+    choix: ["Le français est neutre", "Son lexique est anglais : il ne reconnaît pas les mots", "Il faut l'entraîner d'abord", "Parce que Pydantic filtre le texte"]
+    bonne: 1
+    explication: "Limite à documenter et à corriger avec un modèle français."
+    difficulte: 2
+  - question: "Rôle du modèle Pydantic Texte dans la route ?"
+    choix: ["Stocker en base", "Valider le JSON reçu (présence et type du champ texte)", "Traduire le texte", "Chiffrer le texte"]
+    bonne: 1
+    explication: "Un corps invalide renvoie automatiquement 422."
+    difficulte: 1
+  - question: "Quelle exception attraper côté Streamlit pour une API injoignable ?"
+    choix: ["KeyError", "requests.exceptions.RequestException", "ValueError", "HTTPException"]
+    bonne: 1
+    explication: "Elle couvre connexion refusée, délai dépassé et erreurs HTTP levées par raise_for_status."
+    difficulte: 2
+  - question: "Pourquoi lire l'URL de l'API dans une variable d'environnement ?"
+    choix: ["Pour la cacher au jury", "Pour faire tourner le même code en local, en Docker et en production", "C'est plus rapide", "Streamlit l'exige"]
+    bonne: 1
+    explication: "Seule la configuration change d'un environnement à l'autre."
+    difficulte: 1
+  - question: "En cas d'erreur du modèle côté serveur, que renvoyer ?"
+    choix: ["La trace Python complète", "Une HTTPException 500 avec un message simple, et le détail dans les logs", "Un code 200 avec « erreur »", "Rien"]
+    bonne: 1
+    explication: "Le client sait qu'il y a une erreur, sans voir les détails internes."
+    difficulte: 2
+  - question: "Quel fichier ne doit jamais être versionné dans ce projet ?"
+    choix: ["requirements.txt", "README.md", ".env (et le dossier .venv)", "sentiment_api.py"]
+    bonne: 2
+    explication: "Le .gitignore exclut .venv et .env."
+    difficulte: 1
+flashcards:
+  - { recto: "Importer VADER", verso: "from nltk.sentiment import SentimentIntensityAnalyzer ; sia.polarity_scores(texte)" }
+  - { recto: "Télécharger le lexique VADER", verso: "nltk.download(\"vader_lexicon\")" }
+  - { recto: "Clés renvoyées par VADER", verso: "neg, neu, pos, compound" }
+  - { recto: "Seuils du compound", verso: "≥ 0,05 positif ; ≤ −0,05 négatif ; sinon neutre." }
+  - { recto: "Valider le corps d'une requête", verso: "class Texte(BaseModel): texte: str puis paramètre t: Texte dans la route." }
+  - { recto: "Contraindre la longueur d'un champ", verso: "texte: str = Field(min_length=1, max_length=5000)" }
+  - { recto: "Appel robuste depuis Streamlit", verso: "requests.post(url, json=..., timeout=10) puis r.raise_for_status()" }
+  - { recto: "Erreur réseau côté client", verso: "except requests.exceptions.RequestException" }
+  - { recto: "Erreur propre côté FastAPI", verso: "raise HTTPException(status_code=500, detail=\"Analyse impossible\")" }
+  - { recto: "Lire une configuration", verso: "os.getenv(\"API_IA_URL\", \"valeur par défaut\") (+ fichier .env chargé au démarrage)." }
+  - { recto: "Contraintes de tout projet", verso: ".venv, requirements.txt, README.md, .gitignore." }
+  - { recto: "Deux API du brief", verso: "API de données (citations, base) et API d'IA (sentiment)." }
+exercices:
+  - titre: "Interpréter des scores"
+    niveau: 1
+    enonce: "Classe ces résultats : (a) compound = 0,636 ; (b) compound = −0,03 ; (c) compound = −0,52 ; (d) neg = 0, neu = 1, pos = 0 pour « Ce capteur est génial ». Que conclure de (d) ?"
+    indices: ["Seuils ±0,05", "Quelle langue comprend VADER ?"]
+    corrige: |
+      (a) positif ; (b) neutre ; (c) négatif ; (d) neutre — mais c'est un faux neutre : « génial » est un mot français absent du lexique anglais de VADER. Il faut un modèle français pour ce cas.
+  - titre: "Tester l'API d'IA"
+    niveau: 2
+    enonce: "Écris trois tests TestClient pour l'API du cours : un texte anglais positif (compound > 0,05), un texte vide (422), et la présence exacte des quatre clés dans la réponse."
+    indices: ["from fastapi.testclient import TestClient", "set(r.json()) == {...}"]
+    corrige: |
+      ```python
+      from fastapi.testclient import TestClient
+      from sentiment_api import app
+
+      client = TestClient(app)
+
+      def test_positif():
+          r = client.post("/analyse_sentiment/", json={"texte": "I love this, it is great!"})
+          assert r.status_code == 200 and r.json()["compound"] > 0.05
+
+      def test_texte_vide_refuse():
+          assert client.post("/analyse_sentiment/", json={"texte": ""}).status_code == 422
+
+      def test_contrat():
+          r = client.post("/analyse_sentiment/", json={"texte": "ok"})
+          assert set(r.json()) == {"neg", "neu", "pos", "compound"}
+      ```
+mindmap: |
+  # Brief analyse de sentiment
+  ## API IA (FastAPI)
+  - POST /analyse_sentiment/
+  - Pydantic Texte
+  - VADER (NLTK)
+  - HTTPException 500
+  ## API données
+  - Citations (CRUD)
+  ## Front (Streamlit)
+  - Recherche par ID
+  - Bouton Analyser
+  - requests + timeout
+  - Seuils du compound
+  ## Transverse
+  - Loguru (client + serveur)
+  - .env (hôte, port, URL)
+  - .venv, requirements, README, .gitignore
+  ## Limites
+  - VADER anglais
+  - Données personnelles dans les logs
+podcast_titre: "Brief sentiment : trois briques qui se parlent"
+podcast:
+  - { voix: A, texte: "Karim, le brief demande deux API et un Streamlit pour analyser un sentiment. Ce n'est pas trop pour un simple score ?" }
+  - { voix: B, texte: "C'est volontaire : on apprend à séparer le modèle, les données et l'interface. Chaque brique se teste et se remplace seule." }
+  - { voix: A, texte: "L'API d'IA fait quoi exactement ?" }
+  - { voix: B, texte: "Elle reçoit du JSON, Pydantic vérifie qu'il y a bien un champ texte, puis VADER renvoie quatre scores : négatif, neutre, positif, et le compound entre moins un et plus un." }
+  - { voix: A, texte: "J'ai testé avec « bonjour » et c'est neutre. Et même « génial » est neutre…" }
+  - { voix: B, texte: "Parce que VADER a un lexique anglais. C'est une vraie limite à écrire dans ton rapport, et une bonne raison de comparer avec un modèle français de Hugging Face." }
+  - { voix: A, texte: "Et côté Streamlit ?" }
+  - { voix: B, texte: "requests post avec un timeout, raise for status, et un except sur les erreurs réseau. L'utilisateur voit un message clair, le détail part dans les logs." }
+  - { voix: A, texte: "Les logs, je mets tout le texte dedans ?" }
+  - { voix: B, texte: "Attention : ce sont des saisies d'utilisateurs, donc potentiellement des données personnelles. Journalise la longueur, le résultat, et garde une rétention courte. Le jury appréciera." }

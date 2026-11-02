@@ -1,0 +1,240 @@
+titre: "MLOps 4 — Celery, Kafka, Kubernetes"
+fiche:
+  titre: "MLOps avancé : traitements asynchrones avec un broker, Celery, Kafka et supervision Flower"
+  resume: >-
+    Une prédiction lourde (plusieurs secondes) ne doit pas bloquer l'application. Un broker de messages
+    découple les services : l'application dépose une tâche dans une file et reçoit immédiatement un
+    identifiant ; un worker la traite quand il est disponible puis dépose le résultat, que l'application
+    récupère plus tard. Celery est le framework Python de tâches asynchrones : on déclare une app Celery
+    avec un broker et un backend de résultats, on décore la fonction avec @app.task (en forçant son nom), et
+    l'API appelle predict_task.delay() au lieu de l'exécuter. Deux brokers classiques : Redis, en mémoire,
+    très rapide et léger, et RabbitMQ, implémentation d'AMQP plus lourde mais robuste (accusés de réception),
+    très utilisée en industrie. Flower surveille en temps réel workers et tâches. Kafka, lui, est une
+    plateforme de streaming distribuée : des producers publient des flux d'événements dans des topics, des
+    consumers les lisent, avec conservation de l'historique et très haut débit. Kubernetes prend le relais
+    de Compose quand il faut répartir ces services sur plusieurs machines et les mettre à l'échelle.
+  objectifs:
+    - Expliquer l'intérêt d'un broker et du traitement asynchrone pour une API d'IA
+    - Mettre en place Celery avec Redis ou RabbitMQ et une API FastAPI qui soumet et consulte des tâches
+    - Superviser les workers avec Flower
+    - Distinguer file de tâches (Celery) et streaming d'événements (Kafka), et situer Kubernetes
+  notions:
+    - { terme: "Broker", definition: "Intermédiaire qui reçoit, stocke et distribue les messages entre producteurs et consommateurs." }
+    - { terme: "Worker Celery", definition: "Processus qui récupère les tâches dans le broker et les exécute (celery -A worker.app worker)." }
+    - { terme: "Backend de résultats", definition: "Stockage où le worker dépose le résultat d'une tâche (Redis, RPC…), lu avec AsyncResult." }
+    - { terme: ".delay()", definition: "Envoie la tâche dans la file sans l'exécuter ; renvoie un AsyncResult avec son identifiant." }
+    - { terme: "Redis vs RabbitMQ", definition: "Redis : en mémoire, rapide, simple, garanties limitées. RabbitMQ : AMQP, accusés de réception, routage riche, plus robuste." }
+    - { terme: "Flower", definition: "Interface web de supervision de Celery : workers, tâches, durées, annulation." }
+    - { terme: "Kafka", definition: "Journal d'événements distribué : producers écrivent dans des topics, consumers les lisent à leur rythme, l'historique est conservé." }
+    - { terme: "Kubernetes", definition: "Orchestrateur de conteneurs sur plusieurs machines : déploiements, réplicas, mise à l'échelle, auto-réparation." }
+  points_cles:
+    - "Patron asynchrone : POST /predict → 202 + task_id ; GET /tasks/{id} → statut puis résultat."
+    - "Forcer le nom de la tâche (@app.task(name=\"predict_task\")) évite les erreurs de nom entre l'API et le worker."
+    - "Charger le modèle une fois par worker (au démarrage), pas à chaque tâche."
+    - "--concurrency règle le nombre de tâches simultanées par worker ; on ajoute des workers pour monter en charge."
+    - "Celery = exécuter des tâches ; Kafka = transporter et conserver des flux d'événements (souvent plusieurs consommateurs)."
+    - "Interfaces d'admin (RabbitMQ 15672, Flower 5555) : protégées et non exposées publiquement."
+  code:
+    - titre: "Worker Celery et API FastAPI"
+      lang: python
+      code: |
+        # worker.py
+        import os
+        import time
+
+        from celery import Celery
+
+        app = Celery(
+            "ml_tasks",
+            broker=os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+            backend=os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
+        )
+
+        @app.task(name="predict_task")
+        def predict_task(texte: str) -> dict:
+            time.sleep(int(os.getenv("MODEL_LATENCY", "5")))     # modèle lourd simulé
+            return {"texte": texte, "prediction": 42}
+
+        # api.py
+        from celery.result import AsyncResult
+        from fastapi import FastAPI
+
+        api = FastAPI()
+
+        @api.post("/predict", status_code=202)
+        def soumettre(texte: str):
+            return {"task_id": predict_task.delay(texte).id}
+
+        @api.get("/tasks/{task_id}")
+        def statut(task_id: str):
+            res = AsyncResult(task_id, app=app)
+            return {"statut": res.status, "resultat": res.result if res.successful() else None}
+      explication: "L'API répond en quelques millisecondes ; le client interroge /tasks/{id} jusqu'au statut SUCCESS."
+    - titre: "Compose : Redis, worker, API et Flower"
+      lang: yaml
+      code: |
+        services:
+          redis:
+            image: redis:7-alpine
+            networks: [ml]
+          worker:
+            build: .
+            command: ["celery", "-A", "worker.app", "worker", "--loglevel=info", "--concurrency=2"]
+            environment:
+              CELERY_BROKER_URL: redis://redis:6379/0
+              CELERY_RESULT_BACKEND: redis://redis:6379/0
+            depends_on: [redis]
+            networks: [ml]
+          api:
+            build: .
+            command: ["uvicorn", "api:api", "--host", "0.0.0.0", "--port", "8000"]
+            environment:
+              CELERY_BROKER_URL: redis://redis:6379/0
+              CELERY_RESULT_BACKEND: redis://redis:6379/0
+            ports: ["8000:8000"]
+            networks: [ml]
+          flower:
+            image: mher/flower:2.0
+            environment:
+              CELERY_BROKER_URL: redis://redis:6379/0
+            ports: ["127.0.0.1:5555:5555"]
+            networks: [ml]
+        networks:
+          ml:
+      explication: "Redis n'est pas exposé ; Flower n'est accessible que depuis la machine ; on ajoute des workers avec docker compose up --scale worker=3."
+  pieges:
+    - "Appeler predict_task() au lieu de predict_task.delay() : la tâche s'exécute dans l'API et la bloque."
+    - "Noms de tâches implicites différents entre l'API et le worker (chemins de modules) : tâche jamais trouvée."
+    - "Recharger le modèle à chaque tâche : chaque prédiction paie le temps de chargement."
+    - "Exposer Redis (6379) ou l'admin RabbitMQ (15672) sur Internet, avec les identifiants guest:guest par défaut."
+    - "Utiliser Redis comme broker pour des tâches critiques sans réfléchir aux pertes possibles (données en mémoire)."
+  aller_plus_loin:
+    - titre: "Fiabilité des tâches : acks_late, retries, idempotence"
+      contenu: "`@app.task(bind=True, autoretry_for=(ConnectionError,), retry_backoff=True, acks_late=True)` : la tâche n'est acquittée qu'une fois terminée et se relance avec un délai croissant. Une tâche réexécutable doit être idempotente."
+      lien: "https://docs.celeryq.dev/en/stable/userguide/tasks.html"
+    - titre: "Kafka pour le streaming de prédictions"
+      contenu: "Un producer publie les mesures de capteurs dans un topic, un consumer applique le modèle et publie les alertes dans un autre topic. Défi : avec `confluent-kafka` ou `aiokafka`, fais tourner deux consumers dans le même groupe et observe la répartition des partitions."
+      lien: "https://kafka.apache.org/documentation/#gettingStarted"
+    - titre: "Passer à Kubernetes avec KEDA"
+      contenu: "Sur Kubernetes, KEDA met à l'échelle les workers selon la longueur de la file (Redis, RabbitMQ, Kafka) : zéro worker la nuit, dix aux heures de pointe. C'est le cœur du brief « Forge MLOps »."
+      lien: "https://keda.sh/docs/latest/scalers/"
+  jury: >-
+    **E3 (C9)** et **E4 (C15)** : choisir une architecture adaptée à la charge et justifier ses composants. Pour
+    MicroForge, l'analyse d'une photo de stock (vision) est un bon candidat au traitement asynchrone : 202 +
+    identifiant de tâche, worker GPU séparé, supervision. Argumente le choix Redis/RabbitMQ et quand Kafka
+    deviendrait pertinent (flux continu de capteurs).
+  competences: [C9, C15, C20]
+  sources: []
+qcm:
+  - question: "Pourquoi utiliser un broker pour une prédiction de 10 secondes ?"
+    choix: ["Pour accélérer le modèle", "Pour ne pas bloquer l'API : la tâche est traitée en arrière-plan par un worker", "Pour chiffrer la prédiction", "Pour réduire la RAM"]
+    bonne: 1
+    explication: "L'API répond immédiatement avec un identifiant."
+    difficulte: 1
+  - question: "Que fait predict_task.delay(x) ?"
+    choix: ["Exécute la tâche tout de suite", "Dépose la tâche dans la file et renvoie un AsyncResult", "Attend 5 secondes", "Supprime la tâche"]
+    bonne: 1
+    explication: "Le worker l'exécutera dès qu'il sera libre."
+    difficulte: 1
+  - question: "Quel code HTTP pour « tâche acceptée, résultat plus tard » ?"
+    choix: ["200", "201", "202", "204"]
+    bonne: 2
+    explication: "202 Accepted."
+    difficulte: 2
+  - question: "Redis vs RabbitMQ comme broker :"
+    choix: ["Identiques", "Redis : en mémoire, léger et rapide ; RabbitMQ : AMQP, accusés de réception, plus robuste", "RabbitMQ est une base SQL", "Redis ne peut pas servir de broker"]
+    bonne: 1
+    explication: "Choix selon la criticité des messages."
+    difficulte: 2
+  - question: "À quoi sert Flower ?"
+    choix: ["Entraîner des modèles", "Superviser les workers et les tâches Celery", "Remplacer Redis", "Servir l'API"]
+    bonne: 1
+    explication: "Interface web branchée sur le broker."
+    difficulte: 1
+  - question: "Différence principale entre Celery et Kafka ?"
+    choix: ["Aucune", "Celery exécute des tâches ; Kafka transporte et conserve des flux d'événements lus par des consommateurs", "Kafka est un worker Python", "Celery stocke l'historique des événements"]
+    bonne: 1
+    explication: "Kafka garde le journal ; plusieurs consommateurs peuvent le relire."
+    difficulte: 2
+  - question: "Comment traiter plus de tâches en parallèle ?"
+    choix: ["Augmenter le timeout", "Ajouter des workers ou augmenter --concurrency", "Redémarrer Redis", "Passer en GET"]
+    bonne: 1
+    explication: "docker compose up --scale worker=3, ou KEDA sur Kubernetes."
+    difficulte: 1
+  - question: "Où charger le modèle dans un worker Celery ?"
+    choix: ["Dans chaque tâche", "Une fois au démarrage du worker", "Dans l'API", "Dans Redis"]
+    bonne: 1
+    explication: "Sinon chaque prédiction paie le chargement."
+    difficulte: 2
+flashcards:
+  - { recto: "Patron asynchrone", verso: "POST → 202 + task_id ; GET /tasks/{id} → statut (PENDING, STARTED, SUCCESS, FAILURE) puis résultat." }
+  - { recto: "Déclarer une app Celery", verso: "Celery(\"nom\", broker=..., backend=...)" }
+  - { recto: "Déclarer une tâche", verso: "@app.task(name=\"predict_task\")" }
+  - { recto: "Envoyer une tâche", verso: "predict_task.delay(args) (ou apply_async(args, countdown=...))" }
+  - { recto: "Lire un résultat", verso: "AsyncResult(task_id, app=app).status / .result" }
+  - { recto: "Lancer un worker", verso: "celery -A worker.app worker --loglevel=info --concurrency=2" }
+  - { recto: "URL broker Redis", verso: "redis://redis:6379/0" }
+  - { recto: "URL broker RabbitMQ", verso: "amqp://utilisateur:motdepasse@rabbitmq:5672//" }
+  - { recto: "Flower", verso: "Supervision Celery, port 5555, branché sur le broker." }
+  - { recto: "Kafka : vocabulaire", verso: "Producer, consumer, topic, partition, groupe de consommateurs." }
+  - { recto: "Monter en charge avec Compose", verso: "docker compose up --scale worker=3" }
+  - { recto: "Kubernetes + file", verso: "KEDA met à l'échelle les workers selon la longueur de la file." }
+exercices:
+  - titre: "Dessiner le flux"
+    niveau: 1
+    enonce: "Décris les étapes, de la requête du client à l'affichage du résultat, pour une prédiction traitée par Celery, en nommant chaque composant et le code HTTP de chaque réponse."
+    corrige: |
+      1. Le client envoie `POST /predict` à l'API.
+      2. L'API appelle `predict_task.delay(...)` : la tâche est déposée dans le **broker** ; réponse **202** avec `task_id`.
+      3. Un **worker** Celery libre prend la tâche, exécute le modèle et écrit le résultat dans le **backend de résultats**.
+      4. Le client interroge `GET /tasks/{task_id}` : **200** avec `PENDING`/`STARTED`, puis `SUCCESS` et le résultat.
+      5. **Flower** montre en parallèle l'état des workers et la durée des tâches.
+  - titre: "Tester la logique sans broker"
+    niveau: 2
+    enonce: "Écris un test pytest qui exécute la tâche `predict_task` sans Redis ni worker, en configurant Celery en mode « eager »."
+    indices: ["app.conf.task_always_eager = True", "MODEL_LATENCY=0 via monkeypatch"]
+    corrige: |
+      ```python
+      from worker import app, predict_task
+
+      def test_predict_task_eager(monkeypatch):
+          monkeypatch.setenv("MODEL_LATENCY", "0")
+          app.conf.task_always_eager = True        # exécution immédiate, en local, sans broker
+          res = predict_task.delay("bonjour")      # EagerResult : le résultat reste en mémoire
+          assert res.get(timeout=1)["prediction"] == 42
+      ```
+      Ne pas activer `task_store_eager_result` : Celery essaierait alors d'écrire le résultat dans Redis, et le test échouerait sans broker. Le mode eager teste la logique de la tâche ; un test d'intégration avec un vrai Redis (Compose dans la CI) reste utile pour valider la configuration.
+mindmap: |
+  # MLOps 4 — avancé
+  ## Asynchrone
+  - Broker
+  - 202 + task_id
+  - Polling du statut
+  ## Celery
+  - App, @app.task(name)
+  - .delay(), AsyncResult
+  - Worker, --concurrency
+  ## Brokers
+  - Redis (mémoire, rapide)
+  - RabbitMQ (AMQP, robuste)
+  ## Supervision
+  - Flower
+  ## Kafka
+  - Producers, consumers
+  - Topics, partitions
+  - Streaming
+  ## Kubernetes
+  - Réplicas, scaling
+  - KEDA
+podcast_titre: "Ne plus faire attendre l'utilisateur"
+podcast:
+  - { voix: A, texte: "Karim, ma route predict met dix secondes à répondre. L'utilisateur croit que l'application a planté." }
+  - { voix: B, texte: "Il faut la rendre asynchrone. L'API dépose la tâche dans une file, répond tout de suite deux cent deux avec un identifiant, et un worker fait le calcul." }
+  - { voix: A, texte: "La file, c'est quoi concrètement ?" }
+  - { voix: B, texte: "Un broker : Redis, très rapide parce qu'il est en mémoire, ou RabbitMQ, plus lourd mais avec des accusés de réception. Celery fait le lien côté Python." }
+  - { voix: A, texte: "Et dans le code ?" }
+  - { voix: B, texte: "Tu décores ta fonction avec arobase app point task, et dans l'API tu appelles predict task point delay. Surtout pas predict task tout court, sinon l'API fait le calcul elle-même." }
+  - { voix: A, texte: "Comment je sais ce que font mes workers ?" }
+  - { voix: B, texte: "Flower : une interface web branchée sur le broker. Tu vois les tâches, leurs durées, les échecs." }
+  - { voix: A, texte: "Et Kafka dans tout ça ?" }
+  - { voix: B, texte: "Kafka, c'est pour des flux continus d'événements, comme des capteurs, lus par plusieurs consommateurs. Et quand tout ça doit tourner sur plusieurs machines, Kubernetes prend le relais, avec KEDA pour ajouter des workers quand la file s'allonge." }

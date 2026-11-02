@@ -7,8 +7,8 @@ export default function LocalOnly({ children, feature }: { children: ReactNode; 
     <div className="mf-notice">
       <p><strong>{feature}</strong> fonctionne avec l’application locale (IA sur ta machine, rien n’est envoyé en ligne).</p>
       <ol>
-        <li><code>uv run revise serve</code> (à la racine du dépôt)</li>
-        <li><code>cd revision/site && npm run dev</code> puis ouvre <code>http://localhost:4321/PCO/</code></li>
+        <li>À la racine du dépôt : <code>uv run revise start</code> (lance l’API et le site, ouvre <code>http://localhost:4321/PCO/</code>)</li>
+        <li>Pour l’IA locale : installe <a href="https://ollama.com">Ollama</a> puis <code>ollama pull qwen3:4b</code></li>
       </ol>
     </div>
   );

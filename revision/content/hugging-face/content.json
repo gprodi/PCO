@@ -1,0 +1,333 @@
+{
+  "slug": "hugging-face",
+  "titre": "Hugging Face — l'univers des modèles",
+  "theme": "ml",
+  "fiche": {
+    "titre": "Hugging Face : trouver, utiliser, adapter et partager des modèles d'IA",
+    "resume": "Hugging Face est une plateforme communautaire et open source pour développer, entraîner et déployer des modèles d'IA. Le Hub héberge des centaines de milliers de modèles pré-entraînés, des jeux de données et des Spaces (petites applications de démonstration). Là où GitHub héberge tout type de code, Hugging Face est spécialisé dans les modèles : chaque dépôt contient les poids, la configuration, le tokenizer et une « model card » qui documente usage, données d'entraînement, limites et licence. Les bibliothèques associées couvrent toute la chaîne : transformers (NLP, vision, audio, avec la fonction pipeline), tokenizers, datasets, diffusers (génération d'images), accelerate (GPU, multi-appareils). On s'en sert pour le texte (classification, génération, traduction, résumé, question-réponse), la vision (classification, détection, segmentation) et l'audio (reconnaissance et synthèse vocales). Choisir un modèle, c'est arbitrer entre qualité, taille, vitesse, langue et licence.",
+    "objectifs": [
+      "Naviguer sur le Hub et lire une model card (tâche, langue, licence, limites)",
+      "Utiliser un modèle pré-entraîné en quelques lignes avec pipeline",
+      "Charger un jeu de données avec datasets",
+      "Comparer Hugging Face et GitHub, et choisir un modèle selon des critères explicites"
+    ],
+    "notions": [
+      {
+        "terme": "Hub",
+        "definition": "Plateforme d'hébergement de modèles, datasets et Spaces, avec versionnage Git (et Git LFS pour les gros fichiers)."
+      },
+      {
+        "terme": "Model card",
+        "definition": "README d'un modèle : usage prévu, données, métriques, biais, limites, licence."
+      },
+      {
+        "terme": "pipeline",
+        "definition": "Fonction de transformers qui assemble tokenizer, modèle et post-traitement pour une tâche : pipeline('sentiment-analysis')."
+      },
+      {
+        "terme": "Tokenizer",
+        "definition": "Découpe le texte en tokens (souvent des sous-mots) et les convertit en identifiants attendus par le modèle."
+      },
+      {
+        "terme": "datasets",
+        "definition": "Bibliothèque pour charger et transformer efficacement des jeux de données (load_dataset)."
+      },
+      {
+        "terme": "Space",
+        "definition": "Application de démonstration (Gradio, Streamlit) hébergée sur le Hub."
+      },
+      {
+        "terme": "Fine-tuning",
+        "definition": "Ré-entraînement d'un modèle pré-entraîné sur ses propres données pour l'adapter à une tâche précise."
+      }
+    ],
+    "points_cles": [
+      "Toujours lire la licence : certains modèles interdisent l'usage commercial ou imposent des conditions.",
+      "Préciser le modèle dans pipeline(model=...) : le modèle par défaut peut changer et n'est souvent qu'en anglais.",
+      "La première exécution télécharge les poids (cache local ~/.cache/huggingface) : prévoir l'espace disque et le réseau.",
+      "Un petit modèle spécialisé bat souvent un gros modèle généraliste sur une tâche précise, pour bien moins de ressources.",
+      "Les modèles téléchargés tournent en local : pas d'envoi de données à un tiers, utile pour la confidentialité."
+    ],
+    "code": [
+      {
+        "titre": "pipeline en quelques lignes",
+        "lang": "python",
+        "code": "from transformers import pipeline\n\nsentiment = pipeline(\n    \"sentiment-analysis\",\n    model=\"cmarkea/distilcamembert-base-sentiment\",   # modèle français, 5 classes (étoiles)\n)\nprint(sentiment([\"Ce kit Arduino est génial !\", \"Livraison catastrophique.\"]))\n\ntraduction = pipeline(\"translation\", model=\"Helsinki-NLP/opus-mt-fr-en\")\nprint(traduction(\"Le capteur mesure la température.\")[0][\"translation_text\"])\n",
+        "explication": "Chaque pipeline télécharge le modèle indiqué la première fois puis le réutilise depuis le cache."
+      },
+      {
+        "titre": "Charger et préparer un jeu de données",
+        "lang": "python",
+        "code": "from datasets import load_dataset\n\nds = load_dataset(\"allocine\")                     # critiques de films en français\nprint(ds)                                         # splits train / validation / test\npetit = ds[\"train\"].shuffle(seed=42).select(range(1000))\npetit = petit.map(lambda ex: {\"longueur\": len(ex[\"review\"])})\nprint(petit[0][\"label\"], petit[0][\"longueur\"])\n",
+        "explication": "datasets charge en mémoire projetée (Arrow) : on manipule de gros jeux sans tout charger en RAM."
+      }
+    ],
+    "pieges": [
+      "Utiliser pipeline('sentiment-analysis') sans préciser le modèle sur du français : le modèle par défaut est anglais.",
+      "Ignorer la licence ou la model card (biais, données d'entraînement, usages déconseillés).",
+      "Télécharger un modèle de plusieurs Go pour une tâche qu'un petit modèle fait aussi bien.",
+      "Mettre un jeton d'accès Hugging Face (HF_TOKEN) en clair dans le code ou sur GitHub."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Fine-tuning avec Trainer",
+        "contenu": "`AutoModelForSequenceClassification.from_pretrained(...)`, `TrainingArguments` et `Trainer` ré-entraînent un modèle sur tes données. Défi : fine-tune `distilcamembert-base` sur 2 000 critiques Allociné et compare au modèle zero-shot.",
+        "lien": "https://huggingface.co/docs/transformers/training"
+      },
+      {
+        "titre": "Publier une démo sur un Space",
+        "contenu": "Un fichier `app.py` Gradio ou Streamlit + `requirements.txt` poussés sur un Space donnent une démo publique en ligne. Idéal pour montrer un modèle au jury sans installer quoi que ce soit.",
+        "lien": "https://huggingface.co/docs/hub/spaces"
+      },
+      {
+        "titre": "Modèles quantifiés et inférence locale",
+        "contenu": "Les formats quantifiés (GGUF, 4 ou 8 bits) font tourner des modèles de langage sur un PC ou un Mac (Ollama, llama.cpp). C'est le principe de la passerelle IA de MicroForge : Ollama en local d'abord.",
+        "lien": "https://huggingface.co/docs/hub/gguf"
+      }
+    ],
+    "jury": "**E2 (C6, C7, C8)** : veille, benchmark et paramétrage de services d'IA. Le Hub est la source principale du benchmark : compare 2 ou 3 modèles sur ta tâche (qualité mesurée, taille, latence, licence, langue) et justifie ton choix. MicroForge le fait pour la vision (YOLO) et pour le LLM local servi par Ollama.",
+    "competences": [
+      "C6",
+      "C7",
+      "C8"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Que trouve-t-on sur le Hub de Hugging Face ?",
+        "choix": [
+          "Uniquement du code Python",
+          "Des modèles pré-entraînés, des jeux de données et des Spaces",
+          "Des serveurs à louer uniquement",
+          "Des cours en vidéo"
+        ],
+        "bonne": 1,
+        "explication": "Les trois piliers du Hub.",
+        "difficulte": 1
+      },
+      {
+        "question": "À quoi sert une model card ?",
+        "choix": [
+          "À payer le modèle",
+          "À documenter usage, données, métriques, limites et licence du modèle",
+          "À accélérer le modèle",
+          "À stocker les poids"
+        ],
+        "bonne": 1,
+        "explication": "C'est le premier document à lire avant d'utiliser un modèle.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi préciser model= dans pipeline() ?",
+        "choix": [
+          "C'est obligatoire",
+          "Le modèle par défaut peut changer et être inadapté (langue, tâche)",
+          "Pour aller plus vite à l'installation",
+          "Pour éviter le tokenizer"
+        ],
+        "bonne": 1,
+        "explication": "On fixe un modèle connu, adapté au français et à la tâche.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quelle bibliothèque sert à la génération d'images (Stable Diffusion) ?",
+        "choix": [
+          "datasets",
+          "diffusers",
+          "tokenizers",
+          "accelerate"
+        ],
+        "bonne": 1,
+        "explication": "diffusers regroupe les modèles de diffusion.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel est le rôle d'un tokenizer ?",
+        "choix": [
+          "Chiffrer le texte",
+          "Découper le texte en tokens et les convertir en identifiants pour le modèle",
+          "Traduire",
+          "Évaluer le modèle"
+        ],
+        "bonne": 1,
+        "explication": "Chaque modèle a son tokenizer, à charger avec lui.",
+        "difficulte": 1
+      },
+      {
+        "question": "Principale différence entre Hugging Face et GitHub ?",
+        "choix": [
+          "GitHub n'utilise pas Git",
+          "Hugging Face est spécialisé dans les modèles et données d'IA, GitHub est généraliste",
+          "Hugging Face est payant",
+          "GitHub héberge des modèles plus gros"
+        ],
+        "bonne": 1,
+        "explication": "Les deux reposent sur Git ; HF ajoute les outils propres aux modèles.",
+        "difficulte": 1
+      },
+      {
+        "question": "Avantage d'exécuter un modèle téléchargé en local ?",
+        "choix": [
+          "Il est toujours plus précis",
+          "Les données ne quittent pas la machine (confidentialité) et pas de coût par requête",
+          "Il n'a pas besoin de mémoire",
+          "Il se met à jour seul"
+        ],
+        "bonne": 1,
+        "explication": "Argument clé du benchmark local vs API cloud.",
+        "difficulte": 2
+      },
+      {
+        "question": "Où se trouve par défaut le cache des modèles téléchargés ?",
+        "choix": [
+          "Dans le dépôt Git",
+          "~/.cache/huggingface",
+          "Dans le .venv",
+          "En ligne uniquement"
+        ],
+        "bonne": 1,
+        "explication": "Modifiable avec la variable HF_HOME.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Utiliser un modèle en une ligne",
+        "verso": "pipeline(\"tâche\", model=\"auteur/modele\")",
+        "tags": []
+      },
+      {
+        "recto": "Bibliothèques principales",
+        "verso": "transformers, datasets, tokenizers, diffusers, accelerate.",
+        "tags": []
+      },
+      {
+        "recto": "Charger un jeu de données",
+        "verso": "from datasets import load_dataset ; load_dataset(\"allocine\")",
+        "tags": []
+      },
+      {
+        "recto": "Model card",
+        "verso": "Fiche d'identité du modèle : usage, données, métriques, biais, licence.",
+        "tags": []
+      },
+      {
+        "recto": "Space",
+        "verso": "Démo hébergée sur le Hub (Gradio ou Streamlit).",
+        "tags": []
+      },
+      {
+        "recto": "Fine-tuning",
+        "verso": "Adapter un modèle pré-entraîné à ses données (Trainer).",
+        "tags": []
+      },
+      {
+        "recto": "Trois domaines couverts",
+        "verso": "Texte (NLP), vision, audio (+ multimodal).",
+        "tags": []
+      },
+      {
+        "recto": "Cache des modèles",
+        "verso": "~/.cache/huggingface (variable HF_HOME pour le déplacer).",
+        "tags": []
+      },
+      {
+        "recto": "Jeton d'accès",
+        "verso": "HF_TOKEN en variable d'environnement, jamais dans le code.",
+        "tags": []
+      },
+      {
+        "recto": "Critères de choix d'un modèle",
+        "verso": "Qualité mesurée, langue, taille, latence, licence, ressources.",
+        "tags": []
+      },
+      {
+        "recto": "Modèle de sentiment en français",
+        "verso": "Ex. cmarkea/distilcamembert-base-sentiment (vérifier la model card).",
+        "tags": []
+      },
+      {
+        "recto": "Charger modèle et tokenizer séparément",
+        "verso": "AutoTokenizer.from_pretrained(nom) et AutoModelFor...from_pretrained(nom).",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Fiche de choix d'un modèle",
+        "niveau": 1,
+        "enonce": "Sur le Hub, trouve deux modèles de classification de sentiment utilisables en français. Pour chacun, relève : taille, licence, langues, métriques annoncées, limites citées. Lequel choisirais-tu pour une API sur un petit serveur, et pourquoi ?",
+        "indices": [
+          "Filtres Tasks = Text Classification, Languages = French",
+          "Onglet Files pour la taille des poids"
+        ],
+        "corrige": "Exemple de grille attendue : modèle distillé (≈ 70 M paramètres, licence MIT, français, F1 annoncé) vs modèle multilingue plus gros (≈ 300 M, Apache-2.0). Pour un petit serveur CPU, on retient le modèle distillé français : latence et mémoire réduites, qualité suffisante sur la langue cible. On cite la source (model card) et on mesure soi-même sur un échantillon de ses données avant de conclure.\n"
+      },
+      {
+        "titre": "Mini-benchmark mesuré",
+        "niveau": 2,
+        "enonce": "Sur 50 avis étiquetés, compare deux pipelines de sentiment : accuracy et temps moyen par avis. Présente le résultat dans un tableau.",
+        "indices": [
+          "time.perf_counter()",
+          "Ramener les sorties (étoiles, POSITIVE/NEGATIVE) à positif/négatif"
+        ],
+        "corrige": "```python\nimport time\nfrom transformers import pipeline\n\ndef evaluer(nom, textes, verites, convertir):\n    clf = pipeline(\"sentiment-analysis\", model=nom)\n    debut = time.perf_counter()\n    preds = [convertir(r) for r in clf(textes)]\n    duree = (time.perf_counter() - debut) / len(textes)\n    acc = sum(p == v for p, v in zip(preds, verites)) / len(textes)\n    return nom, round(acc, 3), round(duree * 1000, 1)\n\netoiles = lambda r: int(r[\"label\"].split()[0]) >= 4    # « 5 stars » -> positif\n# print(evaluer(\"cmarkea/distilcamembert-base-sentiment\", textes, verites, etoiles))\n```\nLe tableau final (modèle, accuracy, ms par avis, taille) sert directement au benchmark de l'épreuve E2.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Hugging Face\n## Hub\n- Modèles\n- Datasets\n- Spaces\n- Model cards, licences\n## Bibliothèques\n- transformers (pipeline)\n- tokenizers\n- datasets\n- diffusers\n- accelerate\n## Usages\n- Texte\n- Vision\n- Audio\n## Bonnes pratiques\n- Préciser le modèle\n- Lire la licence\n- Mesurer soi-même\n- HF_TOKEN hors du code\n"
+  },
+  "podcast": {
+    "titre": "Le GitHub des modèles d'IA",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, Hugging Face, c'est un GitHub pour l'IA ?"
+      },
+      {
+        "voix": "B",
+        "texte": "En gros, oui, mais spécialisé : des modèles pré-entraînés, des jeux de données et des Spaces, des petites démos en ligne. Le tout versionné avec Git."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour utiliser un modèle, c'est compliqué ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Trois lignes avec pipeline : tu donnes la tâche et le nom du modèle, il télécharge tout et tu appelles la fonction sur ton texte."
+      },
+      {
+        "voix": "A",
+        "texte": "Pourquoi préciser le nom du modèle ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Parce que le modèle par défaut est souvent anglais. Sur du français, choisis un modèle entraîné en français, comme ceux dérivés de CamemBERT."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment je choisis entre deux modèles ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Lis la model card : langue, licence, limites. Puis mesure toi-même sur tes données : précision, temps de réponse, taille. C'est exactement le benchmark de l'épreuve E2."
+      },
+      {
+        "voix": "A",
+        "texte": "Et l'avantage du local ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Tes données ne sortent pas de ta machine et tu ne paies pas à la requête. C'est la logique de MicroForge : un modèle local d'abord, un service gratuit en secours."
+      }
+    ]
+  },
+  "origine": "seed"
+}

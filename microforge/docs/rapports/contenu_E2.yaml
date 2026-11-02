@@ -45,7 +45,7 @@ sections:
     - "| Machine | Ollama | Passerelle |\n|---|---|---|\n| Mac mini M4 | application native (accélération Metal) | conteneur litellm |\n| PC bureau (8 Go de VRAM) | conteneur ollama avec NVIDIA Container Toolkit, ou natif | conteneur litellm |\n| PC école | natif, modèles 4B | facultative |"
     - "Le profil matériel est détecté automatiquement (packages/llm_gateway/profiles.yaml) et choisit la taille des modèles ; il peut être forcé avec MF_PROFILE."
   Installer et configurer les éventuelles dépendances:
-    - "```bash\nollama pull qwen3:8b          # selon le profil (ollama list pour vérifier)\ndocker compose -f microforge/infra/compose.yml --profile ai up -d\n```"
+    - "```bash\nollama pull qwen3:8b          # selon le profil (ollama list pour vérifier)\ndocker compose -f microforge/infra/docker-compose.yml --profile ai up -d\n```"
     - "Configuration de la passerelle : infra/litellm/config.yaml (liste des modèles, ordre de repli, délais). Image épinglée par empreinte."
   Créer les accès à l’environnement d’exécution et de configuration du service:
     - "Clés virtuelles par service (api_ia, révisions, développement) avec budgets ; le port d'Ollama n'est pas exposé hors du réseau Docker ; les clés Gemini et Claude restent dans le fichier .env."

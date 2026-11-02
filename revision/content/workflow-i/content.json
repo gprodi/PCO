@@ -1,0 +1,335 @@
+{
+  "slug": "workflow-i",
+  "titre": "Workflow I — poste de travail, Git, venv",
+  "theme": "bases",
+  "fiche": {
+    "titre": "Préparer un poste de développeur Python : VS Code, Git, GitHub, environnement virtuel",
+    "resume": "Avant d'écrire la moindre ligne de code, on installe un poste propre : VS Code comme éditeur (terminal, débogueur et Git intégrés), une distribution Python, Git pour versionner et un compte GitHub professionnel pour héberger et partager les projets. Chaque projet a son propre environnement virtuel (.venv), un Python isolé qui ne contient que les paquets du projet. La liste exacte de ces paquets est figée dans requirements.txt (pip freeze) pour que n'importe qui puisse recréer l'environnement. Le fichier .gitignore empêche d'envoyer sur GitHub ce qui ne doit pas y aller : .venv, fichiers volumineux, secrets. Enfin, on choisit le bon outil : notebook Jupyter pour explorer, script .py pour automatiser et livrer.",
+    "objectifs": [
+      "Configurer Git (nom, e-mail) et publier un dépôt sur GitHub depuis VS Code",
+      "Créer, activer et désactiver un environnement virtuel sous Windows, macOS et Linux",
+      "Figer et réinstaller les dépendances avec requirements.txt",
+      "Écrire un .gitignore et un README.md utiles",
+      "Choisir entre notebook et script selon la tâche"
+    ],
+    "notions": [
+      {
+        "terme": "Git",
+        "definition": "Système de contrôle de version décentralisé : il enregistre l'historique des modifications et permet de revenir en arrière ou de fusionner le travail de plusieurs personnes."
+      },
+      {
+        "terme": "GitHub",
+        "definition": "Plateforme qui héberge des dépôts Git en ligne, avec issues, pull requests et outils de collaboration."
+      },
+      {
+        "terme": "Environnement virtuel (.venv)",
+        "definition": "Copie isolée de Python propre à un projet : ses paquets n'interfèrent ni avec le système ni avec les autres projets."
+      },
+      {
+        "terme": "requirements.txt",
+        "definition": "Liste des paquets et de leurs versions exactes (paquet==1.2.3), produite par pip freeze et réinstallée par pip install -r."
+      },
+      {
+        "terme": ".gitignore",
+        "definition": "Fichier qui liste ce que Git doit ignorer : .venv, données lourdes, fichiers de secrets (.env)."
+      },
+      {
+        "terme": "README.md",
+        "definition": "Page d'accueil du dépôt en Markdown : but du projet, installation, utilisation."
+      },
+      {
+        "terme": "Notebook Jupyter (.ipynb)",
+        "definition": "Document en cellules qui mêle code, texte et graphiques ; idéal pour explorer, moins adapté à la production."
+      }
+    ],
+    "points_cles": [
+      "Un environnement virtuel par projet, jamais d'installation dans le Python du système.",
+      "Le dossier .venv ne va jamais sur GitHub : on partage requirements.txt à la place.",
+      "git config --global user.name / user.email identifient l'auteur de chaque commit.",
+      "Les fichiers qui commencent par un point (.venv, .gitignore, .env) sont cachés par défaut.",
+      "Notebook pour l'exploration et les rapports ; script .py pour l'automatisation, les API et le code maintenu.",
+      "Un compte GitHub au nom professionnel fait partie de la posture professionnelle (recruteurs, jury)."
+    ],
+    "code": [
+      {
+        "titre": "Créer et activer un environnement virtuel",
+        "lang": "bash",
+        "code": "# Linux / macOS\npython3 -m venv .venv\nsource .venv/bin/activate\n\n# Windows (PowerShell) — autoriser les scripts une fois si besoin :\n# Set-ExecutionPolicy RemoteSigned -Scope CurrentUser\npython -m venv .venv\n.venv\\Scripts\\activate\n\ndeactivate   # pour en sortir\n",
+        "explication": "Une fois activé, python et pip pointent vers le .venv du projet (le nom apparaît dans l'invite du terminal)."
+      },
+      {
+        "titre": "Figer et réinstaller les dépendances, ignorer le .venv",
+        "lang": "bash",
+        "code": "pip install pandas seaborn\npip freeze > requirements.txt      # pandas==2.2.3, numpy==2.1.3...\npip install -r requirements.txt    # sur une autre machine\n\necho \".venv/\" >> .gitignore\ngit config --global user.name \"Prenom Nom\"\ngit config --global user.email \"prenom.nom.pro@gmail.com\"\n",
+        "explication": "requirements.txt voyage avec le code ; le .venv se recrée sur chaque machine."
+      }
+    ],
+    "pieges": [
+      "Installer des paquets sans avoir activé le .venv : ils partent dans le Python global.",
+      "Commiter le dossier .venv : des milliers de fichiers inutiles et non portables entre systèmes.",
+      "Sous Windows, l'activation échoue tant que la politique d'exécution PowerShell n'autorise pas les scripts.",
+      "Pousser un fichier .env ou une clé d'API : un secret publié sur GitHub doit être considéré comme compromis."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "uv : le gestionnaire moderne qui remplace pip + venv",
+        "contenu": "`uv init`, `uv add pandas`, `uv sync` créent le .venv et un fichier de verrouillage (`uv.lock`) qui fige **toutes** les versions, y compris les dépendances indirectes — ce que requirements.txt ne garantit pas. C'est l'outil utilisé dans MicroForge (workspace uv) et vu en MLOps 0.",
+        "lien": "https://docs.astral.sh/uv/"
+      },
+      {
+        "titre": "Branches, pull requests et commits conventionnels",
+        "contenu": "Travaille sur une branche par fonctionnalité (`git switch -c feat/stock`), ouvre une pull request pour relire avant de fusionner, et écris des messages du type `feat: ajout du stock` / `fix: ...`. Défi : protège la branche main pour interdire les push directs.",
+        "lien": "https://www.conventionalcommits.org/fr/v1.0.0/"
+      },
+      {
+        "titre": "Ne jamais commiter de secret : pre-commit + gitleaks",
+        "contenu": "Installe `pre-commit` avec le hook gitleaks : chaque commit est analysé et refusé s'il contient une clé. La CI de MicroForge exécute aussi gitleaks sur chaque push.",
+        "lien": "https://github.com/gitleaks/gitleaks"
+      }
+    ],
+    "jury": "**E4 (C15, C17)** : le jury attend un environnement de développement reproductible et un dépôt propre. Montre dans MicroForge le README « Démarrer », le `.gitignore`, le verrouillage des dépendances (`uv.lock`) et l'historique Git lisible (un commit = un changement expliqué).",
+    "competences": [
+      "C15",
+      "C17"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "À quoi sert un environnement virtuel Python ?",
+        "choix": [
+          "À accélérer Python",
+          "À isoler les paquets d'un projet de ceux du système et des autres projets",
+          "À héberger le code en ligne",
+          "À remplacer Git"
+        ],
+        "bonne": 1,
+        "explication": "Chaque projet a ses propres versions de paquets, sans conflit.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle commande crée un environnement virtuel nommé .venv ?",
+        "choix": [
+          "pip install venv",
+          "python -m venv .venv",
+          "git init .venv",
+          "conda activate .venv"
+        ],
+        "bonne": 1,
+        "explication": "Le module venv de la bibliothèque standard crée l'environnement.",
+        "difficulte": 1
+      },
+      {
+        "question": "Comment active-t-on le .venv sous Linux ou macOS ?",
+        "choix": [
+          ".venv\\Scripts\\activate",
+          "source .venv/bin/activate",
+          "python activate",
+          "pip activate"
+        ],
+        "bonne": 1,
+        "explication": "Sous Windows c'est .venv\\Scripts\\activate ; sous Linux/macOS, on source le script bin/activate.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que produit pip freeze > requirements.txt ?",
+        "choix": [
+          "Un environnement virtuel",
+          "La liste des paquets installés avec leurs versions exactes",
+          "Un fichier .gitignore",
+          "Une archive du projet"
+        ],
+        "bonne": 1,
+        "explication": "Le fichier contient des lignes paquet==version, réinstallables avec pip install -r.",
+        "difficulte": 1
+      },
+      {
+        "question": "Pourquoi met-on .venv dans le .gitignore ?",
+        "choix": [
+          "Parce qu'il est secret",
+          "Parce qu'il est lourd, propre à la machine, et se recrée depuis requirements.txt",
+          "Parce que GitHub l'interdit",
+          "Pour accélérer Python"
+        ],
+        "bonne": 1,
+        "explication": "On partage la recette (requirements.txt), pas le plat (.venv).",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle commande Git définit le nom de l'auteur des commits pour tous les dépôts ?",
+        "choix": [
+          "git user --name",
+          "git config --global user.name \"Prénom Nom\"",
+          "git init --name",
+          "git commit --author-global"
+        ],
+        "bonne": 1,
+        "explication": "--global écrit dans la configuration de l'utilisateur ; git config -l l'affiche.",
+        "difficulte": 2
+      },
+      {
+        "question": "Dans quel cas préférer un script .py à un notebook ?",
+        "choix": [
+          "Pour explorer un jeu de données",
+          "Pour une API, une tâche automatisée ou du code maintenu en équipe",
+          "Pour présenter des graphiques",
+          "Jamais"
+        ],
+        "bonne": 1,
+        "explication": "Le script s'importe, se teste et se versionne proprement ; le notebook sert à explorer.",
+        "difficulte": 2
+      },
+      {
+        "question": "Que signifie « import pandas as pd » ?",
+        "choix": [
+          "Installer pandas",
+          "Importer pandas sous l'alias pd",
+          "Importer uniquement la fonction pd",
+          "Créer un module pd"
+        ],
+        "bonne": 1,
+        "explication": "L'alias raccourcit les appels : pd.DataFrame au lieu de pandas.DataFrame.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Créer un venv",
+        "verso": "python -m venv .venv (python3 sous Linux/macOS).",
+        "tags": []
+      },
+      {
+        "recto": "Activer le venv sous Windows",
+        "verso": ".venv\\Scripts\\activate (PowerShell : Set-ExecutionPolicy RemoteSigned si refusé).",
+        "tags": []
+      },
+      {
+        "recto": "Activer le venv sous Linux/macOS",
+        "verso": "source .venv/bin/activate",
+        "tags": []
+      },
+      {
+        "recto": "Sortir du venv",
+        "verso": "deactivate",
+        "tags": []
+      },
+      {
+        "recto": "Figer les dépendances",
+        "verso": "pip freeze > requirements.txt",
+        "tags": []
+      },
+      {
+        "recto": "Réinstaller les dépendances",
+        "verso": "pip install -r requirements.txt",
+        "tags": []
+      },
+      {
+        "recto": "Voir les infos d'un paquet installé",
+        "verso": "pip show <paquet> ; pip list pour tous les paquets.",
+        "tags": []
+      },
+      {
+        "recto": "Que mettre dans .gitignore ?",
+        "verso": ".venv/, fichiers lourds (données, modèles), secrets (.env), caches (__pycache__).",
+        "tags": []
+      },
+      {
+        "recto": "Configurer l'identité Git",
+        "verso": "git config --global user.name \"Nom\" et git config --global user.email \"mail\" ; vérifier avec git config -l.",
+        "tags": []
+      },
+      {
+        "recto": "Git vs GitHub",
+        "verso": "Git : outil de versionnage local. GitHub : hébergement en ligne des dépôts + collaboration.",
+        "tags": []
+      },
+      {
+        "recto": "Notebook vs script",
+        "verso": "Notebook : exploration, visualisation, rapport. Script : automatisation, application, production.",
+        "tags": []
+      },
+      {
+        "recto": "Trois formes d'import",
+        "verso": "import module ; from module import nom ; import module as alias.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Projet propre de A à Z",
+        "niveau": 1,
+        "enonce": "Crée un dossier `meteo`, un environnement virtuel, installe `requests`, fige les dépendances, écris un `.gitignore` qui exclut `.venv` et un `README.md` d'une ligne, puis fais le premier commit.",
+        "indices": [
+          "python -m venv .venv puis activation",
+          "pip freeze > requirements.txt",
+          "git init, git add ., git commit -m"
+        ],
+        "corrige": "```bash\nmkdir meteo && cd meteo\npython3 -m venv .venv && source .venv/bin/activate\npip install requests\npip freeze > requirements.txt\nprintf \".venv/\\n__pycache__/\\n.env\\n\" > .gitignore\necho \"# Météo — récupère la météo d'une ville\" > README.md\ngit init && git add . && git commit -m \"Initialisation du projet\"\ngit status   # .venv n'apparaît pas : il est bien ignoré\n```\n"
+      },
+      {
+        "titre": "Reproduire l'environnement d'un camarade",
+        "niveau": 2,
+        "enonce": "Tu clones un dépôt qui contient `requirements.txt` mais pas de `.venv`. Écris les commandes pour lancer son script `main.py` sans rien installer dans le Python global, et explique pourquoi le dépôt n'a pas de `.venv`.",
+        "indices": [
+          "Créer son propre .venv dans le dossier cloné",
+          "pip install -r"
+        ],
+        "corrige": "```bash\ngit clone https://github.com/camarade/projet.git && cd projet\npython3 -m venv .venv && source .venv/bin/activate\npip install -r requirements.txt\npython main.py\n```\nLe `.venv` n'est pas versionné : il dépend du système (chemins, binaires compilés) et se recrée en une commande à partir de `requirements.txt`.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Workflow I\n## Outils\n- VS Code (terminal, Git, extensions)\n- Distribution Python\n- Git + GitHub (compte pro)\n## Environnement virtuel\n- python -m venv .venv\n- Activation Windows / Linux / macOS\n- deactivate\n## Dépendances\n- pip install / uninstall / list / show\n- pip freeze > requirements.txt\n- pip install -r requirements.txt\n## Fichiers du dépôt\n- .gitignore (.venv, .env, données)\n- README.md (Markdown)\n## Notebook ou script\n- Notebook : explorer\n- Script : automatiser, livrer\n"
+  },
+  "podcast": {
+    "titre": "Un poste de travail propre en cinq minutes",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, premier jour de formation : on me parle de venv, de Git, de requirements… par quoi je commence ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Par un poste propre. VS Code pour écrire le code, Python, Git pour garder l'historique, et un compte GitHub à ton nom, version professionnelle."
+      },
+      {
+        "voix": "A",
+        "texte": "Pourquoi un environnement virtuel ? Python est déjà installé."
+      },
+      {
+        "voix": "B",
+        "texte": "Parce que chaque projet veut ses propres versions de paquets. Le venv, c'est un Python vide et isolé, rien que pour ce projet. Tu le crées avec python tiret m venv point venv, puis tu l'actives."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour partager le projet, j'envoie le dossier .venv sur GitHub ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Surtout pas ! Il est lourd et propre à ta machine. Tu partages la recette : pip freeze vers requirements.txt. Ton camarade recrée son venv et fait pip install tiret r."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment j'évite d'envoyer le .venv par erreur ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Le fichier .gitignore. Tu y écris .venv, les gros fichiers de données, et le fichier .env avec tes secrets. Git les ignore."
+      },
+      {
+        "voix": "A",
+        "texte": "Dernière question : notebook ou script ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Notebook pour explorer et montrer des graphiques. Dès que ça doit tourner tout seul, être testé ou servi par une API, tu passes en script point py."
+      }
+    ]
+  },
+  "origine": "seed"
+}

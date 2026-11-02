@@ -1,0 +1,337 @@
+{
+  "slug": "dev-ia-slides",
+  "titre": "Architecture front / API / modèles",
+  "theme": "api",
+  "fiche": {
+    "titre": "Architecture d'une application d'IA : front, API, base et modèles",
+    "resume": "Une application d'IA se découpe en couches. Le front end (Streamlit, page web) parle à l'utilisateur ; il n'accède jamais directement à la base ni au modèle, mais appelle le back end par HTTP. Le back end est composé d'une ou plusieurs API : une API de données qui lit et écrit la base (SQLite, PostgreSQL), une API d'IA qui charge et sert le modèle (NLTK, scikit-learn, LLM). Les méthodes HTTP correspondent au CRUD : POST crée, GET lit, PUT remplace entièrement, PATCH modifie partiellement, DELETE supprime. Dans FastAPI, chaque route est une fonction précédée d'un décorateur lié à la méthode (@app.get, @app.post…), avec des paramètres de chemin (/user/{id}) ou un corps JSON. Côté client, la bibliothèque requests envoie ces requêtes. Séparer les rôles permet de tester, faire évoluer et déployer chaque brique indépendamment ; les agents d'IA ajoutent un graphe d'états (agent, outils, arêtes conditionnelles).",
+    "objectifs": [
+      "Dessiner l'architecture front / API données / API IA / base / modèle d'un projet",
+      "Associer chaque méthode HTTP à une opération CRUD et au bon code de statut",
+      "Écrire des routes FastAPI avec paramètres de chemin et corps JSON",
+      "Appeler une API depuis Python avec requests et gérer les erreurs"
+    ],
+    "notions": [
+      {
+        "terme": "Front end",
+        "definition": "Partie visible de l'application (interface) ; elle consomme les API."
+      },
+      {
+        "terme": "Back end",
+        "definition": "Partie serveur : API, logique métier, accès aux données et aux modèles."
+      },
+      {
+        "terme": "API REST",
+        "definition": "Interface HTTP organisée en ressources (/users, /users/{id}) manipulées par les méthodes HTTP."
+      },
+      {
+        "terme": "CRUD",
+        "definition": "Create, Read, Update, Delete : les quatre opérations sur les données, mappées sur POST, GET, PUT/PATCH, DELETE."
+      },
+      {
+        "terme": "PUT vs PATCH",
+        "definition": "PUT remplace toute la ressource ; PATCH ne modifie que les champs envoyés."
+      },
+      {
+        "terme": "Paramètre de chemin",
+        "definition": "Partie variable de l'URL (/users/{id}) typée dans la fonction (id: int)."
+      },
+      {
+        "terme": "Middleware",
+        "definition": "Couche qui intercepte toutes les requêtes (journalisation, CORS, authentification) avant les routes."
+      },
+      {
+        "terme": "Graphe d'agent",
+        "definition": "Nœud agent qui décide, nœud outils qui exécute, arêtes conditionnelles qui bouclent jusqu'à la réponse (LangGraph)."
+      }
+    ],
+    "points_cles": [
+      "Le front n'accède jamais à la base : il passe par l'API, qui contrôle les droits et valide les données.",
+      "Codes de statut à connaître : 200 OK, 201 Created, 204 No Content, 400/422 requête invalide, 401 non authentifié, 403 interdit, 404 introuvable, 500 erreur serveur.",
+      "GET ne modifie rien (idempotent et sans effet de bord) ; POST crée et n'est pas idempotent.",
+      "Séparer API données et API IA : le modèle peut être mis à jour, mis à l'échelle ou remplacé sans toucher aux données.",
+      "FastAPI génère automatiquement la documentation interactive sur /docs (OpenAPI)."
+    ],
+    "code": [
+      {
+        "titre": "Routes CRUD avec FastAPI",
+        "lang": "python",
+        "code": "from fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel\n\napp = FastAPI(title=\"API utilisateurs\")\nutilisateurs: dict[int, dict] = {}\n\nclass UtilisateurIn(BaseModel):\n    nom: str\n    email: str\n\n@app.post(\"/users/\", status_code=201)\ndef creer(u: UtilisateurIn):\n    uid = len(utilisateurs) + 1\n    utilisateurs[uid] = u.model_dump()\n    return {\"id\": uid, **utilisateurs[uid]}\n\n@app.get(\"/users/{uid}\")\ndef lire(uid: int):\n    if uid not in utilisateurs:\n        raise HTTPException(status_code=404, detail=\"Utilisateur introuvable\")\n    return {\"id\": uid, **utilisateurs[uid]}\n\n@app.delete(\"/users/{uid}\", status_code=204)\ndef supprimer(uid: int):\n    utilisateurs.pop(uid, None)\n",
+        "explication": "Lancer avec uvicorn main:app --reload puis ouvrir http://127.0.0.1:8000/docs."
+      },
+      {
+        "titre": "Appeler l'API depuis le front",
+        "lang": "python",
+        "code": "import requests\n\nAPI = \"http://127.0.0.1:8000/users/\"\nr = requests.post(API, json={\"nom\": \"Ada\", \"email\": \"ada@exemple.fr\"}, timeout=5)\nr.raise_for_status()                 # lève une exception si 4xx/5xx\nuid = r.json()[\"id\"]\nprint(requests.get(f\"{API}{uid}\", timeout=5).json())\nrequests.delete(f\"{API}{uid}\", timeout=5)\n",
+        "explication": "Toujours un timeout et une vérification du statut : une API peut être lente ou en erreur."
+      }
+    ],
+    "pieges": [
+      "Laisser le front lire la base directement : impossible de contrôler les droits et de faire évoluer le schéma.",
+      "Utiliser GET pour une action qui modifie des données (suppression via un lien) : les robots et caches la déclenchent.",
+      "Renvoyer 200 pour une erreur avec un message dans le corps : le client ne peut pas réagir correctement.",
+      "Appeler requests sans timeout : le front reste bloqué indéfiniment si l'API ne répond pas."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "Architecture de MicroForge",
+        "contenu": "MicroForge applique exactement ce découpage : Streamlit (front) → `api_data` (FastAPI : stock, utilisateurs, projets, base SQL) et `api_ia` (FastAPI : vision, génération, passerelle LLM). Défi : dessine le diagramme de séquence « photo du stock → composants reconnus → projets réalisables ».",
+        "lien": ""
+      },
+      {
+        "titre": "Contrat d'API et versionnage",
+        "contenu": "Préfixer les routes (`/v1/...`) permet de faire évoluer l'API sans casser les clients. Le schéma OpenAPI exporté (`/openapi.json`) sert de contrat ; des tests de contrat vérifient qu'il ne change pas par accident.",
+        "lien": "https://fastapi.tiangolo.com/tutorial/bigger-applications/"
+      },
+      {
+        "titre": "Asynchrone et tâches longues",
+        "contenu": "Une inférence longue ne doit pas bloquer la requête : on renvoie 202 Accepted avec un identifiant de tâche et le client interroge `/jobs/{id}` (ou utilise une file comme Celery, vue en MLOps 4).",
+        "lien": "https://fastapi.tiangolo.com/tutorial/background-tasks/"
+      }
+    ],
+    "jury": "**E4 (C15)** : concevoir le cadre technique (architecture, flux, choix justifiés) et **E1/E3 (C5, C9, C10)** : API de données, API exposant le modèle et intégration dans l'application. Présente le schéma d'architecture de MicroForge (front Streamlit, `api_data`, `api_ia`, base, modèles) et un exemple de requête de bout en bout.",
+    "competences": [
+      "C5",
+      "C9",
+      "C10",
+      "C15"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Quelle méthode HTTP pour créer une ressource ?",
+        "choix": [
+          "GET",
+          "POST",
+          "DELETE",
+          "PATCH"
+        ],
+        "bonne": 1,
+        "explication": "POST crée ; la réponse attendue est 201 Created.",
+        "difficulte": 1
+      },
+      {
+        "question": "Modifier seulement l'e-mail d'un utilisateur existant :",
+        "choix": [
+          "PUT",
+          "PATCH",
+          "POST",
+          "GET"
+        ],
+        "bonne": 1,
+        "explication": "PATCH modifie partiellement ; PUT remplacerait toute la ressource.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi le front ne doit-il pas lire la base directement ?",
+        "choix": [
+          "C'est plus lent",
+          "L'API contrôle les droits, valide les données et isole le schéma de la base",
+          "Streamlit ne sait pas lire SQL",
+          "Pour économiser de la mémoire"
+        ],
+        "bonne": 1,
+        "explication": "L'API est le point de contrôle unique.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quel code renvoyer quand la ressource demandée n'existe pas ?",
+        "choix": [
+          "200",
+          "401",
+          "404",
+          "500"
+        ],
+        "bonne": 2,
+        "explication": "404 Not Found.",
+        "difficulte": 1
+      },
+      {
+        "question": "Dans @app.get(\"/users/{uid}\"), comment FastAPI récupère uid ?",
+        "choix": [
+          "Dans le corps JSON",
+          "Comme paramètre de chemin, converti selon l'annotation uid: int",
+          "Dans un cookie",
+          "Il ne peut pas"
+        ],
+        "bonne": 1,
+        "explication": "Un uid non entier provoque automatiquement une erreur 422.",
+        "difficulte": 2
+      },
+      {
+        "question": "Où trouver la documentation interactive d'une API FastAPI ?",
+        "choix": [
+          "/admin",
+          "/docs",
+          "/help",
+          "/swagger.json uniquement"
+        ],
+        "bonne": 1,
+        "explication": "/docs (Swagger UI) et /redoc, générés depuis le schéma OpenAPI.",
+        "difficulte": 1
+      },
+      {
+        "question": "Intérêt de séparer API de données et API d'IA ?",
+        "choix": [
+          "Aucun",
+          "Faire évoluer, tester et mettre à l'échelle le modèle sans toucher aux données",
+          "Doubler le nombre de bases",
+          "Éviter d'écrire des tests"
+        ],
+        "bonne": 1,
+        "explication": "Chaque service a son cycle de vie et ses ressources (GPU pour l'IA).",
+        "difficulte": 2
+      },
+      {
+        "question": "Que fait r.raise_for_status() avec requests ?",
+        "choix": [
+          "Affiche le statut",
+          "Lève une exception si le statut est une erreur 4xx ou 5xx",
+          "Relance la requête",
+          "Ferme la connexion"
+        ],
+        "bonne": 1,
+        "explication": "Évite de traiter silencieusement une réponse d'erreur.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "CRUD ↔ HTTP",
+        "verso": "Create = POST, Read = GET, Update = PUT/PATCH, Delete = DELETE.",
+        "tags": []
+      },
+      {
+        "recto": "PUT vs PATCH",
+        "verso": "PUT remplace tout ; PATCH modifie une partie.",
+        "tags": []
+      },
+      {
+        "recto": "201",
+        "verso": "Created — ressource créée (réponse à un POST).",
+        "tags": []
+      },
+      {
+        "recto": "204",
+        "verso": "No Content — succès sans corps de réponse (DELETE).",
+        "tags": []
+      },
+      {
+        "recto": "401 vs 403",
+        "verso": "401 : non authentifié. 403 : authentifié mais pas autorisé.",
+        "tags": []
+      },
+      {
+        "recto": "422 (FastAPI)",
+        "verso": "Données de requête invalides (validation Pydantic).",
+        "tags": []
+      },
+      {
+        "recto": "Déclarer une route FastAPI",
+        "verso": "@app.get(\"/chemin/{param}\") au-dessus d'une fonction.",
+        "tags": []
+      },
+      {
+        "recto": "Lancer une API FastAPI",
+        "verso": "uvicorn main:app --reload",
+        "tags": []
+      },
+      {
+        "recto": "Envoyer du JSON avec requests",
+        "verso": "requests.post(url, json=donnees, timeout=5)",
+        "tags": []
+      },
+      {
+        "recto": "Erreur HTTP propre dans FastAPI",
+        "verso": "raise HTTPException(status_code=404, detail=\"...\")",
+        "tags": []
+      },
+      {
+        "recto": "Rôle d'un middleware",
+        "verso": "Traitement commun à toutes les requêtes : logs, CORS, authentification.",
+        "tags": []
+      },
+      {
+        "recto": "Graphe d'un agent",
+        "verso": "Nœud agent → arête conditionnelle → nœud outils → retour à l'agent → fin.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Tableau des routes",
+        "niveau": 1,
+        "enonce": "Pour une ressource « composants » d'un stock, écris la table des routes : méthode, chemin, rôle, code de succès, codes d'erreur possibles.",
+        "indices": [
+          "Lister, lire un, créer, remplacer, modifier, supprimer"
+        ],
+        "corrige": "| Méthode | Chemin | Rôle | Succès | Erreurs |\n|---|---|---|---|---|\n| GET | /composants | lister | 200 | 401 |\n| GET | /composants/{id} | lire un composant | 200 | 401, 404 |\n| POST | /composants | créer | 201 | 401, 422 |\n| PUT | /composants/{id} | remplacer | 200 | 401, 404, 422 |\n| PATCH | /composants/{id} | modifier la quantité | 200 | 401, 404, 422 |\n| DELETE | /composants/{id} | supprimer | 204 | 401, 403, 404 |\n"
+      },
+      {
+        "titre": "Mini API + client",
+        "niveau": 2,
+        "enonce": "Écris une API FastAPI de notes (POST /notes, GET /notes/{id}, DELETE /notes/{id}) et un test TestClient qui crée une note, la relit, la supprime puis vérifie le 404.",
+        "indices": [
+          "status_code=201 sur le POST",
+          "HTTPException(404)"
+        ],
+        "corrige": "```python\nfrom fastapi import FastAPI, HTTPException\nfrom fastapi.testclient import TestClient\nfrom pydantic import BaseModel\n\napp = FastAPI()\nnotes: dict[int, str] = {}\n\nclass Note(BaseModel):\n    texte: str\n\n@app.post(\"/notes\", status_code=201)\ndef creer(n: Note):\n    nid = max(notes, default=0) + 1\n    notes[nid] = n.texte\n    return {\"id\": nid, \"texte\": n.texte}\n\n@app.get(\"/notes/{nid}\")\ndef lire(nid: int):\n    if nid not in notes:\n        raise HTTPException(404, \"Note introuvable\")\n    return {\"id\": nid, \"texte\": notes[nid]}\n\n@app.delete(\"/notes/{nid}\", status_code=204)\ndef supprimer(nid: int):\n    notes.pop(nid, None)\n\ndef test_cycle_de_vie():\n    c = TestClient(app)\n    nid = c.post(\"/notes\", json={\"texte\": \"réviser\"}).json()[\"id\"]\n    assert c.get(f\"/notes/{nid}\").json()[\"texte\"] == \"réviser\"\n    assert c.delete(f\"/notes/{nid}\").status_code == 204\n    assert c.get(f\"/notes/{nid}\").status_code == 404\n```\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Architecture d'une application d'IA\n## Front end\n- Streamlit, web\n- Appelle les API (requests)\n## Back end\n- API données (CRUD, base)\n- API IA (modèles)\n- Middleware\n## HTTP\n- GET, POST, PUT, PATCH, DELETE\n- Codes 2xx, 4xx, 5xx\n## FastAPI\n- Décorateurs @app.get…\n- Paramètres de chemin\n- Corps Pydantic\n- /docs\n## Agents\n- Nœud agent\n- Nœud outils\n- Arêtes conditionnelles\n"
+  },
+  "podcast": {
+    "titre": "Qui parle à qui dans une application d'IA",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, dans mon projet, Streamlit pourrait lire directement la base et charger le modèle. Pourquoi faire des API ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Parce que dès que l'application grandit, tout est mélangé. Avec des API, le front ne fait qu'afficher et appeler. L'API de données contrôle les droits et valide, l'API d'IA sert le modèle."
+      },
+      {
+        "voix": "A",
+        "texte": "Et entre eux, ils parlent comment ?"
+      },
+      {
+        "voix": "B",
+        "texte": "En HTTP. Les méthodes correspondent au CRUD : POST pour créer, GET pour lire, PUT ou PATCH pour modifier, DELETE pour supprimer."
+      },
+      {
+        "voix": "A",
+        "texte": "PUT et PATCH, quelle différence ?"
+      },
+      {
+        "voix": "B",
+        "texte": "PUT remplace toute la ressource, PATCH ne change que ce que tu envoies. Pour mettre à jour une quantité en stock, c'est PATCH."
+      },
+      {
+        "voix": "A",
+        "texte": "Dans FastAPI, ça s'écrit comment ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Un décorateur au-dessus d'une fonction : arobase app point get, avec le chemin. Et tu as la documentation interactive gratuite sur slash docs."
+      },
+      {
+        "voix": "A",
+        "texte": "Et les codes de réponse ?"
+      },
+      {
+        "voix": "B",
+        "texte": "201 quand tu crées, 404 si ça n'existe pas, 401 si on n'est pas connecté, 403 si on n'a pas le droit. Un client bien écrit réagit à ces codes, avec un timeout pour ne jamais rester bloqué."
+      }
+    ]
+  },
+  "origine": "seed"
+}

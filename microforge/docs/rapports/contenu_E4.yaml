@@ -44,7 +44,7 @@ sections:
 
   # ------------------------------------------------------------------ C17
   Installer l'environnement de développement:
-    - "```bash\nuv sync --all-packages --group dev --extra data --extra app\ndocker compose -f microforge/infra/compose.yml --profile core up -d\n```"
+    - "```bash\nuv sync --all-packages --group dev --extra data --extra app\ndocker compose -f microforge/infra/docker-compose.yml --profile core up -d\n```"
   Intégrer la mise en page et les contenus des interfaces:
     - "Pages Streamlit : Accueil, Explorer par thème (parcours, vitrine, 17 thèmes), Inventaire photo, Mon stock, Idées de projets, Générer un projet, Mon compte."
   Développer les fonctionnalités front-end:
