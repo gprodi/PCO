@@ -1,0 +1,343 @@
+{
+  "slug": "audio",
+  "titre": "Traitement et modélisation audio",
+  "theme": "ml",
+  "fiche": {
+    "titre": "Audio : de l'onde au spectrogramme, les bases pour modéliser le son",
+    "resume": "Un son est une onde acoustique : sa fréquence donne la hauteur perçue, son amplitude l'intensité. Le modèle sinusoïdal décrit un son comme une somme de sinusoïdes (amplitude, fréquence, phase) ; les sons harmoniques (voix, cordes) ont une fondamentale f0 et des harmoniques multiples entiers de f0. Numérisé, le signal est échantillonné : d'après le théorème de Shannon, la fréquence d'échantillonnage doit dépasser le double de la plus haute fréquence, sinon les fréquences se replient (aliasing). La transformée de Fourier rapide (FFT) donne le spectre ; une fenêtre plus longue affine les fréquences mais perd la précision temporelle (incertitude temps-fréquence), et le zéro-padding ne fait qu'interpoler le spectre. Comme la parole change sans cesse, on découpe le signal en fenêtres qui se recouvrent (Hann, Hamming) : c'est la STFT, dont le module forme le spectrogramme. L'oreille agit comme une banque de filtres, d'où les échelles perceptives (mel) et les MFCC utilisés comme entrées des modèles.",
+    "objectifs": [
+      "Expliquer échantillonnage, fréquence de Nyquist et aliasing",
+      "Calculer et interpréter un spectre avec la FFT (résolution, fenêtre, zéro-padding)",
+      "Construire un spectrogramme par STFT et choisir la taille de fenêtre",
+      "Situer mel-spectrogramme et MFCC comme représentations pour l'apprentissage"
+    ],
+    "notions": [
+      {
+        "terme": "Fréquence d'échantillonnage (fs)",
+        "definition": "Nombre d'échantillons par seconde (44 100 Hz pour un CD, 16 000 Hz courant en parole)."
+      },
+      {
+        "terme": "Théorème de Shannon",
+        "definition": "Pour représenter un signal sans perte, fs doit être supérieure à 2 × la fréquence maximale ; fs/2 est la fréquence de Nyquist."
+      },
+      {
+        "terme": "FFT",
+        "definition": "Algorithme rapide de la transformée de Fourier discrète : passe du temps aux fréquences."
+      },
+      {
+        "terme": "Résolution fréquentielle",
+        "definition": "Écart entre deux raies distinguables ≈ fs / N pour une fenêtre de N échantillons réels."
+      },
+      {
+        "terme": "Zéro-padding",
+        "definition": "Ajout de zéros avant la FFT : plus de points dans le spectre (interpolation), mais pas plus de précision réelle."
+      },
+      {
+        "terme": "Fenêtre d'analyse",
+        "definition": "Pondération du segment (rectangulaire, Hann, Hamming, Blackman) qui réduit les fuites spectrales dues à la coupure."
+      },
+      {
+        "terme": "STFT / spectrogramme",
+        "definition": "FFT de fenêtres successives qui se recouvrent ; l'image temps × fréquence de leur module est le spectrogramme."
+      },
+      {
+        "terme": "MFCC",
+        "definition": "Coefficients cepstraux sur l'échelle mel : résumé compact de l'enveloppe spectrale, proche de la perception humaine."
+      }
+    ],
+    "points_cles": [
+      "Fenêtre longue = fréquences précises mais variations temporelles floues ; fenêtre courte = l'inverse.",
+      "Multiplier par une fenêtre dans le temps revient à convoluer les spectres : une coupure nette (porte) donne un sinus cardinal et des lobes parasites.",
+      "La FFT d'un signal réel est symétrique : on garde la moitié positive (np.fft.rfft) et on prend le module.",
+      "Le produit de convolution dans le temps devient un simple produit en fréquence : la FFT accélère le filtrage.",
+      "La cochlée est tonotopique : sa base réagit aux sons aigus, son sommet (apex) aux graves — l'oreille est une banque de filtres.",
+      "Pour un modèle de deep learning, un spectrogramme (souvent en mel et en dB) se traite comme une image."
+    ],
+    "code": [
+      {
+        "titre": "Spectre d'une somme de sinusoïdes",
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy.signal import find_peaks\n\nfs = 8000                                  # Hz\nt = np.arange(0, 0.5, 1 / fs)              # 0,5 s -> 4 000 échantillons\nx = np.sin(2 * np.pi * 440 * t) + 0.5 * np.sin(2 * np.pi * 880 * t)   # la4 + harmonique\n\nfenetre = np.hanning(len(x))\nspectre = np.abs(np.fft.rfft(x * fenetre))\nfreqs = np.fft.rfftfreq(len(x), d=1 / fs)\npics, _ = find_peaks(spectre, height=0.1 * spectre.max())\nprint(freqs[pics])                          # [440. 880.]\nprint(\"résolution :\", fs / len(x), \"Hz\")   # 2,0 Hz\n",
+        "explication": "On cherche des pics (maxima locaux), pas les plus grandes valeurs : la fenêtre élargit chaque pic sur plusieurs points voisins, qui peuvent dépasser un pic plus faible."
+      },
+      {
+        "titre": "Spectrogramme par STFT",
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy.signal import stft\n\nfs = 8000\nt = np.arange(0, 2, 1 / fs)\nchirp = np.sin(2 * np.pi * (200 + 900 * t) * t)          # fréquence qui monte\nf, temps, Z = stft(chirp, fs=fs, window=\"hann\", nperseg=256, noverlap=192)\nspectrogramme_db = 20 * np.log10(np.abs(Z) + 1e-10)\nprint(spectrogramme_db.shape)                            # (fréquences, trames)\n# plt.pcolormesh(temps, f, spectrogramme_db) pour l'afficher\n",
+        "explication": "nperseg règle le compromis temps/fréquence ; 75 % de recouvrement donne une image lisse."
+      }
+    ],
+    "pieges": [
+      "Échantillonner trop bas : une fréquence au-dessus de fs/2 apparaît à une fausse fréquence (aliasing) — filtrer avant de sous-échantillonner.",
+      "Croire que le zéro-padding augmente la précision : il interpole seulement le spectre.",
+      "Oublier la fenêtre (porte implicite) : lobes parasites qui masquent les petites composantes.",
+      "Tracer le spectre complet de np.fft.fft sans fftshift ni moitié positive : image symétrique trompeuse.",
+      "Inverser la tonotopie de la cochlée : base = aigus, apex = graves."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "librosa : mel-spectrogramme et MFCC en trois lignes",
+        "contenu": "`y, sr = librosa.load('voix.wav', sr=16000)`, `librosa.feature.melspectrogram(y=y, sr=sr, n_mels=64)`, `librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)`. Défi : classe des sons (claquement, sifflement, voix) avec la moyenne des MFCC et une forêt aléatoire.",
+        "lien": "https://librosa.org/doc/latest/tutorial.html"
+      },
+      {
+        "titre": "Reconnaissance vocale avec Whisper",
+        "contenu": "Les modèles Whisper (OpenAI, disponibles sur Hugging Face) transcrivent la parole en texte, y compris en français, et tournent en local sur CPU pour les petites tailles. Ils prennent en entrée… un log-mel-spectrogramme.",
+        "lien": "https://huggingface.co/docs/transformers/model_doc/whisper"
+      },
+      {
+        "titre": "Modèle autorégressif et cepstre",
+        "contenu": "Thèmes de la veille demandée : le cepstre (FFT inverse du log du spectre) sépare la source (f0) du filtre (conduit vocal) ; un modèle AR prédit chaque échantillon à partir des précédents (codage de la parole, LPC).",
+        "lien": "https://en.wikipedia.org/wiki/Cepstrum"
+      }
+    ],
+    "jury": "**E2 (C7, C8)** : benchmarker et paramétrer un service d'IA. L'audio est un bon terrain de comparaison (modèle local Whisper vs API cloud : qualité, coût, latence, confidentialité). Pour MicroForge, une commande vocale « ajoute 10 résistances de 220 Ω au stock » serait une extension naturelle à argumenter.",
+    "competences": [
+      "C7",
+      "C8"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "Un signal contient des fréquences jusqu'à 8 kHz. Fréquence d'échantillonnage minimale ?",
+        "choix": [
+          "4 kHz",
+          "8 kHz",
+          "Plus de 16 kHz",
+          "44,1 kHz obligatoirement"
+        ],
+        "bonne": 2,
+        "explication": "Shannon : fs > 2 × fmax.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que se passe-t-il si fs est trop faible ?",
+        "choix": [
+          "Le son est plus fort",
+          "Repliement spectral (aliasing) : des fréquences apparaissent au mauvais endroit",
+          "Rien",
+          "Le spectre devient symétrique"
+        ],
+        "bonne": 1,
+        "explication": "Une fréquence au-delà de fs/2 se replie en dessous.",
+        "difficulte": 2
+      },
+      {
+        "question": "Le zéro-padding avant une FFT :",
+        "choix": [
+          "Augmente la précision réelle",
+          "Ajoute des points au spectre (interpolation) sans améliorer la précision",
+          "Supprime le bruit",
+          "Change la fréquence d'échantillonnage"
+        ],
+        "bonne": 1,
+        "explication": "Seule une fenêtre réellement plus longue améliore la précision.",
+        "difficulte": 2
+      },
+      {
+        "question": "Fenêtre d'analyse plus longue :",
+        "choix": [
+          "Meilleure précision temporelle",
+          "Meilleure précision fréquentielle, moins bonne précision temporelle",
+          "Aucun effet",
+          "Plus de bruit"
+        ],
+        "bonne": 1,
+        "explication": "C'est l'incertitude temps-fréquence.",
+        "difficulte": 2
+      },
+      {
+        "question": "Les harmoniques d'un son de fondamentale 220 Hz sont à :",
+        "choix": [
+          "110, 55 Hz…",
+          "440, 660, 880 Hz…",
+          "221, 222 Hz…",
+          "Fréquences aléatoires"
+        ],
+        "bonne": 1,
+        "explication": "Multiples entiers de f0.",
+        "difficulte": 1
+      },
+      {
+        "question": "Qu'est-ce qu'un spectrogramme ?",
+        "choix": [
+          "Le spectre d'une seule fenêtre",
+          "L'image temps × fréquence des modules de la STFT",
+          "La forme d'onde",
+          "Une liste de notes"
+        ],
+        "bonne": 1,
+        "explication": "On empile les spectres de fenêtres successives.",
+        "difficulte": 1
+      },
+      {
+        "question": "Quelle partie de la cochlée réagit aux sons aigus ?",
+        "choix": [
+          "Le sommet (apex)",
+          "La base",
+          "Toute la cochlée également",
+          "Le tympan"
+        ],
+        "bonne": 1,
+        "explication": "La cochlée est tonotopique : base = aigus, apex = graves.",
+        "difficulte": 2
+      },
+      {
+        "question": "Pourquoi les MFCC sont-ils populaires en reconnaissance de la parole ?",
+        "choix": [
+          "Ils sont plus lourds",
+          "Ils résument l'enveloppe spectrale sur une échelle proche de la perception humaine",
+          "Ils remplacent l'échantillonnage",
+          "Ils suppriment la voix"
+        ],
+        "bonne": 1,
+        "explication": "Peu de coefficients, échelle mel perceptive.",
+        "difficulte": 2
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "Fréquence de Nyquist",
+        "verso": "fs / 2 : plus haute fréquence représentable sans repliement.",
+        "tags": []
+      },
+      {
+        "recto": "Résolution d'une FFT",
+        "verso": "≈ fs / N (N échantillons réels de la fenêtre).",
+        "tags": []
+      },
+      {
+        "recto": "Spectre d'un signal réel",
+        "verso": "np.abs(np.fft.rfft(x)) avec np.fft.rfftfreq(len(x), 1/fs)",
+        "tags": []
+      },
+      {
+        "recto": "Pourquoi une fenêtre de Hann ?",
+        "verso": "Pour réduire les fuites spectrales dues à la coupure nette du segment.",
+        "tags": []
+      },
+      {
+        "recto": "Porte dans le temps",
+        "verso": "Sinus cardinal dans les fréquences (produit ↔ convolution).",
+        "tags": []
+      },
+      {
+        "recto": "Delta de Dirac et convolution",
+        "verso": "Élément neutre : δ ⊛ x = x (comme 1 pour la multiplication).",
+        "tags": []
+      },
+      {
+        "recto": "STFT",
+        "verso": "FFT de fenêtres courtes qui se recouvrent → représentation temps-fréquence.",
+        "tags": []
+      },
+      {
+        "recto": "Signal harmonique",
+        "verso": "Fondamentale f0 + harmoniques à 2·f0, 3·f0…",
+        "tags": []
+      },
+      {
+        "recto": "Échelle mel",
+        "verso": "Échelle de fréquences perceptive : fine dans les graves, grossière dans les aigus.",
+        "tags": []
+      },
+      {
+        "recto": "MFCC",
+        "verso": "Coefficients cepstraux mel : FFT → filtres mel → log → DCT.",
+        "tags": []
+      },
+      {
+        "recto": "Cepstre",
+        "verso": "FFT inverse du log du spectre : sépare source (f0) et filtre (conduit vocal).",
+        "tags": []
+      },
+      {
+        "recto": "fs courantes",
+        "verso": "44,1 kHz (CD), 48 kHz (vidéo), 16 kHz (parole, modèles ASR).",
+        "tags": []
+      },
+      {
+        "recto": "Trouver les fréquences présentes",
+        "verso": "scipy.signal.find_peaks sur le module du spectre (maxima locaux), pas argsort.",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Retrouver les notes",
+        "niveau": 1,
+        "enonce": "Génère 1 s d'un signal à fs = 8 kHz contenant 300 Hz et 1 200 Hz, calcule le spectre avec une fenêtre de Hann et retrouve les deux fréquences. Quelle est la résolution ?",
+        "indices": [
+          "np.fft.rfft et np.fft.rfftfreq",
+          "argsort des amplitudes"
+        ],
+        "corrige": "```python\nimport numpy as np\nfrom scipy.signal import find_peaks\n\nfs = 8000\nt = np.arange(0, 1, 1 / fs)\nx = np.sin(2 * np.pi * 300 * t) + np.sin(2 * np.pi * 1200 * t)\nS = np.abs(np.fft.rfft(x * np.hanning(len(x))))\nf = np.fft.rfftfreq(len(x), 1 / fs)\npics, _ = find_peaks(S, height=0.1 * S.max())\nprint(f[pics])                         # [ 300. 1200.]\nprint(fs / len(x), \"Hz\")               # 1.0 Hz de résolution\n```\nPiège : prendre les deux plus grandes valeurs du spectre (`argsort`) peut renvoyer deux points du même pic, élargi par la fenêtre ; `find_peaks` cherche des maxima locaux.\n"
+      },
+      {
+        "titre": "Mettre l'aliasing en évidence",
+        "niveau": 2,
+        "enonce": "Échantillonne une sinusoïde de 5 kHz à fs = 8 kHz. À quelle fréquence apparaît le pic ? Explique.",
+        "indices": [
+          "Nyquist = 4 kHz",
+          "Une fréquence f > fs/2 apparaît à |fs − f|"
+        ],
+        "corrige": "```python\nimport numpy as np\n\nfs = 8000\nt = np.arange(0, 1, 1 / fs)\nx = np.sin(2 * np.pi * 5000 * t)\nf = np.fft.rfftfreq(len(x), 1 / fs)\nprint(f[np.argmax(np.abs(np.fft.rfft(x)))])   # 3000.0\n```\n5 kHz dépasse la fréquence de Nyquist (4 kHz) : elle se replie à 8 000 − 5 000 = **3 000 Hz**. Il fallait fs > 10 kHz, ou filtrer avant d'échantillonner.\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Audio\n## Le son\n- Onde, fréquence, amplitude\n- Modèle sinusoïdal\n- Harmoniques (f0)\n## Numérisation\n- Échantillonnage fs\n- Shannon / Nyquist\n- Aliasing\n## Fourier\n- FFT, rfft\n- Résolution fs/N\n- Zéro-padding\n- Fenêtres (Hann, Hamming)\n- Convolution ↔ produit\n## Temps-fréquence\n- STFT\n- Spectrogramme\n## Perception\n- Cochlée tonotopique\n- Banque de filtres\n- Mel, MFCC\n"
+  },
+  "podcast": {
+    "titre": "Ce que voit un modèle quand il écoute",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, un fichier audio, pour un ordinateur, c'est quoi ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Une longue liste de nombres : l'amplitude mesurée plusieurs milliers de fois par seconde. C'est la fréquence d'échantillonnage."
+      },
+      {
+        "voix": "A",
+        "texte": "Combien de fois par seconde faut-il mesurer ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Plus de deux fois la fréquence la plus aiguë. C'est le théorème de Shannon. Sinon, une fréquence trop haute réapparaît à une fausse place : c'est l'aliasing."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour savoir quelles notes il y a ?"
+      },
+      {
+        "voix": "B",
+        "texte": "La transformée de Fourier, avec l'algorithme FFT. Elle passe du temps aux fréquences. Une fenêtre longue donne des fréquences précises, mais on ne sait plus bien quand elles arrivent."
+      },
+      {
+        "voix": "A",
+        "texte": "Et la parole change tout le temps…"
+      },
+      {
+        "voix": "B",
+        "texte": "Donc on découpe en petites fenêtres qui se chevauchent, et on fait une FFT par fenêtre : c'est la STFT. Le résultat, c'est une image : le spectrogramme."
+      },
+      {
+        "voix": "A",
+        "texte": "Une image ? Donc on peut utiliser un CNN ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Exactement. Souvent en échelle mel, qui imite l'oreille : la cochlée est une banque de filtres, sa base capte les aigus et son sommet les graves. Les MFCC résument tout ça en une dizaine de coefficients."
+      }
+    ]
+  },
+  "origine": "seed"
+}

@@ -1,0 +1,210 @@
+titre: "Natural Language Processing"
+fiche:
+  titre: "NLP : transformer le texte en nombres, du sac de mots aux embeddings"
+  resume: >-
+    Le traitement du langage naturel (NLP) permet aux machines de comprendre, analyser et générer du texte :
+    analyse de sentiments, détection de spam, traduction, résumé, chatbots. Les modèles ne manipulent que des
+    nombres, il faut donc transformer le texte. L'approche classique enchaîne tokenisation (découper en mots),
+    suppression des mots vides (stop words), réduction à la racine (stemming, rapide et approximatif) ou à la
+    forme du dictionnaire (lemmatisation, plus juste), puis vectorisation : sac de mots (CountVectorizer),
+    TF-IDF qui pondère les mots rares mais caractéristiques, n-grammes pour garder un peu d'ordre. On entraîne
+    ensuite un classifieur classique. L'approche moderne utilise des embeddings : chaque mot ou phrase devient
+    un vecteur dont la position reflète le sens (Word2Vec en 2013), puis les Transformers (2017, « Attention
+    Is All You Need ») et BERT (2018) tiennent compte du contexte de chaque mot.
+  objectifs:
+    - Expliquer la chaîne de prétraitement d'un texte et le rôle de chaque étape
+    - Vectoriser un corpus avec TF-IDF et entraîner un classifieur de sentiments
+    - Distinguer stemming et lemmatisation, sac de mots et embeddings
+    - Situer RNN, LSTM, Transformers et BERT dans l'histoire du NLP
+  notions:
+    - { terme: "Tokenisation", definition: "Découpage d'un texte en unités (mots, sous-mots, phrases) appelées tokens." }
+    - { terme: "Stop words", definition: "Mots très fréquents et peu informatifs (le, de, et) souvent retirés en NLP classique." }
+    - { terme: "Stemming", definition: "Coupe heuristique des suffixes (« mangeaient » → « mang ») ; rapide mais produit parfois des non-mots." }
+    - { terme: "Lemmatisation", definition: "Ramène un mot à sa forme de dictionnaire grâce à une analyse morphologique (« mangeaient » → « manger »)." }
+    - { terme: "TF-IDF", definition: "Poids d'un mot = fréquence dans le document × rareté dans le corpus : un mot présent partout pèse peu." }
+    - { terme: "N-gramme", definition: "Suite de n tokens consécutifs (« pas bon ») ; conserve une partie de l'ordre et de la négation." }
+    - { terme: "Embedding", definition: "Vecteur dense qui représente un mot ou une phrase ; des sens proches donnent des vecteurs proches." }
+    - { terme: "Transformer", definition: "Architecture fondée sur l'attention (2017) qui pondère chaque mot selon tout son contexte ; base de BERT et GPT." }
+  points_cles:
+    - "Un modèle ne lit pas de texte : toute la qualité dépend de la représentation numérique choisie."
+    - "TF-IDF + régression logistique reste une base solide, rapide et explicable pour classer des textes."
+    - "En NLP classique on nettoie beaucoup (stop words, lemmes) ; en deep learning on garde presque tout et on tokenise seulement."
+    - "Attention à la négation : retirer « ne » et « pas » comme stop words peut inverser le sentiment ; les bigrammes aident."
+    - "Les embeddings capturent des relations de sens : Paris est à la France ce que Tokyo est au Japon."
+    - "Le vectoriseur s'apprend sur le train (fit) et s'applique au test (transform) : Pipeline scikit-learn."
+  code:
+    - titre: "Classifieur de sentiments TF-IDF"
+      lang: python
+      code: |
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import make_pipeline
+
+        textes = [
+            "Super produit, je recommande", "Très déçu, il ne marche pas",
+            "Livraison rapide et article parfait", "Pas bon du tout, à éviter",
+            "Excellent rapport qualité prix", "Horrible, cassé en deux jours",
+        ]
+        labels = [1, 0, 1, 0, 1, 0]   # 1 = positif
+
+        modele = make_pipeline(TfidfVectorizer(ngram_range=(1, 2), lowercase=True), LogisticRegression())
+        modele.fit(textes, labels)
+        print(modele.predict(["article parfait, je recommande", "cassé et pas bon"]))   # [1 0]
+
+        vect = modele.named_steps["tfidfvectorizer"]
+        coefs = modele.named_steps["logisticregression"].coef_[0]
+        print(sorted(zip(coefs, vect.get_feature_names_out()))[-3:])   # mots les plus « positifs »
+      explication: "Les bigrammes (ngram_range=(1, 2)) gardent « pas bon » ; les coefficients rendent le modèle explicable."
+    - titre: "Prétraitement avec NLTK"
+      lang: python
+      code: |
+        import nltk
+        from nltk.corpus import stopwords
+        from nltk.stem.snowball import FrenchStemmer
+
+        for ressource in ("punkt", "punkt_tab", "stopwords"):
+            nltk.download(ressource, quiet=True)
+
+        texte = "Les composants électroniques arrivaient rapidement au laboratoire."
+        tokens = nltk.word_tokenize(texte, language="french")
+        mots = [t.lower() for t in tokens if t.isalpha() and t.lower() not in stopwords.words("french")]
+        racines = [FrenchStemmer().stem(m) for m in mots]
+        print(mots, racines)
+      explication: "En français, la lemmatisation fiable passe plutôt par spaCy (fr_core_news_sm) que par WordNet, qui est anglais."
+  pieges:
+    - "Ajuster le vectoriseur sur tout le corpus avant le découpage train/test : fuite de vocabulaire."
+    - "Retirer « pas » et « ne » comme mots vides dans une analyse de sentiments."
+    - "Utiliser des outils anglais (lemmatiseur WordNet) sur du texte français."
+    - "Comparer des documents de longueurs très différentes avec un simple comptage sans normalisation (TF-IDF normalise)."
+  aller_plus_loin:
+    - titre: "Embeddings de phrases et recherche sémantique"
+      contenu: "`sentence-transformers` (ex. modèle multilingue `paraphrase-multilingual-MiniLM-L12-v2`) transforme une phrase en vecteur ; la similarité cosinus retrouve les textes de même sens même sans mot commun. C'est la brique de base du RAG vu en IA agentique."
+      lien: "https://www.sbert.net/"
+    - titre: "Fine-tuner un modèle BERT français"
+      contenu: "Avec `transformers`, on ré-entraîne CamemBERT sur ses propres avis en quelques lignes (Trainer). Défi : compare TF-IDF + régression logistique et CamemBERT sur le même jeu : précision, temps d'entraînement et taille du modèle."
+      lien: "https://huggingface.co/docs/transformers/training"
+    - titre: "spaCy pour le français"
+      contenu: "`spacy.load('fr_core_news_sm')` donne tokenisation, lemmes, étiquettes grammaticales et entités nommées (personnes, lieux) en une passe ; utile pour extraire des références de composants dans une description."
+      lien: "https://spacy.io/models/fr"
+  jury: >-
+    **E2 (C7, C8)** et **E3 (C9)** : comparer des services d'IA (modèle classique vs pré-entraîné), les
+    paramétrer et exposer le modèle dans une API. Le brief « analyse de sentiment » (FastAPI + Streamlit) est
+    l'application directe de ce cours ; dans MicroForge, la recherche d'un composant par description libre
+    relève du même principe de représentation du texte.
+  competences: [C7, C8, C9]
+  sources: []
+qcm:
+  - question: "Pourquoi faut-il vectoriser un texte ?"
+    choix: ["Pour le compresser", "Parce que les modèles ne manipulent que des nombres", "Pour le traduire", "Pour corriger l'orthographe"]
+    bonne: 1
+    explication: "Toute méthode de ML travaille sur des vecteurs numériques."
+    difficulte: 1
+  - question: "Que fait la lemmatisation de « mangeaient » ?"
+    choix: ["« mang »", "« manger »", "« mangeaient »", "Elle le supprime"]
+    bonne: 1
+    explication: "Elle renvoie la forme du dictionnaire ; le stemming coupe en « mang »."
+    difficulte: 1
+  - question: "Dans TF-IDF, un mot présent dans tous les documents :"
+    choix: ["A un poids élevé", "A un poids faible", "Est supprimé du texte", "Double son poids"]
+    bonne: 1
+    explication: "L'IDF (rareté) tend vers 0 pour un mot omniprésent."
+    difficulte: 2
+  - question: "Pourquoi les bigrammes aident-ils l'analyse de sentiments ?"
+    choix: ["Ils accélèrent le calcul", "Ils conservent des expressions comme « pas bon » qui inversent le sens", "Ils suppriment les stop words", "Ils traduisent le texte"]
+    bonne: 1
+    explication: "« bon » seul est positif, « pas bon » est négatif."
+    difficulte: 2
+  - question: "Quelle propriété ont les embeddings que le TF-IDF n'a pas ?"
+    choix: ["Ils sont plus courts à écrire", "Des mots de sens proche ont des vecteurs proches", "Ils comptent les mots", "Ils ignorent la langue"]
+    bonne: 1
+    explication: "TF-IDF ne voit que l'orthographe : « bateau » et « navire » n'ont rien en commun."
+    difficulte: 2
+  - question: "Quel article de 2017 a introduit l'architecture Transformer ?"
+    choix: ["Word2Vec", "Attention Is All You Need", "BERT", "ImageNet"]
+    bonne: 1
+    explication: "Vaswani et al., 2017 ; BERT suit en 2018."
+    difficulte: 1
+  - question: "Où ajuster (fit) le TfidfVectorizer ?"
+    choix: ["Sur tout le corpus", "Sur le jeu d'entraînement seulement", "Sur le jeu de test", "Il ne s'ajuste pas"]
+    bonne: 1
+    explication: "Le vocabulaire et les IDF viennent du train ; le test est seulement transformé."
+    difficulte: 2
+  - question: "Quelle bibliothèque fournit des modèles pré-entraînés comme BERT ?"
+    choix: ["NLTK", "Transformers (Hugging Face)", "Matplotlib", "SQLAlchemy"]
+    bonne: 1
+    explication: "NLTK sert au prétraitement classique, Transformers aux modèles modernes."
+    difficulte: 1
+flashcards:
+  - { recto: "Chaîne NLP classique", verso: "Tokeniser → retirer les stop words → stem/lemme → vectoriser → classifieur." }
+  - { recto: "Stemming vs lemmatisation", verso: "Stemming : coupe les suffixes (règles). Lemmatisation : forme du dictionnaire (analyse morphologique)." }
+  - { recto: "TF-IDF", verso: "Fréquence du terme dans le document × log de l'inverse de sa fréquence dans le corpus." }
+  - { recto: "Sac de mots", verso: "CountVectorizer : compte les occurrences, ignore l'ordre." }
+  - { recto: "Garder des expressions", verso: "TfidfVectorizer(ngram_range=(1, 2))" }
+  - { recto: "Tokeniser avec NLTK", verso: "nltk.word_tokenize(texte, language=\"french\") après nltk.download(\"punkt_tab\")" }
+  - { recto: "Embedding", verso: "Vecteur dense qui encode le sens ; proximité de vecteurs = proximité de sens." }
+  - { recto: "Word2Vec", verso: "2013, Mikolov (Google) : embeddings appris du voisinage des mots." }
+  - { recto: "Transformer", verso: "2017, mécanisme d'attention : chaque mot est représenté selon tout son contexte." }
+  - { recto: "RNN, LSTM, GRU", verso: "Réseaux récurrents pour les séquences ; LSTM/GRU gèrent mieux les dépendances longues." }
+  - { recto: "Nuage de mots", verso: "WordCloud(...).generate_from_frequencies(freqs) puis plt.imshow." }
+  - { recto: "Lemmatiser du français", verso: "spaCy avec le modèle fr_core_news_sm (token.lemma_)." }
+exercices:
+  - titre: "Prétraitement à la main"
+    niveau: 1
+    enonce: "Pour la phrase « Les résistances ne chauffaient pas du tout ! », donne les tokens, ce qui reste après suppression des stop words standard, et explique le problème pour une analyse de sentiments."
+    indices: ["« ne » et « pas » font partie des stop words français de NLTK"]
+    corrige: |
+      Tokens : `Les`, `résistances`, `ne`, `chauffaient`, `pas`, `du`, `tout`, `!`.
+      Après suppression des mots vides et de la ponctuation : `résistances`, `chauffaient`.
+      La négation a disparu : la phrase semble neutre, voire positive. Solution : garder les mots de négation (liste de stop words personnalisée) ou utiliser des bigrammes comme « pas du ».
+  - titre: "Classifieur d'avis évalué"
+    niveau: 2
+    enonce: "Avec un jeu d'avis étiquetés (positif/négatif), construis un pipeline TF-IDF + régression logistique, évalue-le en validation croisée (F1) et affiche les 5 mots les plus négatifs."
+    indices: ["cross_val_score(pipe, textes, labels, cv=5, scoring='f1')", "coef_ trié par ordre croissant"]
+    corrige: |
+      ```python
+      from sklearn.feature_extraction.text import TfidfVectorizer
+      from sklearn.linear_model import LogisticRegression
+      from sklearn.model_selection import cross_val_score
+      from sklearn.pipeline import make_pipeline
+
+      # textes : liste d'avis (str) ; labels : 1 = positif, 0 = négatif — ton propre jeu de données
+      pipe = make_pipeline(TfidfVectorizer(ngram_range=(1, 2), min_df=2), LogisticRegression(max_iter=1000))
+      print(cross_val_score(pipe, textes, labels, cv=5, scoring="f1").mean())
+      pipe.fit(textes, labels)
+      vocab = pipe[0].get_feature_names_out()
+      coefs = pipe[1].coef_[0]
+      print([vocab[i] for i in coefs.argsort()[:5]])   # les plus négatifs
+      ```
+mindmap: |
+  # NLP
+  ## Pourquoi
+  - Texte → nombres
+  - Sentiments, spam, traduction, chatbots
+  ## Prétraitement
+  - Tokenisation
+  - Stop words
+  - Stemming / lemmatisation
+  - N-grammes
+  ## Vectorisation
+  - Sac de mots
+  - TF-IDF
+  - Embeddings (Word2Vec)
+  ## Modèles
+  - Classiques (régression logistique)
+  - RNN, LSTM, GRU
+  - Transformers, BERT, GPT
+  ## Outils
+  - scikit-learn, NLTK, spaCy
+  - Gensim, Hugging Face
+podcast_titre: "Apprendre à une machine à lire"
+podcast:
+  - { voix: A, texte: "Karim, comment un modèle peut-il comprendre « ce produit est génial » ?" }
+  - { voix: B, texte: "Il ne comprend que des nombres. Toute la question est de transformer le texte en vecteur." }
+  - { voix: A, texte: "La méthode classique ?" }
+  - { voix: B, texte: "Découper en mots, enlever les mots vides comme le ou de, ramener chaque mot à sa racine, puis compter. TF-IDF va plus loin : un mot rare mais présent dans le document pèse lourd, un mot présent partout pèse peu." }
+  - { voix: A, texte: "Et ça marche vraiment ?" }
+  - { voix: B, texte: "Étonnamment bien pour classer des avis, avec une régression logistique derrière. Et c'est explicable : tu vois quels mots tirent vers le positif." }
+  - { voix: A, texte: "Il y a un piège ?" }
+  - { voix: B, texte: "La négation ! Si tu enlèves « ne » et « pas » comme mots vides, « pas bon » devient « bon ». Garde-les, ou utilise des bigrammes." }
+  - { voix: A, texte: "Et les modèles modernes ?" }
+  - { voix: B, texte: "Ils utilisent des embeddings : des vecteurs où bateau et navire sont proches. Puis les Transformers, depuis 2017, regardent tout le contexte de chaque mot. BERT, GPT, tous viennent de là." }

@@ -1,0 +1,233 @@
+titre: "Deep learning avec Keras"
+fiche:
+  titre: "Keras : construire, compiler, entraîner et régulariser un réseau de neurones"
+  resume: >-
+    Un neurone calcule une somme pondérée de ses entrées puis applique une fonction d'activation, source de
+    non-linéarité : sans elle, il n'est qu'une régression linéaire ; avec une sigmoïde, il équivaut à une
+    régression logistique. En empilant des couches (entrée, cachées, sortie), on obtient un réseau profond
+    capable d'approcher des fonctions très non linéaires. Avec Keras, on décrit le réseau (Sequential ou API
+    fonctionnelle pour les architectures à branches), puis on le compile avec trois choix : la fonction de
+    perte (le problème mathématique : MSE, binary/categorical/sparse categorical crossentropy), l'optimiseur
+    (comment le résoudre : SGD, Adam…) et les métriques (ce qu'on affiche). fit entraîne par lots (batch_size)
+    sur plusieurs passages complets (epochs) en surveillant la validation. Pour les images, les couches de
+    convolution apprennent elles-mêmes leurs filtres, le pooling réduit les dimensions, et le dropout ainsi
+    que l'EarlyStopping limitent le surapprentissage.
+  objectifs:
+    - Choisir l'activation de sortie et la perte selon la tâche (régression, binaire, multiclasse, multilabel)
+    - Construire un MLP puis un CNN avec Keras et lire model.summary()
+    - Entraîner avec batch_size, epochs et données de validation, et interpréter les courbes
+    - Régulariser avec Dropout et arrêter au bon moment avec EarlyStopping et ModelCheckpoint
+  notions:
+    - { terme: "Fonction d'activation", definition: "Fonction appliquée à la sortie d'un neurone (relu, sigmoid, softmax, tanh) ; elle apporte la non-linéarité." }
+    - { terme: "Fonction de perte (loss)", definition: "Mesure de l'erreur que l'entraînement minimise ; elle dépend de la tâche." }
+    - { terme: "Optimiseur", definition: "Algorithme qui met à jour les poids pour faire baisser la perte (SGD, RMSprop, Adam) ; son réglage principal est le learning rate." }
+    - { terme: "Métrique", definition: "Mesure affichée pour juger le modèle (accuracy, recall, mae) ; elle n'influence pas l'entraînement." }
+    - { terme: "Batch / epoch", definition: "Batch : nombre d'exemples traités avant chaque mise à jour des poids. Epoch : un passage complet sur toutes les données." }
+    - { terme: "Convolution (Conv2D)", definition: "Couche qui fait glisser de petits filtres sur l'image ; le réseau apprend les coefficients des filtres (contours, textures)." }
+    - { terme: "Pooling", definition: "Réduction de dimension par zone (max ou moyenne), souvent après une convolution." }
+    - { terme: "Dropout", definition: "Désactive aléatoirement une fraction des neurones pendant l'entraînement seulement, pour éviter la co-dépendance et le surapprentissage." }
+    - { terme: "Callback", definition: "Fonction appelée pendant l'entraînement : EarlyStopping, ModelCheckpoint, TensorBoard." }
+  points_cles:
+    - "Sortie : 1 neurone linéaire (régression), 1 sigmoïde (binaire), N softmax (multiclasse), N sigmoïdes (multilabel)."
+    - "Étiquettes entières (0, 1, 2…) → sparse_categorical_crossentropy ; étiquettes one-hot → categorical_crossentropy."
+    - "Classe prédite en multiclasse : np.argmax(model.predict(X), axis=-1) ; en binaire, proba > seuil."
+    - "Loss d'entraînement qui baisse pendant que val_loss remonte : surapprentissage, c'est le moment d'arrêter."
+    - "model.summary() affiche le nombre de paramètres : avec beaucoup moins d'exemples que de paramètres, le modèle risque de mémoriser."
+    - "Normaliser les entrées (pixels / 255, StandardScaler) accélère et stabilise l'entraînement."
+  code:
+    - titre: "MLP pour une classification multiclasse (MNIST)"
+      lang: python
+      code: |
+        import keras
+        from keras import layers
+
+        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+        x_train, x_test = x_train / 255.0, x_test / 255.0          # normalisation
+
+        model = keras.Sequential([
+            keras.Input(shape=(28, 28)),
+            layers.Flatten(),                                       # 784 valeurs
+            layers.Dense(32, activation="relu"),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation="relu"),
+            layers.Dropout(0.2),
+            layers.Dense(10, activation="softmax"),                 # 10 classes
+        ])
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        model.summary()                                             # 26 506 paramètres
+        arret = keras.callbacks.EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)
+        model.fit(x_train, y_train, epochs=30, batch_size=64, validation_split=0.2, callbacks=[arret])
+        print(model.evaluate(x_test, y_test))
+      explication: "Étiquettes entières → perte sparse ; EarlyStopping garde les meilleurs poids au lieu des derniers."
+    - titre: "CNN pour images"
+      lang: python
+      code: |
+        import keras
+        from keras import layers
+
+        cnn = keras.Sequential([
+            keras.Input(shape=(28, 28, 1)),                 # canal ajouté : np.expand_dims(x, -1)
+            layers.Conv2D(16, (3, 3), activation="relu"),   # 16 filtres 3×3 appris
+            layers.MaxPooling2D((2, 2)),
+            layers.Conv2D(32, (3, 3), activation="relu"),
+            layers.MaxPooling2D((2, 2)),
+            layers.Flatten(),
+            layers.Dropout(0.3),
+            layers.Dense(10, activation="softmax"),
+        ])
+        cnn.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+                    loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        sauvegarde = keras.callbacks.ModelCheckpoint("meilleur.keras", monitor="val_accuracy", save_best_only=True)
+      explication: "La convolution exige une dimension « canal » ; le pooling divise la taille par 2 à chaque étage."
+  pieges:
+    - "Softmax sur un problème multilabel (un exemple peut être « chien » ET « grand ») : il faut des sigmoïdes indépendantes et binary_crossentropy."
+    - "categorical_crossentropy avec des étiquettes entières (ou l'inverse) : erreur de forme ou apprentissage faussé."
+    - "Évaluer sur le jeu de validation qui a servi à l'EarlyStopping : le test final doit rester à part."
+    - "Oublier de normaliser les pixels (0–255) : convergence lente ou instable."
+    - "input_dim= dans Dense est l'ancienne syntaxe ; avec Keras 3, on déclare keras.Input(shape=...)."
+  aller_plus_loin:
+    - titre: "Transfer learning"
+      contenu: "Plutôt que d'entraîner un CNN de zéro, réutilise un réseau pré-entraîné (`keras.applications.MobileNetV3Small(include_top=False, weights='imagenet')`), gèle ses couches et entraîne seulement une petite tête. Avec quelques centaines d'images par classe, c'est souvent bien meilleur."
+      lien: "https://keras.io/guides/transfer_learning/"
+    - titre: "Augmentation de données"
+      contenu: "Les couches `RandomFlip`, `RandomRotation`, `RandomZoom` placées en début de modèle créent des variantes des images à chaque epoch : le réseau généralise mieux. Défi : mesure l'écart entre val_accuracy avec et sans augmentation."
+      lien: "https://keras.io/api/layers/preprocessing_layers/image_augmentation/"
+    - titre: "Keras 3 multi-backend et export"
+      contenu: "Keras 3 tourne sur TensorFlow, PyTorch ou JAX (`KERAS_BACKEND=torch`). Pour servir un modèle léger sur un appareil, on exporte en ONNX ou TFLite."
+      lien: "https://keras.io/keras_3/"
+  jury: >-
+    **E3 (C11, C12)** et **E2 (C7, C8)** : choisir, paramétrer et tester un modèle de deep learning. La vision
+    de MicroForge s'appuie sur un détecteur YOLO pré-entraîné (Ultralytics) ré-entraîné sur les composants :
+    c'est du transfer learning. Sache expliquer convolution, pooling, surapprentissage et EarlyStopping avec
+    tes propres courbes d'entraînement.
+  competences: [C7, C8, C11, C12]
+  sources: []
+qcm:
+  - question: "Quelle activation de sortie pour une classification à 10 classes exclusives ?"
+    choix: ["sigmoid", "relu", "softmax", "linear"]
+    bonne: 2
+    explication: "Softmax renvoie 10 probabilités qui somment à 1."
+    difficulte: 1
+  - question: "Un exemple peut être à la fois « chien » et « grand ». Quelle sortie ?"
+    choix: ["Softmax + categorical_crossentropy", "Sigmoïdes indépendantes + binary_crossentropy", "Un seul neurone linéaire", "relu + mse"]
+    bonne: 1
+    explication: "C'est du multilabel : chaque étiquette est un oui/non indépendant."
+    difficulte: 2
+  - question: "Étiquettes entières 0 à 9 : quelle perte ?"
+    choix: ["categorical_crossentropy", "sparse_categorical_crossentropy", "binary_crossentropy", "mean_squared_error"]
+    bonne: 1
+    explication: "La version sparse accepte directement les entiers ; categorical attend du one-hot."
+    difficulte: 2
+  - question: "Combien de paramètres pour Dense(32) recevant 784 entrées ?"
+    choix: ["784", "25 088", "25 120", "816"]
+    bonne: 2
+    explication: "784 × 32 poids + 32 biais = 25 120."
+    difficulte: 3
+  - question: "Rôle du Dropout ?"
+    choix: ["Supprimer des données", "Désactiver aléatoirement des neurones pendant l'entraînement pour limiter le surapprentissage", "Accélérer l'inférence", "Réduire la taille des images"]
+    bonne: 1
+    explication: "Il n'agit qu'à l'entraînement ; à l'inférence tous les neurones sont actifs."
+    difficulte: 1
+  - question: "Que représente une epoch ?"
+    choix: ["Un lot de 32 exemples", "Un passage complet sur l'ensemble des données d'entraînement", "Une couche du réseau", "Une mise à jour des poids"]
+    bonne: 1
+    explication: "Une epoch contient plusieurs batchs, donc plusieurs mises à jour."
+    difficulte: 1
+  - question: "La loss d'entraînement baisse mais val_loss remonte depuis 5 epochs. Que faire ?"
+    choix: ["Augmenter les epochs", "Arrêter (EarlyStopping) et régulariser (dropout, données)", "Supprimer la validation", "Augmenter le learning rate"]
+    bonne: 1
+    explication: "C'est la signature du surapprentissage."
+    difficulte: 2
+  - question: "Différence entre loss et métrique dans compile ?"
+    choix: ["Aucune", "La loss est minimisée par l'optimiseur ; la métrique est seulement affichée", "La métrique est minimisée", "La loss ne sert qu'au test"]
+    bonne: 1
+    explication: "On peut afficher l'accuracy tout en minimisant une crossentropy."
+    difficulte: 1
+flashcards:
+  - { recto: "Neurone sans activation", verso: "Une régression linéaire (somme pondérée + biais)." }
+  - { recto: "Trois choix de compile", verso: "loss (le problème), optimizer (la méthode), metrics (l'affichage)." }
+  - { recto: "Perte pour la régression", verso: "mean_squared_error, mean_absolute_error ou Huber (robuste aux outliers)." }
+  - { recto: "Perte binaire", verso: "binary_crossentropy avec 1 neurone sigmoïde." }
+  - { recto: "Classe prédite (multiclasse)", verso: "np.argmax(model.predict(X), axis=-1)" }
+  - { recto: "Sequential vs fonctionnel", verso: "Sequential : pile linéaire de couches. Fonctionnel (Model(inputs, outputs)) : branches, entrées/sorties multiples." }
+  - { recto: "Couche qui met à plat", verso: "layers.Flatten()" }
+  - { recto: "Conv2D(16, (3, 3))", verso: "16 filtres 3×3 dont le réseau apprend les coefficients." }
+  - { recto: "MaxPooling2D((2, 2))", verso: "Garde le maximum de chaque bloc 2×2 : divise largeur et hauteur par 2." }
+  - { recto: "Arrêter au bon moment", verso: "keras.callbacks.EarlyStopping(monitor=\"val_loss\", patience=3, restore_best_weights=True)" }
+  - { recto: "Sauvegarder le meilleur modèle", verso: "keras.callbacks.ModelCheckpoint(\"m.keras\", save_best_only=True)" }
+  - { recto: "Voir l'architecture et les paramètres", verso: "model.summary() (ou keras.utils.plot_model)." }
+exercices:
+  - titre: "Choisir la bonne tête"
+    niveau: 1
+    enonce: "Pour chaque tâche, donne la couche de sortie et la perte : (a) prix d'une maison ; (b) e-mail spam ou non ; (c) chiffre manuscrit 0–9 avec étiquettes entières ; (d) composants présents sur une photo (plusieurs à la fois parmi 20)."
+    indices: ["Exclusif ou non ?", "Étiquettes entières ou one-hot ?"]
+    corrige: |
+      - (a) `Dense(1)` linéaire, `mean_squared_error` (ou `huber`).
+      - (b) `Dense(1, activation="sigmoid")`, `binary_crossentropy`.
+      - (c) `Dense(10, activation="softmax")`, `sparse_categorical_crossentropy`.
+      - (d) `Dense(20, activation="sigmoid")`, `binary_crossentropy` (multilabel : chaque composant est un oui/non).
+  - titre: "Compter les paramètres"
+    niveau: 2
+    enonce: "Calcule le nombre de paramètres du MLP Flatten(28×28) → Dense(32) → Dropout → Dense(32) → Dropout → Dense(10), puis vérifie avec model.summary()."
+    indices: ["Dense : entrées × neurones + neurones (biais)", "Dropout et Flatten n'ont pas de paramètres"]
+    corrige: |
+      - Dense 1 : 784 × 32 + 32 = **25 120**
+      - Dense 2 : 32 × 32 + 32 = **1 056**
+      - Dense 3 : 32 × 10 + 10 = **330**
+      - Total : **26 506** paramètres, comme l'affiche `model.summary()`.
+  - titre: "Courbes d'apprentissage et arrêt anticipé"
+    niveau: 3
+    enonce: "Entraîne le CNN du cours sur MNIST 30 epochs sans callback, trace loss et val_loss depuis `history.history`, puis relance avec EarlyStopping (patience=3). Compare l'epoch d'arrêt et l'accuracy de test."
+    indices: ["history = model.fit(...)", "plt.plot(history.history['val_loss'])", "x = np.expand_dims(x, -1)"]
+    corrige: |
+      ```python
+      import matplotlib.pyplot as plt
+      import numpy as np
+
+      x_tr, x_te = np.expand_dims(x_train, -1), np.expand_dims(x_test, -1)
+      history = cnn.fit(x_tr, y_train, epochs=30, batch_size=64, validation_split=0.2, verbose=0)
+      plt.plot(history.history["loss"], label="train")
+      plt.plot(history.history["val_loss"], label="validation")
+      plt.legend()
+      plt.show()
+      ```
+      Sans callback, `val_loss` atteint un minimum puis remonte (surapprentissage). Avec `EarlyStopping(patience=3, restore_best_weights=True)`, l'entraînement s'arrête quelques epochs après ce minimum et garde les meilleurs poids : l'accuracy de test est équivalente ou meilleure, pour beaucoup moins de calcul.
+mindmap: |
+  # Keras
+  ## Neurone
+  - Somme pondérée + biais
+  - Activation (relu, sigmoid, softmax)
+  ## Compile
+  - Loss
+    - MSE, MAE, Huber
+    - binary / categorical / sparse
+  - Optimiseur (SGD, Adam, learning rate)
+  - Métriques
+  ## Architecture
+  - Sequential / fonctionnelle
+  - Dense, Flatten
+  - Conv2D, MaxPooling2D
+  - Dropout
+  ## Entraînement
+  - batch_size, epochs
+  - validation_split
+  - Callbacks : EarlyStopping, ModelCheckpoint
+  ## Sorties
+  - Régression : 1 linéaire
+  - Binaire : 1 sigmoïde
+  - Multiclasse : softmax
+  - Multilabel : N sigmoïdes
+podcast_titre: "Mon premier réseau de neurones sans me perdre"
+podcast:
+  - { voix: A, texte: "Karim, un neurone artificiel, ça fait quoi exactement ?" }
+  - { voix: B, texte: "Une somme pondérée de ses entrées, plus un biais, puis une fonction d'activation. Sans activation, c'est juste une régression linéaire." }
+  - { voix: A, texte: "Et dans Keras, le compile me demande loss, optimizer, metrics. Je mets quoi ?" }
+  - { voix: B, texte: "La loss, c'est le problème à minimiser : crossentropy pour classer, MSE pour une valeur. L'optimiseur, c'est la méthode : Adam marche très bien par défaut. Les métriques, c'est juste ce que tu affiches." }
+  - { voix: A, texte: "Pour la sortie, softmax ou sigmoïde ?" }
+  - { voix: B, texte: "Softmax si une seule classe est vraie parmi plusieurs, comme un chiffre. Sigmoïdes si plusieurs étiquettes peuvent être vraies en même temps, comme plusieurs composants sur une même photo." }
+  - { voix: A, texte: "Et pour les images, pourquoi des convolutions ?" }
+  - { voix: B, texte: "Une convolution fait glisser un petit filtre sur l'image. Le réseau apprend lui-même les filtres : contours, coins, textures. Le pooling réduit ensuite la taille." }
+  - { voix: A, texte: "Mon modèle est parfait en entraînement et nul en validation." }
+  - { voix: B, texte: "Surapprentissage. Ajoute du dropout, de l'augmentation de données, et un EarlyStopping sur val loss avec restore best weights : il garde le meilleur moment." }
+  - { voix: A, texte: "Et si j'ai peu d'images ?" }
+  - { voix: B, texte: "Transfer learning : tu pars d'un réseau déjà entraîné sur des millions d'images et tu n'entraînes que la fin. C'est ce que fait la vision de MicroForge avec YOLO." }

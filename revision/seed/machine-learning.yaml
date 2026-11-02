@@ -1,0 +1,251 @@
+titre: "Machine Learning avec scikit-learn"
+fiche:
+  titre: "Machine learning : du pipeline de données à la bonne métrique"
+  resume: >-
+    En apprentissage supervisé, on connaît la réponse y pour chaque exemple X et le modèle apprend à la
+    prédire : régression pour une valeur réelle, classification pour une classe (avec une probabilité). En
+    non supervisé, aucune réponse n'est connue : on cherche des groupes (clustering, KMeans) ou on réduit les
+    dimensions (PCA). Le pipeline type enchaîne acquisition, nettoyage (manquants, aberrants), mise en forme
+    (normalisation, encodage one-hot plutôt que 0/1/2 pour des catégories sans ordre), découpage
+    train/validation/test ou validation croisée (folds), entraînement et réglage des hyperparamètres
+    (GridSearchCV), puis évaluation. Le choix de la métrique est décisif : l'accuracy trompe sur des classes
+    déséquilibrées, on regarde alors précision, rappel, F1, balanced accuracy et la matrice de confusion ; en
+    régression, MSE pénalise les grosses erreurs là où MAE les traite comme les petites. Enfin un modèle se
+    surveille en production car les données dérivent.
+  objectifs:
+    - Distinguer supervisé / non supervisé et régression / classification
+    - Construire un pipeline scikit-learn (ColumnTransformer + modèle) sans fuite de données
+    - Choisir et calculer la métrique adaptée, y compris sur des classes déséquilibrées
+    - Régler des hyperparamètres par validation croisée et détecter le surapprentissage
+  notions:
+    - { terme: "Supervisé / non supervisé", definition: "Supervisé : on apprend y à partir de X avec des exemples étiquetés. Non supervisé : pas d'étiquettes (clustering, réduction de dimension)." }
+    - { terme: "Train / validation / test", definition: "Train pour apprendre, validation (ou folds) pour régler, test pour mesurer une seule fois à la fin." }
+    - { terme: "Validation croisée (k-fold)", definition: "On découpe en k parts, on entraîne k fois sur k−1 parts et on évalue sur la restante ; la moyenne est plus fiable qu'un seul découpage." }
+    - { terme: "Surapprentissage (overfitting)", definition: "Le modèle apprend le bruit du train : excellent en entraînement, mauvais sur des données nouvelles." }
+    - { terme: "Matrice de confusion", definition: "Tableau VP, FP, FN, VN qui croise prédictions et vérité ; base de toutes les métriques de classification." }
+    - { terme: "Précision / rappel", definition: "Précision = VP / (VP + FP) : fiabilité des alertes. Rappel = VP / (VP + FN) : part des vrais positifs retrouvés." }
+    - { terme: "F1-score", definition: "Moyenne harmonique de la précision et du rappel : 2·P·R / (P + R)." }
+    - { terme: "Balanced accuracy", definition: "Moyenne des rappels de chaque classe ; insensible au déséquilibre des classes." }
+    - { terme: "MSE / MAE / R²", definition: "Erreur quadratique moyenne (pénalise les grosses erreurs), erreur absolue moyenne, et part de variance expliquée (1 = parfait)." }
+  points_cles:
+    - "Sur 9 990 sains et 10 malades, prédire « toujours sain » donne 99,9 % d'accuracy… et un rappel de 0 : regarder la matrice de confusion."
+    - "Toutes les transformations (normalisation, encodage, imputation) s'apprennent sur le train : un Pipeline scikit-learn le garantit."
+    - "One-hot pour des catégories sans ordre : coder chien=0, chat=1, poulpe=2 fait croire que poulpe = 2 chats."
+    - "GridSearchCV teste une grille d'hyperparamètres en validation croisée ; le test final reste intouché."
+    - "Classes déséquilibrées : stratify au découpage, class_weight, sous- ou sur-échantillonnage (SMOTE) uniquement sur le train."
+    - "Multiclasse : une seule étiquette par exemple ; multilabel : plusieurs étiquettes possibles à la fois."
+  code:
+    - titre: "Pipeline complet et réglage par validation croisée"
+      lang: python
+      code: |
+        import seaborn as sns
+        from sklearn.compose import ColumnTransformer
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.impute import SimpleImputer
+        from sklearn.metrics import classification_report
+        from sklearn.model_selection import GridSearchCV, train_test_split
+        from sklearn.pipeline import Pipeline
+        from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+        df = sns.load_dataset("titanic")
+        X, y = df[["pclass", "sex", "age", "fare", "embarked"]], df["survived"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+
+        prep = ColumnTransformer([
+            ("num", Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())]), ["age", "fare"]),
+            ("cat", Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
+                              ("oh", OneHotEncoder(handle_unknown="ignore"))]), ["pclass", "sex", "embarked"]),
+        ])
+        pipe = Pipeline([("prep", prep), ("rf", RandomForestClassifier(random_state=42))])
+        grille = {"rf__n_estimators": [100, 300], "rf__max_depth": [3, 5, None]}
+        recherche = GridSearchCV(pipe, grille, cv=5, scoring="f1").fit(X_train, y_train)
+        print(recherche.best_params_)
+        print(classification_report(y_test, recherche.predict(X_test)))
+      explication: "L'imputation et la normalisation sont apprises dans chaque fold : aucune fuite du test vers l'entraînement."
+    - titre: "Clustering KMeans et méthode du coude"
+      lang: python
+      code: |
+        from sklearn.cluster import KMeans
+        from sklearn.datasets import make_blobs
+
+        X, _ = make_blobs(n_samples=300, centers=5, cluster_std=0.8, random_state=1)
+        inerties = [KMeans(n_clusters=k, n_init="auto", random_state=1).fit(X).inertia_ for k in range(1, 10)]
+        # Tracer inerties en fonction de k : le « coude » (ici vers k=5) indique un bon nombre de groupes.
+        modele = KMeans(n_clusters=5, n_init="auto", random_state=1).fit(X)
+        print(modele.labels_[:10], modele.cluster_centers_.shape)
+      explication: "L'inertie baisse toujours quand k augmente ; on choisit le point où elle cesse de baisser fortement."
+  pieges:
+    - "Normaliser ou imputer sur tout le jeu avant le découpage : fuite de données et score trop optimiste."
+    - "Juger un modèle sur l'accuracy seule avec des classes déséquilibrées."
+    - "Régler les hyperparamètres en regardant le score du jeu de test : le test n'est plus indépendant."
+    - "Sur-échantillonner (SMOTE) avant le découpage : des copies du train se retrouvent dans le test."
+    - "Oublier random_state : résultats non reproductibles d'une exécution à l'autre."
+  aller_plus_loin:
+    - titre: "Courbes ROC et précision-rappel, choix du seuil"
+      contenu: "`predict_proba` donne une probabilité ; le seuil 0,5 n'est qu'un choix. La courbe précision-rappel (`PrecisionRecallDisplay`) aide à choisir le seuil selon le coût métier : pour un détecteur d'incendie, on privilégie le rappel. Défi : trouve le seuil qui garantit un rappel ≥ 95 % sur le Titanic."
+      lien: "https://scikit-learn.org/stable/modules/model_evaluation.html"
+    - titre: "Gradient boosting et importance des variables"
+      contenu: "`HistGradientBoostingClassifier` (boosting) bat souvent la forêt aléatoire (bagging) sur données tabulaires. `permutation_importance` mesure l'apport réel de chaque variable sur le jeu de test, plus fiable que l'importance interne des arbres."
+      lien: "https://scikit-learn.org/stable/modules/permutation_importance.html"
+    - titre: "Réduction de dimension : PCA puis t-SNE/UMAP"
+      contenu: "`PCA(n_components=0.95)` garde 95 % de la variance ; t-SNE ou UMAP projettent en 2D pour visualiser des groupes (pas pour entraîner). Défi : projette le jeu digits en 2D et colore par chiffre."
+      lien: "https://scikit-learn.org/stable/modules/decomposition.html"
+  jury: >-
+    **E3 (C11, C12)** et **E2 (C7)** : justifier le choix d'un modèle et de ses métriques, le tester et le
+    surveiller. Dans MicroForge, le détecteur de composants est évalué par `microforge/ml/evaluate.py` :
+    mAP50 global, rappel, mAP50 par classe (les 10 classes les plus faibles dans le rapport) et une porte qui
+    refuse une version moins bonne que celle en production. Explique pourquoi une métrique globale ne suffit
+    pas sur un stock où certaines pièces sont rares.
+  competences: [C7, C11, C12]
+  sources: []
+qcm:
+  - question: "Prédire le prix d'un appartement est un problème de :"
+    choix: ["Classification", "Régression", "Clustering", "Réduction de dimension"]
+    bonne: 1
+    explication: "La sortie est une valeur réelle."
+    difficulte: 1
+  - question: "Sur la matrice « Malade » (VP=8, FP=10, FN=2, VN=9990), l'accuracy est de 99,9 %. Quelle est la précision ?"
+    choix: ["99,9 %", "80 %", "44 %", "8 %"]
+    bonne: 2
+    explication: "8 / (8 + 10) ≈ 44 % : plus d'une alerte sur deux est fausse, malgré l'accuracy flatteuse."
+    difficulte: 2
+  - question: "Même matrice : quel est le rappel ?"
+    choix: ["44 %", "80 %", "99,9 %", "18 %"]
+    bonne: 1
+    explication: "8 / (8 + 2) = 80 % des malades sont détectés."
+    difficulte: 2
+  - question: "Pourquoi coder chien/chat/poulpe en one-hot plutôt qu'en 0/1/2 ?"
+    choix: ["Pour économiser de la mémoire", "Pour ne pas créer d'ordre ni de distances fictives entre catégories", "Parce que scikit-learn refuse les entiers", "Pour accélérer l'entraînement"]
+    bonne: 1
+    explication: "Avec 0/1/2, un modèle linéaire suppose que poulpe = 2 × chat."
+    difficulte: 1
+  - question: "Deux modèles ont la même MAE (10 000 €) mais B fait une seule erreur de 50 000 €. Quelle métrique les départage ?"
+    choix: ["MAE", "MSE (ou RMSE)", "Accuracy", "F1"]
+    bonne: 1
+    explication: "MSE élève les erreurs au carré : B a un MSE 5 fois plus grand que A."
+    difficulte: 2
+  - question: "À quoi sert la validation croisée ?"
+    choix: ["À tester sur le jeu de test plusieurs fois", "À estimer la performance de façon plus fiable en moyennant plusieurs découpages train/validation", "À augmenter les données", "À normaliser"]
+    bonne: 1
+    explication: "Chaque fold sert une fois de validation ; le test final reste à part."
+    difficulte: 2
+  - question: "Score train 99 %, score validation 70 %. Diagnostic ?"
+    choix: ["Sous-apprentissage", "Surapprentissage", "Fuite de données", "Modèle parfait"]
+    bonne: 1
+    explication: "Le modèle mémorise le train : simplifier, régulariser ou ajouter des données."
+    difficulte: 1
+  - question: "Quelle technique est non supervisée ?"
+    choix: ["Régression logistique", "KMeans", "Random Forest", "SVM"]
+    bonne: 1
+    explication: "KMeans regroupe les points sans étiquettes."
+    difficulte: 1
+flashcards:
+  - { recto: "Précision", verso: "VP / (VP + FP) — parmi les alertes, combien sont vraies ?" }
+  - { recto: "Rappel (sensibilité)", verso: "VP / (VP + FN) — parmi les vrais positifs, combien sont détectés ?" }
+  - { recto: "F1-score", verso: "2·P·R / (P + R)" }
+  - { recto: "Accuracy", verso: "(VP + VN) / total — trompeuse si les classes sont déséquilibrées." }
+  - { recto: "Balanced accuracy", verso: "Moyenne des rappels de chaque classe." }
+  - { recto: "MSE vs MAE", verso: "MSE : moyenne des erreurs au carré (pénalise les grosses). MAE : moyenne des erreurs absolues." }
+  - { recto: "Découpage stratifié", verso: "train_test_split(..., stratify=y) : mêmes proportions de classes dans train et test." }
+  - { recto: "Prétraitement par type de colonne", verso: "ColumnTransformer([(\"num\", ..., cols_num), (\"cat\", OneHotEncoder(), cols_cat)])" }
+  - { recto: "Réglage d'hyperparamètres", verso: "GridSearchCV(pipe, grille, cv=5, scoring=\"f1\").fit(X_train, y_train)" }
+  - { recto: "Rapport complet de classification", verso: "classification_report(y_test, y_pred)" }
+  - { recto: "Choisir k dans KMeans", verso: "Méthode du coude sur l'inertie (ou score de silhouette)." }
+  - { recto: "Multiclasse vs multilabel", verso: "Multiclasse : une classe par exemple. Multilabel : plusieurs étiquettes possibles." }
+exercices:
+  - titre: "Lire une matrice de confusion"
+    niveau: 1
+    enonce: "Capteur incendie : VP=90, FP=1, FN=10, VN=99. Calcule accuracy, précision, rappel et F1, puis dis quelle erreur est la plus grave ici."
+    indices: ["Rappel = VP / (VP + FN)", "Que se passe-t-il quand un incendie n'est pas détecté ?"]
+    corrige: |
+      - Accuracy = (90 + 99) / 200 = **94,5 %**
+      - Précision = 90 / 91 = **98,9 %**
+      - Rappel = 90 / 100 = **90 %**
+      - F1 = 2 × 0,989 × 0,9 / (0,989 + 0,9) ≈ **0,942**
+
+      Les 10 faux négatifs (incendies non détectés) sont bien plus graves que la fausse alerte : on cherche à augmenter le rappel, quitte à perdre un peu de précision (baisser le seuil de décision).
+  - titre: "Pipeline sans fuite"
+    niveau: 2
+    enonce: "Sur le jeu `penguins` de seaborn, prédis l'espèce avec un pipeline (imputation, normalisation, one-hot, régression logistique) évalué en validation croisée à 5 folds. Affiche la moyenne et l'écart type de la balanced accuracy."
+    indices: ["cross_val_score(pipe, X, y, cv=5, scoring='balanced_accuracy')", "Retirer les lignes où la cible manque"]
+    corrige: |
+      ```python
+      import seaborn as sns
+      from sklearn.compose import ColumnTransformer
+      from sklearn.impute import SimpleImputer
+      from sklearn.linear_model import LogisticRegression
+      from sklearn.model_selection import cross_val_score
+      from sklearn.pipeline import make_pipeline
+      from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+      df = sns.load_dataset("penguins").dropna(subset=["species"])
+      num = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+      cat = ["island", "sex"]
+      prep = ColumnTransformer([
+          ("num", make_pipeline(SimpleImputer(strategy="median"), StandardScaler()), num),
+          ("cat", make_pipeline(SimpleImputer(strategy="most_frequent"), OneHotEncoder(handle_unknown="ignore")), cat),
+      ])
+      pipe = make_pipeline(prep, LogisticRegression(max_iter=1000))
+      scores = cross_val_score(pipe, df[num + cat], df["species"], cv=5, scoring="balanced_accuracy")
+      print(f"{scores.mean():.3f} ± {scores.std():.3f}")
+      ```
+  - titre: "Classes déséquilibrées"
+    niveau: 3
+    enonce: "Sur un jeu où 2 % des exemples sont positifs, compare une régression logistique standard et la même avec `class_weight='balanced'` : matrice de confusion, rappel et précision sur le test. Conclus."
+    indices: ["make_classification(weights=[0.98], random_state=0)", "confusion_matrix, recall_score, precision_score"]
+    corrige: |
+      ```python
+      from sklearn.datasets import make_classification
+      from sklearn.linear_model import LogisticRegression
+      from sklearn.metrics import confusion_matrix, precision_score, recall_score
+      from sklearn.model_selection import train_test_split
+
+      X, y = make_classification(n_samples=5000, weights=[0.98], random_state=0)
+      X_tr, X_te, y_tr, y_te = train_test_split(X, y, stratify=y, random_state=0)
+      for cw in (None, "balanced"):
+          m = LogisticRegression(class_weight=cw, max_iter=1000).fit(X_tr, y_tr)
+          p = m.predict(X_te)
+          print(cw, confusion_matrix(y_te, p).ravel(), f"rappel={recall_score(y_te, p):.2f}", f"précision={precision_score(y_te, p):.2f}")
+      ```
+      `class_weight="balanced"` augmente fortement le rappel de la classe rare au prix de la précision : le bon compromis dépend du coût métier de chaque type d'erreur.
+mindmap: |
+  # Machine Learning
+  ## Types
+  - Supervisé
+    - Régression
+    - Classification
+  - Non supervisé
+    - Clustering (KMeans)
+    - Réduction de dimension (PCA)
+  ## Pipeline
+  - Acquisition, nettoyage
+  - Normalisation, one-hot
+  - Train / valid / test, folds
+  - Entraînement, GridSearchCV
+  ## Évaluation classification
+  - Matrice de confusion
+  - Précision, rappel, F1
+  - Balanced accuracy, ROC AUC
+  ## Évaluation régression
+  - MSE, MAE, R²
+  ## Pièges
+  - Fuite de données
+  - Surapprentissage
+  - Classes déséquilibrées
+  ## Production
+  - MLflow
+  - Monitoring, dérive
+podcast_titre: "99,9 % d'accuracy… et pourtant un mauvais modèle"
+podcast:
+  - { voix: A, texte: "Karim, mon modèle de détection de maladie a 99,9 % d'accuracy. Je peux le présenter au jury ?" }
+  - { voix: B, texte: "Montre-moi ta matrice de confusion d'abord. Sur 10 000 patients, combien sont malades ?" }
+  - { voix: A, texte: "Une dizaine." }
+  - { voix: B, texte: "Alors un modèle qui répond toujours « sain » a déjà 99,9 %. L'accuracy ne dit rien ici. Il faut regarder le rappel : combien de malades tu détectes, et la précision : combien de tes alertes sont justes." }
+  - { voix: A, texte: "J'ai 8 malades détectés sur 10, et 18 alertes au total." }
+  - { voix: B, texte: "Donc 80 % de rappel, mais 44 % de précision : plus d'une alerte sur deux est fausse. Le F1 résume les deux." }
+  - { voix: A, texte: "Et pour améliorer ça proprement ?" }
+  - { voix: B, texte: "Un pipeline scikit-learn : l'imputation, la normalisation et l'encodage sont appris sur le train seulement. Puis validation croisée et GridSearch pour régler les hyperparamètres, sans jamais toucher au test." }
+  - { voix: A, texte: "Et le one-hot, c'est vraiment nécessaire ?" }
+  - { voix: B, texte: "Si tu codes chien zéro, chat un, poulpe deux, ton modèle croit qu'un poulpe vaut deux chats. Le one-hot donne à chaque catégorie sa propre colonne." }
+  - { voix: A, texte: "Et une fois déployé, c'est fini ?" }
+  - { voix: B, texte: "Non : les données changent, le modèle dérive. On journalise dans MLflow et on surveille. C'est exactement ce que le jury de l'épreuve E3 va te demander." }
