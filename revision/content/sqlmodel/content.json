@@ -276,7 +276,7 @@
           "Trois classes héritent de BookBase",
           "Une seule a table=True"
         ],
-        "corrige": "```python\nclass BookBase(SQLModel):\n    title: str\n    author: str\n\nclass Book(BookBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    isbn: str\n\nclass BookCreate(BookBase):\n    isbn: str\n\nclass BookPublic(BookBase):\n    id: int\n```\n"
+        "corrige": "```python\nfrom sqlmodel import Field, SQLModel\n\nclass BookBase(SQLModel):\n    title: str\n    author: str\n\nclass Book(BookBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n    isbn: str\n\nclass BookCreate(BookBase):\n    isbn: str\n\nclass BookPublic(BookBase):\n    id: int\n```\n"
       },
       {
         "titre": "Route d'API sûre",

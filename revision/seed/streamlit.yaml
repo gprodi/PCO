@@ -1,0 +1,246 @@
+titre: "Streamlit"
+fiche:
+  titre: "Streamlit : une interface web de données en pur Python"
+  resume: >-
+    Streamlit transforme un script Python en application web interactive, sans HTML ni JavaScript. On lance
+    l'application avec streamlit run app.py. Le texte s'affiche avec st.title, st.header, st.write et
+    st.markdown ; les données avec st.dataframe (interactif) ou st.table (statique). Les widgets (button,
+    checkbox, text_input, selectbox, multiselect, slider, file_uploader, download_button) renvoient
+    directement leur valeur. Point essentiel : à chaque interaction, le script est réexécuté de haut en bas ;
+    on met donc en cache les chargements coûteux (st.cache_data pour les données, st.cache_resource pour les
+    modèles) et on conserve l'état utile dans st.session_state. La mise en page utilise colonnes, onglets et
+    expanders ; les graphiques passent par st.pyplot (Matplotlib, Seaborn), st.plotly_chart ou les graphiques
+    natifs. Un dossier pages/ crée une application multipage. On déploie ensuite sur Streamlit Community Cloud
+    ou dans un conteneur.
+  objectifs:
+    - Construire un tableau de bord avec texte, widgets, mise en page et graphiques
+    - Comprendre le modèle de réexécution et utiliser cache et session_state
+    - Charger un CSV fourni par l'utilisateur, le filtrer et proposer le téléchargement du résultat
+    - Organiser une application multipage et la tester
+  notions:
+    - { terme: "Réexécution", definition: "À chaque interaction, Streamlit relance tout le script ; les widgets renvoient leur nouvelle valeur." }
+    - { terme: "st.cache_data", definition: "Met en cache le résultat d'une fonction (DataFrame, calcul) selon ses arguments ; renvoie une copie." }
+    - { terme: "st.cache_resource", definition: "Met en cache une ressource partagée (modèle, connexion) créée une seule fois." }
+    - { terme: "st.session_state", definition: "Dictionnaire propre à chaque utilisateur qui survit aux réexécutions (panier, historique de chat)." }
+    - { terme: "Widget", definition: "Élément interactif (slider, selectbox…) qui renvoie sa valeur courante ; un paramètre key l'identifie de façon unique." }
+    - { terme: "Multipage", definition: "Fichiers du dossier pages/ (préfixés 0_, 1_… pour l'ordre) ou st.navigation pour une navigation explicite." }
+    - { terme: "st.file_uploader", definition: "Permet à l'utilisateur de déposer un fichier ; renvoie un objet fichier lisible par pandas." }
+  points_cles:
+    - "Tout ce qui est lent (lecture de fichier, chargement de modèle, appel d'API) doit être mis en cache, sinon il est refait à chaque clic."
+    - "Les variables Python ordinaires sont remises à zéro à chaque réexécution : ce qui doit persister va dans st.session_state."
+    - "Dans une architecture propre, Streamlit est un client : il appelle l'API au lieu d'accéder à la base."
+    - "st.pyplot(fig) avec une figure explicite (fig, ax = plt.subplots()) évite d'afficher une figure d'un autre graphique."
+    - "La logique métier va dans des fonctions testables avec pytest ; la page Streamlit ne fait qu'afficher."
+  code:
+    - titre: "Fonction affine interactive"
+      lang: python
+      code: |
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import streamlit as st
+
+        st.title("Fonction affine y = ax + b")
+        col1, col2 = st.columns(2)
+        a = col1.slider("Pente a", -10.0, 10.0, 1.0)
+        b = col2.slider("Ordonnée à l'origine b", -10.0, 10.0, 0.0)
+
+        x = np.linspace(-10, 10, 200)
+        fig, ax = plt.subplots()
+        ax.plot(x, a * x + b)
+        ax.axhline(0, color="grey", lw=0.5)
+        ax.set(xlabel="x", ylabel="y", title=f"y = {a:g}x + {b:g}")
+        st.pyplot(fig)
+      explication: "Chaque déplacement d'un curseur réexécute le script : le graphique se met à jour tout seul."
+    - titre: "Analyse de CSV avec cache et téléchargement"
+      lang: python
+      code: |
+        import pandas as pd
+        import streamlit as st
+
+        @st.cache_data
+        def charger(fichier) -> pd.DataFrame:
+            return pd.read_csv(fichier)
+
+        fichier = st.file_uploader("Dépose un CSV", type="csv")
+        if fichier is not None:
+            df = charger(fichier)
+            colonnes = st.multiselect("Colonnes", df.columns.tolist(), default=df.columns[:3].tolist())
+            tab_donnees, tab_stats = st.tabs(["Données", "Statistiques"])
+            tab_donnees.dataframe(df[colonnes])
+            tab_stats.write(df.describe())
+            st.download_button("Télécharger la sélection", df[colonnes].to_csv(index=False), "selection.csv")
+      explication: "Le cache évite de relire le fichier à chaque clic ; download_button renvoie le résultat filtré."
+  pieges:
+    - "Charger un modèle à chaque réexécution (sans st.cache_resource) : application très lente."
+    - "Stocker un compteur dans une variable ordinaire : il revient à zéro à chaque clic (utiliser st.session_state)."
+    - "st.write(df.info()) affiche None : info() écrit sur la sortie standard ; capturer avec un tampon io.StringIO."
+    - "Deux widgets identiques sans paramètre key distinct : erreur DuplicateWidgetID."
+    - "Mettre des secrets dans le code : utiliser .streamlit/secrets.toml (non versionné) et st.secrets."
+  aller_plus_loin:
+    - titre: "Tester une page avec AppTest"
+      contenu: "`from streamlit.testing.v1 import AppTest` : `at = AppTest.from_file('app.py').run()`, puis `at.slider[0].set_value(3).run()` et des assert sur `at.markdown` ou `at.exception`. Les pages deviennent testables en CI, comme dans MicroForge (parcours sans exception)."
+      lien: "https://docs.streamlit.io/develop/api-reference/app-testing"
+    - titre: "Chat avec st.chat_message et st.chat_input"
+      contenu: "Historique dans `st.session_state.messages`, affichage avec `st.chat_message('user')`, saisie avec `st.chat_input`. Défi : branche le chat sur l'API IA de ton projet et affiche la réponse en flux (`st.write_stream`)."
+      lien: "https://docs.streamlit.io/develop/tutorials/chat-and-llm-apps"
+    - titre: "Alternatives à Streamlit"
+      contenu: "Taipy, Panel ou Gradio (démos de modèles) : à citer dans la veille pour justifier le choix du front (simplicité, réactivité, multi-utilisateurs, accessibilité)."
+      lien: "https://github.com/Avaiga/taipy"
+  jury: >-
+    **E3 (C10)** et **E4 (C17)** : intégrer l'API du modèle dans une application et développer les interfaces.
+    Le front de MicroForge est une application Streamlit multipage (`app_streamlit/`) qui appelle `api_data` et
+    `api_ia` par un client HTTP dédié : montre le cache, l'état de session et les tests de pages.
+  competences: [C10, C17]
+  sources: []
+qcm:
+  - question: "Comment lancer une application Streamlit ?"
+    choix: ["python app.py", "streamlit run app.py", "uvicorn app:app", "flask run"]
+    bonne: 1
+    explication: "La commande streamlit run démarre le serveur et ouvre le navigateur."
+    difficulte: 1
+  - question: "Que se passe-t-il quand l'utilisateur bouge un slider ?"
+    choix: ["Seule la ligne du slider s'exécute", "Tout le script est réexécuté de haut en bas", "Rien jusqu'au clic sur un bouton", "La page est rechargée sans Python"]
+    bonne: 1
+    explication: "C'est le modèle d'exécution de Streamlit."
+    difficulte: 1
+  - question: "Quel décorateur pour charger un modèle une seule fois ?"
+    choix: ["st.cache_data", "st.cache_resource", "st.session_state", "st.experimental_memo"]
+    bonne: 1
+    explication: "cache_resource pour les objets partagés (modèles, connexions) ; cache_data pour les données."
+    difficulte: 2
+  - question: "Un compteur de clics repart à 0 à chaque clic. Pourquoi ?"
+    choix: ["Bug de Streamlit", "La variable est recréée à chaque réexécution ; il faut st.session_state", "Il faut un slider", "Le cache est plein"]
+    bonne: 1
+    explication: "session_state persiste entre réexécutions pour un même utilisateur."
+    difficulte: 2
+  - question: "Comment créer une application multipage simple ?"
+    choix: ["Plusieurs serveurs", "Un dossier pages/ avec un fichier par page", "Un seul fichier très long", "Des iframes"]
+    bonne: 1
+    explication: "Chaque fichier de pages/ devient une page dans la barre latérale."
+    difficulte: 1
+  - question: "Comment afficher un graphique Seaborn dans Streamlit ?"
+    choix: ["st.seaborn()", "Créer la figure puis st.pyplot(fig)", "plt.show()", "st.image(sns)"]
+    bonne: 1
+    explication: "Seaborn dessine sur une figure Matplotlib que st.pyplot affiche."
+    difficulte: 1
+  - question: "Où ranger un mot de passe de base de données utilisé par l'application ?"
+    choix: ["Dans app.py", "Dans .streamlit/secrets.toml (non versionné), lu par st.secrets", "Dans le README", "Dans une variable globale"]
+    bonne: 1
+    explication: "Le fichier de secrets reste hors de Git."
+    difficulte: 1
+  - question: "Pourquoi st.write(df.info()) n'affiche-t-il rien d'utile ?"
+    choix: ["df est vide", "info() imprime sur la sortie standard et renvoie None", "Streamlit ne gère pas pandas", "Il faut st.table"]
+    bonne: 1
+    explication: "Capturer : buf = io.StringIO(); df.info(buf=buf); st.text(buf.getvalue())."
+    difficulte: 3
+flashcards:
+  - { recto: "Lancer l'app", verso: "streamlit run app.py" }
+  - { recto: "Afficher du texte", verso: "st.title, st.header, st.subheader, st.write, st.markdown" }
+  - { recto: "DataFrame interactif vs tableau statique", verso: "st.dataframe(df) vs st.table(df)" }
+  - { recto: "Curseur", verso: "valeur = st.slider(\"label\", min, max, défaut)" }
+  - { recto: "Choix multiple", verso: "st.multiselect(\"label\", options, default=[...])" }
+  - { recto: "Mise en page", verso: "st.columns(n), st.tabs([...]), st.expander(\"titre\"), st.sidebar" }
+  - { recto: "Cache des données", verso: "@st.cache_data au-dessus de la fonction de chargement." }
+  - { recto: "Cache d'un modèle", verso: "@st.cache_resource" }
+  - { recto: "État persistant", verso: "st.session_state[\"cle\"] (initialiser si absent)." }
+  - { recto: "Déposer / télécharger un fichier", verso: "st.file_uploader(...) ; st.download_button(label, données, nom_fichier)" }
+  - { recto: "Graphique Matplotlib", verso: "fig, ax = plt.subplots() … st.pyplot(fig)" }
+  - { recto: "Secrets", verso: ".streamlit/secrets.toml + st.secrets[\"cle\"]" }
+exercices:
+  - titre: "Compteur et historique"
+    niveau: 1
+    enonce: "Crée une page avec un bouton « + 1 » qui incrémente un compteur conservé entre les clics, et un champ texte dont chaque saisie validée s'ajoute à un historique affiché en liste."
+    indices: ["if \"compteur\" not in st.session_state:", "st.text_input + st.button"]
+    corrige: |
+      ```python
+      import streamlit as st
+
+      if "compteur" not in st.session_state:
+          st.session_state.compteur = 0
+          st.session_state.historique = []
+
+      if st.button("+ 1"):
+          st.session_state.compteur += 1
+      st.metric("Compteur", st.session_state.compteur)
+
+      texte = st.text_input("Note")
+      if st.button("Ajouter") and texte:
+          st.session_state.historique.append(texte)
+      for ligne in st.session_state.historique:
+          st.write("•", ligne)
+      ```
+  - titre: "Analyseur de ventes de jeux vidéo"
+    niveau: 2
+    enonce: "Page `pages/1_data_analyst.py` : dépôt d'un CSV, aperçu, statistiques, choix de deux colonnes numériques pour un nuage de points Seaborn, histogramme avec nombre de classes réglable, filtre par valeur d'une colonne, et résumé `info()` correctement affiché."
+    indices: ["st.cache_data pour la lecture", "io.StringIO pour info()", "sns.scatterplot(data=df, x=..., y=..., ax=ax)"]
+    corrige: |
+      ```python
+      import io
+
+      import matplotlib.pyplot as plt
+      import pandas as pd
+      import seaborn as sns
+      import streamlit as st
+
+      @st.cache_data
+      def charger(f):
+          return pd.read_csv(f)
+
+      f = st.file_uploader("Ventes de jeux vidéo (CSV)", type="csv")
+      if f:
+          df = charger(f)
+          st.dataframe(df.head())
+          st.write(df.describe())
+          num = df.select_dtypes("number").columns.tolist()
+          x, y = st.selectbox("X", num), st.selectbox("Y", num, index=min(1, len(num) - 1))
+          fig, ax = plt.subplots()
+          sns.scatterplot(data=df, x=x, y=y, ax=ax)
+          st.pyplot(fig)
+          col = st.selectbox("Histogramme de", num)
+          fig2, ax2 = plt.subplots()
+          ax2.hist(df[col].dropna(), bins=st.slider("Classes", 5, 100, 20))
+          st.pyplot(fig2)
+          filtre = st.selectbox("Filtrer sur", df.columns)
+          valeur = st.selectbox("Valeur", df[filtre].dropna().unique())
+          st.dataframe(df[df[filtre] == valeur])
+          buf = io.StringIO()
+          df.info(buf=buf)
+          st.text(buf.getvalue())
+      ```
+mindmap: |
+  # Streamlit
+  ## Bases
+  - streamlit run
+  - title, header, write, markdown
+  - dataframe, table
+  ## Widgets
+  - button, checkbox, text_input
+  - selectbox, multiselect, slider
+  - file_uploader, download_button
+  ## Exécution
+  - Réexécution complète
+  - cache_data / cache_resource
+  - session_state
+  ## Mise en page
+  - columns, tabs, expander, sidebar
+  - pages/ (multipage)
+  ## Graphiques
+  - st.pyplot (Matplotlib, Seaborn)
+  - plotly_chart
+  ## Qualité
+  - Appeler l'API
+  - AppTest
+  - st.secrets
+  - Déploiement
+podcast_titre: "Streamlit sans se faire piéger par la réexécution"
+podcast:
+  - { voix: A, texte: "Karim, Streamlit, c'est vraiment une appli web sans HTML ?" }
+  - { voix: B, texte: "Oui : un script Python, streamlit run, et tu as une page web. Un slider s'écrit en une ligne et renvoie directement sa valeur." }
+  - { voix: A, texte: "Mon application est lente : chaque clic prend plusieurs secondes." }
+  - { voix: B, texte: "Normal si tu recharges ton modèle à chaque fois. À chaque interaction, Streamlit réexécute tout le script. Mets st cache resource sur le chargement du modèle et st cache data sur la lecture du CSV." }
+  - { voix: A, texte: "Et mon compteur qui revient à zéro ?" }
+  - { voix: B, texte: "Même cause. Une variable normale est recréée à chaque réexécution. Ce qui doit persister va dans st session state." }
+  - { voix: A, texte: "Pour un vrai projet, Streamlit peut parler directement à la base ?" }
+  - { voix: B, texte: "Techniquement oui, mais c'est une mauvaise idée. Streamlit est un client : il appelle ton API, qui contrôle et valide. C'est ce que fait MicroForge." }
+  - { voix: A, texte: "Et on peut tester une page Streamlit ?" }
+  - { voix: B, texte: "Oui, avec AppTest : tu lances la page, tu bouges un widget en code et tu vérifies qu'il n'y a pas d'exception. Parfait pour la CI." }

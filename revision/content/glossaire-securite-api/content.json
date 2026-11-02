@@ -1,0 +1,341 @@
+{
+  "slug": "glossaire-securite-api",
+  "titre": "Glossaire de la sécurité d'API",
+  "theme": "api",
+  "fiche": {
+    "titre": "Le vocabulaire de la sécurité d'API, de l'OAuth2 aux menaces propres à l'IA",
+    "resume": "Ce glossaire complète le cours sur la sécurisation de FastAPI et sert de mémo pour l'oral. Il range les termes en familles. Les fondamentaux : authentification et autorisation, API stateless, jeton, codes 401 et 403, Depends. Le JWT et ses claims (sub, exp, iat, iss, aud, nbf, jti), la différence entre encodage base64url et chiffrement, la signature HS256 ou RS256 et les attaques « alg: none » et confusion d'algorithme. OAuth2 en largeur : les quatre rôles, les flux (Authorization Code + PKCE recommandé, Client Credentials entre machines, Password Grant déconseillé par OAuth 2.1) et OpenID Connect, couche d'identité qui ajoute un id_token. Le stockage côté navigateur (localStorage exposé au XSS, cookie HttpOnly exposé au CSRF et protégé par SameSite), le durcissement (rate limiting, 429, CORS, anti-énumération, fail-closed, en-têtes de sécurité, MFA, OWASP API Top 10) et enfin les risques propres au serving de modèles : quotas, validation métier, extraction de modèle et injection de prompt.",
+    "objectifs": [
+      "Définir avec précision chaque terme de sécurité d'API utilisé à l'oral",
+      "Choisir le bon flux OAuth2 selon le type de client",
+      "Expliquer les compromis de stockage du jeton côté navigateur (XSS vs CSRF)",
+      "Citer les risques spécifiques à une API qui sert un modèle d'IA et leurs parades"
+    ],
+    "notions": [
+      {
+        "terme": "Encodage vs chiffrement",
+        "definition": "base64url est un encodage réversible par tous ; seul un chiffrement (JWE) cache le contenu. Un JWT classique (JWS) est signé, pas chiffré."
+      },
+      {
+        "terme": "nbf et leeway",
+        "definition": "nbf : date avant laquelle le jeton n'est pas valide ; leeway : tolérance de quelques secondes pour les décalages d'horloge."
+      },
+      {
+        "terme": "Authorization Code + PKCE",
+        "definition": "Flux recommandé pour les applications web et mobiles : un code à usage unique, protégé par PKCE, est échangé contre des jetons."
+      },
+      {
+        "terme": "Client Credentials",
+        "definition": "Flux machine à machine, sans utilisateur : un service s'authentifie avec son identifiant et son secret."
+      },
+      {
+        "terme": "OpenID Connect",
+        "definition": "Couche d'identité au-dessus d'OAuth2 : l'id_token (JWT) décrit l'utilisateur ; OAuth2 seul gère l'autorisation."
+      },
+      {
+        "terme": "XSS / CSRF",
+        "definition": "XSS : script injecté qui lit ce que JavaScript peut lire (localStorage). CSRF : site tiers qui déclenche une requête avec les cookies de la victime."
+      },
+      {
+        "terme": "CORS",
+        "definition": "Règles qui disent au navigateur quelles origines peuvent appeler l'API ; jamais * avec des identifiants."
+      },
+      {
+        "terme": "Énumération de comptes",
+        "definition": "Déduire quels comptes existent via des messages ou des temps de réponse différents."
+      },
+      {
+        "terme": "Extraction de modèle",
+        "definition": "Reconstituer un modèle en l'interrogeant massivement ; freinée par quotas et limitation de débit."
+      },
+      {
+        "terme": "Injection de prompt",
+        "definition": "Entrée qui tente de faire ignorer ses consignes à un LLM ; on sépare consignes et données et on limite ce que le modèle peut déclencher."
+      }
+    ],
+    "points_cles": [
+      "OAuth2 = autorisation (accès délégué) ; OpenID Connect = authentification (qui est l'utilisateur).",
+      "Password Grant : pratique pour apprendre et pour son propre front, mais déconseillé par OAuth 2.1.",
+      "Cookie HttpOnly + Secure + SameSite : protège du XSS et atténue le CSRF ; localStorage est plus simple mais exposé au XSS.",
+      "429 Too Many Requests signale un dépassement de quota ou de débit ; Retry-After indique quand réessayer.",
+      "OWASP API Top 10 : API1/API3 accès aux objets d'autrui, API2 authentification, API4 consommation, API5 autorisation de fonction, API8 configuration.",
+      "Pour une API de modèle : quota par utilisateur, bornes métier sur les entrées, journalisation des usages anormaux."
+    ],
+    "code": [
+      {
+        "titre": "CORS restreint et en-têtes de sécurité",
+        "lang": "python",
+        "code": "from fastapi import FastAPI, Request\nfrom fastapi.middleware.cors import CORSMiddleware\n\napp = FastAPI()\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=[\"https://mon-front.fr\"],      # jamais [\"*\"] avec allow_credentials=True\n    allow_credentials=True,\n    allow_methods=[\"GET\", \"POST\"],\n    allow_headers=[\"Authorization\", \"Content-Type\"],\n)\n\n@app.middleware(\"http\")\nasync def entetes_securite(request: Request, call_next):\n    reponse = await call_next(request)\n    reponse.headers[\"X-Content-Type-Options\"] = \"nosniff\"\n    reponse.headers[\"Strict-Transport-Security\"] = \"max-age=31536000; includeSubDomains\"\n    return reponse\n",
+        "explication": "CORS ne protège que les navigateurs : l'API doit quand même vérifier chaque jeton."
+      },
+      {
+        "titre": "Validation métier stricte des entrées d'un modèle",
+        "lang": "python",
+        "code": "from pydantic import BaseModel, Field\n\nclass Logement(BaseModel):\n    surface_m2: float = Field(gt=9, le=1000)        # bornes réalistes, pas seulement > 0\n    pieces: int = Field(ge=1, le=20)\n    annee: int = Field(ge=1800, le=2030)\n\n# Logement(surface_m2=1e9, pieces=3, annee=2000) -> ValidationError (422 dans FastAPI)\n",
+        "explication": "Des bornes métier rejettent les valeurs absurdes ou adversariales avant qu'elles n'atteignent le modèle."
+      }
+    ],
+    "pieges": [
+      "Confondre encodage et chiffrement : « mon JWT est sécurisé car illisible » est faux.",
+      "allow_origins=[\"*\"] avec allow_credentials=True : configuration refusée par les navigateurs et dangereuse.",
+      "Messages différents pour « compte inconnu » et « mauvais mot de passe » : énumération des comptes.",
+      "Exposer un modèle sans quota : coût incontrôlé et extraction du modèle facilitée.",
+      "Concaténer la saisie utilisateur aux consignes d'un LLM sans séparation : injection de prompt."
+    ],
+    "aller_plus_loin": [
+      {
+        "titre": "OWASP API Security Top 10 (2023)",
+        "contenu": "Lis la description de chaque risque et associe-le à une protection concrète de ton projet. Défi : un tableau « risque → protection → preuve (test, capture, configuration) » pour ton dossier E4/E5.",
+        "lien": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+      },
+      {
+        "titre": "OWASP Top 10 pour les applications LLM",
+        "contenu": "Injection de prompt, divulgation d'informations sensibles, consommation non bornée, agence excessive (un agent qui peut trop agir)… Indispensable dès qu'un projet utilise un LLM ou un agent (HorRAGor, MicroForge).",
+        "lien": "https://genai.owasp.org/llm-top-10/"
+      },
+      {
+        "titre": "Recommandations de l'ANSSI",
+        "contenu": "L'ANSSI publie des recommandations sur l'authentification, les mots de passe et le développement sécurisé ; une bonne source réglementaire à citer dans la veille (compétence C6).",
+        "lien": "https://cyber.gouv.fr/publications"
+      }
+    ],
+    "jury": "**E4/E5 (C17, C21)** et **E2 (C6)** : utiliser le vocabulaire exact à l'oral et relier chaque risque à une protection. Dans MicroForge : JWT RS256 avec audience, rotation des refresh tokens, slowapi (API4), validation Pydantic avec bornes, et passerelle LLM qui sépare consignes et données utilisateur.",
+    "competences": [
+      "C6",
+      "C17",
+      "C21"
+    ],
+    "sources": []
+  },
+  "quiz": {
+    "questions": [
+      {
+        "question": "OAuth2 vs OpenID Connect :",
+        "choix": [
+          "Ce sont des synonymes",
+          "OAuth2 gère l'autorisation ; OIDC ajoute l'identité avec un id_token",
+          "OIDC remplace les JWT",
+          "OAuth2 est une bibliothèque Python"
+        ],
+        "bonne": 1,
+        "explication": "OIDC est une couche d'identité au-dessus d'OAuth2.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel flux OAuth2 pour un service qui appelle une API sans utilisateur ?",
+        "choix": [
+          "Password Grant",
+          "Client Credentials",
+          "Authorization Code + PKCE",
+          "Implicit"
+        ],
+        "bonne": 1,
+        "explication": "Machine à machine : Client Credentials.",
+        "difficulte": 2
+      },
+      {
+        "question": "Flux recommandé par OAuth 2.1 pour une application web publique ?",
+        "choix": [
+          "Password Grant",
+          "Implicit",
+          "Authorization Code + PKCE",
+          "Client Credentials"
+        ],
+        "bonne": 2,
+        "explication": "PKCE protège l'échange du code ; Implicit est supprimé.",
+        "difficulte": 2
+      },
+      {
+        "question": "Un jeton stocké dans localStorage est surtout exposé à :",
+        "choix": [
+          "CSRF",
+          "XSS",
+          "Injection SQL",
+          "Brute-force"
+        ],
+        "bonne": 1,
+        "explication": "Un script injecté peut lire localStorage ; un cookie HttpOnly ne l'est pas.",
+        "difficulte": 2
+      },
+      {
+        "question": "Quel code HTTP quand la limite de débit est dépassée ?",
+        "choix": [
+          "401",
+          "403",
+          "429",
+          "503"
+        ],
+        "bonne": 2,
+        "explication": "429 Too Many Requests.",
+        "difficulte": 1
+      },
+      {
+        "question": "Que fait l'attribut de cookie SameSite ?",
+        "choix": [
+          "Chiffre le cookie",
+          "Limite l'envoi du cookie aux requêtes du même site, ce qui atténue le CSRF",
+          "Empêche JavaScript de lire le cookie",
+          "Allonge sa durée"
+        ],
+        "bonne": 1,
+        "explication": "HttpOnly empêche la lecture par JavaScript ; SameSite agit contre le CSRF.",
+        "difficulte": 2
+      },
+      {
+        "question": "Qu'est-ce que l'extraction de modèle ?",
+        "choix": [
+          "Télécharger un modèle depuis le Hub",
+          "Reconstituer un modèle en l'interrogeant massivement",
+          "Compresser un modèle",
+          "Exporter en ONNX"
+        ],
+        "bonne": 1,
+        "explication": "Quotas et rate limiting la freinent.",
+        "difficulte": 2
+      },
+      {
+        "question": "base64url appliqué au payload d'un JWT, c'est :",
+        "choix": [
+          "Un chiffrement fort",
+          "Un encodage réversible par n'importe qui",
+          "Une signature",
+          "Un hachage"
+        ],
+        "bonne": 1,
+        "explication": "Le contenu est lisible ; seule la signature garantit l'intégrité.",
+        "difficulte": 1
+      }
+    ]
+  },
+  "flashcards": {
+    "cartes": [
+      {
+        "recto": "AuthN / AuthZ",
+        "verso": "Authentification : qui es-tu ? Autorisation : as-tu le droit ?",
+        "tags": []
+      },
+      {
+        "recto": "nbf",
+        "verso": "Not before : le jeton n'est pas valide avant cette date.",
+        "tags": []
+      },
+      {
+        "recto": "leeway",
+        "verso": "Tolérance d'horloge (secondes) sur exp et nbf.",
+        "tags": []
+      },
+      {
+        "recto": "Les 4 rôles OAuth2",
+        "verso": "Resource Owner, Client, Authorization Server, Resource Server.",
+        "tags": []
+      },
+      {
+        "recto": "PKCE",
+        "verso": "Proof Key for Code Exchange : empêche l'interception du code d'autorisation.",
+        "tags": []
+      },
+      {
+        "recto": "id_token",
+        "verso": "JWT d'OpenID Connect qui décrit l'utilisateur authentifié.",
+        "tags": []
+      },
+      {
+        "recto": "Cookie de jeton bien configuré",
+        "verso": "HttpOnly + Secure + SameSite=Lax/Strict.",
+        "tags": []
+      },
+      {
+        "recto": "CORS",
+        "verso": "Liste des origines autorisées à appeler l'API depuis un navigateur.",
+        "tags": []
+      },
+      {
+        "recto": "Anti-énumération",
+        "verso": "Message unique + vérification de hash systématique (temps constant).",
+        "tags": []
+      },
+      {
+        "recto": "OWASP API4",
+        "verso": "Consommation de ressources non bornée → rate limiting, quotas, tailles maximales.",
+        "tags": []
+      },
+      {
+        "recto": "Injection de prompt",
+        "verso": "Entrée qui détourne les consignes d'un LLM ; séparer consignes et données, limiter les actions.",
+        "tags": []
+      },
+      {
+        "recto": "MFA",
+        "verso": "Authentification multi-facteur : mot de passe + second facteur (code, application).",
+        "tags": []
+      }
+    ]
+  },
+  "exercices": {
+    "exercices": [
+      {
+        "titre": "Associer risque et parade",
+        "niveau": 1,
+        "enonce": "Associe chaque risque à sa parade : (1) brute-force sur /token ; (2) jeton destiné à une autre API ; (3) SECRET_KEY oubliée ; (4) vol de jeton par XSS ; (5) extraction du modèle. Parades : (a) audience=… ; (b) cookie HttpOnly ; (c) fail-closed ; (d) rate limiting ; (e) quotas par utilisateur.",
+        "indices": [],
+        "corrige": "(1) → (d) rate limiting ; (2) → (a) audience vérifiée ; (3) → (c) fail-closed ; (4) → (b) cookie HttpOnly ; (5) → (e) quotas (et rate limiting).\n"
+      },
+      {
+        "titre": "Tableau OWASP pour son projet",
+        "niveau": 2,
+        "enonce": "Pour ton projet de certification, remplis un tableau de 5 lignes : risque OWASP, scénario concret dans ton application, protection mise en place, preuve (test, configuration, capture).",
+        "indices": [],
+        "corrige": "Exemple pour MicroForge :\n\n| Risque | Scénario | Protection | Preuve |\n|---|---|---|---|\n| API2 Authentification | Jeton forgé | JWT RS256, algorithme figé, audience | Test « jeton d'une autre audience → 401 » |\n| API5 Autorisation de fonction | Utilisateur sur route admin | Dépendance de rôle | Test → 403 |\n| API4 Consommation | 1 000 analyses de photo par minute | slowapi + quota | Test → 429 |\n| API1 Objet d'autrui | Lire le stock d'un autre en changeant l'id | Filtre par propriétaire en base | Test → 404 |\n| API8 Configuration | Clé par défaut en production | Fail-closed au démarrage | Test de démarrage sans clé → erreur |\n"
+      }
+    ]
+  },
+  "mindmap": {
+    "markdown": "# Glossaire sécurité d'API\n## Fondamentaux\n- AuthN / AuthZ\n- 401 / 403\n- Stateless, Bearer\n## JWT\n- Claims : sub, exp, iat, iss, aud, nbf, jti\n- Encodage ≠ chiffrement\n- HS256 / RS256\n- alg none, confusion\n## OAuth2 et OIDC\n- Rôles\n- Code + PKCE, Client Credentials, Password\n- OAuth 2.1\n- id_token\n## Navigateur\n- localStorage / XSS\n- Cookie HttpOnly / CSRF / SameSite\n- CORS\n## Durcissement\n- Rate limiting, 429\n- Anti-énumération, fail-closed\n- En-têtes, MFA, OWASP\n## IA\n- Quotas\n- Validation métier\n- Extraction de modèle\n- Injection de prompt\n"
+  },
+  "podcast": {
+    "titre": "Parler sécurité comme un pro devant le jury",
+    "repliques": [
+      {
+        "voix": "A",
+        "texte": "Karim, à l'oral, je mélange toujours OAuth2 et OpenID Connect."
+      },
+      {
+        "voix": "B",
+        "texte": "Retiens : OAuth2, c'est l'autorisation, l'accès délégué. OpenID Connect ajoute l'identité, avec un id token qui dit qui est l'utilisateur."
+      },
+      {
+        "voix": "A",
+        "texte": "Et le Password Grant du cours, on peut l'utiliser en vrai ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Pour ton propre front de confiance, ça passe, mais OAuth 2.1 le déconseille. Pour une appli web publique, c'est Authorization Code avec PKCE."
+      },
+      {
+        "voix": "A",
+        "texte": "Où je range le jeton dans le navigateur ?"
+      },
+      {
+        "voix": "B",
+        "texte": "localStorage est simple mais un script injecté peut le lire : c'est le XSS. Un cookie HttpOnly n'est pas lisible en JavaScript, mais il part tout seul avec les requêtes : c'est le risque CSRF, d'où l'attribut SameSite."
+      },
+      {
+        "voix": "A",
+        "texte": "Et pour une API qui sert un modèle, il y a des risques particuliers ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Oui : sans quota, quelqu'un peut interroger ton modèle des milliers de fois pour le copier, c'est l'extraction. Et avec un LLM, l'injection de prompt : une saisie qui essaie de lui faire ignorer ses consignes."
+      },
+      {
+        "voix": "A",
+        "texte": "Comment je présente tout ça au jury ?"
+      },
+      {
+        "voix": "B",
+        "texte": "Un tableau : risque OWASP, scénario dans ton projet, protection, et surtout la preuve, un test qui renvoie bien 401, 403 ou 429. Le vocabulaire juste plus la preuve, c'est imparable."
+      }
+    ]
+  },
+  "origine": "seed"
+}

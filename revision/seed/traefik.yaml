@@ -1,0 +1,221 @@
+titre: "Reverse proxy Traefik"
+fiche:
+  titre: "Traefik : un reverse proxy qui découvre seul les conteneurs Docker"
+  resume: >-
+    Sans reverse proxy, chaque service publie son propre port (front sur 3333, API sur 4444) : adresses
+    multiples, origines différentes donc problèmes CORS, et chaque service exposé directement. Un proxy
+    classique (forward) agit pour le client ; un reverse proxy agit pour les serveurs : il reçoit toutes les
+    requêtes sur un seul point d'entrée et les aiguille vers le bon service. Traefik se lit avec quatre
+    notions : EntryPoint (par où ça entre, ex. :80), Router (cette requête est-elle pour moi ? règles Host,
+    PathPrefix, Path, Method, Header combinables), Service (où l'envoyer : le port interne du conteneur) et
+    Middleware (ce qu'on fait entre les deux : stripprefix, basicauth, limitation de débit). Un cinquième, le
+    Provider, est la source de configuration : avec Docker, Traefik lit les labels des conteneurs en
+    permanence (configuration dynamique), alors que ses options de démarrage (statique) imposent un
+    redémarrage. Quand plusieurs règles correspondent, la plus longue gagne. Les pannes se diagnostiquent
+    par les logs, la liste des routes connues et les logs d'accès : 404 = aucune route, 502 = route trouvée
+    mais application injoignable.
+  objectifs:
+    - Expliquer la différence entre proxy et reverse proxy et l'intérêt d'un point d'entrée unique
+    - Configurer EntryPoint, Router, Service et Middleware par des labels Docker Compose
+    - Résoudre un problème CORS par le routage en même origine
+    - Diagnostiquer méthodiquement 404, 502 et Gateway Timeout
+  notions:
+    - { terme: "Reverse proxy", definition: "Serveur placé devant les applications qui reçoit les requêtes des clients et les relaie vers le bon service interne." }
+    - { terme: "EntryPoint", definition: "Port d'écoute de Traefik (ex. :80, :443) : la porte d'entrée unique." }
+    - { terme: "Router", definition: "Règle d'aiguillage (Host, PathPrefix, Path, Method, Header, combinées par &&, ||, !) qui décide si une requête le concerne." }
+    - { terme: "Service", definition: "Destination d'un router : le conteneur et son port interne ; répartit la charge entre plusieurs instances." }
+    - { terme: "Middleware", definition: "Traitement intermédiaire appliqué dans l'ordre : stripprefix, basicauth, redirections, en-têtes, rate limiting." }
+    - { terme: "Provider", definition: "Source de configuration de Traefik : Docker (labels), fichiers, Kubernetes, Consul…" }
+    - { terme: "Configuration statique / dynamique", definition: "Statique : options de démarrage (redémarrage nécessaire). Dynamique : labels relus à chaud." }
+    - { terme: "X-Forwarded-*", definition: "En-têtes ajoutés par le proxy (For, Host, Proto) : la preuve que la requête est passée par lui." }
+  points_cles:
+    - "Seul Traefik publie un port ; les services ne sont joignables que par le réseau Docker interne, par leur nom."
+    - "Le port d'un Service est le port interne du conteneur (8000 pour uvicorn), jamais un port publié : sinon 502."
+    - "Host(...) ignore le port ; la règle la plus longue (la plus spécifique) l'emporte."
+    - "PathPrefix compare une chaîne : /api correspond aussi à /apidocs."
+    - "Servir le front et l'API sous le même nom d'hôte (app.localhost/api/…) supprime le problème CORS."
+    - "Le socket Docker monté dans Traefik donne beaucoup de pouvoir : lecture seule, et dashboard protégé (basicauth) ou désactivé en production."
+  code:
+    - titre: "docker-compose.yml avec labels Traefik"
+      lang: yaml
+      code: |
+        services:
+          traefik:
+            image: traefik:v3.6                      # version épinglée, jamais latest
+            command:
+              - --providers.docker=true
+              - --providers.docker.exposedbydefault=false
+              - --entrypoints.web.address=:80
+              - --accesslog=true
+            ports: ["1111:80"]                       # le SEUL port publié
+            volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+            networks: [web]
+
+          api:
+            build: ./api
+            command: uvicorn main:app --host 0.0.0.0 --port 8000   # 0.0.0.0 obligatoire
+            labels:
+              - traefik.enable=true
+              - traefik.http.routers.api.rule=Host(`app.localhost`) && PathPrefix(`/api`)
+              - traefik.http.routers.api.entrypoints=web
+              - traefik.http.routers.api.middlewares=api-strip
+              - traefik.http.middlewares.api-strip.stripprefix.prefixes=/api
+              - traefik.http.services.api.loadbalancer.server.port=8000
+            networks: [web]
+
+          frontend:
+            image: nginx:1.27
+            labels:
+              - traefik.enable=true
+              - traefik.http.routers.front.rule=Host(`app.localhost`)
+              - traefik.http.services.front.loadbalancer.server.port=80
+            networks: [web]
+
+        networks:
+          web:
+      explication: "Le front et l'API partagent app.localhost : même origine, plus de CORS ; stripprefix fait recevoir /health à l'API."
+    - titre: "Diagnostiquer"
+      lang: bash
+      code: |
+        docker compose logs traefik | tail -50           # 1. ce que Traefik a compris (ou ignoré)
+        curl -s http://localhost:8080/api/http/routers   # 2. les routes réellement connues (API du dashboard)
+        docker compose exec api curl -s localhost:8000/health   # 3. l'application répond-elle en interne ?
+        curl -H "Host: app.localhost" http://localhost:1111/api/health   # tester sans toucher au fichier hosts
+      explication: "404 : chercher pourquoi la route n'existe pas ; 502 : chercher pourquoi l'application est injoignable."
+  pieges:
+    - "Oublier traefik.enable=true avec exposedbydefault=false : le conteneur est ignoré sans aucun message."
+    - "Service hors du réseau partagé avec Traefik : 404 (ou 502/Gateway Timeout s'il est sur plusieurs réseaux)."
+    - "Apostrophes ou guillemets au lieu d'accents graves dans Host(`…`)."
+    - "Indiquer le port publié au lieu du port interne, ou une application qui écoute sur 127.0.0.1 : 502 Bad Gateway."
+    - "Noms de routers génériques (api) partagés entre plusieurs projets Compose : collision, routes écrasées."
+    - "Utiliser traefik:latest : un changement de version (ou de l'API Docker) casse la démo du jour au lendemain."
+  aller_plus_loin:
+    - titre: "HTTPS automatique avec Let's Encrypt"
+      contenu: "Un `certresolver` ACME obtient et renouvelle seul les certificats TLS pour un vrai nom de domaine ; un middleware `redirectscheme` force HTTPS. C'est l'étape qui rend une API utilisable avec des jetons Bearer en production."
+      lien: "https://doc.traefik.io/traefik/https/acme/"
+    - titre: "Middlewares de sécurité"
+      contenu: "`ratelimit` (limitation de débit à l'entrée), `headers` (HSTS, nosniff), `ipallowlist`, `forwardauth` (déléguer l'authentification à un service). Défi : protège `/docs` de l'API par basicauth et limite `/token` à 5 requêtes par minute au niveau du proxy."
+      lien: "https://doc.traefik.io/traefik/middlewares/overview/"
+    - titre: "Ajouter Traefik à MicroForge"
+      contenu: "MicroForge expose aujourd'hui `api_data`, `api_ia` et Streamlit sur des ports séparés (`microforge/infra/docker-compose.yml`). Un Traefik devant les trois (front sur `/`, API sur `/api` et `/ia`) supprimerait les ports multiples et préparerait le HTTPS : une amélioration à présenter en E5."
+  jury: >-
+    **E5 (C19, C20, C21)** : livraison continue, surveillance et résolution d'incidents. La démarche de
+    diagnostic du tutoriel (logs → routes connues → logs d'accès ; 404 vs 502) est exactement ce que le jury
+    attend pour C21. MicroForge n'utilise pas encore de reverse proxy : l'ajouter (point d'entrée unique,
+    HTTPS, en-têtes de sécurité) est une évolution argumentable de l'architecture.
+  competences: [C19, C20, C21]
+  sources: []
+qcm:
+  - question: "Quelle est la différence entre un proxy et un reverse proxy ?"
+    choix: ["Aucune", "Le proxy agit pour le client, le reverse proxy agit pour les serveurs", "Le reverse proxy est plus lent", "Le proxy chiffre toujours"]
+    bonne: 1
+    explication: "Le reverse proxy est le point d'entrée unique devant les applications."
+    difficulte: 1
+  - question: "Dans loadbalancer.server.port=8000, que désigne 8000 ?"
+    choix: ["Le port tapé dans le navigateur", "Le port publié sur la machine", "Le port sur lequel l'application écoute dans le conteneur", "Le port du dashboard"]
+    bonne: 2
+    explication: "Toujours le port interne ; sinon 502."
+    difficulte: 2
+  - question: "Deux routers correspondent à une requête. Lequel gagne par défaut ?"
+    choix: ["Le premier déclaré", "Celui dont la règle est la plus longue (la plus spécifique)", "Les deux", "Aucun"]
+    bonne: 1
+    explication: "La priorité par défaut est la longueur de la règle."
+    difficulte: 2
+  - question: "Que retire le middleware stripprefix=/api ?"
+    choix: ["Le nom d'hôte", "Le préfixe /api du chemin avant de transmettre à l'API", "Les en-têtes", "Le port"]
+    bonne: 1
+    explication: "/api/health devient /health pour l'application."
+    difficulte: 1
+  - question: "Erreur 502 Bad Gateway. Cause la plus probable ?"
+    choix: ["Aucune route ne correspond", "La route existe mais l'application est injoignable (mauvais port, écoute sur 127.0.0.1)", "Le navigateur est trop vieux", "CORS"]
+    bonne: 1
+    explication: "404 = pas de route ; 502 = route trouvée, backend injoignable."
+    difficulte: 2
+  - question: "Pourquoi servir le front et l'API sous app.localhost supprime-t-il le problème CORS ?"
+    choix: ["Traefik désactive CORS", "Le navigateur voit une même origine (même hôte, même port)", "Les API n'ont pas de CORS", "Parce que le port est ignoré"]
+    bonne: 1
+    explication: "Pas de requête cross-origin, donc rien à autoriser."
+    difficulte: 2
+  - question: "Les labels Docker lus par Traefik relèvent de la configuration :"
+    choix: ["Statique (redémarrage requis)", "Dynamique (relue à chaud)", "Manuelle", "Chiffrée"]
+    bonne: 1
+    explication: "Les options --entrypoints/--providers sont statiques ; les labels sont dynamiques."
+    difficulte: 1
+  - question: "PathPrefix(`/api`) correspond-il à /apidocs ?"
+    choix: ["Non, jamais", "Oui : la comparaison porte sur la chaîne, pas sur les segments", "Seulement en GET", "Seulement avec stripprefix"]
+    bonne: 1
+    explication: "Piège classique : préférer /api/ ou une règle plus précise si besoin."
+    difficulte: 3
+flashcards:
+  - { recto: "Les 4 notions de Traefik", verso: "EntryPoint (entrée), Router (règle), Service (destination), Middleware (traitement)." }
+  - { recto: "Provider", verso: "Source de configuration : Docker (labels), fichiers, Kubernetes…" }
+  - { recto: "Activer un conteneur", verso: "Label traefik.enable=true (avec exposedbydefault=false)." }
+  - { recto: "Règle d'hôte + chemin", verso: "Host(`app.localhost`) && PathPrefix(`/api`)" }
+  - { recto: "Port d'un service", verso: "traefik.http.services.<nom>.loadbalancer.server.port=<port interne>" }
+  - { recto: "404 vs 502", verso: "404 : aucune route. 502 : route trouvée, application injoignable." }
+  - { recto: "Écoute correcte dans un conteneur", verso: "0.0.0.0, jamais 127.0.0.1 (sinon injoignable depuis Traefik)." }
+  - { recto: "Preuve du passage par le proxy", verso: "En-têtes X-Forwarded-For / -Host / -Proto reçus par l'application." }
+  - { recto: "Tester sans modifier le fichier hosts", verso: "curl -H \"Host: app.localhost\" http://localhost:1111/" }
+  - { recto: "Logs d'accès", verso: "--accesslog=true : une ligne par requête (router, service, statut, durée)." }
+  - { recto: "Socket Docker", verso: "Monté en lecture seule ; donne à Traefik la vue des conteneurs (et beaucoup de pouvoir)." }
+  - { recto: "Collision de noms", verso: "Routers et services sont globaux : contraindre au projet (providers.docker.constraints)." }
+exercices:
+  - titre: "Ajouter un service hello"
+    niveau: 1
+    enonce: "Ajoute au compose un service `hello` (image `traefik/whoami`, port interne 80) accessible sur `http://hello.localhost:1111`. Écris ses labels."
+    indices: ["traefik.enable, rule, service port", "Même réseau que Traefik"]
+    corrige: |
+      ```yaml
+      hello:
+        image: traefik/whoami:v1.10
+        labels:
+          - traefik.enable=true
+          - traefik.http.routers.hello.rule=Host(`hello.localhost`)
+          - traefik.http.routers.hello.entrypoints=web
+          - traefik.http.services.hello.loadbalancer.server.port=80
+        networks: [web]
+      ```
+  - titre: "Enquête 404 / 502"
+    niveau: 2
+    enonce: "Le service hello répond 404, puis après une correction 502. Liste dans l'ordre les vérifications à faire pour chaque symptôme et la commande associée."
+    corrige: |
+      **404 (aucune route)** : (1) `docker compose logs traefik` ; (2) liste des routers connus (`/api/http/routers` ou dashboard) ; (3) label `traefik.enable=true` présent ? (4) service sur le réseau `web` (`docker inspect`) ; (5) accents graves dans `Host(...)` ; (6) mêmes noms de router sur toutes les lignes.
+
+      **502 (route trouvée, application injoignable)** : (1) `loadbalancer.server.port` = port **interne** ; (2) l'application écoute sur `0.0.0.0` (`docker compose exec hello …` pour tester en interne) ; (3) conteneur démarré et sain (`docker compose ps`).
+mindmap: |
+  # Traefik
+  ## Pourquoi
+  - Un seul point d'entrée
+  - Fin des ports multiples
+  - CORS résolu (même origine)
+  ## Notions
+  - EntryPoint
+  - Router (Host, PathPrefix…)
+  - Service (port interne)
+  - Middleware (stripprefix, basicauth)
+  - Provider (Docker)
+  ## Docker
+  - Labels (dynamique)
+  - Options (statique)
+  - Réseau partagé
+  - Socket en lecture seule
+  ## Diagnostic
+  - Logs, routes connues, access logs
+  - 404 : pas de route
+  - 502 : backend injoignable
+  ## Production
+  - HTTPS (ACME)
+  - Middlewares de sécurité
+  - Version épinglée
+podcast_titre: "Un portier pour tous vos conteneurs"
+podcast:
+  - { voix: A, texte: "Karim, mon front tourne sur le port 3333, mon API sur le 4444, et le navigateur bloque mes appels. Pourquoi ?" }
+  - { voix: B, texte: "Deux ports, ce sont deux origines : le navigateur applique CORS. Un reverse proxy règle ça : une seule porte d'entrée, et il aiguille vers le bon service." }
+  - { voix: A, texte: "Et Traefik, il sait comment aiguiller ?" }
+  - { voix: B, texte: "Il lit les labels de tes conteneurs. Un router dit « Host app point localhost et le chemin commence par slash api », un service dit « envoie au port 8000 du conteneur api »." }
+  - { voix: A, texte: "Mon API reçoit slash api slash health et répond 404…" }
+  - { voix: B, texte: "Ajoute le middleware stripprefix : il retire slash api avant de transmettre. Ton API reçoit slash health." }
+  - { voix: A, texte: "Et maintenant j'ai une erreur 502." }
+  - { voix: B, texte: "Bonne nouvelle : la route existe. 502, c'est que Traefik ne joint pas l'application. Vérifie le port interne et que uvicorn écoute sur 0.0.0.0, pas sur 127.0.0.1." }
+  - { voix: A, texte: "Il y a une méthode pour diagnostiquer ?" }
+  - { voix: B, texte: "Toujours la même : les logs de Traefik, la liste des routes qu'il connaît, puis les logs d'accès. Et on épingle la version de l'image, jamais latest. C'est une très bonne histoire d'incident pour l'épreuve E5." }

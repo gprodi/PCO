@@ -83,7 +83,7 @@ LLM_CHAIN=fake MF_API_DATA_URL=http://localhost:8000 uv run uvicorn microforge.a
 cd microforge/src/microforge/app_streamlit && MF_API_DATA_URL=http://localhost:8000 MF_API_IA_URL=http://localhost:8001 uv run streamlit run Accueil.py
 ```
 
-Avec Docker : `docker compose -f microforge/infra/compose.yml --profile core up`. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
+Avec Docker : `docker compose -f microforge/infra/docker-compose.yml --profile core up`. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
 
 Générer un projet en ligne de commande :
 

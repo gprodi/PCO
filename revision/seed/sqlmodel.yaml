@@ -179,6 +179,8 @@ exercices:
     indices: ["Trois classes héritent de BookBase", "Une seule a table=True"]
     corrige: |
       ```python
+      from sqlmodel import Field, SQLModel
+
       class BookBase(SQLModel):
           title: str
           author: str

@@ -107,7 +107,7 @@ sections:
   Créer la base de données et implémenter le schéma de données:
     - "Schéma défini dans api_data/db.py (14 tables, noms en français) et versionné par Alembic (microforge/migrations/, migration initiale 0001) ; un test vérifie que les migrations produisent exactement le schéma des modèles et que le retour arrière fonctionne."
   Documenter le processus d'installation et le script d'import des données:
-    - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/compose.yml --profile core up -d\ncd microforge && uv run alembic upgrade head && cd ..\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
+    - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/docker-compose.yml --profile core up -d\ncd microforge && uv run alembic upgrade head && cd ..\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
     - "L'import (load/importer.py) est idempotent (upsert sur la clé d'unification) et trace chaque exécution dans execution_collecte. Documentation : docs/installation.md."
   Mettre en œuvre les mesures nécessaires pour assurer la conformité au RGPD (registre des traitements, procédures de tri, etc.):
     - "| Traitement | Finalité | Base légale | Données | Conservation |\n|---|---|---|---|---|\n| Comptes | accès au service | contrat | pseudo, e-mail chiffré, ville facultative | jusqu'à suppression, inactifs 24 mois |\n| Photos de stock | inventaire | contrat | image sans EXIF/GPS | 30 jours après traitement |\n| Photos pour entraînement | amélioration du modèle | consentement | découpes anonymes | jusqu'au retrait du consentement |\n| Journaux | sécurité | intérêt légitime | identifiant haché, route, statut | 6 mois |"

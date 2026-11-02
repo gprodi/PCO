@@ -1,0 +1,306 @@
+titre: "Sécuriser une API FastAPI (OAuth2, JWT)"
+fiche:
+  titre: "Sécuriser une API d'IA : OAuth2, JWT, refresh tokens et durcissement"
+  resume: >-
+    Une API est la porte d'entrée d'une application ; par défaut elle est ouverte à tous. La sécuriser, c'est
+    distinguer l'authentification (« es-tu bien toi ? », erreur 401) de l'autorisation (« as-tu le droit ? »,
+    erreur 403). Le mécanisme tient en quatre temps : l'utilisateur prouve son identité une fois (login), le
+    serveur lui remet un jeton signé (JWT), le client présente ce jeton à chaque requête dans l'en-tête
+    Authorization: Bearer, et le serveur vérifie la signature sans rien stocker (stateless). Un JWT a trois
+    parties (header, payload, signature) : il est signé donc infalsifiable, mais lisible, donc jamais de secret
+    dedans. OAuth2 Password Grant délivre les jetons via POST /token après vérification d'un mot de passe
+    haché (bcrypt, argon2). Deux jetons cohabitent : un access court (≈ 15 min) et un refresh long (≈ 7 jours)
+    qui sert seulement à en obtenir un nouveau, avec rotation, révocation par jti et détection de vol par
+    famille. En production : clé secrète dans l'environnement (fail-closed), HTTPS, limitation de débit sur
+    /token, CORS restreint, rôles et scopes, en suivant l'OWASP API Top 10.
+  objectifs:
+    - Distinguer authentification et autorisation, 401 et 403
+    - Lire, signer et valider strictement un JWT (algorithme, expiration, audience, émetteur)
+    - Implémenter le login OAuth2 Password Grant avec mots de passe hachés et routes protégées par Depends
+    - Mettre en place access + refresh avec rotation, révocation et détection de réutilisation
+    - Appliquer la checklist de durcissement (secrets, HTTPS, rate limiting, CORS, rôles)
+  notions:
+    - { terme: "Authentification / autorisation", definition: "Prouver qui l'on est (AuthN, 401 si échec) puis vérifier ce qu'on a le droit de faire (AuthZ, 403 si refusé)." }
+    - { terme: "Stateless", definition: "Le serveur ne conserve pas de session : chaque requête porte sa preuve (le jeton)." }
+    - { terme: "Bearer token", definition: "Jeton « au porteur » envoyé dans Authorization: Bearer … ; quiconque le détient peut l'utiliser, d'où HTTPS et expiration courte." }
+    - { terme: "JWT", definition: "Jeton header.payload.signature encodé en base64url ; signé (intègre) mais pas chiffré (lisible)." }
+    - { terme: "Claims", definition: "Champs du payload : sub (sujet), exp (expiration), iat (émission), iss (émetteur), aud (destinataire), jti (identifiant unique)." }
+    - { terme: "HS256 / RS256", definition: "HS256 : même clé pour signer et vérifier. RS256 : clé privée pour signer, clé publique pour vérifier (plusieurs services)." }
+    - { terme: "Hachage de mot de passe", definition: "Transformation à sens unique, lente et salée (bcrypt, argon2) : on stocke le hash, jamais le mot de passe." }
+    - { terme: "Rotation de refresh token", definition: "Chaque usage du refresh l'invalide et en émet un nouveau ; rejouer un ancien jeton signale un vol et révoque toute la famille." }
+    - { terme: "Fail-closed", definition: "Sans configuration critique (SECRET_KEY), l'application refuse de démarrer plutôt que de tourner en mode dangereux." }
+  points_cles:
+    - "401 = identité non prouvée (token absent, invalide, expiré) ; 403 = identité connue mais droits insuffisants."
+    - "Toujours figer l'algorithme au décodage : jwt.decode(token, cle, algorithms=[\"HS256\"]) contre « alg: none » et la confusion RS256 → HS256."
+    - "aud n'est vérifié que si l'on passe audience=… ; rendre exp, iat, sub obligatoires avec options={\"require\": [...]}."
+    - "Un refresh token ne doit jamais ouvrir une ressource : claim type=\"refresh\" vérifié des deux côtés."
+    - "Le logout révoque le refresh ; un access déjà émis reste valide jusqu'à son expiration — d'où sa durée courte."
+    - "Anti-énumération : même message pour « compte inconnu » et « mauvais mot de passe », et toujours un calcul de hash."
+  code:
+    - titre: "Jetons et mots de passe"
+      lang: python
+      code: |
+        import os
+        import secrets
+        from datetime import datetime, timedelta, timezone
+
+        import jwt
+        from pwdlib import PasswordHash
+
+        SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(32)   # en prod : fail-closed
+        ALGO, AUDIENCE = "HS256", "api-predictions"
+        hasher = PasswordHash.recommended()            # argon2
+
+        def creer_token(sub: str, type_: str, duree: timedelta) -> tuple[str, str]:
+            maintenant = datetime.now(timezone.utc)
+            jti = secrets.token_hex(16)
+            claims = {"sub": sub, "type": type_, "jti": jti, "aud": AUDIENCE,
+                      "iat": maintenant, "exp": maintenant + duree}
+            return jwt.encode(claims, SECRET_KEY, algorithm=ALGO), jti
+
+        def lire_token(token: str, type_attendu: str) -> dict:
+            donnees = jwt.decode(token, SECRET_KEY, algorithms=[ALGO], audience=AUDIENCE,
+                                 options={"require": ["exp", "iat", "sub", "jti"]})
+            if donnees.get("type") != type_attendu:
+                raise jwt.InvalidTokenError("mauvais type de jeton")
+            return donnees
+
+        h = hasher.hash("secret123")
+        assert hasher.verify("secret123", h) and not hasher.verify("mauvais", h)
+        access, _ = creer_token("alice", "access", timedelta(minutes=15))
+        print(lire_token(access, "access")["sub"])      # alice
+      explication: "Liste blanche d'algorithmes, audience vérifiée, claims obligatoires et type de jeton contrôlé."
+    - titre: "Login OAuth2 et route protégée"
+      lang: python
+      code: |
+        from typing import Annotated
+
+        from fastapi import Depends, FastAPI, HTTPException, status
+        from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
+        app = FastAPI()
+        oauth2 = OAuth2PasswordBearer(tokenUrl="token")
+        USERS = {"alice": {"hash": hasher.hash("secret123"), "role": "admin"}}
+        HASH_LEURRE = hasher.hash("leurre")               # anti-énumération (temps constant)
+
+        @app.post("/token")
+        def login(form: Annotated[OAuth2PasswordRequestForm, Depends()]):
+            user = USERS.get(form.username)
+            ok = hasher.verify(form.password, user["hash"] if user else HASH_LEURRE) and user is not None
+            if not ok:
+                raise HTTPException(401, "Identifiants invalides", headers={"WWW-Authenticate": "Bearer"})
+            access, _ = creer_token(form.username, "access", timedelta(minutes=15))
+            refresh, _ = creer_token(form.username, "refresh", timedelta(days=7))
+            return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+        def utilisateur_courant(token: Annotated[str, Depends(oauth2)]) -> dict:
+            try:
+                return USERS[lire_token(token, "access")["sub"]]
+            except (jwt.InvalidTokenError, KeyError):
+                raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton invalide",
+                                    headers={"WWW-Authenticate": "Bearer"}) from None
+
+        def admin(user: Annotated[dict, Depends(utilisateur_courant)]) -> dict:
+            if user["role"] != "admin":
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "Réservé aux administrateurs")
+            return user
+
+        @app.post("/predict")
+        def predict(user: Annotated[dict, Depends(utilisateur_courant)]):
+            return {"prediction": 0.87}
+      explication: "Depends chaîne les contrôles : authentifié (401) puis autorisé (403) ; le login renvoie le même message dans les deux cas d'échec."
+  pieges:
+    - "Mettre un mot de passe ou une donnée sensible dans le payload : n'importe qui peut le décoder."
+    - "Décoder sans algorithms=[...] (ou avec une liste mixte) : porte ouverte aux attaques « alg: none » et de confusion."
+    - "Oublier audience=… : un jeton destiné à une autre API est accepté."
+    - "SECRET_KEY par défaut écrite dans le code ou poussée sur GitHub : tout le monde peut forger des jetons."
+    - "Renvoyer 403 quand le jeton est expiré (c'est 401) ou 401 quand il manque un droit (c'est 403)."
+    - "Stocker le jeton dans localStorage d'un front web exposé au XSS ; préférer un cookie HttpOnly, Secure, SameSite."
+  aller_plus_loin:
+    - titre: "OAuth2 Authorization Code + PKCE et OpenID Connect"
+      contenu: "Pour une application web ou mobile publique, le flux recommandé n'est pas le Password Grant mais Authorization Code + PKCE, souvent délégué à un fournisseur d'identité (Keycloak, Auth0) via OpenID Connect. Défi : liste ce qui change pour ton API (elle ne fait plus que vérifier des jetons RS256 avec une clé publique)."
+      lien: "https://oauth.net/2/pkce/"
+    - titre: "Tests de sécurité automatisés"
+      contenu: "Écris des tests qui prouvent les refus : jeton expiré → 401, jeton refresh utilisé comme access → 401, utilisateur simple sur route admin → 403, 6 logins en une minute → 429, refresh rejoué → famille révoquée. Ces tests sont d'excellentes preuves pour le jury."
+      lien: "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+    - titre: "Rôles et scopes OAuth2"
+      contenu: "`SecurityScopes` de FastAPI déclare des permissions fines (`predict:read`, `model:deploy`) portées par le jeton ; chaque route exige ses scopes. Plus souple qu'un simple rôle admin/utilisateur."
+      lien: "https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/"
+  jury: >-
+    **E3 (C9)** et **E4 (C17)** : une API exposant un modèle doit être sécurisée (référentiel, bloc 3). MicroForge
+    l'implémente : `common/security.py` (JWT RS256, liste blanche d'algorithmes, audience vérifiée, mots de
+    passe hachés avec pwdlib), table `RefreshToken` avec rotation et détection de réutilisation par famille,
+    limitation de débit slowapi (OWASP API4). Montre les tests qui prouvent les refus 401/403/429.
+  competences: [C9, C17, C21]
+  sources: []
+qcm:
+  - question: "Un utilisateur connecté (jeton valide) tente une action réservée aux admins. Code de réponse ?"
+    choix: ["200", "401", "403", "500"]
+    bonne: 2
+    explication: "Identité prouvée, droits insuffisants : 403 Forbidden."
+    difficulte: 1
+  - question: "Pourquoi ne jamais mettre de secret dans le payload d'un JWT ?"
+    choix: ["Il est chiffré avec une clé faible", "Il est seulement encodé en base64url : lisible par tous", "Il expire trop vite", "Il est trop court"]
+    bonne: 1
+    explication: "Signé n'est pas chiffré."
+    difficulte: 1
+  - question: "Meilleure défense contre la confusion d'algorithme RS256 → HS256 ?"
+    choix: ["Allonger la clé", "Chiffrer le payload", "Figer l'algorithme attendu : algorithms=[...] au décodage", "Changer de bibliothèque"]
+    bonne: 2
+    explication: "Aucune substitution d'algorithme n'est alors possible."
+    difficulte: 2
+  - question: "Le claim aud est présent mais on n'a pas passé audience= au décodage. Conséquence ?"
+    choix: ["Le jeton est rejeté", "L'audience n'est pas vérifiée : un jeton destiné à une autre API passe", "PyJWT devine l'audience", "Le jeton devient chiffré"]
+    bonne: 1
+    explication: "aud n'est vérifié que si on le demande."
+    difficulte: 3
+  - question: "Pourquoi un access token court ET un refresh token long ?"
+    choix: ["Pour doubler la sécurité du mot de passe", "Limiter l'impact d'une fuite de l'access tout en évitant de redemander le mot de passe", "Parce qu'OAuth2 l'impose toujours", "Pour stocker plus de données"]
+    bonne: 1
+    explication: "L'access fuité expire vite ; le refresh ne sert qu'à renouveler."
+    difficulte: 2
+  - question: "Un refresh déjà tourné est présenté à nouveau. Que faire ?"
+    choix: ["L'accepter", "Le refuser et révoquer toute la famille de jetons", "Émettre deux nouveaux couples", "Ignorer"]
+    bonne: 1
+    explication: "Le rejeu trahit un vol : on déconnecte voleur et victime."
+    difficulte: 3
+  - question: "Pourquoi bcrypt ou argon2 plutôt que SHA-256 pour les mots de passe ?"
+    choix: ["Ils sont plus rapides", "Ils sont lents par conception et salés, ce qui freine les attaques par dictionnaire", "Ils sont réversibles", "SHA-256 n'existe pas en Python"]
+    bonne: 1
+    explication: "Un hachage rapide facilite la force brute ; le sel casse les tables pré-calculées."
+    difficulte: 2
+  - question: "Que signifie « fail-closed » pour la SECRET_KEY ?"
+    choix: ["Utiliser une clé par défaut", "Refuser de démarrer si la clé est absente", "Fermer l'API la nuit", "Chiffrer la clé"]
+    bonne: 1
+    explication: "Mieux vaut une API arrêtée qu'une API qui signe avec une clé connue."
+    difficulte: 1
+flashcards:
+  - { recto: "401 vs 403", verso: "401 : non authentifié (jeton absent/invalide/expiré). 403 : authentifié mais non autorisé." }
+  - { recto: "Structure d'un JWT", verso: "header.payload.signature (base64url) — signé, pas chiffré." }
+  - { recto: "Claims standards", verso: "sub, exp, iat, iss, aud, jti (+ nbf)." }
+  - { recto: "Décodage strict PyJWT", verso: "jwt.decode(t, cle, algorithms=[\"HS256\"], audience=\"...\", options={\"require\": [\"exp\", \"sub\"]})" }
+  - { recto: "En-tête d'authentification", verso: "Authorization: Bearer <jeton>" }
+  - { recto: "Route de login OAuth2", verso: "POST /token avec OAuth2PasswordRequestForm (username, password)." }
+  - { recto: "Protéger une route FastAPI", verso: "Paramètre user = Depends(utilisateur_courant), qui dépend de OAuth2PasswordBearer." }
+  - { recto: "Hacher un mot de passe", verso: "PasswordHash.recommended().hash(mdp) ; .verify(mdp, hash)" }
+  - { recto: "Durées usuelles", verso: "Access ≈ 15 min ; refresh ≈ 7 jours." }
+  - { recto: "Révoquer un JWT", verso: "Garder côté serveur les jti actifs (Redis/base) ; retirer le jti au logout ou à la rotation." }
+  - { recto: "Générer une clé secrète", verso: "python -c \"import secrets; print(secrets.token_urlsafe(32))\"" }
+  - { recto: "Checklist de prod", verso: "Clé en variable d'env, HTTPS, access court, rate limiting /token, hash, CORS restreint, révocation, 401/403 justes." }
+exercices:
+  - titre: "Décoder un JWT à la main"
+    niveau: 1
+    enonce: "Décode le header et le payload du jeton `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MTczNTY4OTYwMH0.<signature>` sans clé, puis explique pourquoi cela ne pose pas de problème de sécurité… à une condition."
+    indices: ["base64.urlsafe_b64decode, en complétant avec des = si besoin"]
+    corrige: |
+      ```python
+      import base64, json
+
+      def b64(s: str) -> dict:
+          return json.loads(base64.urlsafe_b64decode(s + "=" * (-len(s) % 4)))
+
+      print(b64("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"))   # {'alg': 'HS256', 'typ': 'JWT'}
+      print(b64("eyJzdWIiOiJhbGljZSIsImV4cCI6MTczNTY4OTYwMH0"))   # {'sub': 'alice', 'exp': 1735689600}
+      ```
+      La lecture est libre : la sécurité vient de la **signature**, qui empêche toute modification. À condition de ne jamais mettre de donnée sensible dans le payload et de toujours vérifier la signature côté serveur avec un algorithme figé.
+  - titre: "Prouver les refus par les tests"
+    niveau: 2
+    enonce: "Avec l'API du cours, écris les tests : login correct → 200 ; mauvais mot de passe → 401 ; /predict sans jeton → 401 ; /predict avec le refresh token à la place de l'access → 401."
+    indices: ["client.post('/token', data={...})", "headers={'Authorization': f'Bearer {jeton}'}"]
+    corrige: |
+      ```python
+      from fastapi.testclient import TestClient
+
+      client = TestClient(app)
+
+      def _login(mdp="secret123"):
+          return client.post("/token", data={"username": "alice", "password": mdp})
+
+      def test_login_ok():
+          assert _login().status_code == 200
+
+      def test_mauvais_mot_de_passe():
+          assert _login("faux").status_code == 401
+
+      def test_sans_jeton():
+          assert client.post("/predict").status_code == 401
+
+      def test_refresh_refuse_comme_access():
+          refresh = _login().json()["refresh_token"]
+          r = client.post("/predict", headers={"Authorization": f"Bearer {refresh}"})
+          assert r.status_code == 401
+      ```
+  - titre: "Rotation et détection de vol"
+    niveau: 3
+    enonce: "Implémente POST /refresh : vérifie le type, que le jti est actif, révoque l'ancien jti et émet un nouveau couple. Si un jti déjà tourné est présenté, révoque toute la famille de la session. Décris la structure de données côté serveur."
+    indices: ["Famille = identifiant de session stocké dans le jeton (claim fam)", "Retenir le dernier jti émis par famille"]
+    corrige: |
+      Structure (en mémoire pour l'exercice, Redis ou base en production) : `familles: dict[str, str]` (famille → dernier jti émis) et `revoquees: set[str]` (familles révoquées).
+
+      ```python
+      from pydantic import BaseModel
+
+      familles: dict[str, str] = {}
+      revoquees: set[str] = set()
+
+      class RefreshIn(BaseModel):
+          refresh_token: str          # dans le corps, jamais dans l'URL (qui finit dans les logs)
+
+      @app.post("/refresh")
+      def refresh(body: RefreshIn):
+          refus = HTTPException(401, "Refresh invalide, expiré ou révoqué")
+          try:
+              d = lire_token(body.refresh_token, "refresh")
+          except jwt.InvalidTokenError:
+              raise refus from None
+          fam = d.get("fam")
+          if fam in revoquees:
+              raise refus
+          if familles.get(fam) != d["jti"]:        # jeton déjà tourné : vol probable
+              revoquees.add(fam)
+              raise refus
+          access, _ = creer_token(d["sub"], "access", timedelta(minutes=15))
+          nouveau, jti = creer_token(d["sub"], "refresh", timedelta(days=7))   # + claim fam = fam
+          familles[fam] = jti                       # rotation : l'ancien n'est plus le dernier
+          return {"access_token": access, "refresh_token": nouveau, "token_type": "bearer"}
+      ```
+      Au login, on crée une nouvelle famille (`fam = secrets.token_hex(8)`) et on enregistre son premier jti. C'est le mécanisme de la table `RefreshToken` de MicroForge.
+mindmap: |
+  # Sécuriser une API FastAPI
+  ## Fondamentaux
+  - AuthN (401) / AuthZ (403)
+  - Stateless, Bearer
+  ## JWT
+  - header.payload.signature
+  - Claims : sub, exp, iat, iss, aud, jti
+  - HS256 / RS256
+  - Attaques : alg none, confusion
+  - Décodage strict
+  ## OAuth2
+  - Rôles (owner, client, serveurs)
+  - Password Grant : POST /token
+  - Hash bcrypt / argon2
+  - Depends + OAuth2PasswordBearer
+  ## Refresh
+  - Access 15 min / refresh 7 j
+  - Rotation, révocation (jti)
+  - Familles, détection de vol
+  ## Production
+  - SECRET_KEY (fail-closed)
+  - HTTPS, CORS, rate limiting
+  - Rôles, scopes
+  - OWASP API Top 10
+podcast_titre: "Le bracelet de festival de votre API"
+podcast:
+  - { voix: A, texte: "Karim, mon API de prédiction est en ligne. N'importe qui peut l'appeler… c'est grave ?" }
+  - { voix: B, texte: "Oui : c'est une porte grande ouverte. Il faut savoir qui entre, et ce qu'il a le droit de faire. Authentification, puis autorisation." }
+  - { voix: A, texte: "Et concrètement ?" }
+  - { voix: B, texte: "Pense à un festival. Tu montres ta pièce d'identité une fois à l'entrée, on te met un bracelet, et ensuite le bracelet suffit partout. Le bracelet, c'est le JWT." }
+  - { voix: A, texte: "Et si quelqu'un fabrique un faux bracelet ?" }
+  - { voix: B, texte: "Impossible : il est signé avec une clé que seul le serveur connaît. Par contre, tout le monde peut lire ce qui est écrit dessus. Donc jamais de mot de passe dans un JWT." }
+  - { voix: A, texte: "J'ai lu qu'il existe des attaques sur les JWT." }
+  - { voix: B, texte: "Les classiques : un jeton qui déclare « pas de signature », ou qui change d'algorithme. La parade tient en un paramètre : algorithms égal la liste avec le seul algorithme attendu. Et n'oublie pas audience, sinon un jeton d'une autre API passe." }
+  - { voix: A, texte: "Pourquoi deux jetons, access et refresh ?" }
+  - { voix: B, texte: "L'access dure quinze minutes : s'il fuit, il expire vite. Le refresh dure sept jours mais ne sert qu'à renouveler. À chaque usage, on le remplace ; si un ancien revient, c'est un vol, et on coupe toute la famille." }
+  - { voix: A, texte: "Et avant la mise en production ?" }
+  - { voix: B, texte: "La checklist : clé secrète dans l'environnement, et refus de démarrer sans elle. HTTPS, limitation des tentatives de login, CORS restreint, et des tests qui prouvent les 401 et 403. C'est exactement ce que le jury veut voir." }
