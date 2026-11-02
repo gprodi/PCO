@@ -31,7 +31,8 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       - name: Installer les dépendances
-        run: uv sync --all-packages --group dev
+        # Extras légers nécessaires aux tests (data : rapidfuzz, polars… ; app : streamlit ; anthropic : SDK Claude).
+        run: uv sync --all-packages --group dev --extra data --extra app --extra anthropic
       - name: Lint (ruff)
         run: |
           uv run ruff check .
@@ -78,6 +79,7 @@ jobs:
           CORE: ${{ matrix.core }}
           FQBN: ${{ matrix.fqbn }}
         run: |
+          mkdir -p "$HOME/.local/bin"  # install.sh exige que le dossier existe
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           export PATH="$HOME/.local/bin:$PATH"
