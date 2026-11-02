@@ -4,11 +4,11 @@
   "type": "module",
   "version": "0.1.0",
   "scripts": {
-    "dev": "PUBLIC_MODE=local astro dev",
+    "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "build:relatif": "ARTIFACT=1 PUBLIC_MODE=static astro build && node scripts/relativize.mjs dist dist-relatif"
+    "build:relatif": "node scripts/build-relatif.mjs"
   },
   "dependencies": {
     "@astrojs/react": "4.4.2",

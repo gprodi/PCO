@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 import yaml
@@ -274,3 +275,84 @@ def test_cli_status_and_ingest(monkeypatch, tmp_path):
 
     res = CliRunner().invoke(app, ["status"])
     assert res.exit_code == 0 and "mlflow" in res.output
+
+
+def test_cli_start_launches_site_and_api(monkeypatch, tmp_path):
+    """« revise start » : installe le site si besoin, lance « npm run dev » puis l'API, et arrête tout à la sortie."""
+    import shutil
+    import subprocess
+    import threading
+
+    import uvicorn
+    from typer.testing import CliRunner
+
+    from revision import cli
+
+    site = tmp_path / "revision" / "site"
+    site.mkdir(parents=True)
+    monkeypatch.setattr(cli, "PATHS", type("P", (), {"revision": tmp_path / "revision"})())
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/npm")
+    monkeypatch.setattr(cli, "_ollama_hint", lambda: "IA locale : test")
+    calls: list = []
+
+    class FakeProc:
+        def __init__(self, args, cwd, **group):
+            calls.append(("popen", args, cwd))
+
+    monkeypatch.setattr(cli, "_stop_tree", lambda proc: calls.append(("stop",)))
+    monkeypatch.setattr(subprocess, "run", lambda args, cwd, check: calls.append(("run", args)))
+    monkeypatch.setattr(subprocess, "Popen", FakeProc)
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: calls.append(("uvicorn", k["port"])))
+    monkeypatch.setattr(
+        threading,
+        "Timer",
+        lambda *a: calls.append(("browser",)) or type("T", (), {"start": lambda self: None})(),
+    )
+
+    res = CliRunner().invoke(cli.app, ["start", "--port", "9999", "--no-open"])
+    assert res.exit_code == 0, res.output
+    assert calls == [
+        ("run", ["/usr/bin/npm", "install"]),
+        ("popen", ["/usr/bin/npm", "run", "dev"], site),
+        ("uvicorn", 9999),
+        ("stop",),
+    ]
+    assert "localhost:4321/PCO/" in res.output and "IA locale : test" in res.output
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    res = CliRunner().invoke(cli.app, ["start", "--no-open"])
+    assert res.exit_code == 1 and "nodejs.org" in res.output
+
+
+def test_ollama_hint_without_server(monkeypatch):
+    import httpx
+    from revision.cli import _ollama_hint
+
+    def boom(*a, **k):
+        raise httpx.ConnectError("refusé")
+
+    monkeypatch.setattr(httpx, "get", boom)
+    assert "Ollama introuvable" in _ollama_hint()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="groupe de processus POSIX")
+def test_stop_tree_kills_grandchildren():
+    """Régression : npm -> sh -> node ; arrêter npm seul laissait le serveur du site tourner."""
+    import os
+    import subprocess
+
+    from revision.cli import _new_group, _stop_tree
+
+    proc = subprocess.Popen(
+        ["sh", "-c", "sleep 60 & echo $! ; wait"], stdout=subprocess.PIPE, text=True, **_new_group()
+    )
+    grandchild = int(proc.stdout.readline())
+    _stop_tree(proc)
+    assert proc.poll() is not None
+    try:
+        os.kill(grandchild, 0)
+        with open(f"/proc/{grandchild}/stat") as f:
+            alive = f.read().split()[2] != "Z"  # un zombie est mort
+    except (ProcessLookupError, FileNotFoundError):
+        alive = False
+    assert not alive
