@@ -111,3 +111,71 @@ def test_bom_estimates_dupont_wires_from_wiring():
     # 3 signaux (DATA, SDA, SCL) + 2 × 2 alimentations + 2 rails = 9, + 10 % -> 10
     assert wires.quantity == round((len(result.assignments) + 4 + 2) * 1.1)
     assert "jumper-wires" not in {line.component for line in result.bom}
+
+
+def test_kits_are_valid_catalog_lines():
+    from microforge.core.kits import KITS
+
+    for kit_id, kit in KITS.items():
+        assert len(kit["lignes"]) <= 200, kit_id  # limite de POST /v1/inventory/bulk
+        for line in kit["lignes"]:
+            cid = line["component_id"]
+            assert cid in CAT.components or cid in CAT.boards, (kit_id, cid)
+            comp = CAT.components.get(cid)
+            if line["value"]:
+                assert comp and comp.parametric, (kit_id, cid)
+                assert any(abs(line["value"] - v) < 1e-12 for v in comp.parametric.allowed()) or (
+                    comp.parametric.values and line["value"] in comp.parametric.values
+                ), (kit_id, cid, line["value"])
+    assert len(KITS["resistances-e12"]["lignes"]) == 61
+
+
+def test_kit_goes_through_bulk_api(data_client):
+    from conftest import register_and_login
+    from microforge.core.kits import KITS
+
+    h = {"Authorization": f"Bearer {register_and_login(data_client, 'kits')['access_token']}"}
+    body = {"items": KITS["semi-conducteurs"]["lignes"], "location": "boîte"}
+    assert data_client.post("/v1/inventory/bulk", json=body, headers=h).status_code == 200
+    values = data_client.get("/v1/inventory/values", headers=h).json()
+    assert values["zener-diode"] == {"3.3": 5, "5.1": 5}
+
+
+class _FakeClient:
+    logged_in = True
+
+    def __init__(self) -> None:
+        self.posts: list[tuple[str, dict]] = []
+
+    def get(self, path: str):
+        assert path == "/v1/inventory"
+        return [
+            {"id": 1, "component_id": "resistor", "value": 4700.0, "quantity": 20, "location": "A"},
+            {"id": 2, "component_id": "dht22", "value": 0.0, "quantity": 1, "location": "B"},
+        ]
+
+    def post(self, path: str, json: dict):
+        self.posts.append((path, json))
+        return {}
+
+    def delete(self, path: str) -> None:  # pragma: no cover - non utilisé ici
+        pass
+
+
+def test_stock_page_renders_values_and_kits():
+    from pathlib import Path
+
+    from streamlit.testing.v1 import AppTest
+
+    page = Path(__file__).parents[1] / "src/microforge/app_streamlit/pages/2_Mon_stock.py"
+    at = AppTest.from_file(str(page), default_timeout=30)
+    fake = _FakeClient()
+    at.session_state["mf_client"] = fake
+    at.run()
+    assert not at.exception
+    table = at.dataframe[0].value
+    assert list(table["valeur"]) == ["4,7 kΩ", ""] and list(table["quantité"]) == [20, 1]
+    kit_button = next(b for b in at.button if b.key == "kit-fils-dupont")
+    kit_button.click().run()
+    assert fake.posts and fake.posts[-1][0] == "/v1/inventory/bulk"
+    assert len(fake.posts[-1][1]["items"]) == 3
