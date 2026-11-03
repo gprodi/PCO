@@ -1,0 +1,216 @@
+# Modules du stock complet (étape 5, 2e partie) : capteurs I2C de précision, radar, qualité d'air,
+# pilote de moteurs TB6612FNG. Noms de bibliothèques recopiés de leur `library.properties` officiel
+# (vérifiés le 03/11/2026) : BH1750 1.3.0 (claws), Adafruit BMP280 Library 3.0.0, VL53L0X 1.3.1
+# (Pololu), Adafruit INA219 1.2.3. Prix : indicatifs (modules vendus en boutique maker).
+
+- id: bh1750
+  name: Capteur de lumière BH1750 (luxmètre) I2C
+  category: capteur
+  description: "Mesure l'éclairement en lux (1 à 65 535 lx) ; module GY-302 avec régulateur, 3 à 5 V."
+  aliases: [gy-302, bh 1750, luxmetre, capteur lux]
+  supply_v: [3.0, 5.5]
+  current_ma: 0.2
+  i2c_addresses: [0x23, 0x5C]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+    - { name: ADDR, role: nc, description: "en l'air ou à GND : adresse 0x23 ; à VCC : 0x5C" }
+  code:
+    default:
+      libraries: ["BH1750"]
+      includes: ["#include <Wire.h>", "#include <BH1750.h>"]
+      globals: "BH1750 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin()) { Serial.println(F("BH1750 introuvable")); }
+      api: |
+        // Éclairement en lux (valeur négative si le capteur ne répond pas).
+        float ${name}_lux() { return ${name}_dev.readLightLevel(); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x05_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 2.5
+  notes: ["La mesure dépend de l'angle de la lumière : orienter la face du capteur vers la source.", "Repères : ~300–500 lx pour un bureau, 10 000 lx et plus en plein jour dehors."]
+
+- id: bmp280
+  name: Capteur de pression BMP280 (baromètre, altimètre) I2C
+  category: capteur
+  description: "Pression atmosphérique et température ; module GY-BMP280 en 3,3 V (sans humidité, contrairement au BME280)."
+  aliases: [gy-bmp280, bmp 280, barometre, altimetre]
+  supply_v: [1.7, 3.6]
+  preferred_supply_v: 3.3
+  current_ma: 0.7
+  i2c_addresses: [0x76, 0x77]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+  code:
+    default:
+      libraries: ["Adafruit BMP280 Library", "Adafruit Unified Sensor"]
+      includes: ["#include <Wire.h>", "#include <Adafruit_BMP280.h>"]
+      globals: "Adafruit_BMP280 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin(0x76) && !${name}_dev.begin(0x77)) { Serial.println(F("BMP280 introuvable")); }
+      api: |
+        float ${name}_temperature() { return ${name}_dev.readTemperature(); }
+        float ${name}_pressure_hpa() { return ${name}_dev.readPressure() / 100.0F; }
+        // Altitude estimée à partir de la pression de référence au niveau de la mer (hPa).
+        float ${name}_altitude_m(float mer_hpa = 1013.25F) { return ${name}_dev.readAltitude(mer_hpa); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 2.0
+  notes: ["Module GY-BMP280 sans régulateur : ne JAMAIS l'alimenter en 5 V.", "Certains modules vendus « BME280 » portent en fait un BMP280 (pas d'humidité) : vérifier la puce.", "Altitude : précise à quelques mètres seulement si la pression de référence du jour est connue (météo locale)."]
+
+- id: vl53l0x
+  name: Télémètre laser VL53L0X (temps de vol) I2C
+  category: capteur
+  description: "Mesure une distance au millimètre par temps de vol d'un laser infrarouge, de ~3 cm à ~1,2 m (2 m en mode longue portée)."
+  aliases: [gy-530, vl53l0x, tof, telemetre laser, time of flight]
+  supply_v: [2.6, 5.5]
+  current_ma: 19
+  i2c_addresses: [0x29]
+  pins:
+    - { name: VIN, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+    - { name: XSHUT, role: nc, description: "arrêt du capteur (sert à donner une autre adresse à plusieurs VL53L0X)" }
+    - { name: GPIO1, role: nc, description: "interruption « mesure prête », inutile ici" }
+  code:
+    default:
+      libraries: ["VL53L0X"]
+      includes: ["#include <Wire.h>", "#include <VL53L0X.h>"]
+      globals: "VL53L0X ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        ${name}_dev.setTimeout(500);
+        if (!${name}_dev.init()) { Serial.println(F("VL53L0X introuvable")); }
+      api: |
+        // Distance en mm ; -1 hors de portée ou sans réponse du capteur.
+        int ${name}_distance_mm() {
+          uint16_t d = ${name}_dev.readRangeSingleMillimeters();
+          if (${name}_dev.timeoutOccurred() || d > 2000) { return -1; }
+          return (int)d;
+        }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x06_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
+  price_eur: 4.0
+  notes: ["Retirer le film de protection de la fenêtre du capteur avant usage.", "Laser de classe 1 (sans danger pour les yeux) ; les surfaces noires ou très brillantes réduisent la portée."]
+
+- id: ina219
+  name: Capteur de courant et de tension INA219 (wattmètre) I2C
+  category: capteur
+  description: "Mesure la tension (0–26 V), le courant (±3,2 A avec le shunt de 0,1 Ω du module) et la puissance d'une charge en courant continu."
+  aliases: [ina 219, wattmetre, capteur courant, current sensor]
+  supply_v: [3.0, 5.5]
+  current_ma: 1
+  i2c_addresses: [0x40, 0x41, 0x44, 0x45]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: SCL, role: i2c_scl }
+    - { name: SDA, role: i2c_sda }
+  code:
+    default:
+      libraries: ["Adafruit INA219"]
+      includes: ["#include <Wire.h>", "#include <Adafruit_INA219.h>"]
+      globals: "Adafruit_INA219 ${name}_dev;"
+      setup_once: ["Wire.begin();"]
+      setup: |
+        if (!${name}_dev.begin()) { Serial.println(F("INA219 introuvable")); }
+      api: |
+        // Tension aux bornes de la charge (V), courant (mA) et puissance (mW).
+        float ${name}_voltage_v() { return ${name}_dev.getBusVoltage_V() + ${name}_dev.getShuntVoltage_mV() / 1000.0F; }
+        float ${name}_current_ma() { return ${name}_dev.getCurrent_mA(); }
+        float ${name}_power_mw() { return ${name}_dev.getPower_mW(); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x06_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" }
+  price_eur: 3.0
+  notes: ["Le bornier VIN+ / VIN- se place EN SÉRIE dans le fil + de la charge (jamais en parallèle sur l'alimentation).", "La masse de la charge doit être commune avec celle de la carte pour mesurer la tension.", "Courants rapides : une mesure par seconde ne voit pas les pointes brèves."]
+
+- id: tb6612fng-driver
+  name: Pilote de 2 moteurs TB6612FNG
+  category: actionneur
+  description: "Pont en H double à MOSFET : 2 moteurs CC (1,2 A en continu par voie, 4,5 à 13,5 V), bien moins de pertes que le L298N."
+  aliases: [tb6612, tb6612fng, driver moteur mosfet, pont en h compact]
+  supply_v: [2.7, 5.5]
+  current_ma: 2
+  pins:
+    - { name: VCC, role: power, description: "logique, à la tension de la carte" }
+    - { name: GND, role: ground, description: "masse commune batterie + carte" }
+    - { name: PWMA, role: pwm }
+    - { name: AIN1, role: gpio_out }
+    - { name: AIN2, role: gpio_out }
+    - { name: BIN1, role: gpio_out }
+    - { name: BIN2, role: gpio_out }
+    - { name: PWMB, role: pwm }
+    - { name: STBY, role: gpio_out, description: "à l'état haut pour activer le pilote" }
+  code:
+    default:
+      setup: |
+        pinMode(${PWMA}, OUTPUT); pinMode(${AIN1}, OUTPUT); pinMode(${AIN2}, OUTPUT);
+        pinMode(${PWMB}, OUTPUT); pinMode(${BIN1}, OUTPUT); pinMode(${BIN2}, OUTPUT);
+        pinMode(${STBY}, OUTPUT); digitalWrite(${STBY}, HIGH);
+      api: |
+        // vitesse de -255 (arrière) à 255 (avant) pour chaque moteur ; 0 = roue libre.
+        void ${name}_motors(int gauche, int droite) {
+          digitalWrite(${AIN1}, gauche > 0 ? HIGH : LOW); digitalWrite(${AIN2}, gauche < 0 ? HIGH : LOW);
+          digitalWrite(${BIN1}, droite > 0 ? HIGH : LOW); digitalWrite(${BIN2}, droite < 0 ? HIGH : LOW);
+          analogWrite(${PWMA}, constrain(abs(gauche), 0, 255)); analogWrite(${PWMB}, constrain(abs(droite), 0, 255));
+        }
+        void ${name}_stop() { ${name}_motors(0, 0); }
+        // Veille : consommation quasi nulle, moteurs libres.
+        void ${name}_standby(bool veille) { digitalWrite(${STBY}, veille ? LOW : HIGH); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x16_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_2x08_P2.54mm_Vertical" }
+  price_eur: 3.0
+  notes: ["Moteurs sur A01/A02 et B01/B02 ; batterie des moteurs (4,5–13,5 V) sur VM ; masses reliées.", "Diodes de protection intégrées : pas de diode de roue libre à ajouter.", "Pointe de 3,2 A par voie pendant moins de 10 ms (démarrage) ; au-delà de 1,2 A en continu, préférer un pilote plus gros."]
+
+- id: rcwl-0516
+  name: Détecteur de mouvement radar RCWL-0516 (micro-ondes)
+  category: capteur
+  description: "Radar Doppler à ~3,2 GHz : détecte un mouvement jusqu'à ~7 m, même à travers une porte ou une cloison fine."
+  aliases: [rcwl0516, rcwl, radar mouvement, microwave sensor, detecteur radar]
+  supply_v: [4.0, 28.0]
+  current_ma: 3
+  pins:
+    - { name: VIN, role: power }
+    - { name: GND, role: ground }
+    - { name: OUT, role: gpio_in, output_v: 3.3, description: "état haut ~2 s après chaque mouvement" }
+    - { name: 3V3, role: nc, description: "sortie 3,3 V du régulateur interne, inutile ici" }
+    - { name: CDS, role: nc, description: "photorésistance optionnelle (inhibe le capteur en plein jour)" }
+  code:
+    default:
+      setup: "pinMode(${OUT}, INPUT);"
+      api: |
+        bool ${name}_motion() { return digitalRead(${OUT}) == HIGH; }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x05_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" }
+  price_eur: 1.5
+  notes: ["Réagit à tout ce qui bouge (ventilateur, rideau, plante, machine à laver), pas seulement aux personnes.", "Garder ~1 cm de vide devant l'antenne (face composants) ; pas de métal à proximité.", "Ne pas placer deux RCWL-0516 côte à côte : ils se perturbent."]
+
+- id: mq135-air
+  name: Capteur de qualité d'air MQ-135
+  category: capteur
+  description: "Capteur à élément chauffant sensible à un mélange de polluants (NH3, alcool, benzène, fumée, CO2) ; sortie analogique."
+  aliases: [mq135, mq-135, qualite air, air quality]
+  supply_v: [4.8, 5.2]
+  current_ma: 150
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+    - { name: DO, role: nc }
+    - { name: AO, role: adc, output_v: 5.0 }
+  code:
+    default:
+      api: |
+        int ${name}_raw() { return analogRead(${AO}); }
+        int ${name}_level_percent() { return map(analogRead(${AO}), 0, MF_ADC_MAX, 0, 100); }
+  wokwi: null
+  kicad: { symbol: "Connector:Conn_01x04_Pin", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" }
+  price_eur: 3.0
+  notes: ["Ne distingue pas les gaz : il donne un niveau global, pas une concentration de CO2.", "Valeurs en ppm sans étalonnage = indicatives seulement ; comparer plutôt à l'air de référence de la pièce.", "Préchauffage de 24 h conseillé avant la première mesure ; consomme 150 mA (chauffage)."]
