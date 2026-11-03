@@ -48,3 +48,10 @@ class BuildOut(BaseModel):
     bom: list[dict[str, Any]]
     libraries: list[str]
     files: dict[str, str]
+
+
+class CopilotIn(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+    inventory: dict[str, int] | None = Field(
+        default=None, max_length=300, description="stock facultatif : projets possibles cités"
+    )

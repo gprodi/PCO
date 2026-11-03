@@ -22,6 +22,7 @@ if c.logged_in:
     st.page_link("pages/1_Inventaire_photo.py", label="📷 Photographier mon stock")
     st.page_link("pages/3_Idees_de_projets.py", label="💡 Que puis-je construire ?")
     st.page_link("pages/4_Generer_un_projet.py", label="🛠️ Je veux construire…")
+    st.page_link("pages/6_Copilote.py", label="🤖 Poser une question au copilote")
     if st.button("Se déconnecter"):
         c.logout()
         st.rerun()

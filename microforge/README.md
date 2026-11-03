@@ -25,7 +25,8 @@ Interface : http://localhost:8501 · API données : http://localhost:8000/docs �
 ## Organisation
 | Dossier | Contenu | Épreuves |
 |---|---|---|
-| `src/microforge/core` | catalogue (6 cartes, 38 composants, 31 projets), allocateur, ERC, firmware, sorties | E4 |
+| `src/microforge/core` | catalogue (40 cartes, 49 composants, 45 projets), allocateur, ERC, firmware, sorties | E4 |
+| `src/microforge/copilot` | copilote RAG : catalogue → 297 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
 | `src/microforge/data_pipeline` | collecte 5 types de sources, SQL, agrégation, import, purge RGPD | E1 |
 | `src/microforge/api_data` | API données (JWT RS256, RGPD, OWASP) | E1, E4 |
 | `src/microforge/api_ia` + `vision` | API du modèle (vision YOLO+VLM, génération) | E3 |
@@ -35,7 +36,7 @@ Interface : http://localhost:8501 · API données : http://localhost:8000/docs �
 | `infra/` | Docker Compose par profils, LiteLLM | E2, E4 |
 | `veille/`, `benchmark/` | veille, benchmark des services d'IA | E2 |
 | `docs/` | documentation Sphinx + dossiers E1 à E5 | toutes |
-| Idées par thème | 64 idées (plantes, intérieur, extérieur, sécurité, robotique, jeux, temps, animaux, énergie) : page Streamlit « Explorer par thème » et site de révision `/idees/` | E4 |
+| Idées par thème | 131 idées en 17 thèmes (plantes, intérieur, extérieur, sécurité, robotique, jeux, temps, animaux, énergie…) : page Streamlit « Explorer par thème » et site de révision `/idees/` | E4 |
 
 ## Qualité
 `uv run pytest --cov` (couverture > 90 %), `uv run ruff check .` ; firmwares vérifiés par `g++` (en-têtes simulés)

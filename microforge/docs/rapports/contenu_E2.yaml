@@ -4,7 +4,7 @@ annexe_titre: "Annexe 1 : grille de fiabilité des sources et extrait du journal
 
 sections:
   Introduction:
-    - "MicroForge a besoin d'IA pour trois tâches : reconnaître les composants sur une photo (vision), proposer et décrire des projets (texte), et produire la logique des programmes Arduino (code). Ce dossier présente la veille menée pour suivre ces technologies et la réglementation, le benchmark des services possibles et le paramétrage du service retenu : des modèles exécutés en local avec Ollama, derrière une passerelle LiteLLM, avec un repli vers Gemini (offre gratuite) puis Claude."
+    - "MicroForge a besoin d'IA pour trois tâches : reconnaître les composants sur une photo (vision), proposer et décrire des projets (texte), et produire la logique des programmes Arduino (code). Ce dossier présente la veille menée pour suivre ces technologies et la réglementation, le benchmark des services possibles et le paramétrage du service retenu : des modèles exécutés en local avec Ollama, derrière une passerelle LiteLLM, avec un repli vers Gemini (offre gratuite) ; aucune API payante."
 
   # ------------------------------------------------------------------ C6
   Définir la ou les thématiques de veille:
@@ -34,11 +34,11 @@ sections:
   Identifier les contraintes de moyens, techniques et opérationnelles liées au contexte du projet:
     - "Budget proche de 0 € ; photos personnelles (RGPD) donc local en priorité ; trois machines (Mac mini M4 16 Go, PC 8 Go de VRAM, PC école 6–8 Go) ; analyse d'une photo en moins de 5 s ; licences compatibles avec un dépôt public ; sobriété énergétique."
   Benchmarker les outils et services d’intelligence artificielle accessibles et répondant au problème visé:
-    - "| Service | Fonctions | Coût | Confidentialité | Remarques |\n|---|---|---|---|---|\n| YOLO11/26 (local) | F1 | 0 € | données locales | très sobre en inférence, licence AGPL |\n| RF-DETR (local) | F1 | 0 € | locales | Apache 2.0, plus lourd à entraîner |\n| Qwen-VL / Gemma via Ollama | F2, F3, F4 | 0 € | locales | taille du modèle selon la VRAM |\n| Gemini (offre gratuite) | F2–F5 | 0 € avec quotas | données envoyées à Google | quotas variables |\n| Claude | F2–F4 | payant à l'usage | données envoyées à Anthropic | qualité élevée, repli final |\n| Services cloud de vision sur mesure (Azure, Vertex, Rekognition) | F1 | payant | cloud | écartés : coût et confidentialité |"
+    - "| Service | Fonctions | Coût | Confidentialité | Remarques |\n|---|---|---|---|---|\n| YOLO11/26 (local) | F1 | 0 € | données locales | très sobre en inférence, licence AGPL |\n| RF-DETR (local) | F1 | 0 € | locales | Apache 2.0, plus lourd à entraîner |\n| Qwen-VL / Gemma via Ollama | F2, F3, F4 | 0 € | locales | taille du modèle selon la VRAM |\n| Gemini (offre gratuite) | F2–F5 | 0 € avec quotas | données envoyées à Google | quotas variables |\n| Claude | F2–F4 | payant à l'usage | données envoyées à Anthropic | qualité élevée ; écarté faute d'abonnement |\n| Services cloud de vision sur mesure (Azure, Vertex, Rekognition) | F1 | payant | cloud | écartés : coût et confidentialité |"
     - "Protocole de mesure commun (50 photos de test : précision, latence p50/p95, énergie avec CodeCarbon, coût pour 1 000 requêtes) : benchmark/protocole.md."
     - "[À COMPLÉTER : résultats mesurés sur tes trois machines]"
   Rédiger des conclusions préconisant un ou plusieurs services d’intelligence artificielle:
-    - "Préconisation : détecteur YOLO entraîné sur nos photos pour F1, VLM local via Ollama pour F2–F4, embeddings locaux pour F5 ; Gemini puis Claude en secours seulement si le modèle local échoue ou refuse. Ce choix tient le budget, garde les photos sur la machine et reste utilisable hors ligne."
+    - "Préconisation : détecteur YOLO entraîné sur nos photos pour F1, VLM local via Ollama pour F2–F4, embeddings locaux pour F5 ; Gemini (offre gratuite) en secours seulement si le modèle local échoue ou refuse. Ce choix tient le budget, garde les photos sur la machine et reste utilisable hors ligne."
 
   # ------------------------------------------------------------------ C8
   Créer l’environnement d'exécution du service:
@@ -48,7 +48,7 @@ sections:
     - "```bash\nollama pull qwen3:8b          # selon le profil (ollama list pour vérifier)\ndocker compose -f microforge/infra/docker-compose.yml --profile ai up -d\n```"
     - "Configuration de la passerelle : infra/litellm/config.yaml (liste des modèles, ordre de repli, délais). Image épinglée par empreinte."
   Créer les accès à l’environnement d’exécution et de configuration du service:
-    - "Clés virtuelles par service (api_ia, révisions, développement) avec budgets ; le port d'Ollama n'est pas exposé hors du réseau Docker ; les clés Gemini et Claude restent dans le fichier .env."
+    - "Clés virtuelles par service (api_ia, révisions, développement) avec budgets ; le port d'Ollama n'est pas exposé hors du réseau Docker ; la clé Gemini reste dans le fichier .env."
   Installer et configurer les outils de monitorage disponibles avec le service intégré:
     - "Métriques mf_llm_calls (appels, échecs, replis par fournisseur) exposées à Prometheus et affichées dans Grafana ; alerte si plus de 10 replis en 15 minutes (Ollama probablement arrêté) ; sonde Uptime Kuma sur /health."
   Rédiger la documentation technique:

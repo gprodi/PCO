@@ -15,6 +15,7 @@ from loguru import logger
 
 from microforge.common.security import decode_token
 from microforge.common.settings import get_settings
+from microforge.copilot import Copilot, make_copilot
 from microforge.core.builder import ProjectBuilder
 from microforge.core.generator import ProjectGenerator
 from microforge.vision import InventoryScanner
@@ -67,6 +68,21 @@ class Services:
     scanner: InventoryScanner
     builder: ProjectBuilder
     generator: ProjectGenerator
+    copilot: Copilot
+
+
+def _copilot(gateway: Gateway, builder: ProjectBuilder) -> Copilot:
+    """pgvector si configuré ; base injoignable → index mémoire (le reste d'api_ia continue)."""
+    settings = get_settings()
+    try:
+        return make_copilot(
+            gateway, settings.copilot_vector_url, settings.copilot_min_score, builder.catalog
+        )
+    except Exception as exc:  # pilote absent, base arrêtée, extension manquante…
+        logger.error(
+            "Copilote : pgvector indisponible ({}), index en mémoire", exc.__class__.__name__
+        )
+        return make_copilot(gateway, None, settings.copilot_min_score, builder.catalog)
 
 
 @lru_cache(maxsize=1)
@@ -80,4 +96,5 @@ def services() -> Services:
         scanner=InventoryScanner(gateway, detector, builder.catalog),
         builder=builder,
         generator=ProjectGenerator(gateway, builder.catalog),
+        copilot=_copilot(gateway, builder),
     )

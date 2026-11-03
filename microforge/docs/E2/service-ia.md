@@ -10,7 +10,7 @@
 ## Dépendances
 - Modèles : `ollama pull qwen3:8b qwen3-vl:8b bge-m3` (selon `llm-gateway doctor`).
 - Configuration : `microforge/infra/litellm/config.yaml` (alias `mf-text`, `mf-code`, `mf-vision`, `mf-embed`,
-  repli Gemini puis Claude, délais, tentatives).
+  repli Gemini (offre gratuite), délais, tentatives).
 - **Sécurité de la chaîne** : image LiteLLM épinglée par digest (paquets PyPI compromis en mars 2026).
 
 ## Accès

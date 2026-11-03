@@ -17,6 +17,7 @@ Ce dépôt réunit deux projets et les supports de l'année :
 
 - 45 projets générables (domotique, sécurité, robots, lumière, musique, fêtes…) et 131 idées réparties en 17 thèmes ;
 - 49 composants et 40 cartes en 11 familles (ESP32 classique/S2/S3/C3/C6/H2, ESP8266, Arduino Uno R3/R4, Nano, Mega, Leonardo, Nano Every, Nano 33, MKR, Due, Pico/Pico 2, STM32, Teensy) ;
+- un copilote qui répond aux questions sur le matériel en citant le catalogue (297 passages indexés dans PostgreSQL + pgvector) ;
 - un parcours de progression en 7 étapes, de la première LED au robot autonome, et une vitrine de vrais projets open source (WLED, ESPHome, OpenBikeSensor, Otto, InMoov…).
 
 ### Ce qui est vérifié, et comment
@@ -24,8 +25,9 @@ Ce dépôt réunit deux projets et les supports de l'année :
 | Vérification | Où |
 |---|---|
 | Allocation des broches et contrôle électrique, à chaque génération | `microforge/src/microforge/core/` |
-| Syntaxe C++ des 131 firmwares (45 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
-| Compilation réelle avec arduino-cli sur AVR, ESP32 et RP2040 | job `firmware` de [la CI](.github/workflows/ci.yml) |
+| Syntaxe C++ des 478 firmwares (45 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
+| Compilation réelle avec arduino-cli sur les 11 familles et les variantes de puce (ESP32-S3, C3, C6, H2, Pico 2 W) | job `firmware` de [la CI](.github/workflows/ci.yml) (16 jobs) |
+| Copilote RAG : réponses citées, « je ne sais pas » sous le seuil, repli sans LLM, index PostgreSQL + pgvector | `microforge/tests/test_copilot.py`, job `pgvector` de la CI |
 | Chaque projet renvoie vers des tutoriels publics du même montage | `microforge/src/microforge/core/data/references.yaml` |
 | Montage sur du vrai matériel | **à faire** : champ `hardware_tested` de chaque modèle, à remplir après essai |
 

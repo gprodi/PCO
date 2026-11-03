@@ -153,6 +153,10 @@ class MicroForgeClient:
         """Thèmes et idées de projets, annotés avec le stock."""
         return self.ia_post("/v1/ideas/explore", json={"inventory": inventory})
 
+    def copilot_ask(self, question: str, inventory: dict[str, int] | None = None) -> dict:
+        """Question libre au copilote : réponse citée + sources du catalogue."""
+        return self.ia_post("/v1/copilot/ask", json={"question": question, "inventory": inventory})
+
     def inspiration(self) -> dict:
         """Parcours de progression, vitrine de vrais projets, chiffres clés."""
         return self._call(self.ia, "GET", "/v1/ideas/inspiration")

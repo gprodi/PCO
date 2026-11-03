@@ -9,7 +9,7 @@ flowchart LR
   subgraph Services
     DATA[api_data FastAPI] --- PG[(PostgreSQL + pgvector)]
     IA[api_ia FastAPI] --- CORE[cœur déterministe]
-    IA --- GW[llm_gateway] --- LLM[LiteLLM → Ollama / Gemini / Claude]
+    IA --- GW[llm_gateway] --- LLM[LiteLLM → Ollama / Gemini gratuit]
     IA --- MODEL[(YOLO @production)]
   end
   subgraph MLOps

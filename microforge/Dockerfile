@@ -15,12 +15,12 @@ COPY microforge/pyproject.toml microforge/README.md microforge/
 COPY revision/pyproject.toml revision/
 RUN mkdir -p packages/llm_gateway/src/llm_gateway microforge/src/microforge revision/src/revision \
  && touch packages/llm_gateway/src/llm_gateway/__init__.py microforge/src/microforge/__init__.py revision/src/revision/__init__.py \
- && uv sync --frozen --no-dev --package microforge --extra data --extra app --no-install-workspace
+ && uv sync --frozen --no-dev --package microforge --extra data --extra app --extra db --no-install-workspace
 
 FROM deps AS app
 COPY packages/llm_gateway packages/llm_gateway
 COPY microforge/src microforge/src
-RUN uv sync --frozen --no-dev --package microforge --extra data --extra app
+RUN uv sync --frozen --no-dev --package microforge --extra data --extra app --extra db
 ENV PATH="/app/.venv/bin:$PATH"
 USER mf
 

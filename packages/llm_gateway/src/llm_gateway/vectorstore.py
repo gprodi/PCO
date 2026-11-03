@@ -62,6 +62,10 @@ class VectorStore(ABC):
     @abstractmethod
     def count(self) -> int: ...
 
+    @abstractmethod
+    def get(self, record_id: str) -> Record | None:
+        """Un passage par identifiant (vérifier l'empreinte d'un corpus déjà indexé…)."""
+
     def __len__(self) -> int:
         return self.count()
 
@@ -100,6 +104,10 @@ class MemoryVectorStore(VectorStore):
 
     def count(self) -> int:
         return len(self._items)
+
+    def get(self, record_id: str) -> Record | None:
+        item = self._items.get(record_id)
+        return item[0] if item else None
 
     def save(self, path: Path | None = None) -> None:
         target = path or self.path
@@ -225,6 +233,16 @@ class PgVectorStore(VectorStore):
             return 0
         with self.engine.connect() as c:
             return int(c.execute(self._text(f"SELECT count(*) FROM {self.table}")).scalar())  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
+
+    def get(self, record_id: str) -> Record | None:
+        if self.dimension() is None:
+            return None
+        sql = self._text(f"SELECT id, grp, title, body, meta FROM {self.table} WHERE id = :id")  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
+        with self.engine.connect() as c:
+            r = c.execute(sql, {"id": record_id}).mappings().first()
+        return (
+            Record(r["id"], r["grp"], r["title"], r["body"], dict(r["meta"] or {})) if r else None
+        )
 
 
 def open_vector_store(

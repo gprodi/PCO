@@ -51,6 +51,9 @@ def exercise(store: VectorStore) -> None:
     assert len(store) == 3
     assert all(r.group != "mlflow" or r.id == "mlflow#9" for _, r in store.search(qv, k=10))
 
+    assert store.get("fastapi#0").title == "FastAPI" and store.get("docker#0").meta == {"n": 1}
+    assert store.get("absent") is None
+
     store.delete_groups(["docker"])
     assert len(store) == 2
     store.delete_groups([])  # sans effet
@@ -99,7 +102,7 @@ def test_pgvector_store_scenario():
     store = open_vector_store(PG_URL, table=table)
     assert isinstance(store, PgVectorStore)
     try:
-        assert store.dimension() is None and len(store) == 0
+        assert store.dimension() is None and len(store) == 0 and store.get("x") is None
         assert store.search([1.0] * 128) == []
         store.delete_groups(["rien"])  # table absente : sans effet
         exercise(store)

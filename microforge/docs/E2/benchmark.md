@@ -35,5 +35,6 @@ latence p50/p95, gCO₂e/photo (CodeCarbon), coût/1 000 photos.
 
 ## Conclusion et recommandation
 - **Retenus** : YOLO (F1, local, entraîné sur nos classes) + **VLM local** Qwen3-VL (F2) via Ollama ;
-  Qwen3 pour F3/F4 ; bge-m3 pour F5. Secours : Gemini (gratuit) puis Claude (payant) via la passerelle.
+  Qwen3 pour F3/F4 ; bge-m3 pour F5. Secours : Gemini (offre gratuite) via la passerelle.
+- **Écarté** : Claude (payant à l'usage, pas d'abonnement) — le fournisseur reste dans `llm_gateway` mais hors de la chaîne.
 - **Écartés** : services cloud d'entraînement (coût, confidentialité), Roboflow hébergé (dépendance cloud).

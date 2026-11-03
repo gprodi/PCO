@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     rate_limit_token: str = Field(default="10/minute", alias="MF_RATE_LIMIT_TOKEN")
     rate_limit_vision: str = Field(default="30/hour", alias="MF_RATE_LIMIT_VISION")
 
+    # Copilote RAG : index mémoire par défaut, PostgreSQL + pgvector si l'URL est fournie
+    copilot_vector_url: str | None = Field(default=None, alias="MF_COPILOT_VECTOR_URL")
+    copilot_min_score: float = Field(default=0.3, ge=0.0, le=1.0, alias="MF_COPILOT_MIN_SCORE")
+    rate_limit_copilot: str = Field(default="60/hour", alias="MF_RATE_LIMIT_COPILOT")
+
     log_level: str = Field(default="INFO", alias="MF_LOG_LEVEL")
     log_json: bool = Field(default=False, alias="MF_LOG_JSON")
 

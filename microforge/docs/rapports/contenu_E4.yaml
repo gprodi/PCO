@@ -13,21 +13,21 @@ sections:
     - "- Découvrir : parcours de progression en 7 étapes (de la première LED au robot autonome) et vitrine de vrais projets open source ;\n- Inventaire : photo → détection → correction → stock ;\n- Explorer : thème → idée → projet généré (câblage, code, guide) ;\n- Je veux construire X : description libre → projet + liste d'achat ;\n- Compte : export et suppression des données."
     - "[À COMPLÉTER : maquettes Penpot des écrans principaux]"
   Rédiger les spécifications fonctionnelles sous forme de user stories:
-    - "| # | En tant que… je veux… afin de… | Critères d'acceptation (dont RGAA) |\n|---|---|---|\n| US1 | maker, photographier mon stock pour obtenir l'inventaire | composants courants reconnus ; résultat aussi sous forme de liste texte (1.1) |\n| US2 | maker, corriger une détection | tableau éditable au clavier (7.1, 12.8) ; libellés explicites (11.1) |\n| US3 | maker, voir les projets réalisables avec mon stock | statut en texte et icône, jamais par la seule couleur (3.1) |\n| US4 | maker, obtenir câblage, code et guide | tableau avec en-têtes (5.6) ; SVG avec titre et description (1.1) ; code compilable |\n| US5 | maker, décrire un projet en langage naturel | composants issus du catalogue ; mention « généré par IA » |\n| US6 | maker, connaître la liste d'achat et son coût | total TTC ; liens explicites (6.1) |\n| US10 | utilisateur, exporter ou supprimer mes données | export JSON ; suppression confirmée |"
+    - "| # | En tant que… je veux… afin de… | Critères d'acceptation (dont RGAA) |\n|---|---|---|\n| US1 | maker, photographier mon stock pour obtenir l'inventaire | composants courants reconnus ; résultat aussi sous forme de liste texte (1.1) |\n| US2 | maker, corriger une détection | tableau éditable au clavier (7.1, 12.8) ; libellés explicites (11.1) |\n| US3 | maker, voir les projets réalisables avec mon stock | statut en texte et icône, jamais par la seule couleur (3.1) |\n| US4 | maker, obtenir câblage, code et guide | tableau avec en-têtes (5.6) ; SVG avec titre et description (1.1) ; code compilable |\n| US5 | maker, décrire un projet en langage naturel | composants issus du catalogue ; mention « généré par IA » |\n| US6 | maker, connaître la liste d'achat et son coût | total TTC ; liens explicites (6.1) |\n| US7 | maker, poser une question sur un composant ou une carte | réponse citée [n] avec ses sources consultables ; « je ne sais pas » plutôt qu'une invention ; mention « généré par IA » |\n| US10 | utilisateur, exporter ou supprimer mes données | export JSON ; suppression confirmée |"
     - "Liste complète et scénarios Gherkin : docs/E4/user-stories.md."
   Définir les objectifs techniques d’accessibilité des interfaces:
     - "Cible RGAA 4.1 niveau AA : navigation complète au clavier, contrastes ≥ 4,5:1, alternatives textuelles des schémas, aucune information portée par la seule couleur, formulaires étiquetés, tests automatisés avec axe."
 
   # ------------------------------------------------------------------ C15
   Concevoir l’architecture de l’application:
-    - "Architecture en micro-services : application (Streamlit puis PWA React) → api_data (comptes, inventaire, catalogue, projets) et api_ia (vision, génération) → PostgreSQL, stockage objet, passerelle LLM (Ollama local, repli Gemini puis Claude), MLflow. Le cœur métier (allocateur de broches, contrôle électrique, génération du firmware et des sorties) est une bibliothèque Python pure, testée indépendamment."
+    - "Architecture en micro-services : application (Streamlit puis PWA React) → api_data (comptes, inventaire, catalogue, projets) et api_ia (vision, génération) → PostgreSQL, stockage objet, passerelle LLM (Ollama local, repli Gemini gratuit), base vectorielle pgvector (copilote), MLflow. Le cœur métier (allocateur de broches, contrôle électrique, génération du firmware et des sorties) est une bibliothèque Python pure, testée indépendamment."
     - "[À COMPLÉTER : diagrammes C4 contexte et conteneurs (Mermaid, docs/E4/architecture.md)]"
   Choisir les langages de programmation et les outils de développement:
     - "| Besoin | Choix | Alternative écartée |\n|---|---|---|\n| Back-end | Python 3.12 + FastAPI | Node.js |\n| Front | Streamlit (preuve de concept) puis React + Vite (PWA : caméra, hors ligne, WebSerial) | Flutter |\n| Base | PostgreSQL + pgvector | MongoDB |\n| IA | Ollama local + LiteLLM | API cloud seules |\n| Qualité | uv, ruff, pytest, hypothesis, Playwright | — |"
   Identifier les flux de données et les zones de stockage:
     - "Photo (navigateur) → api_ia (EXIF supprimé, traitée en mémoire) → détections → api_data (inventaire en base). Projets générés stockés en base ; photos conservées seulement avec consentement (stockage objet, 30 jours sinon). Journaux sans donnée personnelle (identifiant haché)."
   Choisir les services externes complémentaires:
-    - "Wokwi (simulation, par export de fichiers), API fournisseurs (prix), Gemini et Claude en secours ; hébergement de préproduction chez un hébergeur européen engagé (Scaleway, OVHcloud ou Infomaniak)."
+    - "Wokwi (simulation, par export de fichiers), API fournisseurs (prix), Gemini (offre gratuite) en secours ; hébergement de préproduction chez un hébergeur européen engagé (Scaleway, OVHcloud ou Infomaniak)."
   Rédiger les spécifications techniques:
     - "docs/E4/architecture.md et docs/E4/modelisation.md."
 
@@ -50,7 +50,7 @@ sections:
   Développer les fonctionnalités front-end:
     - "Capture photo, tableau éditable des détections, onglets des livrables (câblage, schéma SVG, code, guide de soudure, Wokwi, KiCad, nomenclature, fiabilité et sources), téléchargement du projet en zip."
   Développer les composants métiers:
-    - "- allocateur de broches déterministe (bus I2C/SPI partagés, ADC1 seulement si Wi-Fi, broches réservées évitées, résistances et ponts diviseurs ajoutés automatiquement) ;\n- contrôle électrique (niveaux logiques, budget de courant, sécurité moteurs et relais) ;\n- génération du firmware Arduino, du câblage, du guide, du diagramme Wokwi et de la netlist KiCad ;\n- suggestions à partir du stock et génération « je veux construire X » validée par l'allocateur."
+    - "- allocateur de broches déterministe (bus I2C/SPI partagés, ADC1 seulement si Wi-Fi, broches réservées évitées, résistances et ponts diviseurs ajoutés automatiquement) ;\n- contrôle électrique (niveaux logiques, budget de courant, sécurité moteurs et relais) ;\n- génération du firmware Arduino, du câblage, du guide, du diagramme Wokwi et de la netlist KiCad ;\n- suggestions à partir du stock et génération « je veux construire X » validée par l'allocateur ;\n- compatibilité composant ↔ carte déclarée dans le catalogue (ex. IRremote absent du cœur Arduino Due, OneWire 2.3.8 refusé par l'ESP32-C6) et vérifiée par l'ERC ;\n- copilote RAG : le catalogue découpé en passages, index PostgreSQL + pgvector, réponses citées, « je ne sais pas » sous un seuil."
   Gérer les droits et accès à l’application:
     - "Rôles utilisateur et administrateur, contrôle de propriété de chaque objet (inventaire, projets), jetons de courte durée."
   Intégrer les composants d’accès aux données:
@@ -58,7 +58,7 @@ sections:
   Sécuriser l’application:
     - "Top 10 OWASP : validation des entrées, jetons en mémoire, contenus générés échappés, fichiers contrôlés, limitation de débit, dépendances surveillées (Dependabot, pip-audit), secrets détectés en CI (gitleaks)."
   Intégrer des tests automatisés:
-    - "Près de 300 tests (couverture 91 %), dont la vérification syntaxique C++ de 131 firmwares générés et la compilation réelle avec arduino-cli en CI."
+    - "Plus de 750 tests (couverture 90 %), dont la vérification syntaxique C++ de 478 firmwares générés, la compilation réelle avec arduino-cli en CI et des tests d'intégration sur PostgreSQL + pgvector."
   C17. Développement des Composants et Interfaces > Versionner les sources avec Git:
     - "Dépôt GitHub, branches de fonctionnalité, demandes de fusion relues."
   Prendre en compte les enjeux d’accessibilité:
@@ -70,7 +70,7 @@ sections:
   Choisir l’outil d’intégration continue:
     - "GitHub Actions : intégré au dépôt, gratuit pour un dépôt public, actions épinglées par empreinte de commit (sécurité de la chaîne logicielle)."
   C18. Automatisation des Tests avec Intégration Continue > Définir les étapes, tâches et déclencheurs:
-    - "À chaque push et demande de fusion : lint (ruff), tests et couverture (porte à 80 %) sur Python 3.12 et 3.13, détection de secrets, compilation réelle des firmwares générés sur trois familles de cartes (AVR, ESP32, RP2040)."
+    - "À chaque push et demande de fusion : lint (ruff), tests et couverture (porte à 80 %) sur Python 3.12 et 3.13, détection de secrets, compilation réelle des firmwares générés sur les 11 familles de cartes et les variantes de puce ESP32-S3, C3, C6, H2 et Pico 2 W (16 jobs, matrice produite par le catalogue), tests du RAG sur une vraie base PostgreSQL + pgvector."
   Produire les fichiers de configuration:
     - ".github/workflows/ci.yml (annexe 1)."
   Configurer l’automatisation:

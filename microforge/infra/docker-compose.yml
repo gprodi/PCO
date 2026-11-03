@@ -40,6 +40,9 @@ services:
     profiles: [core]
     image: ghcr.io/gprodi/microforge-api_ia:${MF_IMAGE_TAG:-main}
     build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_ia }
+    environment:
+      # Copilote RAG : passages du catalogue dans PostgreSQL + pgvector (table mf_copilot, HNSW)
+      MF_COPILOT_VECTOR_URL: postgresql+psycopg://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/microforge
     depends_on: [api_data]
     ports: ["8001:8001"]
     mem_limit: 2g
