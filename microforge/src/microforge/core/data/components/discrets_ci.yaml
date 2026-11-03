@@ -73,6 +73,12 @@
     - { name: B, role: gpio_out, description: "base, via une résistance de 1 kΩ" }
     - { name: C, role: nc, description: "collecteur : côté charge" }
     - { name: E, role: ground, description: "émetteur : à la masse" }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
   price_eur: 0.01
   supplier_refs: { lcsc: "C22751485" }
   notes: ["Brochage TO-92 variable selon les fabricants (EBC ou CBE) : vérifier la fiche technique."]
@@ -88,6 +94,12 @@
     - { name: B, role: gpio_out, description: "base, via 1 kΩ" }
     - { name: C, role: nc }
     - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
   kicad: { symbol: "Transistor_BJT:BC547", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
   price_eur: 0.03
   supplier_refs: { lcsc: "C47089404" }
@@ -103,6 +115,12 @@
     - { name: B, role: gpio_out }
     - { name: C, role: nc }
     - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
   kicad: { symbol: "Transistor_BJT:2N3904", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
   price_eur: 0.08
   supplier_refs: { lcsc: "C124482" }
@@ -118,6 +136,12 @@
     - { name: B, role: gpio_out }
     - { name: C, role: nc }
     - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
   price_eur: 0.01
   supplier_refs: { lcsc: "C22751469" }
 
@@ -173,9 +197,16 @@
   is_module: false
   needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
   pins:
-    - { name: B, role: gpio_out, description: "base, via 1 kΩ" }
+    - { name: B, role: pwm, description: "base, via 1 kΩ" }
     - { name: C, role: nc, description: "collecteur : côté charge (+ diode de roue libre)" }
     - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${B}, niveau); }  // 0–255 (PWM)
   price_eur: 0.78
   supplier_refs: { lcsc: "C262990" }
   notes: ["Charge inductive (moteur, pompe, relais) : diode 1N4007 en roue libre obligatoire.", "Préférer un MOSFET à seuil logique (IRLZ44N) qui chauffe beaucoup moins."]
@@ -189,9 +220,16 @@
   is_module: false
   needs_series_resistor_ohm: { "3.3": 220, "5.0": 220 }
   pins:
-    - { name: G, role: gpio_out, description: "grille, via 220 Ω + 10 kΩ vers la masse" }
+    - { name: G, role: pwm, description: "grille, via 220 Ω + 10 kΩ vers la masse" }
     - { name: D, role: nc, description: "drain : côté charge" }
     - { name: S, role: ground, description: "source : à la masse" }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${G}, niveau); }  // 0–255 (PWM)
   kicad: { symbol: "Transistor_FET:IRLZ44N", footprint: "Package_TO_SOT_THT:TO-220-3_Vertical" }
   price_eur: 0.36
   supplier_refs: { lcsc: "C22367197" }
@@ -205,9 +243,16 @@
   is_module: false
   needs_series_resistor_ohm: { "3.3": 220, "5.0": 220 }
   pins:
-    - { name: G, role: gpio_out }
+    - { name: G, role: pwm }
     - { name: D, role: nc }
     - { name: S, role: ground }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${G}, niveau); }  // 0–255 (PWM)
   price_eur: 0.51
   supplier_refs: { lcsc: "C2598" }
   notes: ["Seuil non logique : à 3,3 V (ESP32, Pico) il conduit mal et chauffe — préférer l'IRLZ44N."]
@@ -223,6 +268,12 @@
     - { name: G, role: gpio_out }
     - { name: D, role: nc }
     - { name: S, role: ground }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
   kicad: { symbol: "Transistor_FET:2N7000", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
   price_eur: 0.04
   supplier_refs: { lcsc: "C9114" }

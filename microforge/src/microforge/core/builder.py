@@ -63,6 +63,7 @@ class ProjectBuilder:
             setup_extra=tpl.setup_extra,
             globals_extra=tpl.globals_extra,
             template_id=tpl.id,
+            bom_extra=tpl.bom_extra,
         )
 
     def build(self, spec: ProjectSpec, owned_resistors: list[float] | None = None) -> BuildResult:

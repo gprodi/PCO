@@ -4,7 +4,7 @@ annexe_titre: "Annexe 1 : user stories complètes et fichiers de configuration C
 
 sections:
   Introduction:
-    - "MicroForge s'adresse aux makers débutants, aux fablabs et aux étudiants en électronique : à partir de leur stock de composants, l'application propose des projets réalisables (45 modèles générables, 131 idées classées en 17 thèmes) et génère tout ce qu'il faut pour les construire. Ce dossier couvre l'analyse du besoin, le cadre technique, la conduite agile, le développement et les chaînes d'intégration et de livraison continues."
+    - "MicroForge s'adresse aux makers débutants, aux fablabs et aux étudiants en électronique : à partir de leur stock de composants, l'application propose des projets réalisables (52 modèles générables, 138 idées classées en 17 thèmes) et génère tout ce qu'il faut pour les construire. Ce dossier couvre l'analyse du besoin, le cadre technique, la conduite agile, le développement et les chaînes d'intégration et de livraison continues."
 
   # ------------------------------------------------------------------ C14
   Modéliser les données de l’application:
@@ -58,7 +58,7 @@ sections:
   Sécuriser l’application:
     - "Top 10 OWASP : validation des entrées, jetons en mémoire, contenus générés échappés, fichiers contrôlés, limitation de débit, dépendances surveillées (Dependabot, pip-audit), secrets détectés en CI (gitleaks)."
   Intégrer des tests automatisés:
-    - "Plus de 750 tests (couverture 90 %), dont la vérification syntaxique C++ de 478 firmwares générés, la compilation réelle avec arduino-cli en CI et des tests d'intégration sur PostgreSQL + pgvector."
+    - "Plus de 750 tests (couverture 90 %), dont la vérification syntaxique C++ de 555 firmwares générés, la compilation réelle avec arduino-cli en CI et des tests d'intégration sur PostgreSQL + pgvector."
   C17. Développement des Composants et Interfaces > Versionner les sources avec Git:
     - "Dépôt GitHub, branches de fonctionnalité, demandes de fusion relues."
   Prendre en compte les enjeux d’accessibilité:

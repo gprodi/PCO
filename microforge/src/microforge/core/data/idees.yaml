@@ -35,6 +35,7 @@ themes:
       - { titre: "Réveil lumineux", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12, pushbutton], description: "La lumière monte progressivement avant l'heure du réveil." }
       - { titre: "Indicateur de confort (trop chaud / trop sec)", difficulte: 1, composants: [dht11, rgb-led], description: "Une seule LED qui résume le confort de la pièce." }
       - { titre: "Sonnette silencieuse (bébé dort)", difficulte: 1, composants: [pushbutton, vibration-motor, led], description: "Le visiteur sonne, toi seul sens la vibration." }
+      - { titre: "Ventilateur qui accélère avec la chaleur", template: ventilateur-pwm-mosfet, difficulte: 3, composants: [dht22, mosfet-irlz44n, diode-1n4007, fan-12v], description: "Arrêté sous 25 °C, pleine vitesse à 35 °C, progressif entre les deux." }
 
   - id: plantes
     titre: Plantes & jardin
@@ -51,6 +52,7 @@ themes:
       - { titre: "Rappel d'arrosage sonore", difficulte: 1, composants: [soil-moisture-capacitive, buzzer], description: "Un bip discret quand l'humidité descend sous le seuil." }
       - { titre: "Lampe de croissance programmée", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Éclaire les semis 12 h par jour à heures fixes." }
       - { titre: "Niveau du récupérateur d'eau de pluie", difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau indique le remplissage de la cuve vu du dessus." }
+      - { titre: "Arrosage silencieux sur MOSFET", template: arrosage-mosfet, difficulte: 2, composants: [soil-moisture-capacitive, mosfet-irlz44n, diode-1n4007, water-pump-5v], description: "Arrosage par impulsions, sans le clic ni l'usure d'un relais." }
 
   - id: exterieur
     titre: Extérieur & météo
@@ -97,6 +99,7 @@ themes:
       - { titre: "Robot sumo", difficulte: 3, composants: [l298n-driver, dc-motor-tt, hc-sr04, tcrt5000-line, battery-holder-4aa], description: "Trouve l'adversaire au sonar et reste dans l'arène grâce au capteur de ligne." }
       - { titre: "Tête de robot expressive", difficulte: 2, composants: [max7219-matrix, sg90-servo, hc-sr04], description: "Les yeux sur matrice LED suivent et réagissent quand on s'approche." }
       - { titre: "Robot télécommandé infrarouge", difficulte: 3, composants: [ir-receiver, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Pilote le châssis avec une télécommande de TV." }
+      - { titre: "Moteur à vitesse réglable (TIP120)", template: moteur-vitesse-tip120, difficulte: 2, composants: [dc-motor-tt, darlington-tip120, diode-1n4007, potentiometer-10k], description: "La base de tout robot : un moteur piloté en PWM par un transistor." }
 
   - id: vehicules
     titre: Véhicules, vélo & trottinette
@@ -136,6 +139,8 @@ themes:
       - { titre: "Texte défilant sur matrice", difficulte: 2, composants: [max7219-matrix], description: "Un message qui défile (prénom, citation du jour)." }
       - { titre: "Lampe qui suit la couleur du ciel", difficulte: 2, composants: [ldr-module, ws2812-ring-12], description: "Plus chaude le soir, plus froide en journée." }
       - { titre: "Sculpture qui s'éveille quand on approche", difficulte: 2, composants: [hc-sr04, ws2812-ring-12, sg90-servo], description: "Lumière et mouvement quand un visiteur s'approche." }
+      - { titre: "Chenillard 8 LED (74HC595)", template: chenillard-74hc595, difficulte: 2, composants: [shift-register-74hc595, led], description: "Effet K2000 sur 8 LED avec seulement 3 broches de la carte." }
+      - { titre: "Bargraphe au potentiomètre", template: bargraphe-potentiometre, difficulte: 2, composants: [potentiometer-10k, shift-register-74hc595, led], description: "Une jauge lumineuse qui suit le bouton rotatif." }
 
   - id: fetes
     titre: Fêtes & déco
@@ -174,6 +179,7 @@ themes:
       - { titre: "Courbe de refroidissement d'une tasse", difficulte: 2, composants: [ds18b20, microsd-module], description: "Vérifie la loi de Newton avec tes propres mesures." }
       - { titre: "Détecteur de champ magnétique", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip quand un aimant passe : idéal pour expliquer le magnétisme." }
       - { titre: "Sonde de qualité de l'air (gaz)", difficulte: 2, composants: [mq2-gas, ssd1306-i2c], description: "Observe l'effet d'une fenêtre ouverte ou d'une cuisson." }
+      - { titre: "Lire 8 interrupteurs avec 3 broches (74HC165)", template: lecteur-8-interrupteurs, difficulte: 2, composants: [shift-register-74hc165, pushbutton], description: "Comprendre les registres à décalage en entrée." }
 
   - id: iot
     titre: Objets connectés (Wi-Fi)
@@ -237,3 +243,4 @@ themes:
       - { titre: "Buzzer de quiz à 2 joueurs", difficulte: 2, composants: [pushbutton, led, buzzer], description: "Le premier qui appuie allume sa LED, l'autre est bloqué." }
       - { titre: "Labyrinthe à bille virtuelle", difficulte: 3, composants: [mpu6050, max7219-matrix], description: "Incline le boîtier pour guider le point lumineux." }
       - { titre: "Jeu du « fil électrique » (main stable)", difficulte: 1, composants: [buzzer, led], description: "Fais passer l'anneau le long du fil sans le toucher." }
+      - { titre: "Dé électronique à 7 LED", template: de-electronique, difficulte: 2, composants: [pushbutton, shift-register-74hc595, led], description: "Un appui, le dé roule et s'arrête sur une face de 1 à 6." }

@@ -5,6 +5,7 @@ from __future__ import annotations
 from microforge.core.allocator import Allocation
 from microforge.core.catalog import Catalog
 from microforge.core.models import BoardDef, ERCIssue, Net, ProjectSpec, Severity
+from microforge.core.values import format_value
 
 TROUBLESHOOTING = {
     "dht22": "Valeur `nan` : vérifier DATA, attendre 2 s entre deux lectures, contrôler la pull-up.",
@@ -76,13 +77,23 @@ def soldering_guide(
         "3. Câbler en suivant le **tableau de câblage** (`cablage.md`) ligne par ligne, "
         "dans l'ordre : masse, alimentations, bus, signaux.",
     ]
+    step = 4
     if alloc.added_parts:
-        md.append("4. Insérer les résistances ajoutées automatiquement :")
+        md.append(f"{step}. Insérer les résistances ajoutées automatiquement :")
         for p in alloc.added_parts:
             low = f" et {p.value_low} vers GND" if p.value_low else ""
             md.append(f"   - `{p.name}` {p.value}{low} — {p.reason}")
+        step += 1
+    if spec.bom_extra:
+        md.append(f"{step}. Câbler les pièces qui ne vont pas sur la carte :")
+        for extra in spec.bom_extra:
+            comp = catalog.component(extra.component)
+            unit = comp.parametric.unit if comp.parametric else ""
+            value = f" {format_value(extra.value, unit)}" if extra.value else ""
+            md.append(f"   - {extra.quantity} × {comp.name}{value} — {extra.note}")
+        step += 1
     md += [
-        f"{5 if alloc.added_parts else 4}. Téléverser le firmware et valider le fonctionnement "
+        f"{step}. Téléverser le firmware et valider le fonctionnement "
         "(moniteur série 115200 bauds) **avant** de souder quoi que ce soit.",
         "",
         "## 5. Étape 2 — Montage définitif sur plaque à pastilles",

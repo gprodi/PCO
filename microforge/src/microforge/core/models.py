@@ -239,6 +239,7 @@ class ProjectSpec(BaseModel):
     setup_extra: str = ""
     globals_extra: str = ""
     template_id: str | None = None
+    bom_extra: list[ExtraPart] = Field(default_factory=list)
 
 
 class Reference(BaseModel):
@@ -263,6 +264,16 @@ class FamilyDef(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class ExtraPart(BaseModel):
+    """Pièce du montage qui ne se branche pas sur une broche de la carte (LED sur les sorties d'un
+    74HC595, diode de roue libre aux bornes d'un moteur…) : nomenclature et guide seulement."""
+
+    component: str
+    quantity: int = Field(default=1, ge=1)
+    value: float | None = None  # passifs paramétriques (Ω, F, V…)
+    note: str = ""
+
+
 class ProjectTemplate(BaseModel):
     """Modèle de projet du catalogue (suggestions)."""
 
@@ -279,6 +290,7 @@ class ProjectTemplate(BaseModel):
     logic: str
     setup_extra: str = ""
     globals_extra: str = ""
+    bom_extra: list[ExtraPart] = Field(default_factory=list)
     learning: list[str] = Field(default_factory=list)  # notions apprises
     references: list[Reference] = Field(default_factory=list)  # data/references.yaml
     hardware_tested: list[str] = Field(

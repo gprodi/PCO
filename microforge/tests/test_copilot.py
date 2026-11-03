@@ -21,7 +21,7 @@ def cites_first(request) -> str:
 
 
 def gateway(**kw) -> tuple[Gateway, FakeProvider]:
-    fake = FakeProvider(embed_dim=256, **kw)
+    fake = FakeProvider(embed_dim=1024, **kw)  # moins de collisions de hachage
     return Gateway.fake(fake), fake
 
 
@@ -158,7 +158,7 @@ def test_copilot_on_pgvector_reindexes_when_embedding_model_changes():
         gw, _ = gateway(responder=cites_first)
         cop = Copilot(gw, CAT, store, min_score=0.2)
         ans = cop.ask("broches I2C par défaut ESP32 DevKit V1 SDA SCL")
-        assert ans.index == "pgvector" and store.dimension() == 256
+        assert ans.index == "pgvector" and store.dimension() == 1024
         assert "carte:esp32-devkit-v1" in [s.id for s in ans.sources]
         # Nouveau modèle d'embeddings (autre dimension) : réindexation automatique
         other = Gateway.fake(FakeProvider(embed_dim=128, responder=cites_first))

@@ -12,6 +12,7 @@ from microforge.core.allocator import Allocation
 from microforge.core.catalog import Catalog
 from microforge.core.models import BOMLine, ProjectSpec
 from microforge.core.netlist import added_part_refs
+from microforge.core.values import format_value
 
 TOOLING = ["breadboard-830", "usb-cable"]
 
@@ -39,6 +40,19 @@ def build_bom(
         comp = catalog.component(cid)
         lines.append(
             BOMLine(component=cid, name=comp.name, quantity=qty, unit_price_eur=comp.price_eur)
+        )
+    for extra in spec.bom_extra:
+        comp = catalog.component(extra.component)
+        unit = comp.parametric.unit if comp.parametric else ""
+        label = f"{comp.name} {format_value(extra.value, unit)}" if extra.value else comp.name
+        lines.append(
+            BOMLine(
+                component=comp.id,
+                name=label,
+                quantity=extra.quantity,
+                unit_price_eur=comp.price_eur,
+                note=extra.note or "hors carte (voir le guide)",
+            )
         )
     values = Counter(value for _, value in added_part_refs(alloc))
     stocked = {p.value for p in alloc.added_parts if p.from_stock} | {
