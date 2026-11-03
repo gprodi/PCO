@@ -18,6 +18,9 @@ categories:
   "Diodes / Zener Diodes": discret
   "Diodes / Bridge Rectifiers": discret
   "Diodes / Diodes - Fast Recovery Rectifiers": discret
+  "Diodes / Diodes - General Purpose": discret
+  "Transistors and Thyristors / Darlington Transistors": discret
+  "Transistors and Thyristors / Darlington Transistor Arrays": ci
   "Transistors and Thyristors / Bipolar Transistors - BJT": discret
   "Transistors and Thyristors / MOSFETs": discret
   "Optoelectronics / LED Indication - Discrete": actionneur
@@ -33,6 +36,10 @@ categories:
   "Embedded Processors and Controllers / Microcontroller Units (MCUs/MPUs/SOCs)": ci
   "Motor Driver ICs / Stepper Motor Driver": ci
   "Motor Driver ICs / Brushed DC Motor Drivers": ci
+  "Interface ICs / I/O Expanders": ci
+  "Interface ICs / Analog Switches, Multiplexers": ci
+  "Data Converters / Analog to Digital Converters (ADCs)": ci
+  "Memory / Eeprom": stockage
   # Alimentation
   "Power Management / Voltage Regulators - Linear, Low Drop Out (LDO) Regulators": alimentation
   "Power Management / Linear Voltage Regulators (LDO)": alimentation

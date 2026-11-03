@@ -27,7 +27,7 @@ flowchart LR
 | POST | `/v1/copilot/ask` | question libre → réponse citée [n] + sources du catalogue | JWT, 60/h |
 
 ## Copilote RAG
-Corpus = le catalogue lui-même (`copilot/corpus.py` : 297 passages — composants, 40 cartes, familles,
+Corpus = le catalogue lui-même (`copilot/corpus.py` : 344 passages — composants, 40 cartes, familles,
 projets, idées, parcours, vitrine), donc les mêmes règles que le câblage et l'ERC. Index **mémoire** par
 défaut, **PostgreSQL + pgvector** si `MF_COPILOT_VECTOR_URL` est défini (Docker Compose le fait) :
 colonne `vector(n)`, index HNSW `vector_cosine_ops`, recherche `ORDER BY embedding <=> :q`.

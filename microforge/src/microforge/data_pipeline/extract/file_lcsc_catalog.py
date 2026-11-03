@@ -63,26 +63,13 @@ KEEP_ATTRIBUTES = {
     "Type",
     "Color",
 }
-SI_PREFIX = [
-    (1e9, "G"),
-    (1e6, "M"),
-    (1e3, "k"),
-    (1.0, ""),
-    (1e-3, "m"),
-    (1e-6, "µ"),
-    (1e-9, "n"),
-    (1e-12, "p"),
-]
 
 
 def si(value: float, unit: str) -> str:
-    """4700, Ω -> « 4,7 kΩ » ; 1e-07, F -> « 100 nF »."""
-    if value == 0:
-        return f"0 {unit}"
-    for factor, prefix in SI_PREFIX:
-        if abs(value) >= factor * 0.999:
-            return f"{value / factor:.3g}".replace(".", ",") + f" {prefix}{unit}"
-    return f"{value:.3g} {unit}"
+    """4700, Ω -> « 4,7 kΩ » ; 1e-07, F -> « 100 nF » (même mise en forme que le catalogue)."""
+    from microforge.core.values import format_value
+
+    return format_value(value, unit)
 
 
 def load_category_map(path: Path | None = None) -> dict[str, str]:

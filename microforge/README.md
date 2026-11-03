@@ -25,8 +25,8 @@ Interface : http://localhost:8501 · API données : http://localhost:8000/docs �
 ## Organisation
 | Dossier | Contenu | Épreuves |
 |---|---|---|
-| `src/microforge/core` | catalogue (40 cartes, 49 composants, 45 projets), allocateur, ERC, firmware, sorties | E4 |
-| `src/microforge/copilot` | copilote RAG : catalogue → 297 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
+| `src/microforge/core` | catalogue (40 cartes, 96 composants, 45 projets), allocateur, ERC, firmware, sorties | E4 |
+| `src/microforge/copilot` | copilote RAG : catalogue → 344 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
 | `src/microforge/data_pipeline` | collecte 5 types de sources, SQL, agrégation, import, purge RGPD | E1 |
 | `src/microforge/api_data` | API données (JWT RS256, RGPD, OWASP) | E1, E4 |
 | `src/microforge/api_ia` + `vision` | API du modèle (vision YOLO+VLM, génération) | E3 |

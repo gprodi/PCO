@@ -73,6 +73,30 @@ class CodeTemplate(BaseModel):
     api: str = ""  # fonctions utilitaires exposées à la logique du projet
 
 
+class Parametric(BaseModel):
+    """Composant décliné par valeur (résistance, condensateur, zener, longueur de fil…).
+
+    Le stock et la nomenclature comptent alors (composant, valeur) : 10 × 220 Ω ≠ 10 × 10 kΩ.
+    """
+
+    quantity: str  # resistance | capacitance | voltage | length | pins
+    unit: str  # Ω, F, V, cm, broches
+    series: str | None = None  # E6 / E12 / E24 (CEI 60063)
+    min: float | None = None
+    max: float | None = None
+    values: list[float] = Field(default_factory=list)  # valeurs discrètes hors série E
+    default: float | None = None
+
+    def allowed(self) -> list[float]:
+        from microforge.core.values import series_values
+
+        if self.values:
+            return sorted(self.values)
+        if self.series and self.min and self.max:
+            return series_values(self.series, self.min, self.max)
+        return []
+
+
 class ComponentDef(BaseModel):
     """Type de composant du catalogue."""
 
@@ -103,6 +127,9 @@ class ComponentDef(BaseModel):
     kicad: dict[str, str] = Field(default_factory=dict)  # {"symbol": ..., "footprint": ...}
     price_eur: float | None = None
     notes: list[str] = Field(default_factory=list)
+    parametric: Parametric | None = None
+    #: Références fournisseur vérifiées (ex. {"lcsc": "C402212"}) : prix et stock traçables (E1).
+    supplier_refs: dict[str, str] = Field(default_factory=dict)
 
     def signal_pins(self) -> list[PinSpec]:
         """Broches à relier à un GPIO de la carte."""

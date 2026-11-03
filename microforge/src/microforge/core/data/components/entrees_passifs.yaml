@@ -227,12 +227,15 @@
   aliases: [resistance, resistor, 220 ohm, 10k]
   passive: true
   is_module: false
+  parametric: { quantity: resistance, unit: Ω, series: E12, min: 10, max: 1000000, default: 220 }
   pins:
     - { name: "1", role: nc }
     - { name: "2", role: nc }
   wokwi: { type: wokwi-resistor, pins: { "1": "1", "2": "2" } }
   kicad: { symbol: "Device:R", footprint: "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal" }
-  price_eur: 0.02
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C127220" }
+  notes: ["Prix médian LCSC d'une résistance traversante 1/4 W (220 Ω : 0,011 € ; 10 kΩ : 0,013 €, collecte du 03/11/2026).", "Code couleur : 220 Ω = rouge rouge marron or ; 10 kΩ = marron noir orange or."]
 
 - id: breadboard-830
   name: Plaque d'essai sans soudure 830 points

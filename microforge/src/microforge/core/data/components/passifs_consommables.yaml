@@ -1,0 +1,211 @@
+# Passifs déclinés par valeur, connectique, consommables et outillage (étape 3 — stock complet).
+# Prix médians du catalogue LCSC collecté le 03/11/2026 (pièces traversantes, stock > 100, palier
+# « 1 pièce », USD × 0,893) ; « indicatif » quand la pièce n'est pas vendue par LCSC (outillage).
+
+# ------------------------------------------------------------------ passifs par valeur
+- id: capacitor-ceramic
+  name: Condensateur céramique (multicouche, traversant)
+  category: passif
+  description: "Découplage 100 nF au plus près de chaque circuit intégré, filtrage, anti-rebond."
+  aliases: [condensateur ceramique, condo ceramique, 100nf, mlcc, capacitor ceramic]
+  is_module: false
+  passive: true
+  parametric: { quantity: capacitance, unit: F, series: E6, min: 1.0e-11, max: 1.0e-6, default: 1.0e-7 }
+  pins:
+    - { name: "1", role: nc }
+    - { name: "2", role: nc }
+  kicad: { symbol: "Device:C", footprint: "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" }
+  price_eur: 0.08
+  supplier_refs: { lcsc: "C400087" }
+  notes: ["Code imprimé : « 104 » = 10 × 10⁴ pF = 100 nF ; « 103 » = 10 nF ; « 22 » = 22 pF."]
+
+- id: capacitor-electrolytic
+  name: Condensateur électrolytique (aluminium, radial)
+  category: passif
+  description: "Réservoir d'énergie : alimentation d'un servo, d'un ruban WS2812 (1000 µF), filtrage."
+  aliases: [condensateur electrolytique, condo chimique, chimique, electrolytic capacitor]
+  is_module: false
+  passive: true
+  parametric: { quantity: capacitance, unit: F, series: E6, min: 1.0e-6, max: 2.2e-3, default: 1.0e-4 }
+  pins:
+    - { name: "+", role: nc, description: "patte longue" }
+    - { name: "-", role: nc, description: "bande « − » sur le boîtier" }
+  kicad: { symbol: "Device:C_Polarized", footprint: "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm" }
+  price_eur: 0.08
+  supplier_refs: { lcsc: "C112510" }
+  notes: ["Polarisé : une inversion le fait gonfler ou éclater.", "Tension de service au moins 1,5 × la tension du circuit (16 V pour du 5 V ou du 12 V… 25 V pour 12 V)."]
+
+- id: trimmer-potentiometer
+  name: Potentiomètre ajustable (trimmer 3362P)
+  category: passif
+  description: "Réglage ponctuel (contraste d'un LCD, seuil d'un capteur) au tournevis."
+  aliases: [trimmer, potentiometre ajustable, 3362p, resistance ajustable]
+  is_module: false
+  passive: true
+  parametric: { quantity: resistance, unit: Ω, values: [1000, 5000, 10000, 50000, 100000], default: 10000 }
+  pins:
+    - { name: "1", role: nc }
+    - { name: W, role: nc, description: "curseur" }
+    - { name: "3", role: nc }
+  kicad: { symbol: "Device:R_Potentiometer_Trim", footprint: "Potentiometer_THT:Potentiometer_Bourns_3362P_Vertical" }
+  price_eur: 0.83
+  supplier_refs: { lcsc: "C48997914" }
+
+- id: crystal-16mhz
+  name: Quartz 16 MHz (HC-49)
+  category: passif
+  description: "Horloge d'un ATmega328P monté sur plaque (Arduino « maison »), avec 2 × 22 pF."
+  aliases: [quartz, crystal, 16mhz, quartz 16 mhz]
+  is_module: false
+  passive: true
+  pins:
+    - { name: "1", role: nc }
+    - { name: "2", role: nc }
+  kicad: { symbol: "Device:Crystal", footprint: "Crystal:Crystal_HC49-4H_Vertical" }
+  price_eur: 0.08
+  supplier_refs: { lcsc: "C12676" }
+
+# ------------------------------------------------------------------ connectique
+- id: dupont-wire-mm
+  name: Fils Dupont mâle-mâle
+  category: consommable
+  description: "Liaisons sur plaque d'essai (breadboard) ou entre deux connecteurs femelles."
+  aliases: [dupont m-m, dupont male male, fils male male, jumper male male]
+  is_module: false
+  passive: true
+  parametric: { quantity: length, unit: cm, values: [10, 20, 30], default: 20 }
+  pins: []
+  price_eur: 0.05
+  notes: ["Prix indicatif à l'unité (lots de 40) ; l'offre LCSC collectée (C7471277) concerne des fils prédénudés, pas des Dupont."]
+
+- id: dupont-wire-mf
+  name: Fils Dupont mâle-femelle
+  category: consommable
+  description: "D'une broche de carte ou de module (mâle) vers la plaque d'essai."
+  aliases: [dupont m-f, dupont male femelle, fils male femelle, jumper male femelle]
+  is_module: false
+  passive: true
+  parametric: { quantity: length, unit: cm, values: [10, 20, 30], default: 20 }
+  pins: []
+  price_eur: 0.05
+  notes: ["Prix indicatif à l'unité (lots de 40)."]
+
+- id: dupont-wire-ff
+  name: Fils Dupont femelle-femelle
+  category: consommable
+  description: "Directement de la carte vers un module, sans plaque d'essai."
+  aliases: [dupont f-f, dupont femelle femelle, fils femelle femelle, jumper femelle femelle]
+  is_module: false
+  passive: true
+  parametric: { quantity: length, unit: cm, values: [10, 20, 30], default: 20 }
+  pins: []
+  price_eur: 0.05
+  notes: ["Prix indicatif à l'unité (lots de 40)."]
+
+- id: breadboard-400
+  name: Plaque d'essai sans soudure 400 points
+  category: outillage
+  passive: true
+  aliases: [breadboard 400, demi breadboard, half breadboard]
+  pins: []
+  price_eur: 2.0
+  notes: ["Prix indicatif."]
+
+- id: breadboard-170
+  name: Mini plaque d'essai 170 points
+  category: outillage
+  passive: true
+  aliases: [breadboard 170, mini breadboard]
+  pins: []
+  price_eur: 1.0
+  notes: ["Prix indicatif."]
+
+- id: pin-header-male
+  name: Barrette mâle 1×40 au pas de 2,54 mm (sécable)
+  category: consommable
+  description: "À souder sur les modules livrés sans broches, puis à couper à la longueur voulue."
+  aliases: [barrette male, header male, pin header, connecteur male]
+  is_module: false
+  passive: true
+  pins: []
+  price_eur: 0.25
+  supplier_refs: { lcsc: "C2337" }
+
+- id: pin-header-female
+  name: Barrette femelle 1×40 au pas de 2,54 mm
+  category: consommable
+  description: "Support amovible pour une carte (ESP32, Pico) sur une plaque à pastilles."
+  aliases: [barrette femelle, header femelle, connecteur femelle]
+  is_module: false
+  passive: true
+  pins: []
+  price_eur: 0.47
+  supplier_refs: { lcsc: "C510959" }
+
+- id: screw-terminal-2p
+  name: Bornier à vis 2 points (pas 5,08 mm)
+  category: consommable
+  description: "Raccorder les fils d'alimentation, de moteur ou de pompe sans soudure."
+  aliases: [bornier, bornier a vis, screw terminal, domino]
+  is_module: false
+  passive: true
+  pins: []
+  price_eur: 0.20
+  supplier_refs: { lcsc: "C8465" }
+
+- id: solid-wire-kit
+  name: Fils rigides pour plaque d'essai (assortiment, 22 AWG)
+  category: consommable
+  description: "Liaisons courtes et nettes sur la plaque d'essai, à couper à longueur."
+  aliases: [fil rigide, fils rigides, jumper wire kit, 22 awg]
+  is_module: false
+  passive: true
+  pins: []
+  price_eur: 5.0
+  notes: ["Prix indicatif."]
+
+# ------------------------------------------------------------------ outillage
+- id: soldering-iron
+  name: Fer à souder régulé (60 W) + support
+  category: outillage
+  passive: true
+  aliases: [fer a souder, soldering iron, station de soudage]
+  pins: []
+  price_eur: 25.0
+  notes: ["Prix indicatif.", "Température 320–350 °C pour l'étain sans plomb ; aération et lunettes."]
+
+- id: solder-wire
+  name: Étain à souder 0,8 mm avec flux (sans plomb)
+  category: consommable
+  passive: true
+  aliases: [etain, solder, fil a souder]
+  pins: []
+  price_eur: 8.0
+  notes: ["Prix indicatif."]
+
+- id: multimeter
+  name: Multimètre numérique
+  category: outillage
+  passive: true
+  aliases: [multimetre, voltmetre, multimeter]
+  pins: []
+  price_eur: 15.0
+  notes: ["Prix indicatif.", "Indispensable : vérifier la tension d'une alimentation avant de la brancher, tester la continuité d'un fil."]
+
+- id: wire-stripper
+  name: Pince à dénuder
+  category: outillage
+  passive: true
+  aliases: [pince a denuder, denudeur, wire stripper]
+  pins: []
+  price_eur: 8.0
+  notes: ["Prix indicatif."]
+
+- id: flush-cutter
+  name: Pince coupante de précision
+  category: outillage
+  passive: true
+  aliases: [pince coupante, coupe fil, flush cutter]
+  pins: []
+  price_eur: 6.0
+  notes: ["Prix indicatif."]
