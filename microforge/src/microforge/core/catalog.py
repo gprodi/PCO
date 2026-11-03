@@ -186,7 +186,11 @@ class Catalog:
         if exact:
             return exact
         padded = f" {normalize(text)} "
-        for alias in sorted(self._aliases, key=len, reverse=True):
+        if getattr(self, "_aliases_sorted", None) is None or len(self._aliases_sorted) != len(
+            self._aliases
+        ):  # cache : appelée des dizaines de milliers de fois par l'agrégation (C3)
+            self._aliases_sorted = sorted(self._aliases, key=len, reverse=True)
+        for alias in self._aliases_sorted:
             if len(alias) >= 3 and f" {alias} " in padded:
                 return self._aliases[alias]
         return None

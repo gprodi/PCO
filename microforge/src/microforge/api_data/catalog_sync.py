@@ -17,6 +17,9 @@ CATEGORY_LABELS = {
     "communication": "Communication",
     "stockage": "Stockage",
     "passif": "Composants passifs",
+    "discret": "Semi-conducteurs discrets",
+    "ci": "Circuits intégrés",
+    "consommable": "Connectique et consommables",
     "outillage": "Outillage",
     "alimentation": "Alimentation",
 }

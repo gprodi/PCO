@@ -10,6 +10,7 @@ Contraintes identifiées (à documenter dans docs/E1/specifications.md) :
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 from microforge.data_pipeline.base import ExtractionError, Extractor, RawPart, to_dict
@@ -39,10 +40,19 @@ class DigiKeyExtractor(Extractor):
         if not (self.client_id and self.client_secret):
             raise ExtractionError("DIGIKEY_CLIENT_ID / DIGIKEY_CLIENT_SECRET manquants")
         self.http = self.params.get("http") or make_client()
-        self.token = self._token()
+        self._expires_at = 0.0
+        self._token_value = ""
+
+    @property
+    def token(self) -> str:
+        """Jeton OAuth2 mis en cache jusqu'à 60 s avant son expiration (``expires_in``)."""
+        if not self._token_value or time.monotonic() >= self._expires_at:
+            self._token_value, ttl = self._token()
+            self._expires_at = time.monotonic() + max(ttl - 60, 0)
+        return self._token_value
 
     @http_retry
-    def _token(self) -> str:
+    def _token(self) -> tuple[str, float]:
         resp = self.http.post(
             TOKEN_URL,
             data={
@@ -52,7 +62,8 @@ class DigiKeyExtractor(Extractor):
             },
         )
         resp.raise_for_status()
-        return resp.json()["access_token"]
+        data = resp.json()
+        return data["access_token"], float(data.get("expires_in", 600))
 
     @http_retry
     def _search(self, keyword: str, limit: int, offset: int) -> dict[str, Any]:

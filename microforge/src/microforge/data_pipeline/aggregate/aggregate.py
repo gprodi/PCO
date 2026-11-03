@@ -16,7 +16,7 @@ Règles de rejet :
   R2 prix_invalide       : prix absent, nul ou négatif (offres) ;
   R3 devise_inconnue     : prix non convertible en EUR ;
   R4 stock_negatif       : stock < 0 ;
-  R5 prix_aberrant       : hors [Q1 − 3·IQR, Q3 + 3·IQR] dans sa catégorie (si ≥ 8 offres).
+  R5 prix_aberrant       : log10(prix) hors [Q1 − 3·IQR, Q3 + 3·IQR] dans sa sous-catégorie (≥ 8 offres).
 """
 
 from __future__ import annotations
@@ -70,7 +70,17 @@ CATEGORY_KEYWORDS = [
 ]
 
 
+KNOWN_CATEGORIES = {
+    "carte", "capteur", "afficheur", "actionneur", "entree", "communication", "stockage",
+    "passif", "discret", "ci", "alimentation", "consommable", "outillage",
+}  # fmt: skip
+
+
 def guess_category(*texts: str | None) -> str:
+    if (
+        texts and texts[0] in KNOWN_CATEGORIES
+    ):  # source déjà classée (ex. LCSC via sa sous-catégorie)
+        return texts[0]  # type: ignore[return-value]
     low = " ".join(t or "" for t in texts).lower()
     for cat, words in CATEGORY_KEYWORDS:
         if any(w in low for w in words):
@@ -87,6 +97,8 @@ class AggregationReport:
     examples: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     matched_catalog: int = 0
     duplicates_removed: int = 0
+    libraries_out: int = 0
+    related_catalog: int = 0  # même référence que le catalogue mais autre objet (puce vs module)
 
     def reject(self, rule: str, record: dict[str, Any]) -> None:
         self.rejected[rule] += 1
@@ -103,6 +115,8 @@ class AggregationReport:
             "examples": dict(self.examples),
             "matched_catalog": self.matched_catalog,
             "duplicates_removed": self.duplicates_removed,
+            "libraries_out": self.libraries_out,
+            "related_catalog": self.related_catalog,
         }
 
 
@@ -122,18 +136,25 @@ class Aggregator:
                 self._choices[normalize(label)] = item.id
 
     # ------------------------------------------------------------------ rapprochement
-    def match_catalog(self, name: str | None, mpn: str | None) -> str | None:
-        for candidate in (mpn, name):
+    def match_catalog(self, name: str | None, mpn: str | None, by_name: bool = True) -> str | None:
+        """MPN puis nom ; ``by_name=False`` pour les descriptions longues des catalogues de
+        distributeurs (« LED driver… » ne doit pas être rapproché du composant « LED »)."""
+        for candidate in (mpn, name) if by_name else (mpn,):
             if candidate:
                 found = self.catalog.resolve_fuzzy(candidate)
                 if found:
                     return found
-        if not name:
+        if not name or not by_name:
             return None
         best = process.extractOne(normalize(name), list(self._choices), scorer=fuzz.token_set_ratio)
         if best and best[1] >= self.threshold:
             return self._choices[best[0]]
         return None
+
+    def _catalog_category(self, catalog_id: str) -> str:
+        if catalog_id in self.catalog.boards:
+            return "carte"
+        return self.catalog.components[catalog_id].category
 
     # ------------------------------------------------------------------ principal
     def run(
@@ -153,7 +174,15 @@ class Aggregator:
             if stock is not None and stock < 0:  # R4
                 report.reject("stock_negatif", rec)
                 continue
-            catalog_id = self.match_catalog(name, mpn)
+            extra = rec.get("extra") or {}
+            catalog_id = self.match_catalog(name, mpn, extra.get("match_by_name", True))
+            related = None
+            src_cat = rec.get("category") if rec.get("category") in KNOWN_CATEGORIES else None
+            if catalog_id and src_cat and self._catalog_category(catalog_id) != src_cat:
+                # Même référence, autre objet : la puce ATMEGA328P n'est pas la carte Arduino Uno,
+                # le capteur BME280 nu n'est pas le module. On garde le lien sans fusionner.
+                related, catalog_id = catalog_id, None
+                report.related_catalog += 1
             if catalog_id:
                 report.matched_catalog += 1
                 key = catalog_id
@@ -185,6 +214,12 @@ class Aggregator:
                         )
                     ),
                     "datasheet_url": rec.get("datasheet_url"),
+                    "description": clean_text(rec.get("description")),
+                    "related_catalog_id": related,
+                    # Grandeur principale des passifs (résistance en Ω, capacité en F) : stock par valeur
+                    "value": float(extra["value"]) if extra.get("value") is not None else None,
+                    "value_unit": extra.get("value_unit"),
+                    "value_text": extra.get("value_text"),
                     "sources": [],
                 },
             )
@@ -211,6 +246,9 @@ class Aggregator:
                 offer = {
                     "component_key": key,
                     "category": comp["category"],
+                    # Groupe de comparaison des prix (R5) : la sous-catégorie du distributeur si
+                    # elle est connue (un microcontrôleur ne se compare pas à un ampli op).
+                    "price_group": extra.get("lcsc_category") or comp["category"],
                     "supplier": rec["supplier"],
                     "sku": rec.get("source_ref"),
                     "unit_price_eur": eur,
@@ -235,59 +273,135 @@ class Aggregator:
 
     @staticmethod
     def _remove_price_outliers(offers: list[dict], report: AggregationReport) -> list[dict]:  # R5
+        """Prix hors [Q1 − 3·IQR, Q3 + 3·IQR] **en échelle log10**, par groupe d'au moins 8 offres.
+
+        Les prix de composants suivent une loi proche de la log-normale (0,01 € à 50 €) : en échelle
+        linéaire, toute pièce chère passerait pour aberrante ; en log, seuls les écarts d'ordres de
+        grandeur (prix saisi en centimes, en lots de 1 000…) sont écartés.
+        """
+        import math
         import statistics
 
-        by_cat: dict[str, list[float]] = defaultdict(list)
+        by_group: dict[str, list[float]] = defaultdict(list)
         for o in offers:
-            by_cat[o["category"]].append(o["unit_price_eur"])
+            by_group[o.get("price_group") or o["category"]].append(math.log10(o["unit_price_eur"]))
         bounds = {}
-        for cat, prices in by_cat.items():
-            if len(prices) >= 8:
-                q = statistics.quantiles(prices, n=4)
+        for group, logs in by_group.items():
+            if len(logs) >= 8:
+                q = statistics.quantiles(logs, n=4)
                 iqr = q[2] - q[0]
-                bounds[cat] = (q[0] - 3 * iqr, q[2] + 3 * iqr)
+                bounds[group] = (q[0] - 3 * iqr, q[2] + 3 * iqr)
         kept = []
         for o in offers:
-            lo, hi = bounds.get(o["category"], (float("-inf"), float("inf")))
-            if lo <= o["unit_price_eur"] <= hi:
+            lo, hi = bounds.get(
+                o.get("price_group") or o["category"], (float("-inf"), float("inf"))
+            )
+            if lo <= math.log10(o["unit_price_eur"]) <= hi:
                 kept.append(o)
             else:
                 report.reject("prix_aberrant", {"source": o["supplier"], "source_ref": o["sku"]})
         return kept
 
 
+def latest_rows(raw_dir: Path, source: str) -> list[dict]:
+    """Enregistrements du lot le plus récent d'une source (liste vide si jamais collectée)."""
+    src_dir = raw_dir / source
+    if not src_dir.is_dir():
+        return []
+    days = sorted(d for d in src_dir.iterdir() if (d / "records.jsonl").exists())
+    if not days:
+        return []
+    lines = (days[-1] / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def fritzing_to_raw(part: dict[str, Any]) -> dict[str, Any]:
+    """Pièce Fritzing (définition de composant, sans prix) -> enregistrement commun."""
+    props = {str(k).lower(): v for k, v in (part.get("properties") or {}).items()}
+    return {
+        "source": "fritzing",
+        "source_ref": part.get("module_id") or part.get("file"),
+        "name": part.get("title"),
+        "mpn": props.get("part number") or props.get("mpn"),
+        "description": " ".join(filter(None, [part.get("family"), *part.get("tags", [])])),
+        "category": None,
+        "package": props.get("package"),
+        "supply_text": props.get("voltage"),
+        "extra": {"match_by_name": True, "connectors": len(part.get("connectors") or [])},
+    }
+
+
 def load_raw(
     raw_dir: Path, sources: list[str] | None = None
 ) -> tuple[list[dict], dict[str, float]]:
-    """Charge le dernier lot de chaque source (``records.jsonl``) et les taux de change."""
+    """Composants/offres (dernier lot de chaque source) et taux de change.
+
+    Les sources « pièces » (``source_ref``) entrent telles quelles ; Fritzing est converti au format
+    commun ; les bibliothèques (index Arduino, GitHub) sont traitées par :func:`load_libraries`.
+    """
     records: list[dict] = []
     fx: dict[str, float] = {}
+    if not raw_dir.is_dir():
+        return records, fx
     for src_dir in sorted(p for p in raw_dir.iterdir() if p.is_dir()):
         if sources and src_dir.name not in sources and src_dir.name != "fx":
             continue
-        days = sorted(d for d in src_dir.iterdir() if (d / "records.jsonl").exists())
-        if not days:
-            continue
-        lines = (days[-1] / "records.jsonl").read_text(encoding="utf-8").splitlines()
-        rows = [json.loads(line) for line in lines if line.strip()]
+        rows = latest_rows(raw_dir, src_dir.name)
         if src_dir.name == "fx":
             fx = {r["currency"]: r["eur_per_unit"] for r in rows}
+        elif src_dir.name == "fritzing":
+            records += [fritzing_to_raw(r) for r in rows]
         elif rows and "source_ref" in rows[0]:
             records += rows
     return records, fx
 
 
+def load_libraries(raw_dir: Path) -> list[dict[str, Any]]:
+    """Index Arduino (dernière version de chaque bibliothèque) enrichi des étoiles GitHub (C3)."""
+    stars: dict[str, int] = {}
+    for row in latest_rows(raw_dir, "github"):
+        key = normalize(row.get("library") or "")
+        if row.get("stars") is not None:
+            stars[key] = max(stars.get(key, 0), int(row["stars"]))
+    out = []
+    for lib in latest_rows(raw_dir, "arduino_index"):
+        out.append(
+            {
+                "name": lib["name"],
+                "version": lib.get("version"),
+                "architectures": lib.get("architectures") or [],
+                "includes": lib.get("includes") or [],
+                "repository": lib.get("repository"),
+                "category": lib.get("category"),
+                "stars": stars.get(normalize(lib["name"])),
+            }
+        )
+    return out
+
+
 def write_outputs(
-    components: list[dict], offers: list[dict], report: AggregationReport, out_dir: Path
+    components: list[dict],
+    offers: list[dict],
+    report: AggregationReport,
+    out_dir: Path,
+    libraries: list[dict] | None = None,
 ) -> None:
     import polars as pl
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    pl.DataFrame([{**c, "sources": ",".join(c["sources"])} for c in components]).write_parquet(
-        out_dir / "components_clean.parquet"
-    )
+    if libraries:
+        pl.DataFrame(libraries, infer_schema_length=None).write_parquet(
+            out_dir / "libraries_clean.parquet"
+        )
+        report.libraries_out = len(libraries)
+    # Schéma déduit de TOUTES les lignes (valeurs entières puis décimales dans une même colonne).
+    pl.DataFrame(
+        [{**c, "sources": ",".join(c["sources"])} for c in components], infer_schema_length=None
+    ).write_parquet(out_dir / "components_clean.parquet")
     if offers:
-        pl.DataFrame(offers).write_parquet(out_dir / "offers_clean.parquet")
+        pl.DataFrame(offers, infer_schema_length=None).write_parquet(
+            out_dir / "offers_clean.parquet"
+        )
     (out_dir / "rejects_report.json").write_text(
         json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
     )

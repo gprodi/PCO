@@ -100,15 +100,18 @@ class Extractor(ABC):
         )
         return target
 
-    def run(self) -> tuple[list[dict[str, Any]], Manifest]:  # 1. point de lancement
-        safe_params = {
+    def _safe_params(self) -> dict[str, Any]:
+        """Paramètres traçables dans le manifeste (jamais de secret ni d'objet non sérialisable)."""
+        return {
             k: v
             for k, v in self.params.items()
             if isinstance(v, str | int | float | bool | list | type(None))
             and not any(s in k.lower() for s in ("key", "secret", "token", "password"))
         }
+
+    def run(self) -> tuple[list[dict[str, Any]], Manifest]:  # 1. point de lancement
         manifest = Manifest(
-            self.source, self.kind, datetime.now(UTC).isoformat(), params=safe_params
+            self.source, self.kind, datetime.now(UTC).isoformat(), params=self._safe_params()
         )
         start = time.perf_counter()
         records: list[dict[str, Any]] = []
@@ -122,6 +125,7 @@ class Extractor(ABC):
             logger.exception("Extraction {} en échec", self.source)
         finally:
             self.teardown()
+            manifest.params = self._safe_params()  # + ce que l'extraction a appris (source réelle…)
             manifest.rows = len(records)
             manifest.duration_s = round(time.perf_counter() - start, 3)
             manifest.finished_at = datetime.now(UTC).isoformat()
