@@ -89,7 +89,9 @@
       this.v = {}; // valeurs des contrôles
       this.s = {}; // état à dessiner
       this.modeled = true;
+      this.plugged = true; // débranché : sorties inertes, capteurs « absents »
       this._edges = {};
+      this._absent = {};
     }
     _init(spec) {
       this.view = spec.view;
@@ -99,7 +101,10 @@
         if (inp.type === "button") this.v[inp.key] = false;
       }
       Object.assign(this.s, spec.state || {});
-      for (const [k, fn] of Object.entries(spec.api || {})) this[k] = fn;
+      this._absent = spec.absent || {};
+      for (const [k, fn] of Object.entries(spec.api || {})) {
+        this[k] = (...args) => (this.plugged ? fn(...args) : k in this._absent ? this._absent[k] : 0);
+      }
       if (spec.onEvent) this._onEvent = spec.onEvent;
     }
     /** Curseur, interrupteur. */
@@ -142,6 +147,7 @@
   model("dht22 dht11", (p) => ({
     view: "sensor",
     inputs: [slider("temperature", "Température", -10, 50, 0.5, 22, "°C"), slider("humidity", "Humidité", 0, 100, 1, 50, "%")],
+    absent: { temperature: NaN, humidity: NaN },
     api: { temperature: () => p.v.temperature, humidity: () => p.v.humidity },
   }));
   model("bme280", (p) => ({
@@ -157,6 +163,7 @@
       pressure_hpa: () => p.v.pressure,
       altitude_m: () => 44330 * (1 - Math.pow(p.v.pressure / 1013.25, 0.1903)),
     },
+    absent: { temperature: NaN, humidity: NaN, pressure_hpa: NaN, altitude_m: NaN },
   }));
   model("bmp280", (p) => ({
     view: "sensor",
@@ -170,6 +177,7 @@
   model("ds18b20", (p) => ({
     view: "sensor",
     inputs: [slider("temperature", "Température", -20, 100, 0.5, 21, "°C")],
+    absent: { temperature: -127 }, // DEVICE_DISCONNECTED_C de DallasTemperature
     api: { temperature: () => p.v.temperature },
   }));
   model("bh1750", (p) => ({
@@ -227,11 +235,13 @@
   model("hc-sr04", (p) => ({
     view: "sensor",
     inputs: [slider("distance", "Distance (450 = aucun écho)", 2, 450, 1, 50, "cm")],
+    absent: { distance_cm: -1 },
     api: { distance_cm: () => (p.v.distance > 400 ? -1 : p.v.distance) },
   }));
   model("vl53l0x", (p) => ({
     view: "sensor",
     inputs: [slider("distance", "Distance (1500 = hors portée)", 30, 1500, 5, 300, "mm")],
+    absent: { distance_mm: -1 },
     api: { distance_mm: () => (p.v.distance > 1200 ? -1 : Math.round(p.v.distance)) },
   }));
 
@@ -327,12 +337,14 @@
     inputs: [choice("badge", "Présenter un badge", [["DE AD BE EF", "Badge autorisé"], ["12 34 56 78", "Autre badge"]])],
     state: { queue: [] },
     onEvent: (key, value) => { p.s.queue.push(String(value)); },
+    absent: { read_uid: "" },
     api: { read_uid: () => (p.s.queue.length ? p.s.queue.shift() : "") },
   }));
   model("hx711-load-cell", (p) => ({
     view: "sensor",
     inputs: [slider("mass", "Masse posée", 0, 5000, 5, 0, "g")],
     state: { offset: 0 },
+    absent: { grams: NaN },
     api: { grams: () => p.v.mass - p.s.offset, tare: () => { p.s.offset = p.v.mass; } },
   }));
   model("mpu6050", (p) => ({
@@ -342,6 +354,7 @@
   }));
   model("ds3231-rtc", (p) => ({
     view: "sensor",
+    absent: { time: "--:--:--", date: "--/--/----" },
     api: {
       time: () => { const d = p.sim.clock(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; },
       date: () => { const d = p.sim.clock(); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`; },
@@ -484,6 +497,7 @@
   model("microsd-module", (p) => ({
     view: "sd",
     state: { files: {} },
+    absent: { append: false },
     api: {
       append: (path, line) => {
         p.s.files[path] = (p.s.files[path] || "") + String(line) + "\n";
@@ -531,6 +545,7 @@
       this.parts = {};
       for (const def of opts.parts) {
         const p = new Part(this, def);
+        p.plugged = opts.plugged !== false;
         const make = MODELS[def.component] || genericModel;
         p._init(make(p));
         this.parts[def.name] = p.modeled ? p : this._proxy(p);
@@ -693,6 +708,11 @@
       for (const p of parts) {
         if (p.view !== "load") continue;
         let speed = 0;
+        if (!driver || !driver.plugged || !p.plugged) {
+          out[p.name] = 0;
+          if (driver && driver.view === "driver") motorIndex++;
+          continue;
+        }
         if (driver && driver.view === "driver") {
           speed = driver.s.standby ? 0 : motorIndex++ === 0 ? driver.s.left : driver.s.right;
         } else if (driver && driver.view === "switch") {
@@ -708,7 +728,7 @@
     snapshot() {
       const parts = {};
       for (const [name, p] of Object.entries(this.parts)) {
-        parts[name] = { view: p.view, component: p.component, modeled: p.modeled, state: JSON.parse(JSON.stringify(p.s)), inputs: { ...p.v } };
+        parts[name] = { view: p.view, component: p.component, modeled: p.modeled, plugged: p.plugged, state: JSON.parse(JSON.stringify(p.s)), inputs: { ...p.v } };
       }
       return { now: this.now, serial: this.serial, parts, loads: this.loads(), web: this.web.page, error: this.error ? String(this.error) : null };
     }

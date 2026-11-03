@@ -256,3 +256,112 @@ def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))
     out = run(payload, tmp_path, until=10_000)
     assert "Temps de reaction : 3000 ms" in out["serial"]
+
+
+# ---------------------------------------------------------------- atelier : branchements et page
+ATELIER_JS = resources.files("microforge.sim").joinpath("static/atelier.js")
+CHECK_SCRIPT = """
+const { checkPin } = require(process.argv[2]);
+const p = JSON.parse(require("fs").readFileSync(process.argv[3], "utf8"));
+const pin = (part, name) => p.wiring.pins.find((x) => x.part === part && x.pin === name);
+const sup = (part) => p.parts.find((x) => x.name === part).supply;
+const b = p.wiring.board;
+console.log(JSON.stringify({
+  ok: checkPin(pin("ecran", "SDA"), "D21", b, {}, sup("ecran")),
+  i2c: checkPin(pin("ecran", "SDA"), "D22", b, {}, sup("ecran")),
+  gnd: checkPin(pin("dht", "VCC"), "GND", b, {}, sup("dht")),
+  vin: checkPin(pin("dht", "VCC"), "VIN", b, {}, sup("dht")),
+  gpio: checkPin(pin("dht", "VCC"), "D26", b, {}, sup("dht")),
+  inonly: checkPin(pin("dht", "DATA"), "D34", b, {}, sup("dht")),
+  taken: checkPin(pin("dht", "DATA"), "D26", b, { D26: "led.A" }, sup("dht")),
+  other: checkPin(pin("dht", "DATA"), "D26", b, {}, sup("dht")),
+}));
+"""
+
+
+@needs_node
+def test_wiring_mistakes_are_explained(tmp_path):
+    from microforge.sim import atelier_payload
+
+    result = BUILDER.build(BUILDER.spec_from_template("station-meteo-oled", "esp32-devkit-v1"))
+    (tmp_path / "p.json").write_text(json.dumps(atelier_payload(CAT, result)), encoding="utf-8")
+    (tmp_path / "check.cjs").write_text(CHECK_SCRIPT, encoding="utf-8")
+    proc = subprocess.run(
+        ["node", str(tmp_path / "check.cjs"), str(ATELIER_JS), str(tmp_path / "p.json")],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    r = json.loads(proc.stdout)
+    assert r["ok"]["ok"] and not any(r[k]["ok"] for k in r if k != "ok")
+    assert "I2C" in r["i2c"]["msg"] and "Court-circuit" in r["gnd"]["msg"]
+    assert "entrées 3.3 V" in r["vin"]["msg"] and "quelques mA" in r["gpio"]["msg"]
+    assert "entrée seule" in r["inonly"]["msg"] and "led.A" in r["taken"]["msg"]
+    assert "généré pour D25" in r["other"]["msg"]
+
+
+BROWSER_SCRIPT = """
+const { chromium } = require("playwright");
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  await page.goto("file://" + process.argv[2]);
+  await page.waitForFunction(() => window.atelier && window.atelier.sim);
+  const before = await page.textContent(".mfa-count");
+  await page.click("text=Tout brancher");
+  await page.waitForFunction(() => document.querySelector(".mfa-serial").textContent.includes("22.00 C"));
+  await page.evaluate(() => window.atelier.choose("ecran", "SDA", "D22"));
+  const card = await page.$eval('[data-part="ecran"]', (c) => ({ unplugged: c.classList.contains("unplugged"), text: c.textContent }));
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  console.log(JSON.stringify({ before, after: await page.textContent(".mfa-count"), card, overflow, errors }));
+  await browser.close();
+})();
+"""
+
+
+def _has_playwright() -> bool:
+    if shutil.which("node") is None:
+        return False
+    probe = subprocess.run(
+        ["node", "-e", "require('playwright')"], capture_output=True, check=False
+    )
+    return probe.returncode == 0
+
+
+@pytest.mark.skipif(not _has_playwright(), reason="Playwright (Node) absent")
+def test_atelier_page_in_a_browser(tmp_path):
+    """Page autonome sans Wokwi (dessins simples) : brancher, simuler, puis une erreur expliquée."""
+    from microforge.sim import atelier_html, atelier_payload
+
+    result = BUILDER.build(BUILDER.spec_from_template("station-meteo-oled", "esp32-devkit-v1"))
+    html = tmp_path / "atelier.html"
+    html.write_text(atelier_html(atelier_payload(CAT, result), wokwi_src=None), encoding="utf-8")
+    (tmp_path / "b.cjs").write_text(BROWSER_SCRIPT, encoding="utf-8")
+    proc = subprocess.run(
+        ["node", str(tmp_path / "b.cjs"), str(html)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    r = json.loads(proc.stdout)
+    assert r["errors"] == [] and not r["overflow"]
+    assert "0/2" in r["before"] and "1/2" in r["after"]
+    assert r["card"]["unplugged"] and "Le bus I2C par défaut" in r["card"]["text"]
+
+
+def test_streamlit_atelier_page_renders():
+    from streamlit.testing.v1 import AppTest
+
+    page = Path(__file__).parents[1] / "src/microforge/app_streamlit/pages/7_Atelier.py"
+    at = AppTest.from_file(str(page), default_timeout=60)
+    at.run()
+    assert not at.exception
+    assert at.selectbox[0].value.id and at.selectbox[1].value.id
+    at.selectbox[0].select(CAT.templates["digicode"]).run()
+    assert not at.exception
+    assert "__P.clavier.key()" in at.code[0].value
