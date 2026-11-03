@@ -74,7 +74,7 @@ def test_extractive_fallback_when_no_llm():
     gw, _ = gateway(fail=True)  # chat en panne, embeddings disponibles
     ans = Copilot(gw, CAT, min_score=0.2).ask("sonde de température étanche DS18B20 1-Wire")
     assert ans.mode == "extractif" and "[1]" in ans.answer
-    assert any(s.id == "composant:ds18b20" for s in ans.sources)
+    assert any("ds18b20" in s.id for s in ans.sources)  # composant ou projet : passages cités
 
 
 def test_stock_adds_feasible_projects_as_a_source():
