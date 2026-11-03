@@ -1,0 +1,11 @@
+import streamlit as st
+
+from lib.state import init_state
+
+init_state()
+st.title("{{ app_title }}")
+st.write("Utilise le menu : importe des données, puis teste le modèle sur la page « Prédiction ».")
+col1, col2 = st.columns(2)
+df = st.session_state.df
+col1.metric("Lignes de données chargées", 0 if df is None else len(df))
+col2.metric("Prédictions faites", len(st.session_state.history))

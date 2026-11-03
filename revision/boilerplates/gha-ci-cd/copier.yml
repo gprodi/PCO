@@ -1,0 +1,18 @@
+_titre: "Intégration et livraison continues (GitHub Actions)"
+_description: "CI : ruff, tests sur deux versions de Python avec seuil de couverture, construction de l'image ; livraison : image publiée sur GHCR à chaque tag avec provenance et SBOM ; actions épinglées par SHA et mises à jour par Dependabot."
+_cours: [mlops-0-intro, pytest-loguru, mlops-2-factory]
+_competences: [C12, C13, C18, C19]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: mon-service
+coverage_min:
+  type: int
+  help: Couverture de tests minimale exigée (%)
+  default: 80
+python_version:
+  type: str
+  default: "3.12"

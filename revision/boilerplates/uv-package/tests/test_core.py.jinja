@@ -1,0 +1,19 @@
+import pytest
+
+from {{ package_name }} import slugify
+from {{ package_name }}.cli import main
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("Été à Lyon !", "ete-a-lyon"), ("  déjà--vu  ", "deja-vu"), ("", ""), ("ÇA_VA?", "ca-va")],
+)
+def test_slugify(text, expected):
+    assert slugify(text) == expected
+
+
+def test_cli(capsys):
+    assert main(["slug", "Bonjour le monde"]) == 0
+    assert capsys.readouterr().out.strip() == "bonjour-le-monde"
+    with pytest.raises(SystemExit):
+        main(["--version"])

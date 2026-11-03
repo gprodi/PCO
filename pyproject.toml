@@ -25,6 +25,7 @@ dev = [
     "respx>=0.22",
     "ruff>=0.8",
     "pre-commit>=4.0",
+    "copier>=9.19",
 ]
 docs = [
     "sphinx>=8.0",
@@ -37,7 +38,8 @@ docs = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["cours", "referentiel", "revision/site", "**/node_modules", "**/*.ipynb"]
+# revision/boilerplates : gabarits copier, vérifiés une fois rendus (revision/tests/test_boilerplates.py)
+extend-exclude = ["cours", "referentiel", "revision/site", "revision/boilerplates", "**/node_modules", "**/*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]

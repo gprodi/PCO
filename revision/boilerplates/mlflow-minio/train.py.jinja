@@ -1,0 +1,54 @@
+"""Entraîne, enregistre au registre et promeut le modèle si sa métrique s'améliore."""
+
+import argparse
+
+import mlflow
+from mlflow.exceptions import MlflowException
+from mlflow.tracking import MlflowClient
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
+
+MODEL_NAME = "{{ model_name }}"
+
+
+def promote_if_better(client: MlflowClient, version: str, f1: float) -> bool:
+    """Déplace l'alias « champion » vers ``version`` si elle fait au moins aussi bien."""
+    try:
+        champion = client.get_model_version_by_alias(MODEL_NAME, "champion")
+        best = client.get_run(champion.run_id).data.metrics["f1"]
+    except MlflowException:
+        best = None  # pas encore de champion
+    if best is None or f1 >= best:
+        client.set_registered_model_alias(MODEL_NAME, "champion", version)
+        return True
+    return False
+
+
+def train(C: float = 1.0, max_iter: int = 300, experiment: str = "iris") -> dict:
+    X, y = load_iris(return_X_y=True, as_frame=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+    model = LogisticRegression(C=C, max_iter=max_iter).fit(X_train, y_train)
+    pred = model.predict(X_test)
+    metrics = {"accuracy": accuracy_score(y_test, pred), "f1": f1_score(y_test, pred, average="macro")}
+
+    mlflow.set_experiment(experiment)
+    with mlflow.start_run():
+        mlflow.log_params({"C": C, "max_iter": max_iter})
+        mlflow.log_metrics(metrics)
+        info = mlflow.sklearn.log_model(
+            model, name="model", input_example=X_train.head(3), registered_model_name=MODEL_NAME
+        )
+    version = str(info.registered_model_version)
+    client = MlflowClient()
+    client.set_registered_model_alias(MODEL_NAME, "challenger", version)
+    promoted = promote_if_better(client, version, metrics["f1"])
+    return {"version": version, "promoted": promoted, **metrics}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--C", type=float, default=1.0, help="inverse de la régularisation")
+    args = parser.parse_args()
+    print(train(C=args.C))

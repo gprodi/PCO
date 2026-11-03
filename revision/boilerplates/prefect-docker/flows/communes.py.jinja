@@ -1,0 +1,31 @@
+"""Flow Prefect : communes du département {{ departement }}."""
+
+from prefect import flow, get_run_logger, task
+
+from etl import core
+
+
+@task(retries=3, retry_delay_seconds=[10, 60, 300], log_prints=True)
+def extract(departement: str) -> list[dict]:
+    return core.fetch(departement)
+
+
+@task
+def transform(rows: list[dict]) -> list[dict]:
+    cleaned = core.clean(rows)
+    get_run_logger().info("%d communes valides sur %d reçues", len(cleaned), len(rows))
+    return cleaned
+
+
+@task
+def load(rows: list[dict], db_path: str) -> int:
+    return core.save(rows, db_path)
+
+
+@flow(name="communes")
+def communes(departement: str = "{{ departement }}", db_path: str = "communes.db") -> int:
+    return load(transform(extract(departement)), db_path)
+
+
+if __name__ == "__main__":
+    communes()

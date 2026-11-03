@@ -1,0 +1,32 @@
+# {{ project_name }}
+
+```bash
+docker compose up -d --build
+```
+
+| Service | Adresse | Rôle |
+|---|---|---|
+| API | http://localhost:8000/docs, métriques sur `/metrics` | modèle instrumenté avec `prometheus-client` |
+| Prometheus | http://localhost:9090 | collecte toutes les 15 s, évalue `prometheus/alerts.yml` |
+| Grafana | http://localhost:3000 (admin / mot de passe de `.env`) | tableau de bord « API du modèle » provisionné |
+| Uptime Kuma | http://localhost:3001 | sonde `GET /health` de l'extérieur, notifications (courriel, Discord…) |
+
+## Métriques exposées
+
+| Métrique | Type | Usage |
+|---|---|---|
+| `http_requests_total{route,status}` | compteur | débit, taux d'erreurs 5xx |
+| `http_request_duration_seconds` | histogramme | latence p95 (`histogram_quantile`) |
+| `model_prediction_confidence` | histogramme | **dérive** : une confiance qui baisse signale des données inhabituelles |
+| `model_info{version}` | jauge | version du modèle en service |
+
+## Alertes (`prometheus/alerts.yml`)
+
+- taux d'erreurs 5xx > 5 % pendant 5 min ;
+- latence p95 > 500 ms pendant 10 min ;
+- confiance médiane < 0,6 pendant 30 min (dérive probable) ;
+- cible injoignable (`up == 0`) pendant 2 min.
+
+```bash
+uv sync && uv run pytest        # métriques et configurations vérifiées
+```

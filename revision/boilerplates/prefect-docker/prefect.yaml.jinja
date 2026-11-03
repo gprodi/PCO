@@ -1,0 +1,25 @@
+name: {{ project_name }}
+prefect-version: 3.9.1
+
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      id: image
+      requires: prefect-docker>=0.6
+      image_name: {{ project_name }}
+      tag: latest
+      dockerfile: Dockerfile
+
+deployments:
+  - name: quotidien
+    entrypoint: flows/communes.py:communes
+    parameters:
+      departement: "{{ departement }}"
+      db_path: /data/communes.db
+    schedules:
+      - cron: "0 6 * * *"
+        timezone: Europe/Paris
+    work_pool:
+      name: docker-pool
+      job_variables:
+        image: "{{ '{{' }} image.image {{ '}}' }}"
+        volumes: ["communes-data:/data"]

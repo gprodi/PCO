@@ -1,0 +1,5 @@
+[theme]
+primaryColor = "#17694f"
+
+[server]
+runOnSave = true

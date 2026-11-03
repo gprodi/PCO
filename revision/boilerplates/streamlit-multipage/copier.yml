@@ -1,0 +1,18 @@
+_titre: "Application Streamlit multipage"
+_description: "Navigation moderne (st.navigation / st.Page), état partagé entre pages, import et graphique de données CSV, page de prédiction qui appelle une API (avec repli local hors ligne), tests AppTest."
+_cours: [streamlit, analyse-sentiment, python-cookbook]
+_competences: [C10, C17]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: mon-application
+app_title:
+  type: str
+  help: Titre affiché
+  default: Mon application d'IA
+python_version:
+  type: str
+  default: "3.12"

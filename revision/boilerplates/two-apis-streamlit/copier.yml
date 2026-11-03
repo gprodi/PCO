@@ -1,0 +1,18 @@
+_titre: "Deux API + application Streamlit"
+_description: "Architecture du projet fil rouge : une API de données (SQLModel), une API d'IA qui expose un modèle, une application Streamlit qui consomme les deux ; clé d'API entre services, journaux loguru, docker compose, tests."
+_cours: [analyse-sentiment, idees-projets-hf, dev-ia-slides, pytest-loguru]
+_competences: [C5, C10, C15]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: projet-ia
+description:
+  type: str
+  help: Description courte
+  default: Avis clients analysés par un modèle de sentiment
+python_version:
+  type: str
+  default: "3.12"

@@ -1,0 +1,30 @@
+# {{ project_name }}
+
+```
+app (JSON sur stdout) ──► Docker ──► Alloy (découverte des conteneurs, extraction du niveau) ──► Loki ──► Grafana
+```
+
+```bash
+docker compose up -d --build
+curl -X POST localhost:8000/predict -H 'content-type: application/json' -d '{"texte": "super"}'
+curl localhost:8000/boom          # provoque une erreur journalisée en ERROR
+```
+
+Grafana : http://localhost:3000 → *Explore* → source **Loki**. Requêtes LogQL utiles :
+
+| Besoin | LogQL |
+|---|---|
+| tous les journaux de l'application | `{service_name="app"}` |
+| seulement les erreurs | `{service_name="app", level="ERROR"}` |
+| requêtes lentes (> 200 ms) | `{service_name="app"} \| json \| record_extra_duree_ms > 200` |
+| erreurs par minute | `sum(count_over_time({service_name="app", level="ERROR"}[1m]))` |
+| suivre une requête | `{service_name="app"} \|= "<request_id>"` |
+
+Chaque réponse porte l'en-tête `X-Request-ID` : on retrouve toutes les lignes d'une requête.
+
+**Ne jamais journaliser** de mot de passe, de jeton ni de donnée personnelle (RGPD) : ici seuls la
+route, le statut, la durée et la longueur du texte sont écrits.
+
+```bash
+uv sync && uv run pytest
+```

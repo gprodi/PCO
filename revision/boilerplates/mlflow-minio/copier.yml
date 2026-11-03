@@ -1,0 +1,18 @@
+_titre: "MLflow : registre de modèles avec alias, stockage S3"
+_description: "Entraînement suivi par MLflow, enregistrement au registre, alias challenger/champion avec promotion si la métrique s'améliore, API qui sert models:/<nom>@champion et se recharge à chaud ; serveur MLflow + PostgreSQL + stockage S3 (SeaweedFS ou MinIO)."
+_cours: [mlops-2-factory, mlflow, machine-learning]
+_competences: [C9, C13]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: registre-modeles
+model_name:
+  type: str
+  help: Nom du modèle dans le registre
+  default: iris-classifier
+python_version:
+  type: str
+  default: "3.12"

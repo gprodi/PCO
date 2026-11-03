@@ -1,0 +1,22 @@
+# {{ app_title }}
+
+```bash
+uv sync
+uv run streamlit run streamlit_app.py
+```
+
+| Fichier | Rôle |
+|---|---|
+| `streamlit_app.py` | point d'entrée : déclare les pages avec `st.navigation` (menu, page par défaut) |
+| `pages_src/accueil.py` | page d'accueil, compteurs tirés de `st.session_state` |
+| `pages_src/donnees.py` | import CSV (ou jeu d'exemple), tableau, graphique, colonnes numériques |
+| `pages_src/prediction.py` | formulaire → API de prédiction (`API_URL`), sinon modèle local de repli ; historique |
+| `lib/state.py` | valeurs par défaut de l'état partagé entre pages |
+| `lib/api.py` | appel HTTP avec délai d'attente et message d'erreur lisible |
+
+Variable d'environnement facultative : `API_URL` (ex. `http://127.0.0.1:8001`, route `POST /predict`
+qui renvoie `{"sentiment": ..., "score": ...}`).
+
+```bash
+uv run pytest     # tests AppTest : chaque page s'exécute sans erreur
+```

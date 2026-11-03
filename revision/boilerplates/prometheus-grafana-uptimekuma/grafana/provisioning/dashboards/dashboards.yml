@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: tableaux
+    folder: IA
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

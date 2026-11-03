@@ -1,0 +1,29 @@
+# Versions vérifiées le 03/11/2026 (tags des dépôts officiels).
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus:/prometheus
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:13.3.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?définir GRAFANA_ADMIN_PASSWORD dans .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    ports: ["3000:3000"]
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.9
+    volumes: [uptime-kuma:/app/data]
+    ports: ["3001:3001"]
+volumes:
+  prometheus:
+  grafana:
+  uptime-kuma:

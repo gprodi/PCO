@@ -1,0 +1,25 @@
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+requires-python = ">={{ python_version }}"
+dependencies = [
+    "fastapi>=0.150",
+    "sqlmodel>=0.0.48",
+    "pyjwt>=2.15",
+    "argon2-cffi>=25.1",
+    "slowapi>=0.1.10",
+    "pydantic-settings>=2.16",
+    "python-multipart>=0.0.20",
+    "uvicorn[standard]>=0.54",
+]
+
+[dependency-groups]
+dev = ["pytest>=9", "httpx>=0.28", "ruff>=0.17"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

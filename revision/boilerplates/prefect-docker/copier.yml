@@ -1,0 +1,18 @@
+_titre: "Pipeline Prefect conteneurisé"
+_description: "Extraction d'une API publique (geo.api.gouv.fr), nettoyage, chargement SQLite idempotent ; tâches Prefect avec relances, planification, déploiement sur un pool de travail Docker ; logique testée sans Prefect."
+_cours: [mlops-3-automation, mlops-1-orchestration, horragor-1]
+_competences: [C1]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: pipeline-communes
+departement:
+  type: str
+  help: Code du département dont on collecte les communes
+  default: "69"
+python_version:
+  type: str
+  default: "3.12"

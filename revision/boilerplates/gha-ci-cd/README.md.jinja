@@ -1,0 +1,19 @@
+# {{ project_name }}
+
+Service FastAPI minimal entouré de sa chaîne d'intégration et de livraison continues.
+
+| Fichier | Rôle |
+|---|---|
+| `.github/workflows/ci.yml` | à chaque push et pull request : `ruff check`, `ruff format --check`, tests sur Python 3.12 et 3.13 avec couverture ≥ {{ coverage_min }} %, construction de l'image Docker (sans publication) |
+| `.github/workflows/release.yml` | à chaque tag `v*` : image publiée sur `ghcr.io/<propriétaire>/<dépôt>` avec étiquettes de version, provenance (SLSA) et SBOM |
+| `.github/dependabot.yml` | mises à jour hebdomadaires des actions (épinglées par SHA) et des dépendances (uv) |
+| `Dockerfile` | image multi-étapes : dépendances installées par uv, utilisateur non root |
+
+```bash
+uv sync
+uv run pytest --cov            # échoue sous {{ coverage_min }} % (pyproject.toml)
+git tag v0.1.0 && git push --tags   # déclenche la publication de l'image
+```
+
+Pourquoi épingler les actions par SHA ? Un tag (`v4`) peut être déplacé vers du code malveillant ;
+un SHA désigne un contenu figé. Dependabot propose les nouvelles versions en pull request.

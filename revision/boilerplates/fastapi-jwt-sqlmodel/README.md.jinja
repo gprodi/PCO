@@ -1,0 +1,38 @@
+# {{ project_name }}
+
+{{ description }}
+
+## Démarrer
+
+```bash
+cp .env.example .env            # puis remplacer APP_SECRET_KEY : openssl rand -hex 32
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+Documentation interactive : http://127.0.0.1:8000/docs
+
+## Ce que montre ce gabarit
+
+| Point | Où |
+|---|---|
+| Mots de passe hachés en **Argon2id** (jamais stockés en clair, comparaison à temps constant) | `app/security.py` |
+| Jeton d'accès court (15 min) + jeton de rafraîchissement (7 jours) | `app/security.py` |
+| **Rotation** du jeton de rafraîchissement : chaque échange révoque l'ancien ; réutiliser un jeton déjà échangé révoque toute la famille (vol probable) | `app/main.py`, route `/auth/refresh` |
+| Même réponse pour « compte inconnu » et « mauvais mot de passe » (pas d'énumération à la connexion) | `app/main.py`, route `/auth/token` |
+| Limitation des tentatives de connexion (`slowapi`, 5/minute par adresse IP) | `app/main.py` |
+| En-têtes de sécurité (`nosniff`, `DENY`, `no-store`) | middleware `security_headers` |
+| Secret lu dans l'environnement, refus de démarrer s'il fait moins de 32 caractères | `app/config.py` |
+
+## Tests
+
+```bash
+uv run pytest
+```
+
+## Pour aller plus loin
+
+- Clés asymétriques **RS256** (l'API IA vérifie les jetons sans connaître la clé privée).
+- Inscription : la réponse 409 révèle qu'un compte existe ; en production, envoyer un courriel
+  dans les deux cas.
+- Base PostgreSQL : `APP_DATABASE_URL=postgresql+psycopg://...` et migrations Alembic.

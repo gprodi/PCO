@@ -1,0 +1,83 @@
+"""API qui sert le champion du registre et suit l'alias (rechargement à chaud, sans redémarrage)."""
+
+import asyncio
+import logging
+import os
+import threading
+from contextlib import asynccontextmanager
+
+import mlflow
+import pandas as pd
+from fastapi import FastAPI, HTTPException
+from mlflow.tracking import MlflowClient
+from pydantic import BaseModel, Field
+
+log = logging.getLogger(__name__)
+
+MODEL_NAME = "{{ model_name }}"
+FEATURES = ["sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"]
+SPECIES = ["setosa", "versicolor", "virginica"]
+
+
+class ModelHolder:
+    def __init__(self) -> None:
+        self.model = None
+        self.version: str | None = None
+        self._lock = threading.Lock()
+
+    def refresh(self) -> bool:
+        """Recharge si l'alias « champion » pointe vers une autre version ; True si rechargé."""
+        current = str(MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion").version)
+        if current == self.version:
+            return False
+        model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}@champion")
+        with self._lock:
+            self.model, self.version = model, current
+        return True
+
+
+holder = ModelHolder()
+
+
+async def _watch(period: float) -> None:
+    while True:
+        await asyncio.sleep(period)
+        try:
+            await asyncio.to_thread(holder.refresh)
+        except Exception as exc:  # noqa: BLE001 - registre injoignable : on garde le modèle actuel
+            log.warning("vérification du registre impossible : %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    holder.refresh()
+    period = float(os.environ.get("RELOAD_SECONDS", "30"))
+    task = asyncio.create_task(_watch(period)) if period > 0 else None
+    yield
+    if task:
+        task.cancel()
+
+
+app = FastAPI(title="Modèle servi depuis le registre", lifespan=lifespan)
+
+
+class Fleur(BaseModel):
+    mesures: list[float] = Field(min_length=4, max_length=4, description="sépale L, l, pétale L, l (cm)")
+
+
+@app.get("/model")
+def model_info() -> dict:
+    return {"name": MODEL_NAME, "alias": "champion", "version": holder.version}
+
+
+@app.post("/predict")
+def predict(fleur: Fleur) -> dict:
+    if holder.model is None:
+        raise HTTPException(503, "Aucun modèle champion")
+    pred = int(holder.model.predict(pd.DataFrame([fleur.mesures], columns=FEATURES))[0])
+    return {"espece": SPECIES[pred], "version": holder.version}
+
+
+@app.post("/reload")
+def reload() -> dict:
+    return {"recharge": holder.refresh(), "version": holder.version}

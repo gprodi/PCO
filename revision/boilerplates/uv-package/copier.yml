@@ -1,0 +1,24 @@
+_titre: "Paquet Python avec uv"
+_description: "Paquet installable (disposition src/), commande en ligne, tests, construction avec uv build et publication sur PyPI par Trusted Publishing (sans jeton stocké)."
+_cours: [mlops-0-packaging, mlops-0-intro, python-cookbook]
+_competences: [C19]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom de distribution sur PyPI (minuscules et tirets)
+  default: mon-paquet
+package_name:
+  type: str
+  help: Nom du module Python importable
+  default: "{{ project_name | replace('-', '_') }}"
+description:
+  type: str
+  default: Petit utilitaire publié sur PyPI
+author_name:
+  type: str
+  default: Prénom Nom
+python_version:
+  type: str
+  default: "3.12"
