@@ -12,7 +12,7 @@ sections:
   Planifier les temps dédiés à la veille:
     - "Créneau fixe le lundi de 9 h à 10 h, plus 15 minutes de tri le vendredi. Chaque séance est consignée dans un journal (date, durée, sources lues, décisions) : veille/journal.md."
   Choisir un outil d'agrégation des flux d’informations et d’actualités:
-    - "FreshRSS auto-hébergé (Docker, profil « veille ») : gratuit, filtres et étiquettes, export OPML, API utilisée par un flow d'automatisation qui prépare un brouillon de synthèse avec le LLM local ; la relecture humaine reste obligatoire."
+    - "FreshRSS auto-hébergé (Docker, profil « veille ») : gratuit, filtres et étiquettes, export OPML, import de l'OPML en une commande. En complément, l'outil mf-veille (microforge/veille) lit les flux de l'OPML chaque lundi sur un runner GitHub (workflow « veille »), classe les articles récents par thématique (mots-clés du plan, fiabilité de la source, fraîcheur) et produit un brouillon de synthèse et la liste des flux en échec ; analyse XML durcie (entités externes désactivées). La relecture humaine reste obligatoire : rien n'est publié sans vérification à la source."
   Choisir un outil de partage ou communication des synthèses des informations collectées:
     - "Synthèses publiées en pages HTML accessibles dans la documentation Sphinx du projet, et annoncées par message aux parties prenantes (promotion, formateur)."
   Identifier les sources et les flux d’informations utiles à la veille thématique visée:

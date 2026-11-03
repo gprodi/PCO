@@ -57,6 +57,7 @@ kicad = ["skidl>=1.2"]
 [project.scripts]
 microforge = "microforge.core.cli:app"
 mf-pipeline = "microforge.data_pipeline.cli:app"
+mf-veille = "microforge.veille.cli:app"
 
 [build-system]
 requires = ["hatchling"]
