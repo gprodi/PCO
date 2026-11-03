@@ -126,5 +126,16 @@ def run(
     typer.echo(text)
 
 
+@app.command("check-libs")
+def check_libs(clean_dir: Path = typer.Option(Path("data/clean"))) -> None:
+    """Chaque bibliothèque citée par le catalogue existe-t-elle dans l'index Arduino collecté ?"""
+    from microforge.data_pipeline.checks import check_libraries
+
+    result = check_libraries(clean_dir)
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    if result["status"] == "ecart":
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

@@ -268,5 +268,21 @@ def compile_demo(
         raise typer.Exit(code=1)
 
 
+@app.command("verify-boards")
+def verify_boards(
+    out: Path = typer.Option(None, help="écrire le rapport JSON dans ce fichier"),
+) -> None:
+    """Compare les bus I2C/SPI des cartes avec les variantes officielles des cœurs (réseau)."""
+    from microforge.core.verify_boards import BoardVerifier, report
+
+    result = report(BoardVerifier().run())
+    text = json.dumps(result, ensure_ascii=False, indent=2)
+    if out:
+        out.write_text(text, encoding="utf-8")
+    typer.echo(text)
+    if result["ecarts"]:
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

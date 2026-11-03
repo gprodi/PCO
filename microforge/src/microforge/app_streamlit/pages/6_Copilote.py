@@ -17,6 +17,11 @@ st.caption(
     "Posez une question sur un composant, une carte ou un projet. Le copilote répond à partir du "
     "catalogue MicroForge (le même que celui du câblage) et cite ses sources [n]."
 )
+st.info(
+    "Vous échangez avec un **assistant d'intelligence artificielle** : il répond à partir du catalogue "
+    "MicroForge et cite ses sources, mais vérifiez toujours un montage avant de le mettre sous tension "
+    "(AI Act, article 50)."
+)
 c = require_login()
 use_stock = st.toggle("Tenir compte de mon stock", value=True)
 history: list[dict] = st.session_state.setdefault("copilot", [])

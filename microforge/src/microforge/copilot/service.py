@@ -63,11 +63,18 @@ class Source(BaseModel):
     cited: bool = False
 
 
+AI_NOTICE = (
+    "Réponse produite par un assistant d'intelligence artificielle à partir du catalogue MicroForge "
+    "(AI Act, article 50) : vérifiez le montage avant toute mise sous tension."
+)
+
+
 class CopilotAnswer(BaseModel):
     answer: str
     mode: Literal["llm", "extractif", "inconnu"]
     sources: list[Source]
     index: str  # « mémoire » ou « pgvector »
+    notice: str = AI_NOTICE  # information obligatoire de l'utilisateur (art. 50(1))
 
 
 class Copilot:

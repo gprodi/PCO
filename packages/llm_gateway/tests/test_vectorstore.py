@@ -87,6 +87,13 @@ def test_open_vector_store_picks_memory_without_postgres_url(tmp_path):
     assert isinstance(store, MemoryVectorStore) and store.path == tmp_path / "i.json"
 
 
+def test_pgvector_version_parsing():
+    from llm_gateway.vectorstore import _version
+
+    assert _version("0.8.1") == (0, 8, 1) >= (0, 8) and _version("0.6.0") < (0, 8)
+    assert _version(None) == (0,)
+
+
 def test_pg_store_rejects_unsafe_table_name():
     with pytest.raises(ValueError, match="table"):
         PgVectorStore("postgresql+psycopg://x@localhost/db", table="rag; DROP TABLE x")
@@ -107,6 +114,7 @@ def test_pgvector_store_scenario():
         store.delete_groups(["rien"])  # table absente : sans effet
         exercise(store)
         assert store.dimension() == 128
+        assert isinstance(store.iterative_scan, bool)  # True avec l'image pgvector 0.8 de la CI
         with store.engine.connect() as c:
             indexes = c.exec_driver_sql(
                 "SELECT indexdef FROM pg_indexes WHERE tablename = %s", (table,)

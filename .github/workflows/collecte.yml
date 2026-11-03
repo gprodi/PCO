@@ -65,6 +65,20 @@ jobs:
           if [ -f data/rapport.json ]; then
             uv run python -m microforge.data_pipeline.summary data/rapport.json | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Contrôles du catalogue avec les données collectées
+        run: |
+          # Bibliothèques citées par les composants présentes dans l'index Arduino officiel ;
+          # bus I2C/SPI des cartes conformes aux variantes des cœurs (sinon le câblage ment).
+          uv run mf-pipeline check-libs --clean-dir data/clean > data/controle_bibliotheques.json
+          uv run python -m microforge.core.cli verify-boards --out data/controle_cartes.json > /dev/null
+          uv run python - <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          libs = json.load(open("data/controle_bibliotheques.json"))
+          cards = json.load(open("data/controle_cartes.json"))
+          print("\n## Contrôles du catalogue\n")
+          print(f"- Bibliothèques citées : {libs['citees']}, absentes de l'index : {len(libs['manquantes'])}")
+          print(f"- Cartes vérifiées : {cards['verifiees']}, conformes : {cards['ok']}, écarts : {len(cards['ecarts'])}")
+          EOF
       - name: Artefacts (jeu nettoyé, rapport, manifestes)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -74,6 +88,7 @@ jobs:
             data/rapport.json
             data/clean/
             data/raw/*/*/manifest.json
+            data/controle_*.json
           retention-days: 30
       - name: Échec si une source sans clé a échoué
         run: |

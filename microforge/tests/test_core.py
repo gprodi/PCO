@@ -692,3 +692,67 @@ def test_due_buzzer_uses_software_tone():
     assert "tone(${SIG}" not in tpl.api and "noTone" not in tpl.api
     assert "delayMicroseconds" in tpl.api
     assert "tone(${SIG}" in CAT.component("buzzer").code_for("avr").api
+
+
+# ---------------------------------------------------------------- vérification contre les cœurs officiels
+def test_board_verifier_parses_official_variant_files():
+    """Fichiers réels (extraits) : AVR « standard » via #define, ESP32 via static const, includes."""
+    import httpx
+    from microforge.core.verify_boards import BoardVerifier, parse_pins, report
+
+    standard = (
+        "#define PIN_WIRE_SDA        (18)\n#define PIN_WIRE_SCL        (19)\n"
+        "static const uint8_t SDA = PIN_WIRE_SDA;\nstatic const uint8_t SCL = PIN_WIRE_SCL;\n"
+        "#define PIN_SPI_SS    (10)\n#define PIN_SPI_MOSI  (11)\n#define PIN_SPI_MISO  (12)\n"
+        "#define PIN_SPI_SCK   (13)\nstatic const uint8_t SS   = PIN_SPI_SS;\n"
+    )
+    assert parse_pins(standard)["SDA"] == 18 and parse_pins(standard)["SS"] == 10
+    files = {
+        "arduino/ArduinoCore-avr/master/boards.txt": "uno.build.variant=standard\n"
+        "nano.build.variant=eightanaloginputs\nleonardo.build.variant=leonardo\n",
+        "arduino/ArduinoCore-avr/master/variants/standard/pins_arduino.h": standard,
+        "arduino/ArduinoCore-avr/master/variants/eightanaloginputs/pins_arduino.h": (
+            '#include "../standard/pins_arduino.h"\n#define NUM_ANALOG_INPUTS 8\n'
+        ),
+        "arduino/ArduinoCore-avr/master/variants/leonardo/pins_arduino.h": (
+            "#define PIN_WIRE_SDA (2)\n#define PIN_WIRE_SCL (3)\n#define PIN_SPI_SS (17)\n"
+            "#define PIN_SPI_MOSI (16)\n#define PIN_SPI_MISO (14)\n#define PIN_SPI_SCK (15)\n"
+        ),
+        "espressif/arduino-esp32/master/boards.txt": "esp32cam.build.variant=esp32\n",
+        "espressif/arduino-esp32/master/variants/esp32/pins_arduino.h": (
+            "static const uint8_t SDA = 21;\nstatic const uint8_t SCL = 22;\n"
+        ),
+    }
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        key = req.url.path.lstrip("/")
+        return httpx.Response(200, text=files[key]) if key in files else httpx.Response(404)
+
+    verifier = BoardVerifier(httpx.Client(transport=httpx.MockTransport(handler)), CAT)
+    uno, nano, leo, cam = (
+        verifier.check(CAT.board(b))
+        for b in ("arduino-uno", "arduino-nano", "arduino-leonardo", "esp32-cam")
+    )
+    assert uno.status == "ok" and uno.official["sda"] == 18
+    assert nano.status == "ok" and nano.official["mosi"] == 11  # via #include
+    assert leo.status == "ok" and leo.explicit == {"cs": (10, 17)}  # CS passé aux pilotes
+    assert cam.status == "ok" and cam.explicit["sda"] == (14, 21)  # Wire.begin(14, 15) explicite
+    assert verifier.check(CAT.board("teensy-41")).status == "non_verifie"
+    fake = CAT.board("arduino-uno").model_copy(update={"default_i2c": {"sda": 4, "scl": 5}})
+    bad = verifier.check(fake)
+    assert bad.status == "ecart" and bad.mismatches["sda"] == (4, 18)  # Wire.begin() sans argument
+    assert report([uno, bad])["ecarts"] == {
+        "arduino-uno": {
+            "sda": {"catalogue": 4, "officiel": 18},
+            "scl": {"catalogue": 5, "officiel": 19},
+        }
+    }
+
+
+@pytest.mark.network
+def test_boards_match_official_cores():
+    """Réseau : les 33 cartes vérifiables coïncident avec les variantes officielles (03/11/2026)."""
+    from microforge.core.verify_boards import BoardVerifier, report
+
+    result = report(BoardVerifier().run())
+    assert result["ecarts"] == {} and result["verifiees"] >= 30

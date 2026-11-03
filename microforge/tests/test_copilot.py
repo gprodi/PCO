@@ -121,6 +121,7 @@ def test_copilot_route(ia_client):
     assert {"n", "id", "kind", "title", "score", "excerpt", "url", "cited"} <= set(
         body["sources"][0]
     )
+    assert "intelligence artificielle" in body["notice"]  # AI Act, art. 50(1)
     assert ia_client.get("/v1/models/current", headers=_auth()).json()["copilot_index"] == "mémoire"
 
 

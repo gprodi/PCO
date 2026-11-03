@@ -751,3 +751,22 @@ def test_collection_summary_markdown(tmp_path, monkeypatch):
     assert "db_counts" in json.loads(path.read_text())
     db.get_engine.cache_clear()
     settings.get_settings.cache_clear()
+
+
+def test_catalog_libraries_exist_in_collected_index(tmp_path):
+    import polars as pl
+    from microforge.data_pipeline.checks import catalog_libraries, check_libraries
+
+    cited = catalog_libraries()
+    assert "DHT sensor library" in cited and "dht22" in cited["DHT sensor library"]
+    assert check_libraries(tmp_path)["status"] == "non_verifie"
+    names = sorted(cited)
+    pl.DataFrame({"name": names, "version": ["1.0"] * len(names)}).write_parquet(
+        tmp_path / "libraries_clean.parquet"
+    )
+    assert check_libraries(tmp_path)["status"] == "ok"
+    pl.DataFrame({"name": names[1:], "version": ["1.0"] * (len(names) - 1)}).write_parquet(
+        tmp_path / "libraries_clean.parquet"
+    )
+    result = check_libraries(tmp_path)
+    assert result["status"] == "ecart" and list(result["manquantes"]) == [names[0]]
