@@ -63,13 +63,23 @@ class ProjectBuilder:
             setup_extra=tpl.setup_extra,
             globals_extra=tpl.globals_extra,
             template_id=tpl.id,
+            bom_extra=tpl.bom_extra,
         )
 
-    def build(self, spec: ProjectSpec) -> BuildResult:
-        """Construit tous les livrables. Les erreurs électriques sont signalées, pas levées."""
+    def build(self, spec: ProjectSpec, owned_resistors: list[float] | None = None) -> BuildResult:
+        """Construit tous les livrables. Les erreurs électriques sont signalées, pas levées.
+
+        ``owned_resistors`` : valeurs (Ω) que l'utilisateur possède ; les résistances ajoutées
+        (série de LED, tirage, pont diviseur) sont alors choisies parmi elles quand c'est sûr.
+        """
         board = self.catalog.board(spec.board)
         alloc = self.allocator.allocate(spec)
         issues = [*alloc.issues, *run_erc(spec, alloc, self.catalog)]
+        if owned_resistors:
+            from microforge.core.stock import adapt_resistors
+
+            for note in adapt_resistors(alloc.added_parts, owned_resistors):
+                issues.append(ERCIssue(code="STOCK_RESISTOR", severity=Severity.INFO, message=note))
         nets = build_nets(board, alloc)
         files: dict[str, str] = {}
         try:

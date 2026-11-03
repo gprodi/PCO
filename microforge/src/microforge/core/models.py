@@ -73,6 +73,30 @@ class CodeTemplate(BaseModel):
     api: str = ""  # fonctions utilitaires exposées à la logique du projet
 
 
+class Parametric(BaseModel):
+    """Composant décliné par valeur (résistance, condensateur, zener, longueur de fil…).
+
+    Le stock et la nomenclature comptent alors (composant, valeur) : 10 × 220 Ω ≠ 10 × 10 kΩ.
+    """
+
+    quantity: str  # resistance | capacitance | voltage | length | pins
+    unit: str  # Ω, F, V, cm, broches
+    series: str | None = None  # E6 / E12 / E24 (CEI 60063)
+    min: float | None = None
+    max: float | None = None
+    values: list[float] = Field(default_factory=list)  # valeurs discrètes hors série E
+    default: float | None = None
+
+    def allowed(self) -> list[float]:
+        from microforge.core.values import series_values
+
+        if self.values:
+            return sorted(self.values)
+        if self.series and self.min and self.max:
+            return series_values(self.series, self.min, self.max)
+        return []
+
+
 class ComponentDef(BaseModel):
     """Type de composant du catalogue."""
 
@@ -91,6 +115,11 @@ class ComponentDef(BaseModel):
     passive: bool = False  # résistance, condensateur… (pas de code)
     needs_series_resistor_ohm: dict[str, int] | None = None  # LED : {"3.3": 150, "5": 220}
     families: list[str] | None = None  # None = toutes les familles de cartes
+    exclude_families: list[str] = Field(default_factory=list)  # cœurs où le code ne compile pas
+    #: Puces exclues (sous-chaîne de ``BoardDef.mcu``, sans casse) : incompatibilité propre à une
+    #: variante d'une famille (ex. OneWire 2.3.8 et l'ESP32-C6).
+    exclude_mcu: list[str] = Field(default_factory=list)
+    compat_note: str = ""  # pourquoi certaines cartes sont exclues (affiché à l'utilisateur)
     code: dict[str, CodeTemplate] = Field(
         default_factory=dict
     )  # "default", "esp32", "avr", "rp2040"
@@ -98,6 +127,9 @@ class ComponentDef(BaseModel):
     kicad: dict[str, str] = Field(default_factory=dict)  # {"symbol": ..., "footprint": ...}
     price_eur: float | None = None
     notes: list[str] = Field(default_factory=list)
+    parametric: Parametric | None = None
+    #: Références fournisseur vérifiées (ex. {"lcsc": "C402212"}) : prix et stock traçables (E1).
+    supplier_refs: dict[str, str] = Field(default_factory=dict)
 
     def signal_pins(self) -> list[PinSpec]:
         """Broches à relier à un GPIO de la carte."""
@@ -110,6 +142,18 @@ class ComponentDef(BaseModel):
     def code_for(self, family: str) -> CodeTemplate:
         """Fragment de code adapté à la famille de MCU (repli sur ``default``)."""
         return self.code.get(family) or self.code.get("default") or CodeTemplate()
+
+    def supports_family(self, family: str) -> bool:
+        if self.families is not None and family not in self.families:
+            return False
+        return family not in self.exclude_families
+
+    def supports(self, board: BoardDef) -> bool:
+        """Le code du composant compile-t-il pour cette carte (famille et puce) ?"""
+        mcu = board.mcu.casefold()
+        return self.supports_family(board.family) and not any(
+            m.casefold() in mcu for m in self.exclude_mcu
+        )
 
 
 class BoardPin(BaseModel):
@@ -195,6 +239,7 @@ class ProjectSpec(BaseModel):
     setup_extra: str = ""
     globals_extra: str = ""
     template_id: str | None = None
+    bom_extra: list[ExtraPart] = Field(default_factory=list)
 
 
 class Reference(BaseModel):
@@ -219,6 +264,16 @@ class FamilyDef(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class ExtraPart(BaseModel):
+    """Pièce du montage qui ne se branche pas sur une broche de la carte (LED sur les sorties d'un
+    74HC595, diode de roue libre aux bornes d'un moteur…) : nomenclature et guide seulement."""
+
+    component: str
+    quantity: int = Field(default=1, ge=1)
+    value: float | None = None  # passifs paramétriques (Ω, F, V…)
+    note: str = ""
+
+
 class ProjectTemplate(BaseModel):
     """Modèle de projet du catalogue (suggestions)."""
 
@@ -235,6 +290,7 @@ class ProjectTemplate(BaseModel):
     logic: str
     setup_extra: str = ""
     globals_extra: str = ""
+    bom_extra: list[ExtraPart] = Field(default_factory=list)
     learning: list[str] = Field(default_factory=list)  # notions apprises
     references: list[Reference] = Field(default_factory=list)  # data/references.yaml
     hardware_tested: list[str] = Field(
@@ -273,6 +329,7 @@ class AddedPart(BaseModel):
     reason: str
     rail: str | None = None
     value_low: str | None = None  # résistance basse du pont diviseur
+    from_stock: bool = False  # valeur prise parmi les résistances que l'utilisateur possède
 
 
 class Severity(StrEnum):

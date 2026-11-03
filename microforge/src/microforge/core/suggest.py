@@ -11,7 +11,10 @@ from microforge.core.catalog import Catalog, get_catalog
 from microforge.core.erc import run_erc
 from microforge.core.models import BoardDef, ProjectTemplate, Severity
 
-TOOLING = {"breadboard-830", "jumper-wires", "usb-cable", "perfboard"}
+TOOLING = {
+    "breadboard-830", "breadboard-400", "breadboard-170", "jumper-wires", "dupont-wire-mm",
+    "dupont-wire-mf", "dupont-wire-ff", "usb-cable", "perfboard",
+}  # fmt: skip
 
 
 @dataclass

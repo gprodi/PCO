@@ -73,9 +73,23 @@ class OfferOut(BaseModel):
 
 class InventoryIn(BaseModel):
     component_id: str = Field(max_length=60)
+    #: Valeur des passifs : nombre (4700) ou saisie libre (« 4k7 », « 100 nF ») ; 0 = sans valeur.
+    value: float = Field(default=0.0, ge=0)
     quantity: int = Field(default=1, ge=0, le=10000)
     location: str = Field(default="", max_length=80)
     note: str = Field(default="", max_length=200)
+
+    @field_validator("value", mode="before")
+    @classmethod
+    def parse_value(cls, v: object) -> float:
+        from microforge.core.values import parse_value
+
+        if v is None or v == "":
+            return 0.0
+        parsed = parse_value(v)  # type: ignore[arg-type]
+        if parsed is None:
+            raise ValueError(f"valeur illisible : {v!r} (ex. 4k7, 220, 100nF)")
+        return parsed
 
 
 class InventoryPatch(BaseModel):

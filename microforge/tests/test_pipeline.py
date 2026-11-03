@@ -27,6 +27,7 @@ from microforge.data_pipeline.aggregate.rules import (
     parse_voltage_range,
     to_eur,
 )
+from microforge.data_pipeline.base import ExtractionError
 from microforge.data_pipeline.extract.db_jlcparts import JlcpartsExtractor
 from microforge.data_pipeline.extract.file_arduino_index import ArduinoIndexExtractor, version_key
 from microforge.data_pipeline.extract.file_fritzing import FritzingExtractor
@@ -101,7 +102,9 @@ def test_stock_text_and_fx_and_misc():
     assert normalize_manufacturer("Acme Widgets Co., Ltd.") == "Acme Widgets"
     assert normalize_interfaces("Digital, I²C / IIC, analog out") == "I2C,ADC,GPIO"
     assert normalize_package("DIP8") == "DIP-8"
-    assert normalize_package("Plugin") == "MODULE"
+    assert normalize_package("Plugin") == "THT"  # LCSC : « Plugin » = traversant
+    assert normalize_package("插件,D6.3xL11mm") == "THT D6.3XL11MM"
+    assert normalize_package("Module") == "MODULE"
     assert normalize_date("30/10/2026").startswith("2026-10-30")
     assert normalize_date("pas une date") is None
     assert guess_category("Display Modules", None) == "afficheur"
@@ -382,6 +385,32 @@ def test_price_outliers_removed():
     assert report.rejected["prix_aberrant"] == 1 and all(o["unit_price_eur"] < 10 for o in offers)
 
 
+def test_price_outliers_compare_within_subcategory_on_log_scale():
+    """Un microcontrôleur à 12 € n'est pas aberrant parmi des MCU à 1–4 €, ni face à des amplis."""
+
+    def rec(ref: str, price: float, group: str) -> dict:
+        return {
+            "source": "lcsc",
+            "source_ref": ref,
+            "name": ref,
+            "mpn": ref,
+            "supplier": "LCSC",
+            "price": price,
+            "currency": "EUR",
+            "category": "ci",
+            "extra": {"match_by_name": False, "lcsc_category": group},
+        }
+
+    recs = [rec(f"OPA{i}", 0.1 + i * 0.01, "Amplis") for i in range(10)]
+    recs += [rec(f"MCU{i}", 1 + i * 0.3, "MCU") for i in range(10)] + [rec("MCUBIG", 12.0, "MCU")]
+    recs.append(rec("TYPO", 1500.0, "MCU"))  # prix d'un lot saisi comme prix unitaire
+    _, offers, report = Aggregator().run(recs)
+    assert report.rejected["prix_aberrant"] == 1 and report.examples["prix_aberrant"] == [
+        "LCSC:TYPO"
+    ]
+    assert any(o["sku"] == "MCUBIG" for o in offers)
+
+
 # ------------------------------------------------------------------ import & purge (C4)
 @pytest.fixture
 def session(tmp_path):
@@ -407,7 +436,7 @@ def test_import_clean_is_idempotent(tmp_path, jlc_db, session):
     assert session.get(Component, "dht22").datasheet_url
     assert (
         session.exec(select(Supplier).where(Supplier.name == "LCSC")).one().collection_method
-        == "base de données"
+        == "fichiers jlcparts (JSONL ou SQLite)"
     )
     assert session.get(Library, "DHT sensor library").latest_version == "1.4.10"
     assert len(session.exec(select(IngestionRun)).all()) == 2
@@ -496,6 +525,7 @@ def test_flow_and_cli(tmp_path, monkeypatch):
         sources={"fx": {}, "arduino_index": {"path": str(FIX / "library_index.json")}},
         raw_dir=str(tmp_path / "raw"),
         out_dir=str(tmp_path / "clean"),
+        load_db=False,
     )
     assert all(r["status"] == "success" for r in result["extractions"])
     runner = CliRunner()
@@ -532,3 +562,211 @@ def test_flow_and_cli(tmp_path, monkeypatch):
     assert runner.invoke(app, ["purge"]).exit_code == 0
     db.get_engine.cache_clear()
     settings.get_settings.cache_clear()
+
+
+# ------------------------------------------------------------------ données réelles (03/11/2026)
+def test_lcsc_catalog_from_published_files(tmp_path):
+    """Catalogue jlcparts : sélection par sous-catégorie, intégrité SHA-256, attributs décodés."""
+    from microforge.data_pipeline.extract.file_lcsc_catalog import LcscCatalogExtractor, si
+
+    categories = {
+        "Resistors / Through Hole Resistors": "passif",
+        "Capacitors / Ceramic Disc Capacitors": "passif",
+        "Diodes / Zener Diodes": "discret",
+    }
+    records, manifest = LcscCatalogExtractor(
+        out_dir=tmp_path, path=str(FIX / "lcsc"), categories=categories
+    ).run()
+    assert manifest.status == "success" and manifest.rows == 3
+    assert manifest.params["corrupted_shards"] == ["components-corrupt-001.jsonl.gz"]
+    assert manifest.params["manifest_created"].startswith("2026-11-03")
+    res = records[0]
+    assert res["source_ref"] == "C58673" and res["supplier"] == "LCSC" and res["currency"] == "USD"
+    assert res["manufacturer"] == "UNI-ROYAL(Uniroyal Elec)" and res["price"] == 0.0123
+    assert res["extra"]["value"] == 4700.0 and res["extra"]["value_text"] == "4,7 kΩ"
+    assert res["extra"]["attributes"]["Tolerance"] == "-1 % ~ 1 %"
+    assert res["extra"]["match_by_name"] is False and res["category"] == "passif"
+    cap = records[2]
+    assert cap["extra"]["value_text"] == "100 nF" and cap["extra"]["moq"] == 10
+    assert si(1e-12, "F") == "1 pF" and si(0, "Ω") == "0 Ω"
+
+
+def test_lcsc_without_matching_category_fails_cleanly(tmp_path):
+    from microforge.data_pipeline.extract.file_lcsc_catalog import LcscCatalogExtractor
+
+    _, manifest = LcscCatalogExtractor(
+        out_dir=tmp_path, path=str(FIX / "lcsc"), categories={"Inconnu / Rien": "passif"}
+    ).run()
+    assert manifest.status == "failed" and "sous-catégorie" in manifest.message
+
+
+def test_lcsc_aggregation_rules_and_values(tmp_path):
+    """Prix absent -> R2, stock négatif -> R4, rapprochement par MPN seulement, valeurs conservées."""
+    from microforge.data_pipeline.extract.file_lcsc_catalog import LcscCatalogExtractor
+
+    records, _ = LcscCatalogExtractor(
+        out_dir=tmp_path,
+        path=str(FIX / "lcsc"),
+        categories={
+            "Resistors / Through Hole Resistors": "passif",
+            "Capacitors / Ceramic Disc Capacitors": "passif",
+        },
+    ).run()
+    components, offers, report = Aggregator({"USD": 0.9}).run(records)
+    assert report.rejected["prix_invalide"] == 1 and report.rejected["stock_negatif"] == 1
+    assert (
+        report.matched_catalog == 0
+    )  # « Resistor … » n'est rapproché d'aucun composant du catalogue
+    assert (
+        len(components) == 2
+    )  # la pièce sans prix reste un composant ; seule son offre est rejetée
+    comp = next(c for c in components if c["mpn"] == "MFR0W4F4701A50")
+    assert comp["category"] == "passif" and comp["package"] == "THT P=10MM"
+    assert comp["value"] == 4700.0 and comp["value_text"] == "4,7 kΩ"
+    assert offers[0]["unit_price_eur"] == pytest.approx(
+        0.0123 * 0.9, abs=1e-4
+    )  # arrondi à 4 décimales
+
+
+def test_fx_falls_back_to_fed_series(tmp_path):
+    from microforge.data_pipeline.extract.rest_fx import rates_from_fed_csv
+
+    csv_text = (FIX / "fed_h10.csv").read_text()
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if "frankfurter" in req.url.host:
+            return httpx.Response(404)
+        return httpx.Response(200, text=csv_text)
+
+    rates, manifest = FrankfurterExtractor(out_dir=tmp_path, http=mock_client(handler)).run()
+    by_cur = {r["currency"]: r["eur_per_unit"] for r in rates}
+    assert manifest.status == "success" and "H.10" in manifest.params["provider"]
+    assert by_cur["USD"] == 0.8929 and by_cur["GBP"] == pytest.approx(0.8929 / 0.7477, rel=1e-5)
+    assert by_cur["CNY"] == pytest.approx(0.8929 / 7.1, rel=1e-5)  # valeur vide du 23/10 ignorée
+    with pytest.raises(ExtractionError):
+        rates_from_fed_csv("Date,Country,Exchange rate\n2026-10-23,China,7.1\n", ["CNY"])
+
+
+def test_retry_after_header_is_respected():
+    from microforge.data_pipeline.extract._http import retry_after_seconds
+
+    assert retry_after_seconds("7") == 7.0 and retry_after_seconds("9999") == 120.0
+    assert retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") == 0.0  # date passée
+    assert retry_after_seconds("n'importe quoi") is None and retry_after_seconds(None) is None
+
+
+def test_digikey_token_is_cached(tmp_path):
+    calls = {"token": 0}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/token"):
+            calls["token"] += 1
+            return httpx.Response(200, json={"access_token": "abc", "expires_in": 600})
+        return httpx.Response(200, json=fixture_json("digikey_search.json"))
+
+    _, manifest = DigiKeyExtractor(
+        out_dir=tmp_path,
+        client_id="id",
+        client_secret="secret",
+        keywords=["DHT22", "BME280", "SG90"],
+        http=mock_client(handler),
+    ).run()
+    assert manifest.status == "success" and calls["token"] == 1
+
+
+def test_libraries_and_fritzing_reach_the_database(tmp_path, session):
+    """Avant le 03/11 : index Arduino, GitHub et Fritzing étaient ignorés à l'import."""
+    from microforge.api_data.db import Component, Library
+    from microforge.data_pipeline.aggregate.aggregate import load_libraries
+    from microforge.data_pipeline.load.importer import import_clean, read_clean
+
+    raw = tmp_path / "raw"
+    ArduinoIndexExtractor(out_dir=raw, path=str(FIX / "library_index.json")).run()
+    gh = mock_client(lambda r: httpx.Response(200, json=fixture_json("github_search.json")))
+    GitHubLibrariesExtractor(out_dir=raw, libraries=["DHT sensor library"], http=gh).run()
+    FritzingExtractor(out_dir=raw, path=str(FIX), keywords=["sensor", "dht"]).run()
+    records, fx = load_raw(raw)
+    assert any(r["source"] == "fritzing" for r in records)
+    components, offers, report = Aggregator(fx).run(records)
+    write_outputs(components, offers, report, tmp_path / "clean", load_libraries(raw))
+    comps, offs, libs = read_clean(tmp_path / "clean")
+    assert libs and report.libraries_out == len(libs)
+    dht = next(lib for lib in libs if lib["name"] == "DHT sensor library")
+    assert dht["stars"] == 1900
+    import_clean(session, comps, offs, libs)
+    assert session.get(Library, "DHT sensor library").stars == 1900
+    fritz = [c for c in comps if "fritzing" in c["sources"]]
+    assert fritz and fritz[0]["catalog_id"] == "dht22"  # rapproché du catalogue maître
+    assert session.get(Component, "dht22") is not None
+
+
+def test_chip_is_not_merged_with_the_board_that_carries_it():
+    """CI réelle du 03/11 : ATMEGA328P-AU (puce, LCSC) était rapproché de la carte Arduino Uno."""
+    rec = {
+        "source": "lcsc",
+        "source_ref": "C14877",
+        "name": "8-bit AVR microcontroller 32KB flash",
+        "mpn": "ATMEGA328P-AU",
+        "category": "ci",
+        "supplier": "LCSC",
+        "price": 1.8,
+        "currency": "EUR",
+        "extra": {"match_by_name": False, "lcsc_category": "MCU"},
+    }
+    (comp,), offers, report = Aggregator().run([rec])
+    assert comp["catalog_id"] is None and comp["related_catalog_id"] == "arduino-uno"
+    assert report.matched_catalog == 0 and report.related_catalog == 1
+    assert offers[0]["component_key"].startswith("lcsc-")
+
+
+def test_collection_summary_markdown(tmp_path, monkeypatch):
+    from microforge.api_data import db
+    from microforge.common import settings
+    from microforge.data_pipeline import summary
+
+    report = {
+        "extractions": [
+            {
+                "source": "lcsc",
+                "status": "success",
+                "rows": 100500,
+                "duration_s": 38.5,
+                "message": "",
+            },
+            {"source": "fx", "status": "failed", "rows": 0, "duration_s": 1, "message": "a|b"},
+        ],
+        "aggregation": {"rows_in": 100500, "offers_out": 100413, "rejected_by_rule": {"R5": 87}},
+        "import": {"status": "success"},
+    }
+    path = tmp_path / "rapport.json"
+    path.write_text(json.dumps(report))
+    monkeypatch.setenv("MF_DATABASE_URL", f"sqlite:///{tmp_path / 's.db'}")
+    settings.get_settings.cache_clear()
+    db.get_engine.cache_clear()
+    db.init_db()
+    summary.main([str(path)])
+    md = summary.markdown(json.loads(path.read_text()), {"composant": 3, "offre": 2})
+    assert "| lcsc | success | 100500 | 38.5 |" in md and "a/b" in md
+    assert "| rejet R5 | 87 |" in md and "| composant | 3 |" in md
+    assert "db_counts" in json.loads(path.read_text())
+    db.get_engine.cache_clear()
+    settings.get_settings.cache_clear()
+
+
+def test_catalog_libraries_exist_in_collected_index(tmp_path):
+    import polars as pl
+    from microforge.data_pipeline.checks import catalog_libraries, check_libraries
+
+    cited = catalog_libraries()
+    assert "DHT sensor library" in cited and "dht22" in cited["DHT sensor library"]
+    assert check_libraries(tmp_path)["status"] == "non_verifie"
+    names = sorted(cited)
+    pl.DataFrame({"name": names, "version": ["1.0"] * len(names)}).write_parquet(
+        tmp_path / "libraries_clean.parquet"
+    )
+    assert check_libraries(tmp_path)["status"] == "ok"
+    pl.DataFrame({"name": names[1:], "version": ["1.0"] * (len(names) - 1)}).write_parquet(
+        tmp_path / "libraries_clean.parquet"
+    )
+    result = check_libraries(tmp_path)
+    assert result["status"] == "ecart" and list(result["manquantes"]) == [names[0]]

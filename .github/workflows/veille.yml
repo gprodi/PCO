@@ -1,0 +1,55 @@
+# C6 — Veille automatisée : chaque lundi, les flux de microforge/veille/sources.opml sont lus sur un
+# runner GitHub (accès Internet complet) ; les articles récents sont classés par thématique (T1–T5)
+# et un BROUILLON de synthèse est produit en artefact. La synthèse publiée reste rédigée et vérifiée
+# par un humain (grille de fiabilité) ; aucun modèle de langage ne tourne ici.
+name: veille
+
+on:
+  push:
+    paths:
+      - "microforge/veille/**"
+      - "microforge/src/microforge/veille/**"
+      - ".github/workflows/veille.yml"
+  schedule:
+    - cron: "43 6 * * 1"  # lundi 06 h 43 UTC, avant le créneau de veille du lundi 9 h
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  brouillon:
+    name: Flux -> brouillon de synthèse
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - run: uv sync --all-packages --extra data
+      - name: Collecte des flux et classement
+        run: uv run mf-veille --days 7 --out veille-sortie --no-llm
+      - name: Résumé
+        if: always()
+        run: |
+          uv run python - <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          data = json.load(open("veille-sortie/articles.json"))
+          flux = data["flux"]
+          ok = [f for f in flux if f["statut"] == "ok"]
+          print(f"## Veille : {len(ok)}/{len(flux)} flux lus\n")
+          print("| Flux | Statut | Articles | Erreur |\n|---|---|---:|---|")
+          for f in flux:
+              print(f"| {f['titre']} | {f['statut']} | {f['articles']} | {(f['erreur'] or '').replace('|', '/')[:80]} |")
+          print("\n### Retenus par thématique\n")
+          for theme, items in data["selection"].items():
+              print(f"- **{theme}** : " + ("; ".join(i["title"] for i in items) or "rien"))
+          EOF
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: veille-${{ github.run_number }}
+          path: veille-sortie/
+          retention-days: 60

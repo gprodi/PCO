@@ -1,0 +1,64 @@
+# Sous-catégories du catalogue LCSC/JLCPCB collectées (source « lcsc ») et catégorie MicroForge cible.
+# Clés = « Catégorie / Sous-catégorie » exactement comme dans data/manifest.json du projet jlcparts.
+# Choix : ce qu'un maker achète pour ses montages (traversant de préférence) ; les CMS fins
+# (0402…) sont exclus pour garder un jeu exploitable, sauf résistances/condensateurs utiles en valeur.
+categories:
+  # Passifs
+  "Resistors / Through Hole Resistors": passif
+  "Resistors / Potentiometers, Variable Resistors": passif
+  "Capacitors / Aluminum Electrolytic Capacitors - Leaded": passif
+  "Capacitors / Multilayer Ceramic Capacitors MLCC - Leaded": passif
+  "Capacitors / Ceramic Disc Capacitors": passif
+  "Capacitors / Tantalum Capacitors": passif
+  "Crystals, Oscillators and Resonators / Crystals": passif
+  "Crystals, Oscillators and Resonators / Ceramic Resonators": passif
+  # Semi-conducteurs discrets
+  "Diodes / Switching Diodes": discret
+  "Diodes / Schottky Diodes": discret
+  "Diodes / Zener Diodes": discret
+  "Diodes / Bridge Rectifiers": discret
+  "Diodes / Diodes - Fast Recovery Rectifiers": discret
+  "Diodes / Diodes - General Purpose": discret
+  "Transistors and Thyristors / Darlington Transistors": discret
+  "Transistors and Thyristors / Darlington Transistor Arrays": ci
+  "Transistors and Thyristors / Bipolar Transistors - BJT": discret
+  "Transistors and Thyristors / MOSFETs": discret
+  "Optoelectronics / LED Indication - Discrete": actionneur
+  "Optoelectronics / RGB LEDs": actionneur
+  "Optoelectronics / RGB LEDs(Built-in IC)": actionneur
+  "Optoelectronics / Infrared LED Emitters": actionneur
+  "Optoelectronics / Optocouplers - Phototransistor Output": discret
+  "Optoelectronics / Solid State Relays (MOS Output)": actionneur
+  # Circuits intégrés
+  "Clock and Timing / Timers / Counters": ci
+  "Logic / Shift Registers": ci
+  "Amplifiers and Comparators / Operational Amplifiers": ci
+  "Embedded Processors and Controllers / Microcontroller Units (MCUs/MPUs/SOCs)": ci
+  "Motor Driver ICs / Stepper Motor Driver": ci
+  "Motor Driver ICs / Brushed DC Motor Drivers": ci
+  "Interface ICs / I/O Expanders": ci
+  "Interface ICs / Analog Switches, Multiplexers": ci
+  "Data Converters / Analog to Digital Converters (ADCs)": ci
+  "Memory / Eeprom": stockage
+  # Alimentation
+  "Power Management / Voltage Regulators - Linear, Low Drop Out (LDO) Regulators": alimentation
+  "Power Management / Linear Voltage Regulators (LDO)": alimentation
+  "Power Modules / DC-DC Power Modules": alimentation
+  # Capteurs, afficheurs, actionneurs, entrées
+  "Sensors / Temperature Sensors": capteur
+  "Sensors / Temperature and Humidity Sensors": capteur
+  "Displays and LED Drivers / LED Segment Displays": afficheur
+  "Displays and LED Drivers / LCD Screen": afficheur
+  "Displays and LED Drivers / OLED Display": afficheur
+  "Audio Products and Motors / Buzzers": actionneur
+  "Relays / Signal Relays": actionneur
+  "Relays / Power Relays": actionneur
+  "Switches / Tactile Switches": entree
+  "IoT / Communication Modules / Bluetooth Modules": communication
+  # Connectique et consommables
+  "Connectors / Pin Headers": consommable
+  "Connectors / Female Headers": consommable
+  "Connectors / Screw Terminal Blocks": consommable
+  "Connectors / Shunts, Jumpers": consommable
+  "Wire / Cable / Data Cable / Jumper Wire / Enameled Wire / Pre-Crimped Leads": consommable
+  "Wires and Cables / Dupont Wire / Terminal Block Wire / Electronic Wire": consommable

@@ -123,11 +123,29 @@ class MicroForgeClient:
     def suggest(self, inventory: dict[str, int]) -> list[dict]:
         return self.ia_post("/v1/builds/suggest", json={"inventory": inventory, "limit": 12})
 
+    def owned_resistors(self) -> list[float]:
+        """Valeurs de résistances du stock (Ω) — le moteur les préfère à des valeurs à acheter."""
+        try:
+            values = self.get("/v1/inventory/values")
+        except ApiError:
+            return []
+        return sorted(float(v) for v in values.get("resistor", {}))
+
     def generate(
-        self, template_id: str | None = None, board: str | None = None, spec: dict | None = None
+        self,
+        template_id: str | None = None,
+        board: str | None = None,
+        spec: dict | None = None,
+        owned_resistors: list[float] | None = None,
     ) -> dict:
         return self.ia_post(
-            "/v1/builds/generate", json={"template_id": template_id, "board": board, "spec": spec}
+            "/v1/builds/generate",
+            json={
+                "template_id": template_id,
+                "board": board,
+                "spec": spec,
+                "owned_resistors": owned_resistors,
+            },
         )
 
     def bundle(
@@ -152,6 +170,10 @@ class MicroForgeClient:
     def explore(self, inventory: dict[str, int] | None) -> list[dict]:
         """Thèmes et idées de projets, annotés avec le stock."""
         return self.ia_post("/v1/ideas/explore", json={"inventory": inventory})
+
+    def copilot_ask(self, question: str, inventory: dict[str, int] | None = None) -> dict:
+        """Question libre au copilote : réponse citée + sources du catalogue."""
+        return self.ia_post("/v1/copilot/ask", json={"question": question, "inventory": inventory})
 
     def inspiration(self) -> dict:
         """Parcours de progression, vitrine de vrais projets, chiffres clés."""

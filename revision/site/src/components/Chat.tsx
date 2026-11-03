@@ -33,6 +33,11 @@ function ChatInner({ base }: { base: string }) {
 
   return (
     <div>
+      <p className="mf-card" role="note">
+        Vous échangez avec un <strong>assistant d'intelligence artificielle</strong> (modèle local via Ollama) :
+        ses réponses s'appuient sur vos cours et citent leurs sources, mais peuvent contenir des erreurs —
+        vérifiez dans la fiche citée (AI Act, article 50).
+      </p>
       <div aria-live="polite">
         {msgs.map((m, i) => (
           <div key={i} className="mf-card">

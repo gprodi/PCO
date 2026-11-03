@@ -167,19 +167,25 @@ _PACKAGES = [
     (r"\bsoic-?(\d+)", "SOIC-{0}"),
     (r"\blga-?(\d+)", "LGA-{0}"),
     (r"\bqfn-?(\d+)", "QFN-{0}"),
-    (r"\b(module|plugin|through hole|tht)\b", "MODULE"),
+    (r"^(?:plugin|through hole|tht)\b[ ,]*(.*)$", "THT {0}"),
+    (r"\bmodule\b", "MODULE"),
 ]
+# Libellés chinois des fiches LCSC : « 插件 » / « 直插 » = traversant, « 贴片 » = CMS.
+_PACKAGE_CN = {"插件": "THT", "直插": "THT", "贴片": "SMD"}
 
 
 def normalize_package(text: str | None) -> str | None:
     if not text:
         return None
-    low = str(text).lower()
+    text = str(text)
+    for cn, latin in _PACKAGE_CN.items():
+        text = text.replace(cn, latin + " ")
+    low = re.sub(r"\s+", " ", text.replace("，", ",")).strip().lower()
     for pattern, fmt in _PACKAGES:
         m = re.search(pattern, low)
         if m:
             groups = [g or "" for g in m.groups()] or [""]
-            return fmt.format(*groups).upper() if "{0}" in fmt else fmt
+            return fmt.format(*groups).upper().strip() if "{0}" in fmt else fmt
     return clean_text(text)
 
 

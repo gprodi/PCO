@@ -27,10 +27,13 @@ sections:
 
   Construire des requêtes HTTP pour l'accès aux données web:
     - "Les quatre services REST passent par un client commun (extract/_http.py) : httpx avec délai d'attente, User-Agent identifié, nouvelles tentatives exponentielles (tenacity) sur 429/5xx. DigiKey utilise le flux OAuth2 client credentials (jeton mis en cache jusqu'à expiration) ; Mouser une clé d'API ; GitHub un jeton en lecture seule."
-    - "Les tests rejouent des réponses enregistrées avec respx : ils tournent hors ligne et sans clé."
+    - "Les tests rejouent des réponses enregistrées (transport simulé httpx) : ils tournent hors ligne et sans clé."
+    - "Première exécution réelle (03/11/2026) : elle a révélé que le User-Agent contenait un caractère accentué, refusé par httpx dans un en-tête HTTP — aucune requête réelle ne pouvait aboutir alors que tous les tests (simulés) passaient. En-tête corrigé en ASCII, test ajouté. Leçon : les fixtures ne remplacent pas une exécution réelle, désormais automatisée chaque semaine (workflow « collecte »)."
 
   Traiter différents formats de fichiers de données (CSV, JSON, XML, etc.):
     - "- JSON : library_index.json d'Arduino, lu en flux ; on garde la dernière version de chaque bibliothèque et ses « providesIncludes » pour relier composant ↔ bibliothèque ↔ #include.\n- XML : pièces Fritzing (.fzp) analysées avec lxml/XPath pour récupérer le nom et la description de chaque connecteur (brochage).\n- Sorties : JSONL (brut), Parquet (big data), CSV (nomenclatures)."
+    - "Le projet open source jlcparts (licence MIT) republie chaque nuit le catalogue en stock de JLCPCB/LCSC : un manifest.json (688 sous-catégories, 366 696 références le 03/11/2026, empreinte SHA-256 de chaque fichier), une table d'attributs et des tranches JSONL compressées de 1 000 composants. L'extracteur file_lcsc_catalog.py retient 48 sous-catégories utiles aux makers (lcsc_categories.yaml : résistances traversantes, condensateurs, diodes, transistors, LED, régulateurs, microcontrôleurs, connectique…), contrôle l'empreinte de chaque tranche (tranche corrompue ignorée et signalée dans le manifeste), décode attributs et paliers de prix (USD), valeurs (4,7 kΩ, 100 nF) et quantité minimale."
+    - "Volumes réels (workflow « collecte », run n°1 du 03/11/2026, runner GitHub) : taux de change 5 lignes (0,7 s), index Arduino 10 357 bibliothèques (1,4 s), LCSC 100 500 composants (31,7 s), GitHub 7 dépôts, Fritzing 268 pièces ; import PostgreSQL de 204 236 lignes."
 
   Mettre en œuvre des techniques de web scraping pour l'extraction de données:
     - "Le scraper (extract/scrape_shop.py) lit la configuration de la boutique dans shops.yaml (sélecteurs CSS), vérifie robots.txt avec urllib.robotparser avant chaque page, attend 3 s entre deux requêtes et archive le HTML brut avant de l'analyser avec BeautifulSoup. Seules des données publiques non personnelles sont collectées (prix TTC, disponibilité)."
@@ -56,7 +59,7 @@ sections:
 
   # ------------------------------------------------------------------ C3
   Définir les spécifications techniques pour l'agrégation et le nettoyage des données:
-    - "Clé d'unification : (fabricant normalisé, MPN normalisé). Les modules génériques (« capteur DHT22 ») sont rapprochés du catalogue par une table d'alias puis par similarité rapidfuzz (seuil 90, cas douteux mis de côté)."
+    - "Clé d'unification : (fabricant normalisé, MPN normalisé). Les modules génériques (« capteur DHT22 ») sont rapprochés du catalogue par une table d'alias puis par similarité rapidfuzz (seuil 88). Pour les catalogues de distributeurs, le rapprochement se fait par MPN seulement (une description « LED driver… » ne doit pas devenir le composant « LED »), et une référence de catégorie différente n'est pas fusionnée : la puce ATMEGA328P-AU n'est pas la carte Arduino Uno, le BME280 nu n'est pas le module — le lien est gardé (related_catalog_id, 22 cas réels)."
   Service web:
     - "DigiKey, Mouser, GitHub, Frankfurter : réponses JSON paginées, prix par paliers à ramener en euros au taux BCE du jour de collecte."
   Web scraping:
@@ -71,7 +74,8 @@ sections:
   Développer un processus automatisé pour l'agrégation des données provenant de différentes sources:
     - "Le flow Prefect « collect → aggregate → load » enchaîne les extracteurs, l'agrégation (aggregate/aggregate.py) et l'import idempotent. Il est planifiable (cron) et tracé dans la table execution_collecte."
   Identifier et supprimer les entrées de données corrompues ou erronées:
-    - "| Règle | Contrôle | Action |\n|---|---|---|\n| R1 identité | MPN et nom absents | rejet |\n| R2 prix | prix ≤ 0 ou non numérique | rejet |\n| R3 devise | devise inconnue sans taux | rejet |\n| R4 stock | stock négatif | rejet |\n| R5 valeurs aberrantes | prix hors [Q1 − 1,5·IQR ; Q3 + 1,5·IQR] de la catégorie | quarantaine |"
+    - "| Règle | Contrôle | Action |\n|---|---|---|\n| R1 identité | MPN et nom absents | rejet |\n| R2 prix | prix ≤ 0 ou non numérique | rejet |\n| R3 devise | devise inconnue sans taux | rejet |\n| R4 stock | stock négatif | rejet |\n| R5 valeurs aberrantes | log10(prix) hors [Q1 − 3·IQR ; Q3 + 3·IQR] de la sous-catégorie (≥ 8 offres) | rejet compté et illustré |"
+    - "Mesure réelle qui a fait évoluer R5 : en échelle linéaire et par grande catégorie, 7 187 offres sur 100 500 (7 %) étaient rejetées — des microcontrôleurs à 10 € comparés à des amplis op à 0,10 €. Les prix suivant une loi proche de la log-normale, la règle compare désormais log10(prix) au sein de la sous-catégorie du distributeur : 87 rejets (0,09 %), tous vérifiés comme des écarts d'ordre de grandeur (oscillateurs et résonateurs hors gamme)."
     - "Un rapport de rejets compte les lignes écartées par règle ; il est testé sur un jeu de données de référence (tests/test_pipeline.py)."
   Homogénéiser les formats de données pour assurer la cohérence:
     - "- tensions : « 3V3 », « 3.3V », « 3,3 V » → 3.3 (volts) ;\n- prix : toutes devises → EUR au taux BCE daté ;\n- MPN en majuscules sans suffixe d'emballage, fabricants canoniques, boîtiers canoniques (DIP-8, SOT-23…) ;\n- interfaces dans un vocabulaire contrôlé (I2C, SPI, UART, 1-Wire, PWM, ADC, GPIO) ;\n- dates ISO 8601, textes UTF-8 NFKC."
@@ -80,7 +84,7 @@ sections:
 
   # ------------------------------------------------------------------ C4
   Définir les spécifications techniques de la base de données:
-    - "Besoins : données très relationnelles (composants, offres, inventaires, projets), accès concurrents, rôles distincts (application, analyste en lecture seule), recherche vectorielle à terme (datasheets). Volumétrie visée : ~50 000 composants, ~200 000 offres."
+    - "Besoins : données très relationnelles (composants, offres, inventaires, projets), accès concurrents, rôles distincts (application, analyste en lecture seule), recherche vectorielle à terme (datasheets). Volumétrie mesurée (collecte du 03/11/2026) : 93 521 composants, 100 413 offres, 10 357 bibliothèques, 717 fabricants ; import de 204 236 lignes en 92 s sur PostgreSQL 17 (importeur indexé : une requête par lot et non par ligne)."
   Description des données utiles:
     - "| Groupe | Entités |\n|---|---|\n| Utilisateurs | UTILISATEUR, JETON_RAFRAICHISSEMENT |\n| Catalogue | COMPOSANT, CATEGORIE, FABRICANT, BIBLIOTHEQUE, UTILISE |\n| Achats | FOURNISSEUR, OFFRE |\n| Inventaire | ARTICLE_INVENTAIRE, PHOTO, RETOUR_DETECTION |\n| Projets | PROJET |\n| Traçabilité | EXECUTION_COLLECTE |"
   Modèle Conceptuel des Données > Définition:

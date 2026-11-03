@@ -3,6 +3,7 @@
 from microforge.data_pipeline.extract.db_jlcparts import JlcpartsExtractor
 from microforge.data_pipeline.extract.file_arduino_index import ArduinoIndexExtractor
 from microforge.data_pipeline.extract.file_fritzing import FritzingExtractor
+from microforge.data_pipeline.extract.file_lcsc_catalog import LcscCatalogExtractor
 from microforge.data_pipeline.extract.rest_digikey import DigiKeyExtractor
 from microforge.data_pipeline.extract.rest_fx import FrankfurterExtractor
 from microforge.data_pipeline.extract.rest_github import GitHubLibrariesExtractor
@@ -18,6 +19,7 @@ EXTRACTORS = {
     "fritzing": FritzingExtractor,
     "shop": ShopScraper,
     "jlcparts": JlcpartsExtractor,
+    "lcsc": LcscCatalogExtractor,
 }
 
 __all__ = ["EXTRACTORS"]

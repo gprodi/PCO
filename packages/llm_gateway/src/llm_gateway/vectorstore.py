@@ -39,6 +39,11 @@ class Record:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
+def _version(text: str | None) -> tuple[int, ...]:
+    """« 0.8.1 » -> (0, 8, 1) ; absent -> (0,)."""
+    return tuple(int(x) for x in re.findall(r"\d+", text or "")[:3]) or (0,)
+
+
 def _norm(v: Sequence[float]) -> list[float]:
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [float(x) / n for x in v]
@@ -61,6 +66,10 @@ class VectorStore(ABC):
 
     @abstractmethod
     def count(self) -> int: ...
+
+    @abstractmethod
+    def get(self, record_id: str) -> Record | None:
+        """Un passage par identifiant (vérifier l'empreinte d'un corpus déjà indexé…)."""
 
     def __len__(self) -> int:
         return self.count()
@@ -101,6 +110,10 @@ class MemoryVectorStore(VectorStore):
     def count(self) -> int:
         return len(self._items)
 
+    def get(self, record_id: str) -> Record | None:
+        item = self._items.get(record_id)
+        return item[0] if item else None
+
     def save(self, path: Path | None = None) -> None:
         target = path or self.path
         if target is None:
@@ -123,6 +136,12 @@ class PgVectorStore(VectorStore):
         self.engine = create_engine(url, pool_pre_ping=True)
         with self.engine.begin() as c:
             c.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            version = c.execute(
+                text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+            ).scalar()
+        #: pgvector ≥ 0.8 : parcours itératif de l'index HNSW quand un filtre (cours, groupe) élimine
+        #: des candidats — sinon une recherche filtrée peut rendre moins de k passages.
+        self.iterative_scan = _version(version) >= (0, 8)
 
     @staticmethod
     def _literal(vec: Sequence[float]) -> str:
@@ -210,21 +229,35 @@ class PgVectorStore(VectorStore):
         params: dict[str, Any] = {"v": self._literal(_norm(vector)), "k": int(k)}
         if groups:
             params["g"] = list(groups)
-        with self.engine.connect() as c:
+        with self.engine.begin() as c:
+            if groups and self.iterative_scan:
+                c.execute(self._text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
             rows = c.execute(sql, params).mappings().all()
-        return [
+        hits = [
             (
                 float(r["score"]),
                 Record(r["id"], r["grp"], r["title"], r["body"], dict(r["meta"] or {})),
             )
             for r in rows
         ]
+        hits.sort(key=lambda t: -t[0])  # relaxed_order : ordre approximatif, on retrie
+        return hits
 
     def count(self) -> int:
         if self.dimension() is None:
             return 0
         with self.engine.connect() as c:
             return int(c.execute(self._text(f"SELECT count(*) FROM {self.table}")).scalar())  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
+
+    def get(self, record_id: str) -> Record | None:
+        if self.dimension() is None:
+            return None
+        sql = self._text(f"SELECT id, grp, title, body, meta FROM {self.table} WHERE id = :id")  # noqa: S608 — table validée par _IDENT, valeurs paramétrées
+        with self.engine.connect() as c:
+            r = c.execute(sql, {"id": record_id}).mappings().first()
+        return (
+            Record(r["id"], r["grp"], r["title"], r["body"], dict(r["meta"] or {})) if r else None
+        )
 
 
 def open_vector_store(

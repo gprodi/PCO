@@ -16,11 +16,20 @@
       <outline type="rss" text="Hugging Face blog" xmlUrl="https://huggingface.co/blog/feed.xml" htmlUrl="https://huggingface.co/blog"/>
       <outline type="rss" text="arXiv cs.CV" xmlUrl="https://rss.arxiv.org/rss/cs.CV"/>
       <outline type="rss" text="Simon Willison" xmlUrl="https://simonwillison.net/atom/everything/" htmlUrl="https://simonwillison.net"/>
+      <outline type="rss" text="pgvector releases" xmlUrl="https://github.com/pgvector/pgvector/tags.atom"/>
+    </outline>
+    <outline text="T4 - Accessibilité et éco-conception" title="T4 - Accessibilité et éco-conception">
+      <outline type="rss" text="W3C WAI - actualités" xmlUrl="https://www.w3.org/WAI/feed.xml" htmlUrl="https://www.w3.org/WAI/"/>
+      <outline type="rss" text="RGAA - dépôt du référentiel (DINUM)" xmlUrl="https://github.com/DISIC/accessibilite.numerique.gouv.fr/commits/main.atom" htmlUrl="https://accessibilite.numerique.gouv.fr"/>
     </outline>
     <outline text="T5 - Maker" title="T5 - Maker">
       <outline type="rss" text="Arduino ESP32 core releases" xmlUrl="https://github.com/espressif/arduino-esp32/releases.atom"/>
       <outline type="rss" text="Hackaday" xmlUrl="https://hackaday.com/blog/feed/" htmlUrl="https://hackaday.com"/>
       <outline type="rss" text="Arduino blog" xmlUrl="https://blog.arduino.cc/feed/" htmlUrl="https://blog.arduino.cc"/>
+      <outline type="rss" text="Espressif - portail développeurs" xmlUrl="https://developer.espressif.com/index.xml" htmlUrl="https://developer.espressif.com"/>
+      <outline type="rss" text="Raspberry Pi - actualités" xmlUrl="https://www.raspberrypi.com/news/feed/" htmlUrl="https://www.raspberrypi.com/news/"/>
+      <outline type="rss" text="KiCad - blog" xmlUrl="https://www.kicad.org/blog/index.xml" htmlUrl="https://www.kicad.org/blog/"/>
+      <outline type="rss" text="Wokwi - blog" xmlUrl="https://blog.wokwi.com/rss/" htmlUrl="https://blog.wokwi.com"/>
     </outline>
   </body>
 </opml>

@@ -58,7 +58,9 @@ if theme is None:
                     with st.spinner("Génération du câblage, du code et du guide…"):
                         try:
                             st.session_state.build = c.generate(
-                                template_id=p["id"], board="arduino-uno"
+                                template_id=p["id"],
+                                board="arduino-uno",
+                                owned_resistors=c.owned_resistors(),
                             )
                         except ApiError as exc:
                             show_error(exc)
@@ -104,7 +106,9 @@ for idx, idea in enumerate(theme["idees"]):
                     if idea["generable"]:
                         board = "esp32-devkit-v1" if idea.get("wifi") else None
                         st.session_state.build = c.generate(
-                            template_id=idea["template"], board=board or "arduino-uno"
+                            template_id=idea["template"],
+                            board=board or "arduino-uno",
+                            owned_resistors=c.owned_resistors(),
                         )
                     else:
                         goal = f"{idea['titre']} : {idea['description']}"

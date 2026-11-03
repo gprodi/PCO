@@ -40,6 +40,9 @@ services:
     profiles: [core]
     image: ghcr.io/gprodi/microforge-api_ia:${MF_IMAGE_TAG:-main}
     build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_ia }
+    environment:
+      # Copilote RAG : passages du catalogue dans PostgreSQL + pgvector (table mf_copilot, HNSW)
+      MF_COPILOT_VECTOR_URL: postgresql+psycopg://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/microforge
     depends_on: [api_data]
     ports: ["8001:8001"]
     mem_limit: 2g
@@ -60,7 +63,8 @@ services:
   litellm:
     profiles: [ai]
     # ⚠️ image épinglée : compromission des paquets PyPI 1.82.7/1.82.8 en mars 2026 (veille).
-    # Remplacer le tag par un digest vérifié : ghcr.io/berriai/litellm@sha256:...
+    # Tag mobile : à remplacer par v1.106.6 épinglée par empreinte après vérification de la signature
+    # cosign (veille 2026-45). Ne jamais installer LiteLLM depuis PyPI (incident 1.82.7/1.82.8).
     image: ghcr.io/berriai/litellm:main-stable
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     env_file: ../.env
@@ -73,7 +77,7 @@ services:
 
   ollama:
     profiles: [ai-gpu]                    # Windows/Linux avec GPU NVIDIA (sur Mac : Ollama natif)
-    image: ollama/ollama:0.12.6
+    image: ollama/ollama:0.40.14  # veille 2026-45 : version stable du 03/11/2026
     volumes: [ollama:/root/.ollama]
     deploy:
       resources:

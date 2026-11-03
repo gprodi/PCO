@@ -1,0 +1,521 @@
+# Semi-conducteurs discrets, régulateurs et circuits intégrés courants (étape 3 — stock complet).
+# Prix : catalogue LCSC collecté le 03/11/2026 (pipeline E1, palier « 1 pièce », USD × 0,893),
+# référence dans supplier_refs pour vérification ; « indicatif » quand la pièce traversante n'y figure pas.
+
+# ------------------------------------------------------------------ diodes
+- id: diode-1n4007
+  name: Diode de redressement 1N4007 (1 A, 1000 V)
+  category: discret
+  description: "Diode « roue libre » des relais, moteurs et pompes ; protection contre l'inversion de polarité."
+  aliases: [1n4007, diode 1n4007, diode roue libre, diode de redressement]
+  is_module: false
+  passive: true
+  pins:
+    - { name: A, role: nc, description: "anode" }
+    - { name: K, role: nc, description: "cathode (anneau gris)" }
+  kicad: { symbol: "Diode:1N4007", footprint: "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal" }
+  price_eur: 0.02
+  supplier_refs: { lcsc: "C18199088" }
+  notes: ["Roue libre : cathode (anneau) côté +, en parallèle sur la bobine du relais ou du moteur.", "Prix LCSC de la version CMS 1N4007W ; la version traversante DO-41 coûte le même ordre de grandeur (indicatif)."]
+
+- id: diode-1n4148
+  name: Diode de signal 1N4148 (rapide, 100 V)
+  category: discret
+  description: "Petite diode rapide pour signaux, matrices de clavier, portes logiques à diodes."
+  aliases: [1n4148, diode signal, diode 1n4148]
+  is_module: false
+  passive: true
+  pins:
+    - { name: A, role: nc, description: "anode" }
+    - { name: K, role: nc, description: "cathode (anneau noir)" }
+  kicad: { symbol: "Diode:1N4148", footprint: "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" }
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C402212" }
+
+- id: diode-1n5819
+  name: Diode Schottky 1N5819 (1 A, 40 V)
+  category: discret
+  description: "Faible chute de tension (≈ 0,3 V) : protection d'alimentation, roue libre rapide."
+  aliases: [1n5819, schottky, diode schottky]
+  is_module: false
+  passive: true
+  pins:
+    - { name: A, role: nc }
+    - { name: K, role: nc }
+  kicad: { symbol: "Diode:1N5819", footprint: "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal" }
+  price_eur: 0.02
+  supplier_refs: { lcsc: "C437199" }
+
+- id: zener-diode
+  name: Diode Zener 0,5 W (BZX55C)
+  category: discret
+  description: "Référence de tension ou écrêtage (ex. 3,3 V pour protéger une entrée)."
+  aliases: [zener, diode zener, bzx55]
+  is_module: false
+  passive: true
+  parametric: { quantity: voltage, unit: V, values: [2.7, 3.3, 3.6, 4.7, 5.1, 5.6, 6.2, 9.1, 12.0], default: 5.1 }
+  pins:
+    - { name: A, role: nc }
+    - { name: K, role: nc }
+  kicad: { symbol: "Device:D_Zener", footprint: "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" }
+  price_eur: 0.06
+  supplier_refs: { lcsc: "C917498" }
+
+# ------------------------------------------------------------------ transistors bipolaires (TO-92)
+- id: npn-2n2222
+  name: Transistor NPN 2N2222 (600 mA)
+  category: discret
+  description: "Commande d'une charge jusqu'à quelques centaines de mA depuis un GPIO (relais nu, buzzer 5 V, ruban LED court)."
+  aliases: [2n2222, pn2222, 2n2222a, transistor npn]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
+  pins:
+    - { name: B, role: gpio_out, description: "base, via une résistance de 1 kΩ" }
+    - { name: C, role: nc, description: "collecteur : côté charge" }
+    - { name: E, role: ground, description: "émetteur : à la masse" }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C22751485" }
+  notes: ["Brochage TO-92 variable selon les fabricants (EBC ou CBE) : vérifier la fiche technique."]
+
+- id: npn-bc547
+  name: Transistor NPN BC547 (100 mA)
+  category: discret
+  description: "NPN petit signal : LED de puissance modeste, interface de niveaux, amplification."
+  aliases: [bc547, bc548, bc549]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
+  pins:
+    - { name: B, role: gpio_out, description: "base, via 1 kΩ" }
+    - { name: C, role: nc }
+    - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+  kicad: { symbol: "Transistor_BJT:BC547", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 0.03
+  supplier_refs: { lcsc: "C47089404" }
+
+- id: npn-2n3904
+  name: Transistor NPN 2N3904 (200 mA)
+  category: discret
+  description: "NPN petit signal très courant dans les kits."
+  aliases: [2n3904]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
+  pins:
+    - { name: B, role: gpio_out }
+    - { name: C, role: nc }
+    - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+  kicad: { symbol: "Transistor_BJT:2N3904", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 0.08
+  supplier_refs: { lcsc: "C124482" }
+
+- id: npn-s8050
+  name: Transistor NPN S8050 (500 mA)
+  category: discret
+  description: "NPN des kits chinois, bon courant de collecteur pour un buzzer ou un petit relais."
+  aliases: [s8050, ss8050]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
+  pins:
+    - { name: B, role: gpio_out }
+    - { name: C, role: nc }
+    - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C22751469" }
+
+- id: pnp-bc557
+  name: Transistor PNP BC557 (100 mA)
+  category: discret
+  description: "PNP petit signal (commutation côté +)."
+  aliases: [bc557, bc558]
+  is_module: false
+  passive: true
+  pins:
+    - { name: B, role: nc }
+    - { name: C, role: nc }
+    - { name: E, role: nc, description: "émetteur côté +" }
+  kicad: { symbol: "Transistor_BJT:BC557", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 0.04
+  supplier_refs: { lcsc: "C713617" }
+
+- id: pnp-2n3906
+  name: Transistor PNP 2N3906 (200 mA)
+  category: discret
+  description: "Complémentaire PNP du 2N3904."
+  aliases: [2n3906]
+  is_module: false
+  passive: true
+  pins:
+    - { name: B, role: nc }
+    - { name: C, role: nc }
+    - { name: E, role: nc }
+  kicad: { symbol: "Transistor_BJT:2N3906", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C49023424" }
+
+- id: pnp-s8550
+  name: Transistor PNP S8550 (500 mA)
+  category: discret
+  description: "Complémentaire PNP du S8050."
+  aliases: [s8550, ss8550]
+  is_module: false
+  passive: true
+  pins:
+    - { name: B, role: nc }
+    - { name: C, role: nc }
+    - { name: E, role: nc }
+  price_eur: 0.01
+  supplier_refs: { lcsc: "C22751470" }
+
+- id: darlington-tip120
+  name: Darlington NPN TIP120 (5 A, TO-220)
+  category: discret
+  description: "Moteur, pompe ou ruban LED 12 V depuis un GPIO ; chute de tension ≈ 2 V (chauffe)."
+  aliases: [tip120, darlington]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 1000, "5.0": 1000 }
+  pins:
+    - { name: B, role: pwm, description: "base, via 1 kΩ" }
+    - { name: C, role: nc, description: "collecteur : côté charge (+ diode de roue libre)" }
+    - { name: E, role: ground }
+  code:
+    default:
+      setup: "pinMode(${B}, OUTPUT); digitalWrite(${B}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${B}, HIGH); }
+        void ${name}_off() { digitalWrite(${B}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${B}, niveau); }  // 0–255 (PWM)
+  price_eur: 0.78
+  supplier_refs: { lcsc: "C262990" }
+  notes: ["Charge inductive (moteur, pompe, relais) : diode 1N4007 en roue libre obligatoire.", "Préférer un MOSFET à seuil logique (IRLZ44N) qui chauffe beaucoup moins."]
+
+# ------------------------------------------------------------------ MOSFET
+- id: mosfet-irlz44n
+  name: MOSFET canal N IRLZ44N (seuil logique, TO-220)
+  category: discret
+  description: "Commutation de fortes charges (ruban LED, moteur 12 V) directement depuis un GPIO 3,3 V ou 5 V."
+  aliases: [irlz44n, irlz44, mosfet logique]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 220, "5.0": 220 }
+  pins:
+    - { name: G, role: pwm, description: "grille, via 220 Ω + 10 kΩ vers la masse" }
+    - { name: D, role: nc, description: "drain : côté charge" }
+    - { name: S, role: ground, description: "source : à la masse" }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${G}, niveau); }  // 0–255 (PWM)
+  kicad: { symbol: "Transistor_FET:IRLZ44N", footprint: "Package_TO_SOT_THT:TO-220-3_Vertical" }
+  price_eur: 0.36
+  supplier_refs: { lcsc: "C22367197" }
+  notes: ["Résistance de 10 kΩ grille-source : le MOSFET reste bloqué pendant le démarrage de la carte."]
+
+- id: mosfet-irf520
+  name: MOSFET canal N IRF520 (TO-220)
+  category: discret
+  description: "Fréquent dans les modules « MOSFET IRF520 » ; seuil non logique."
+  aliases: [irf520]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 220, "5.0": 220 }
+  pins:
+    - { name: G, role: pwm }
+    - { name: D, role: nc }
+    - { name: S, role: ground }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
+        void ${name}_set(uint8_t niveau) { analogWrite(${G}, niveau); }  // 0–255 (PWM)
+  price_eur: 0.51
+  supplier_refs: { lcsc: "C2598" }
+  notes: ["Seuil non logique : à 3,3 V (ESP32, Pico) il conduit mal et chauffe — préférer l'IRLZ44N."]
+
+- id: mosfet-2n7000
+  name: MOSFET canal N 2N7000 (200 mA, TO-92)
+  category: discret
+  description: "Petites charges et adaptation de niveaux logiques bidirectionnelle (I2C 3,3 V ↔ 5 V)."
+  aliases: [2n7000, bs170]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 220, "5.0": 220 }
+  pins:
+    - { name: G, role: gpio_out }
+    - { name: D, role: nc }
+    - { name: S, role: ground }
+  code:
+    default:
+      setup: "pinMode(${G}, OUTPUT); digitalWrite(${G}, LOW);"
+      api: |
+        void ${name}_on() { digitalWrite(${G}, HIGH); }
+        void ${name}_off() { digitalWrite(${G}, LOW); }
+  kicad: { symbol: "Transistor_FET:2N7000", footprint: "Package_TO_SOT_THT:TO-92_Inline" }
+  price_eur: 0.04
+  supplier_refs: { lcsc: "C9114" }
+
+- id: optocoupler-pc817
+  name: Optocoupleur PC817
+  category: discret
+  description: "Isolation galvanique entre la carte et un circuit externe (détection de tension, commande isolée)."
+  aliases: [pc817, optocoupleur, opto]
+  is_module: false
+  needs_series_resistor_ohm: { "3.3": 220, "5.0": 330 }
+  pins:
+    - { name: A, role: gpio_out, description: "anode de la LED interne, via résistance" }
+    - { name: K, role: ground }
+    - { name: C, role: nc, description: "collecteur du phototransistor (côté isolé)" }
+    - { name: E, role: nc, description: "émetteur du phototransistor (côté isolé)" }
+  kicad: { symbol: "Isolator:PC817", footprint: "Package_DIP:DIP-4_W7.62mm" }
+  price_eur: 0.10
+  notes: ["Prix indicatif : absent du catalogue LCSC collecté sous cette référence."]
+
+# ------------------------------------------------------------------ régulateurs
+- id: regulator-7805
+  name: Régulateur linéaire 7805 (5 V, 1,5 A, TO-220)
+  category: alimentation
+  description: "Alimente une carte en 5 V depuis 7–12 V ; dissipe l'excès en chaleur."
+  aliases: ["7805", l7805, lm7805, regulateur 5v]
+  is_module: false
+  passive: true
+  pins:
+    - { name: IN, role: nc, description: "entrée 7–25 V" }
+    - { name: GND, role: ground }
+    - { name: OUT, role: nc, description: "sortie 5 V" }
+  kicad: { symbol: "Regulator_Linear:L7805", footprint: "Package_TO_SOT_THT:TO-220-3_Vertical" }
+  price_eur: 0.16
+  supplier_refs: { lcsc: "C347289" }
+  notes: ["Condensateurs 0,33 µF en entrée et 0,1 µF en sortie ; radiateur au-delà de ≈ 0,5 W dissipés."]
+
+- id: regulator-ams1117-3v3
+  name: Régulateur LDO AMS1117-3.3 (3,3 V, 1 A)
+  category: alimentation
+  description: "Le régulateur des cartes ESP32/ESP8266 ; aussi vendu sur petit module 5 V → 3,3 V."
+  aliases: [ams1117, ams1117-3.3, ldo 3.3v, regulateur 3.3v]
+  is_module: false
+  passive: true
+  pins:
+    - { name: IN, role: nc }
+    - { name: GND, role: ground }
+    - { name: OUT, role: nc }
+  kicad: { symbol: "Regulator_Linear:AMS1117-3.3", footprint: "Package_TO_SOT_SMD:SOT-223-3_TabPin2" }
+  price_eur: 0.17
+  supplier_refs: { lcsc: "C6186" }
+  notes: ["Condensateurs de 10 µF (tantale ou céramique) en entrée et en sortie, sinon il oscille."]
+
+- id: regulator-lm317
+  name: Régulateur ajustable LM317 (1,25–37 V, TO-220)
+  category: alimentation
+  description: "Tension réglée par un pont de deux résistances (Vout = 1,25 × (1 + R2/R1))."
+  aliases: [lm317, regulateur ajustable]
+  is_module: false
+  passive: true
+  pins:
+    - { name: ADJ, role: nc }
+    - { name: OUT, role: nc }
+    - { name: IN, role: nc }
+  price_eur: 0.44
+  supplier_refs: { lcsc: "C18718" }
+
+# ------------------------------------------------------------------ circuits intégrés
+- id: timer-ne555
+  name: Temporisateur NE555 (DIP-8)
+  category: ci
+  description: "Clignoteur, générateur de signal, temporisation sans microcontrôleur."
+  aliases: [ne555, "555", timer 555]
+  is_module: false
+  passive: true
+  pins:
+    - { name: GND, role: ground }
+    - { name: TRIG, role: nc }
+    - { name: OUT, role: nc }
+    - { name: RESET, role: nc }
+    - { name: CTRL, role: nc }
+    - { name: THR, role: nc }
+    - { name: DIS, role: nc }
+    - { name: VCC, role: power }
+  kicad: { symbol: "Timer:NE555P", footprint: "Package_DIP:DIP-8_W7.62mm" }
+  price_eur: 0.07
+  supplier_refs: { lcsc: "C19708138" }
+
+- id: shift-register-74hc595
+  name: Registre à décalage 74HC595 (8 sorties, DIP-16)
+  category: ci
+  description: "Ajoute 8 sorties (LED, afficheur 7 segments) avec 3 broches seulement ; chaînable."
+  aliases: [74hc595, hc595, "595", registre a decalage]
+  is_module: false
+  supply_v: [2.0, 6.0]
+  current_ma: 1
+  pins:
+    - { name: DS, role: gpio_out, description: "données série (broche 14)" }
+    - { name: SHCP, role: gpio_out, description: "horloge de décalage (broche 11)" }
+    - { name: STCP, role: gpio_out, description: "verrou / latch (broche 12)" }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${DS}, OUTPUT); pinMode(${SHCP}, OUTPUT); pinMode(${STCP}, OUTPUT);"
+      api: |
+        // Écrit 8 bits sur Q0..Q7 (Q7 = bit de poids fort) ; OE à la masse, MR au +.
+        void ${name}_write(uint8_t bits) {
+          digitalWrite(${STCP}, LOW);
+          shiftOut(${DS}, ${SHCP}, MSBFIRST, bits);
+          digitalWrite(${STCP}, HIGH);
+        }
+  wokwi: { type: wokwi-74hc595, pins: { DS: DS, SHCP: SHCP, STCP: STCP, VCC: VCC, GND: GND } }
+  kicad: { symbol: "74xx:74HC595", footprint: "Package_DIP:DIP-16_W7.62mm" }
+  price_eur: 0.12
+  supplier_refs: { lcsc: "C507175" }
+  notes: ["OE (broche 13) à la masse et MR (broche 10) au +, sinon les sorties restent éteintes.", "Une résistance par LED sur les sorties Q0..Q7."]
+
+- id: shift-register-74hc165
+  name: Registre à décalage 74HC165 (8 entrées, DIP-16)
+  category: ci
+  description: "Lit 8 boutons ou interrupteurs avec 3 broches ; chaînable."
+  aliases: [74hc165, hc165, "165"]
+  is_module: false
+  supply_v: [2.0, 6.0]
+  current_ma: 1
+  pins:
+    - { name: PL, role: gpio_out, description: "chargement parallèle (broche 1, actif bas)" }
+    - { name: CP, role: gpio_out, description: "horloge (broche 2)" }
+    - { name: Q7, role: gpio_in, description: "sortie série (broche 9)" }
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  code:
+    default:
+      setup: "pinMode(${PL}, OUTPUT); pinMode(${CP}, OUTPUT); pinMode(${Q7}, INPUT); digitalWrite(${PL}, HIGH);"
+      api: |
+        // Instantané des 8 entrées D0..D7 (CE à la masse ; tirage 10 kΩ sur chaque entrée).
+        uint8_t ${name}_read() {
+          digitalWrite(${PL}, LOW);
+          delayMicroseconds(5);
+          digitalWrite(${PL}, HIGH);
+          return shiftIn(${Q7}, ${CP}, MSBFIRST);
+        }
+  kicad: { symbol: "74xx:74HC165", footprint: "Package_DIP:DIP-16_W7.62mm" }
+  price_eur: 0.09
+  supplier_refs: { lcsc: "C5613" }
+
+- id: darlington-array-uln2003
+  name: Réseau de 7 Darlington ULN2003A (puce seule)
+  category: ci
+  description: "7 sorties 500 mA avec diodes de roue libre intégrées : relais, solénoïdes, moteur pas à pas."
+  aliases: [uln2003a, uln2003 puce, reseau darlington]
+  is_module: false
+  passive: true
+  pins:
+    - { name: GND, role: ground }
+    - { name: COM, role: nc, description: "commun des diodes : au + de la charge" }
+  kicad: { symbol: "Transistor_Array:ULN2003A", footprint: "Package_DIP:DIP-16_W7.62mm" }
+  price_eur: 0.13
+  supplier_refs: { lcsc: "C7512" }
+
+- id: opamp-lm358
+  name: Double amplificateur opérationnel LM358 (DIP-8)
+  category: ci
+  description: "Comparateur ou amplificateur de capteur analogique, alimentation unique 3–32 V."
+  aliases: [lm358, ampli op, amplificateur operationnel]
+  is_module: false
+  passive: true
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  kicad: { symbol: "Amplifier_Operational:LM358", footprint: "Package_DIP:DIP-8_W7.62mm" }
+  price_eur: 0.07
+  supplier_refs: { lcsc: "C18723615" }
+
+- id: mux-cd4051
+  name: Multiplexeur analogique 8 voies CD4051
+  category: ci
+  description: "8 entrées analogiques sur une seule broche ADC (3 broches de sélection)."
+  aliases: [cd4051, "4051", multiplexeur]
+  is_module: false
+  passive: true
+  pins:
+    - { name: VDD, role: power }
+    - { name: VSS, role: ground }
+  price_eur: 0.23
+  supplier_refs: { lcsc: "C21379" }
+
+- id: io-expander-pcf8574
+  name: Extenseur d'E/S I2C PCF8574 (puce)
+  category: ci
+  description: "8 E/S par I2C ; c'est la puce du « sac à dos » des écrans LCD 16×2."
+  aliases: [pcf8574, pcf8574t, extenseur i2c]
+  is_module: false
+  passive: true
+  i2c_addresses: [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  kicad: { symbol: "Interface_Expansion:PCF8574", footprint: "Package_DIP:DIP-16_W7.62mm" }
+  price_eur: 1.10
+  supplier_refs: { lcsc: "C7605" }
+
+- id: io-expander-mcp23017
+  name: Extenseur d'E/S I2C MCP23017 (16 E/S)
+  category: ci
+  description: "16 E/S avec interruptions, adresse réglable sur 3 bits."
+  aliases: [mcp23017]
+  is_module: false
+  passive: true
+  i2c_addresses: [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27]
+  pins:
+    - { name: VDD, role: power }
+    - { name: VSS, role: ground }
+  price_eur: 1.66
+  supplier_refs: { lcsc: "C629439" }
+
+- id: adc-ads1115
+  name: Convertisseur analogique-numérique ADS1115 (16 bits, puce)
+  category: ci
+  description: "4 voies 16 bits par I2C : bien plus précis que l'ADC des microcontrôleurs."
+  aliases: [ads1115, adc 16 bits]
+  is_module: false
+  passive: true
+  i2c_addresses: [0x48, 0x49, 0x4A, 0x4B]
+  pins:
+    - { name: VDD, role: power }
+    - { name: GND, role: ground }
+  price_eur: 1.10
+  supplier_refs: { lcsc: "C37593" }
+  notes: ["Boîtier VSSOP-10 difficile à souder : le module breakout est conseillé."]
+
+- id: eeprom-at24c256
+  name: Mémoire EEPROM I2C AT24C256 (32 Ko)
+  category: stockage
+  description: "Sauvegarde de réglages ou de mesures qui survit aux coupures."
+  aliases: [at24c256, 24c256, eeprom i2c]
+  is_module: false
+  passive: true
+  i2c_addresses: [0x50, 0x51, 0x52, 0x53]
+  pins:
+    - { name: VCC, role: power }
+    - { name: GND, role: ground }
+  price_eur: 0.31
+  supplier_refs: { lcsc: "C6482" }

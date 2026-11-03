@@ -1,0 +1,184 @@
+# Projets qui exploitent les composants nus du stock complet (étape 5) : registres à décalage,
+# transistors, MOSFET, diodes. `bom_extra` = pièces câblées hors des broches de la carte (LED sur
+# les sorties d'un 74HC595…) : elles figurent dans la nomenclature et le guide, sans broche allouée.
+# Textes affichés : ASCII uniquement.
+
+- id: chenillard-74hc595
+  title: Chenillard 8 LED avec un registre 74HC595
+  description: "Une lumière qui va et vient sur 8 LED (effet « K2000 ») en n'utilisant que 3 broches de la carte."
+  difficulty: 2
+  tags: [lumière, registre à décalage, économie de broches]
+  learning: [registre à décalage 74HC595, liaison série synchrone (données, horloge, verrou), décalage de bits]
+  parts:
+    - { name: registre, component: shift-register-74hc595 }
+  bom_extra:
+    - { component: led, quantity: 8, note: "sur Q0 à Q7 (broches 15 puis 1 à 7), cathode côté masse" }
+    - { component: resistor, quantity: 8, value: 220, note: "une en série avec chaque LED" }
+    - { component: capacitor-ceramic, quantity: 1, value: 1.0e-7, note: "découplage 100 nF entre VCC (16) et GND (8), au plus près du circuit" }
+  globals_extra: |
+    uint8_t position = 0;
+    int8_t sens = 1;
+  logic: |
+    registre_write((uint8_t)(1 << position));
+    position = (uint8_t)(position + sens);
+    if (position == 7 || position == 0) {
+      sens = -sens;
+    }
+    delay(80);
+
+- id: bargraphe-potentiometre
+  title: Bargraphe 8 LED piloté par un potentiomètre
+  description: "Tourne le bouton : de 0 à 8 LED s'allument, comme la jauge de volume d'une chaîne hi-fi."
+  difficulty: 2
+  tags: [lumière, registre à décalage, analogique]
+  learning: [lecture analogique, mise à l'échelle avec map(), masques de bits]
+  parts:
+    - { name: potar, component: potentiometer-10k }
+    - { name: registre, component: shift-register-74hc595 }
+  bom_extra:
+    - { component: led, quantity: 8, note: "sur Q0 à Q7, cathode côté masse" }
+    - { component: resistor, quantity: 8, value: 220, note: "une en série avec chaque LED" }
+    - { component: capacitor-ceramic, quantity: 1, value: 1.0e-7, note: "découplage 100 nF au plus près du 74HC595" }
+  logic: |
+    int n = map(potar_percent(), 0, 100, 0, 8);
+    uint8_t barre = (n >= 8) ? 0xFF : (uint8_t)((1 << n) - 1);
+    registre_write(barre);
+    delay(30);
+
+- id: de-electronique
+  title: Dé électronique à 7 LED
+  description: "Un appui sur le bouton fait « rouler » le dé : les faces défilent puis s'arrêtent sur une valeur de 1 à 6."
+  difficulty: 2
+  tags: [jeu, registre à décalage, aléatoire]
+  learning: [nombres aléatoires et graine, tableaux de motifs binaires, bouton avec anti-rebond]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: registre, component: shift-register-74hc595 }
+  bom_extra:
+    - { component: led, quantity: 7, note: "Q0 haut-gauche, Q1 milieu-gauche, Q2 bas-gauche, Q3 centre, Q4 haut-droite, Q5 milieu-droite, Q6 bas-droite" }
+    - { component: resistor, quantity: 7, value: 220, note: "une en série avec chaque LED" }
+    - { component: capacitor-ceramic, quantity: 1, value: 1.0e-7, note: "découplage 100 nF au plus près du 74HC595" }
+  globals_extra: |
+    // Faces du dé : bit i = LED sur la sortie Qi (disposition donnée dans le guide).
+    const uint8_t FACES[6] = {0b0001000, 0b1000001, 0b1001001, 0b1010101, 0b1011101, 0b1110111};
+    bool graine = false;
+  logic: |
+    if (bouton_clicked()) {
+      if (!graine) {
+        randomSeed(micros());  // l'instant de l'appui humain sert de graine
+        graine = true;
+      }
+      for (int i = 0; i < 12; i++) {
+        registre_write(FACES[random(6)]);
+        delay(40 + i * 15);
+      }
+      int face = random(6);
+      registre_write(FACES[face]);
+      Serial.print("De : ");
+      Serial.println(face + 1);
+    }
+
+- id: lecteur-8-interrupteurs
+  title: Lire 8 interrupteurs avec un 74HC165
+  description: "Huit boutons ou interrupteurs lus avec 3 broches seulement ; chaque changement s'affiche sur le moniteur série."
+  difficulty: 2
+  tags: [entrées, registre à décalage, économie de broches]
+  learning: [registre à décalage 74HC165, chargement parallèle, détection de changement d'état]
+  parts:
+    - { name: registre, component: shift-register-74hc165 }
+  bom_extra:
+    - { component: pushbutton, quantity: 8, note: "entre D0..D7 et VCC" }
+    - { component: resistor, quantity: 8, value: 10000, note: "tirage vers GND de chaque entrée D0..D7 (état défini bouton relâché)" }
+    - { component: capacitor-ceramic, quantity: 1, value: 1.0e-7, note: "découplage 100 nF au plus près du 74HC165 ; CE (15) à la masse" }
+  globals_extra: |
+    uint8_t precedent = 0;
+  logic: |
+    uint8_t etat = registre_read();
+    if (etat != precedent) {
+      Serial.print("Interrupteurs D7..D0 : ");
+      for (int i = 7; i >= 0; i--) {
+        Serial.print((etat >> i) & 1);
+      }
+      Serial.println();
+      precedent = etat;
+    }
+    delay(20);
+
+- id: moteur-vitesse-tip120
+  title: Vitesse d'un moteur réglée au potentiomètre (TIP120)
+  description: "Un moteur à courant continu dont la vitesse suit un bouton rotatif, commandé en PWM par un transistor Darlington."
+  difficulty: 2
+  tags: [moteur, transistor, PWM]
+  learning: [transistor en commutation, modulation de largeur d'impulsion (PWM), diode de roue libre]
+  parts:
+    - { name: moteur, component: dc-motor-tt }
+    - { name: transistor, component: darlington-tip120 }
+    - { name: diode, component: diode-1n4007 }
+    - { name: potar, component: potentiometer-10k }
+  bom_extra:
+    - { component: battery-holder-4aa, quantity: 1, note: "alimentation séparée du moteur (6 V) ; masse reliée à celle de la carte" }
+  logic: |
+    int pourcent = potar_percent();
+    transistor_set((uint8_t)map(pourcent, 0, 100, 0, 255));
+    Serial.print("Vitesse : ");
+    Serial.print(pourcent);
+    Serial.println(" %");
+    delay(50);
+
+- id: ventilateur-pwm-mosfet
+  title: Ventilateur 12 V proportionnel à la température (MOSFET)
+  description: "Le ventilateur reste arrêté sous 25 °C puis accélère progressivement jusqu'à pleine vitesse à 35 °C."
+  difficulty: 3
+  tags: [maison, MOSFET, PWM, régulation]
+  learning: [MOSFET à seuil logique, régulation proportionnelle, démarrage d'un moteur (vitesse minimale)]
+  parts:
+    - { name: capteur, component: dht22 }
+    - { name: transistor, component: mosfet-irlz44n }
+    - { name: diode, component: diode-1n4007 }
+    - { name: ventilateur, component: fan-12v }
+  bom_extra:
+    - { component: resistor, quantity: 1, value: 10000, note: "entre grille et source : le MOSFET reste bloqué au démarrage de la carte" }
+  logic: |
+    float t = capteur_temperature();
+    if (isnan(t)) {
+      transistor_off();
+      Serial.println("Capteur ?");
+      delay(2000);
+      return;
+    }
+    int niveau = 0;
+    if (t > 25.0) {
+      // 25 -> 35 C : de 40 % (en dessous, un ventilateur cale) à 100 %
+      niveau = constrain(map((long)(t * 10), 250, 350, 100, 255), 100, 255);
+    }
+    transistor_set((uint8_t)niveau);
+    Serial.print(t, 1);
+    Serial.print(" C -> PWM ");
+    Serial.println(niveau);
+    delay(2000);
+
+- id: arrosage-mosfet
+  title: Arrosage automatique silencieux (pompe sur MOSFET)
+  description: "Quand la terre est sèche, la pompe arrose par impulsions courtes puis laisse l'eau diffuser avant de remesurer."
+  difficulty: 2
+  tags: [plantes, MOSFET, eau]
+  learning: [MOSFET à la place d'un relais (silencieux, sans usure), arrosage par impulsions, étalonnage d'un capteur]
+  parts:
+    - { name: sonde, component: soil-moisture-capacitive }
+    - { name: transistor, component: mosfet-irlz44n }
+    - { name: diode, component: diode-1n4007 }
+    - { name: pompe, component: water-pump-5v }
+  bom_extra:
+    - { component: resistor, quantity: 1, value: 10000, note: "entre grille et source du MOSFET" }
+  logic: |
+    int humidite = sonde_percent();
+    Serial.print("Humidite : ");
+    Serial.print(humidite);
+    Serial.println(" %");
+    if (humidite < 35) {
+      transistor_on();
+      delay(3000);   // impulsion courte : jamais de pompe qui tourne sans fin
+      transistor_off();
+      delay(30000);  // l'eau diffuse avant la mesure suivante
+    }
+    delay(2000);

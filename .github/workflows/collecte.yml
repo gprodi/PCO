@@ -1,0 +1,102 @@
+# C1–C4 — Collecte réelle des données MicroForge sur un runner GitHub (accès Internet complet) :
+# extraction (taux de change, index Arduino, catalogue LCSC/JLCPCB, GitHub, Fritzing) -> agrégation
+# et nettoyage -> import dans PostgreSQL -> résumé (volumes, rejets, comptages en base) + artefacts.
+# DigiKey / Mouser s'ajoutent quand leurs clés sont définies en secrets du dépôt.
+name: collecte
+
+on:
+  push:
+    paths:
+      - "microforge/src/microforge/data_pipeline/**"
+      - ".github/workflows/collecte.yml"
+  schedule:
+    - cron: "17 5 * * 1"  # lundi 05 h 17 UTC (catalogue jlcparts régénéré chaque nuit)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collecte-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  collecte:
+    name: Collecte -> agrégation -> PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: microforge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 12
+    env:
+      MF_DATABASE_URL: postgresql+psycopg://postgres:ci@localhost:5432/microforge
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DIGIKEY_CLIENT_ID: ${{ secrets.DIGIKEY_CLIENT_ID }}
+      DIGIKEY_CLIENT_SECRET: ${{ secrets.DIGIKEY_CLIENT_SECRET }}
+      MOUSER_API_KEY: ${{ secrets.MOUSER_API_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - run: uv sync --all-packages --extra data --extra db
+      - name: Pièces Fritzing (clone partiel, licence CC BY-SA)
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --sparse https://github.com/fritzing/fritzing-parts.git
+          git -C fritzing-parts sparse-checkout set core
+      - name: Collecte, agrégation, import
+        run: |
+          SOURCES=fx,arduino_index,lcsc,github
+          if [ -n "$DIGIKEY_CLIENT_ID" ]; then SOURCES="$SOURCES,digikey"; fi
+          if [ -n "$MOUSER_API_KEY" ]; then SOURCES="$SOURCES,mouser"; fi
+          uv run mf-pipeline run --sources "$SOURCES" --fritzing-path fritzing-parts/core \
+            --raw-dir data/raw --out-dir data/clean --report data/rapport.json > /dev/null
+      - name: Résumé (volumes réels)
+        if: always()
+        run: |
+          if [ -f data/rapport.json ]; then
+            uv run python -m microforge.data_pipeline.summary data/rapport.json | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Contrôles du catalogue avec les données collectées
+        run: |
+          # Bibliothèques citées par les composants présentes dans l'index Arduino officiel ;
+          # bus I2C/SPI des cartes conformes aux variantes des cœurs (sinon le câblage ment).
+          uv run mf-pipeline check-libs --clean-dir data/clean > data/controle_bibliotheques.json
+          uv run python -m microforge.core.cli verify-boards --out data/controle_cartes.json > /dev/null
+          uv run python - <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          libs = json.load(open("data/controle_bibliotheques.json"))
+          cards = json.load(open("data/controle_cartes.json"))
+          print("\n## Contrôles du catalogue\n")
+          print(f"- Bibliothèques citées : {libs['citees']}, absentes de l'index : {len(libs['manquantes'])}")
+          print(f"- Cartes vérifiées : {cards['verifiees']}, conformes : {cards['ok']}, écarts : {len(cards['ecarts'])}")
+          EOF
+      - name: Artefacts (jeu nettoyé, rapport, manifestes)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: collecte-${{ github.run_number }}
+          path: |
+            data/rapport.json
+            data/clean/
+            data/raw/*/*/manifest.json
+            data/controle_*.json
+          retention-days: 30
+      - name: Échec si une source sans clé a échoué
+        run: |
+          uv run python - <<'EOF'
+          import json, sys
+          r = json.load(open("data/rapport.json"))
+          bad = [e for e in r["extractions"] if e["status"] != "success"]
+          for e in bad:
+              print(f"::error::{e['source']} : {e['message']}")
+          sys.exit(1 if bad else 0)
+          EOF

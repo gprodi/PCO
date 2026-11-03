@@ -1,0 +1,50 @@
+{
+ "created": "2026-11-03T02:28:56+00:00",
+ "attributesLut": "attributes-lut.json.gz",
+ "totalComponents": 3,
+ "categories": [
+  {
+   "category": "Resistors",
+   "subcategory": "Through Hole Resistors",
+   "componentCount": 2,
+   "shards": [
+    "components-resistors-001.jsonl.gz"
+   ]
+  },
+  {
+   "category": "Capacitors",
+   "subcategory": "Ceramic Disc Capacitors",
+   "componentCount": 1,
+   "shards": [
+    "components-caps-001.jsonl.gz"
+   ]
+  },
+  {
+   "category": "Diodes",
+   "subcategory": "Zener Diodes",
+   "componentCount": 2,
+   "shards": [
+    "components-corrupt-001.jsonl.gz"
+   ]
+  },
+  {
+   "category": "Memory",
+   "subcategory": "NOR FLASH",
+   "componentCount": 9,
+   "shards": [
+    "absent.jsonl.gz"
+   ]
+  }
+ ],
+ "files": {
+  "components-resistors-001.jsonl.gz": {
+   "sha256": "2711a700a4bdfea241f88d87bb196ef08d5eaa9692ad485c6bca7321dbe6f553"
+  },
+  "components-caps-001.jsonl.gz": {
+   "sha256": "2056153ce78acfe9196d3eb0fdca6d7ef33399bbe30b0eff7b86367ec3bffb24"
+  },
+  "components-corrupt-001.jsonl.gz": {
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+ }
+}

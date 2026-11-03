@@ -10,8 +10,10 @@
 ## Dépendances
 - Modèles : `ollama pull qwen3:8b qwen3-vl:8b bge-m3` (selon `llm-gateway doctor`).
 - Configuration : `microforge/infra/litellm/config.yaml` (alias `mf-text`, `mf-code`, `mf-vision`, `mf-embed`,
-  repli Gemini puis Claude, délais, tentatives).
-- **Sécurité de la chaîne** : image LiteLLM épinglée par digest (paquets PyPI compromis en mars 2026).
+  repli Gemini (offre gratuite), délais, tentatives).
+- **Sécurité de la chaîne** : LiteLLM uniquement en image Docker, jamais depuis PyPI (versions 1.82.7/1.82.8
+  compromises en mars 2026). L'image suit encore le tag `main-stable` : épinglage de la v1.106.6 par empreinte,
+  après vérification de sa signature cosign, à faire (veille 2026-45).
 
 ## Accès
 - Ollama **non exposé** : réseau Docker interne `backend` uniquement.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 import pytest
@@ -158,7 +159,7 @@ def test_add_course_index_and_chat(tmp_path):
     assert content.slug == "kubernetes-et-keda"
     assert "kubernetes-et-keda" in all_courses(tmp_path / "content")
     index = VectorIndex.load(tmp_path / "content" / "_index.json")
-    assert index.items and index.items[0]["course"] == "kubernetes-et-keda"
+    assert len(index) and index.backend == "mémoire"
     ans = chat("Qu'est-ce qu'un Pod ?", index, gw)
     assert ans.citations and ans.citations[0]["course"] == "kubernetes-et-keda"
     qs = oral_questions("E3", gw, n=3, seed=1)
@@ -179,7 +180,68 @@ def test_vector_index_roundtrip(tmp_path):
     assert idx.search([0.9, 0.1], k=1)[0][1]["id"] == "a#0"
     assert idx.search([0.9, 0.1], k=2, courses=["b"])[0][1]["id"] == "b#0"
     idx.save(tmp_path / "i.json")
-    assert len(VectorIndex.load(tmp_path / "i.json").items) == 2
+    reloaded = VectorIndex.load(tmp_path / "i.json")
+    assert len(reloaded) == 2 and reloaded.search([0.0, 1.0], k=1)[0][1]["course"] == "b"
+
+
+def test_legacy_index_json_is_still_readable(tmp_path):
+    """Ancien ``_index.json`` (liste de passages avec « course ») : relu puis réécrit au nouveau format."""
+    path = tmp_path / "_index.json"
+    path.write_text(
+        json.dumps(
+            [{"id": "a#0", "course": "a", "heading": "h", "text": "t", "vector": [1.0, 0.0]}]
+        )
+    )
+    idx = VectorIndex.load(path)
+    assert idx.search([1.0, 0.0])[0][1] == {"id": "a#0", "course": "a", "heading": "h", "text": "t"}
+    idx.save()
+    assert "group" in json.loads(path.read_text())[0] and len(VectorIndex.load(path)) == 1
+
+
+def test_build_index_rebuilds_from_scratch_and_cli_reports_backend(tmp_path, monkeypatch):
+    from revision.pipeline import build_index, save_source
+    from revision.store import open_course_index
+
+    content = tmp_path / "content"
+    monkeypatch.setattr("revision.pipeline.all_courses", lambda _d=None: {"demo": {}, "vide": {}})
+    save_source("demo", "# Démo\n\nUn passage sur MLflow et le registre de modèles.", content)
+    stale = VectorIndex(
+        [{"id": "x#0", "course": "obsolete", "heading": "h", "text": "t", "vector": [1.0] * 64}]
+    )
+    stale.save(content / "_index.json")
+    monkeypatch.delenv("REVISION_VECTOR_URL", raising=False)
+    assert build_index(fake_gateway(), content) >= 1
+    idx = open_course_index(content)
+    assert {h["course"] for _, h in idx.search(fake_gateway().embed(["mlflow"])[0], k=9)} == {
+        "demo"
+    }
+
+
+PG_URL = os.environ.get("PGVECTOR_TEST_URL")
+
+
+@pytest.mark.pgvector
+@pytest.mark.skipif(not PG_URL, reason="PGVECTOR_TEST_URL non défini (base PostgreSQL + pgvector)")
+def test_course_rag_on_pgvector(tmp_path, monkeypatch):
+    """Même parcours que le JSON local, mais l'index vit dans PostgreSQL (REVISION_VECTOR_URL)."""
+    from revision.pipeline import add_course, build_index
+    from revision.rag import chat
+    from revision.store import open_course_index
+
+    monkeypatch.setenv("REVISION_VECTOR_URL", PG_URL)
+    gw = fake_gateway()
+    content = tmp_path / "content"
+    add_course("Un Pod est la plus petite unité déployable.", "Kubernetes", "mlops", gw, content)
+    idx = open_course_index(content)
+    try:
+        assert idx.backend == "pgvector" and len(idx) >= 1
+        assert not (content / "_index.json").exists()  # rien d'écrit en local
+        ans = chat("Qu'est-ce qu'un Pod ?", idx, gw, courses=["kubernetes"])
+        assert ans.citations[0]["course"] == "kubernetes"
+        monkeypatch.setattr("revision.pipeline.all_courses", lambda _d=None: {"kubernetes": {}})
+        assert build_index(gw, content) == len(idx)
+    finally:
+        idx.clear()
 
 
 # ------------------------------------------------------------------ seed & export
@@ -389,3 +451,21 @@ def test_stop_tree_kills_grandchildren():
     except (ProcessLookupError, FileNotFoundError):
         alive = False
     assert not alive
+
+
+def test_rag_indexes_hand_written_fiches():
+    """Les 36 fiches rédigées à la main alimentent le RAG (notions, exercices corrigés, QCM…)."""
+    from revision.pipeline import content_chunks, course_passages
+
+    from revision.seed import load_seed
+
+    content = load_seed(PATHS.seed / "mlflow.yaml")
+    chunks = content_chunks(content)
+    ids = [c.id for c in chunks]
+    assert len(ids) == len(set(ids)) and all(i.startswith("mlflow#") for i in ids)
+    kinds = {i.split("#")[1].split("-")[0] for i in ids}
+    assert {"resume", "notion", "points", "pieges", "plus", "jury", "exo", "qcm", "cartes"} <= kinds
+    exo = next(c for c in chunks if c.id == "mlflow#exo-0")
+    assert "Corrigé" in exo.text and exo.heading.startswith(content.titre)
+    total = sum(len(course_passages(s)) for s in registry()["courses"])
+    assert total >= 36 * 20  # fiche + QCM + cartes + exercices pour chaque cours

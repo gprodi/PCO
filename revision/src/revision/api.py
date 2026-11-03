@@ -21,7 +21,7 @@ from revision.ingest.converters import SUPPORTED, convert_bytes, convert_url
 from revision.pipeline import add_course, all_courses
 from revision.rag import JuryQuestion, chat, evaluate_answer, oral_questions
 from revision.site_export import export
-from revision.store import VectorIndex
+from revision.store import open_course_index
 
 JOBS: dict[str, dict[str, Any]] = {}
 
@@ -123,8 +123,8 @@ def create_app() -> FastAPI:
 
     @app.post("/chat")
     def chat_endpoint(body: ChatIn) -> dict:
-        index = VectorIndex.load(content_dir() / "_index.json")
-        if not index.items:
+        index = open_course_index(content_dir())
+        if not len(index):
             raise HTTPException(409, "Index vide : lancer « revise index » d'abord")
         return chat(body.question, index, gateway(), body.courses).model_dump()
 

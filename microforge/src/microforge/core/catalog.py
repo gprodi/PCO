@@ -146,8 +146,8 @@ class Catalog:
             fams &= set(tpl.board_families)
         for part in tpl.parts:
             comp = self.components.get(self.resolve(part.component) or part.component)
-            if comp is not None and comp.families:
-                fams &= set(comp.families)
+            if comp is not None:
+                fams = {f for f in fams if comp.supports_family(f)}
         if tpl.requires_wifi:
             fams &= {f for f, d in self.families.items() if d.wifi_supported}
         order = list(self.families)
@@ -155,8 +155,14 @@ class Catalog:
 
     def template_fits(self, template_id: str, board: BoardDef) -> bool:
         tpl = self.templates[template_id]
-        return board.family in self.template_families(template_id) and (
-            board.wifi or not tpl.requires_wifi
+        return (
+            board.family in self.template_families(template_id)
+            and (board.wifi or not tpl.requires_wifi)
+            and all(
+                comp.supports(board)
+                for part in tpl.parts
+                if (comp := self.components.get(self.resolve(part.component) or part.component))
+            )
         )
 
     def boards_for_template(self, template_id: str) -> list[BoardDef]:
@@ -180,7 +186,11 @@ class Catalog:
         if exact:
             return exact
         padded = f" {normalize(text)} "
-        for alias in sorted(self._aliases, key=len, reverse=True):
+        if getattr(self, "_aliases_sorted", None) is None or len(self._aliases_sorted) != len(
+            self._aliases
+        ):  # cache : appelée des dizaines de milliers de fois par l'agrégation (C3)
+            self._aliases_sorted = sorted(self._aliases, key=len, reverse=True)
+        for alias in self._aliases_sorted:
             if len(alias) >= 3 and f" {alias} " in padded:
                 return self._aliases[alias]
         return None

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from llm_gateway import LLMError
 from loguru import logger
 from prometheus_client import Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -15,8 +16,17 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from microforge.api_ia.deps import Principal, current_principal, services, user_key
-from microforge.api_ia.schemas import BuildIn, BuildOut, ExploreIn, GoalIn, IdeasIn, InventoryIn
+from microforge.api_ia.schemas import (
+    BuildIn,
+    BuildOut,
+    CopilotIn,
+    ExploreIn,
+    GoalIn,
+    IdeasIn,
+    InventoryIn,
+)
 from microforge.common.settings import get_settings, setup_logging
+from microforge.copilot import CopilotAnswer
 from microforge.core.allocator import AllocationError
 from microforge.core.ideas import explore, inspiration
 from microforge.core.models import BuildResult, ProjectSpec
@@ -121,7 +131,27 @@ def create_app() -> FastAPI:
             "profile": svc.gateway.profile.name,
             "vision_model": svc.gateway.profile.model_for("ollama", "vision"),
             "llm_stats": dict(svc.gateway.stats),
+            "copilot_index": svc.copilot.backend,
         }
+
+    @app.post("/v1/copilot/ask", response_model=CopilotAnswer, tags=["copilote"])
+    @limiter.limit(lambda: get_settings().rate_limit_copilot)
+    def copilot_ask(
+        request: Request, body: CopilotIn, p: Principal = Depends(current_principal)
+    ) -> CopilotAnswer:
+        """Question libre sur le matériel : réponse citée [n] à partir du catalogue (RAG).
+
+        « Je ne sais pas » sous le seuil de similarité ; passages bruts si aucun modèle de langage
+        n'est joignable. La question n'est pas journalisée (seulement le mode et le nombre de sources).
+        """
+        try:
+            answer = services().copilot.ask(body.question, body.inventory)
+        except LLMError as exc:  # pas de modèle d'embeddings : recherche impossible
+            raise HTTPException(503, "Copilote indisponible : aucun modèle d'embeddings") from exc
+        logger.info(
+            "Copilote user={} mode={} sources={}", p.user_id, answer.mode, len(answer.sources)
+        )
+        return answer
 
     @app.post("/v1/vision/scan", response_model=ScanResult, tags=["vision"])
     @limiter.limit(lambda: get_settings().rate_limit_vision)
@@ -156,7 +186,7 @@ def create_app() -> FastAPI:
     @app.post("/v1/builds/generate", response_model=BuildOut, tags=["projets"])
     def generate(body: BuildIn, _p: Principal = Depends(current_principal)) -> BuildOut:
         try:
-            return _build_out(services().builder.build(_spec(body)))
+            return _build_out(services().builder.build(_spec(body), body.owned_resistors))
         except (AllocationError, KeyError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -164,7 +194,7 @@ def create_app() -> FastAPI:
     def bundle(body: BuildIn, _p: Principal = Depends(current_principal)) -> Response:
         svc = services()
         try:
-            result = svc.builder.build(_spec(body))
+            result = svc.builder.build(_spec(body), body.owned_resistors)
         except (AllocationError, KeyError) as exc:
             raise HTTPException(422, str(exc)) from exc
         return Response(

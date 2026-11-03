@@ -10,21 +10,19 @@ model_list:
     litellm_params: { model: ollama_chat/qwen3-vl:8b, api_base: "os.environ/OLLAMA_BASE_URL" }
   - model_name: mf-embed
     litellm_params: { model: ollama/bge-m3, api_base: "os.environ/OLLAMA_BASE_URL" }
-  # Secours (offre gratuite Gemini puis Claude, payant)
+  # Secours : offre gratuite Gemini (aucune API payante : pas d'abonnement Claude/OpenAI)
   - model_name: mf-text-fallback
     litellm_params: { model: gemini/gemini-flash-latest, api_key: "os.environ/GEMINI_API_KEY" }
   - model_name: mf-vision-fallback
     litellm_params: { model: gemini/gemini-flash-latest, api_key: "os.environ/GEMINI_API_KEY" }
-  - model_name: mf-claude
-    litellm_params: { model: anthropic/claude-opus-5-5, api_key: "os.environ/ANTHROPIC_API_KEY" }
 
 router_settings:
   num_retries: 1
   timeout: 120
   fallbacks:
-    - mf-text: [mf-text-fallback, mf-claude]
-    - mf-code: [mf-text-fallback, mf-claude]
-    - mf-vision: [mf-vision-fallback, mf-claude]
+    - mf-text: [mf-text-fallback]
+    - mf-code: [mf-text-fallback]
+    - mf-vision: [mf-vision-fallback]
 
 litellm_settings:
   drop_params: true

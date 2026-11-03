@@ -121,3 +121,25 @@ veilleuse-rgb:
 sonnette-melodie:
   - { site: ArduinoGetStarted, title: "Arduino - Button - Piezo Buzzer (mélodie)", url: "https://arduinogetstarted.com/tutorials/arduino-button-piezo-buzzer" }
   - { site: Instructables, title: "Arduino Doorbell", url: "https://www.instructables.com/Arduino-Doorbell/" }
+# --- Projets du stock complet (étape 5), références repérées le 03/11/2026 ---
+chenillard-74hc595:
+  - { site: Arduino, title: "Serial to Parallel Shifting-Out with a 74HC595", url: "https://www.arduino.cc/en/Tutorial/ShftOut12/" }
+  - { site: Adafruit, title: "Arduino Lesson 4. Eight LEDs and a Shift Register", url: "https://learn.adafruit.com/adafruit-arduino-lesson-4-eight-leds" }
+bargraphe-potentiometre:
+  - { site: SunFounder, title: "ShiftOut (LED) — 74HC595", url: "https://docs.sunfounder.com/projects/3in1-kit-v2/en/latest/basic_project/ar_shiftout_led.html", proche: true }
+  - { site: Little Bird Electronics, title: "Shift Register with Arduino", url: "https://learn.littlebirdelectronics.com.au/guides/shift-register-with-arduino", proche: true }
+de-electronique:
+  - { site: Arduino Project Hub, title: "Two x six sided die sketch using 74HC595 ICs", url: "https://projecthub.arduino.cc/ronbentley1/a8c6b9b1-47e9-4bf3-b809-e3c5d0be0d0e" }
+  - { site: SunFounder, title: "Electronic Dice (74HC595)", url: "https://docs.sunfounder.com/projects/3in1-kit/en/latest/basic_project/ar_dice.html", proche: true }
+lecteur-8-interrupteurs:
+  - { site: Makerguides, title: "More inputs with the 74HC165 shift register", url: "https://www.makerguides.com/more-inputs-with74hc1655-shift-register/" }
+  - { site: SparkFun, title: "Shift Registers", url: "https://learn.sparkfun.com/tutorials/shift-registers/all" }
+moteur-vitesse-tip120:
+  - { site: Arduino, title: "Transistor Motor Control", url: "https://docs.arduino.cc/learn/electronics/transistor-motor-control" }
+  - { site: Hackster, title: "Arduino Workshop: Simple Motor Control", url: "https://www.hackster.io/sarful/arduino-workshop-simple-motor-control-d7dcd3" }
+ventilateur-pwm-mosfet:
+  - { site: Zbotic, title: "Arduino fan controller: temperature-triggered cooling (IRLZ44N)", url: "https://zbotic.in/arduino-fan-controller-temperature-triggered-cooling/", proche: true }
+  - { site: Circuit Digest, title: "Arduino Temperature Control - Adjust Fan Speed based on Temperature", url: "https://circuitdigest.com/microcontroller-projects/automatic-temperature-controlled-fan-project", proche: true }
+arrosage-mosfet:
+  - { site: Science Buddies, title: "Arduino Automatic Plant Watering", url: "https://www.sciencebuddies.org/science-fair-projects/project-ideas/PlantBio_p055/plant-biology/arduino-automatic-plant-watering" }
+  - { site: ArduinoGetStarted, title: "Arduino - Automatic Irrigation System", url: "https://arduinogetstarted.com/tutorials/arduino-automatic-irrigation-system", proche: true }
