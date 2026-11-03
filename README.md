@@ -59,6 +59,32 @@ uv run revise start
 ollama pull qwen3:4b
 ```
 
+Le chat cite ses sources : il cherche dans un index sémantique des 36 fiches rédigées (notions, points clés, pièges, exercices corrigés, QCM, flashcards : 829 passages) et des supports ingérés (`uv run revise ingest`). Construire l'index une fois (modèle d'embeddings multilingue) :
+
+```bash
+ollama pull bge-m3
+```
+
+```bash
+uv run revise index
+```
+
+Par défaut l'index est un fichier JSON local. Pour le placer dans **PostgreSQL + pgvector** (index HNSW en distance cosinus, partagé entre machines ou avec l'API en conteneur) :
+
+```bash
+docker run -d --name revision-pg -e POSTGRES_PASSWORD=revision -p 127.0.0.1:5433:5432 pgvector/pgvector:pg17
+```
+
+```bash
+uv sync --all-packages --extra pgvector
+```
+
+```bash
+REVISION_VECTOR_URL=postgresql+psycopg://postgres:revision@127.0.0.1:5433/postgres uv run revise index
+```
+
+La même variable `REVISION_VECTOR_URL` doit être définie dans le terminal qui lance `revise start` (le chat interroge alors PostgreSQL).
+
 Version en ligne, sans installation (lecture, QCM, flashcards) : le lien privé partagé par Claude. Autres commandes : `uv run revise --help`.
 
 ### Tests

@@ -56,11 +56,19 @@ def generate(slug: str = typer.Argument(None), force: bool = False) -> None:
 
 
 @app.command()
-def index() -> None:
+def index(
+    vector_url: str = typer.Option(
+        None,
+        "--vector-url",
+        envvar="REVISION_VECTOR_URL",
+        help="postgresql+psycopg://… : index dans PostgreSQL + pgvector (sinon JSON local)",
+    ),
+) -> None:
     """Construit l'index sémantique (embeddings) pour le chat."""
     from revision.pipeline import build_index
 
-    typer.echo(f"{build_index(_gateway())} passages indexés")
+    where = "PostgreSQL + pgvector" if (vector_url or "").startswith("postgresql") else "JSON local"
+    typer.echo(f"{build_index(_gateway(), url=vector_url or '')} passages indexés ({where})")
 
 
 @app.command()
@@ -215,10 +223,16 @@ def podcast(
 def status() -> None:
     """État : cours, contenus disponibles, index."""
     from revision.pipeline import all_courses
+    from revision.store import open_course_index
 
     for slug, info in all_courses().items():
         has = (PATHS.content / slug / "content.json").exists()
         typer.echo(f"{'✅' if has else '⬜'} {slug:26s} {info['title']}")
+    try:
+        idx = open_course_index(PATHS.content)
+        typer.echo(f"Index ({idx.backend}) : {len(idx)} passages")
+    except Exception as exc:  # base injoignable : l'état des cours reste affiché
+        typer.echo(f"Index : indisponible ({exc.__class__.__name__})")
 
 
 if __name__ == "__main__":

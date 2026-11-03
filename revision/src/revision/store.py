@@ -1,55 +1,103 @@
-"""Index sémantique léger (JSON + cosinus en Python pur) — Chroma en option (extra « chroma »).
+"""Index sémantique des cours, sur le stockage vectoriel commun (``llm_gateway.vectorstore``).
 
-Volume visé : quelques milliers de passages -> pas besoin d'un serveur vectoriel (sobriété).
+* par défaut : index **mémoire** persisté en JSON (``content/_index.json``) — aucun serveur ;
+* avec ``REVISION_VECTOR_URL=postgresql+psycopg://…`` : **PostgreSQL + pgvector** (table
+  ``revision_chunks``, index HNSW cosinus, filtrage par cours en SQL) — même interface.
+
+Volume visé : quelques milliers de passages ; pgvector sert dès que l'index est partagé (API dans un
+conteneur, plusieurs postes) ou grossit (ajout de cours, documents complémentaires).
 """
 
 from __future__ import annotations
 
 import json
-import math
-from dataclasses import asdict
+import os
+from collections.abc import Sequence
+from functools import lru_cache
 from pathlib import Path
 
 from llm_gateway import Gateway
+from llm_gateway.vectorstore import (
+    MemoryVectorStore,
+    PgVectorStore,
+    Record,
+    VectorStore,
+    index_records,
+)
 
 from revision.ingest.chunker import Chunk
 
+ENV_URL = "REVISION_VECTOR_URL"
+PG_TABLE = "revision_chunks"
+
+
+def _hit(rec: Record) -> dict:
+    """Passage au format attendu par le RAG (``id``, ``course``, ``heading``, ``text``)."""
+    return {"id": rec.id, "course": rec.group, "heading": rec.title, "text": rec.text}
+
 
 class VectorIndex:
-    def __init__(self, items: list[dict] | None = None) -> None:
-        self.items = items or []  # {"id","course","heading","text","vector"}
+    """Passages de cours indexés ; ``course`` = groupe du stockage vectoriel."""
 
-    @staticmethod
-    def _norm(v: list[float]) -> list[float]:
-        n = math.sqrt(sum(x * x for x in v)) or 1.0
-        return [x / n for x in v]
+    def __init__(self, items: list[dict] | None = None, store: VectorStore | None = None) -> None:
+        self.store = store if store is not None else MemoryVectorStore()  # vide = falsy (__len__)
+        if items:  # format historique : {"id","course","heading","text","vector"}
+            self.store.upsert(
+                [Record(i["id"], i["course"], i["heading"], i["text"]) for i in items],
+                [i["vector"] for i in items],
+            )
 
-    def add(self, chunks: list[Chunk], gateway: Gateway, batch: int = 32) -> None:
-        self.items = [i for i in self.items if i["course"] not in {c.course for c in chunks}]
-        for start in range(0, len(chunks), batch):
-            part = chunks[start : start + batch]
-            vectors = gateway.embed([f"{c.heading}\n{c.text}" for c in part])
-            for c, v in zip(part, vectors, strict=True):
-                self.items.append({**asdict(c), "vector": self._norm(v)})
+    @property
+    def backend(self) -> str:
+        return "pgvector" if isinstance(self.store, PgVectorStore) else "mémoire"
+
+    def add(self, chunks: Sequence[Chunk], gateway: Gateway, batch: int = 32) -> None:
+        """Indexe des passages ; ceux des cours concernés sont d'abord remplacés."""
+        records = [Record(c.id, c.course, c.heading, c.text) for c in chunks]
+        index_records(self.store, records, gateway, batch=batch)
 
     def search(
-        self, query_vector: list[float], k: int = 5, courses: list[str] | None = None
+        self, query_vector: Sequence[float], k: int = 5, courses: list[str] | None = None
     ) -> list[tuple[float, dict]]:
-        q = self._norm(query_vector)
-        scored = []
-        for item in self.items:
-            if courses and item["course"] not in courses:
-                continue
-            if len(item["vector"]) != len(q):
-                continue
-            scored.append((sum(a * b for a, b in zip(q, item["vector"], strict=True)), item))
-        scored.sort(key=lambda t: -t[0])
-        return scored[:k]
+        return [(s, _hit(r)) for s, r in self.store.search(query_vector, k=k, groups=courses)]
 
-    def save(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.items, ensure_ascii=False), encoding="utf-8")
+    def clear(self) -> None:
+        if isinstance(self.store, PgVectorStore):
+            self.store.reset()
+        else:
+            empty = MemoryVectorStore()
+            empty.path = getattr(self.store, "path", None)
+            self.store = empty
+
+    def save(self, path: Path | None = None) -> None:
+        """Persistance JSON de l'index mémoire ; sans objet avec pgvector (déjà en base)."""
+        if isinstance(self.store, MemoryVectorStore):
+            self.store.save(path)
+
+    def __len__(self) -> int:
+        return len(self.store)
 
     @classmethod
     def load(cls, path: Path) -> VectorIndex:
-        return cls(json.loads(path.read_text(encoding="utf-8")) if path.exists() else [])
+        """Index mémoire depuis un JSON (accepte aussi l'ancien format de ``_index.json``)."""
+        if path.exists():
+            rows = json.loads(path.read_text(encoding="utf-8"))
+            if rows and "course" in rows[0]:
+                idx = cls(rows, MemoryVectorStore())
+                idx.store.path = path
+                return idx
+        return cls(store=MemoryVectorStore(path))
+
+
+@lru_cache(maxsize=4)
+def _pg_store(url: str) -> PgVectorStore:
+    """Un moteur SQLAlchemy (pool de connexions) par URL, partagé entre les requêtes."""
+    return PgVectorStore(url, PG_TABLE)
+
+
+def open_course_index(content_dir: Path, url: str | None = None) -> VectorIndex:
+    """pgvector si ``url`` (ou ``REVISION_VECTOR_URL``) désigne PostgreSQL, sinon JSON local."""
+    url = url if url is not None else os.environ.get(ENV_URL, "")
+    if url.startswith("postgresql"):
+        return VectorIndex(store=_pg_store(url))
+    return VectorIndex.load(content_dir / "_index.json")

@@ -8000,6 +8000,9 @@ dependencies = [
 chroma = [
     { name = "chromadb" },
 ]
+pgvector = [
+    { name = "llm-gateway", extra = ["pgvector"] },
+]
 podcast = [
     { name = "piper-tts" },
 ]
@@ -8014,6 +8017,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "llm-gateway", editable = "packages/llm_gateway" },
+    { name = "llm-gateway", extras = ["pgvector"], marker = "extra == 'pgvector'", editable = "packages/llm_gateway" },
     { name = "loguru", specifier = ">=0.7" },
     { name = "markdownify", specifier = ">=0.13" },
     { name = "nbformat", specifier = ">=5.10" },
@@ -8030,7 +8034,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["chroma", "web", "podcast"]
+provides-extras = ["chroma", "pgvector", "web", "podcast"]
 
 [[package]]
 name = "rfc3339-validator"

@@ -62,6 +62,7 @@ addopts = "-q --strict-markers"
 markers = [
     "integration: tests nécessitant des services (Postgres, Redis...)",
     "network: tests nécessitant Internet (désactivés en CI)",
+    "pgvector: tests nécessitant PostgreSQL + pgvector (PGVECTOR_TEST_URL ; job CI dédié)",
 ]
 filterwarnings = ["ignore::DeprecationWarning"]
 

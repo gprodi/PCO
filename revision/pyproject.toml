@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 chroma = ["chromadb>=0.5"]
+pgvector = ["llm-gateway[pgvector]"]  # index des cours dans PostgreSQL (REVISION_VECTOR_URL)
 web = ["trafilatura>=1.12"]
 podcast = ["piper-tts>=1.2"]
 
