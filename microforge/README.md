@@ -27,6 +27,7 @@ Interface : http://localhost:8501 · API données : http://localhost:8000/docs �
 |---|---|---|
 | `src/microforge/core` | catalogue (40 cartes, 103 composants, 59 projets), allocateur, ERC, firmware, sorties | E4 |
 | `src/microforge/copilot` | copilote RAG : catalogue → 379 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
+| `src/microforge/sim` | atelier virtuel : transpileur C++ → JavaScript (sous-ensemble des projets, temps virtuel), moteur `mfsim.js` et 55 modèles de composants, mode « Je branche » (`atelier.js`), page Streamlit « Atelier virtuel » | E4 |
 | `src/microforge/data_pipeline` | collecte 5 types de sources, SQL, agrégation, import, purge RGPD | E1 |
 | `src/microforge/api_data` | API données (JWT RS256, RGPD, OWASP) | E1, E4 |
 | `src/microforge/api_ia` + `vision` | API du modèle (vision YOLO+VLM, génération) | E3 |
