@@ -37,7 +37,7 @@ def test_corpus_covers_the_whole_catalog():
     devkit = next(r for r in records if r.id == "carte:esp32-devkit-v1")
     assert "SDA=D21" in devkit.text and "entrée seule" in devkit.text and "ADC2" in devkit.text
     ds = next(r for r in records if r.id == "composant:ds18b20")
-    assert "ESP32-C6" in ds.text and "OneWire" in ds.text  # règle réelle du moteur
+    assert "ESP32-C6" in ds.text and "ESP32-H2" in ds.text and "OneWire" in ds.text
     assert "gpio_" not in "".join(r.text for r in records)  # rôles traduits
 
 

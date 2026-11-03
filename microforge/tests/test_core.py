@@ -658,6 +658,7 @@ def test_component_exclusions_follow_real_compile_failures():
     ir, ds = CAT.component("ir-receiver"), CAT.component("ds18b20")
     assert not ir.supports(due) and ir.supports(esp32)
     assert not ds.supports(c6) and not ds.supports(CAT.board("xiao-esp32c6"))
+    assert not ds.supports(CAT.board("esp32-h2-devkitm-1"))  # CI run n°41 : même erreur OneWire
     assert ds.supports(esp32) and ds.supports(due)
     for tpl_id, tpl in CAT.templates.items():
         ids = {CAT.resolve(p.component) for p in tpl.parts}
