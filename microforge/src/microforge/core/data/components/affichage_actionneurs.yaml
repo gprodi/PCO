@@ -270,9 +270,24 @@
       api: |
         void ${name}_beep(unsigned int freq, unsigned long ms) { tone(${SIG}, freq, ms); }
         void ${name}_stop() { noTone(${SIG}); }
+    sam:
+      setup: "pinMode(${SIG}, OUTPUT);"
+      api: |
+        // Le cœur Arduino Due n'a pas tone() : onde carrée logicielle, le bip est BLOQUANT.
+        void ${name}_beep(unsigned int freq, unsigned long ms) {
+          if (freq == 0) { delay(ms); return; }
+          unsigned long demi = 500000UL / freq;
+          unsigned long n = (unsigned long)freq * ms / 1000UL;
+          for (unsigned long i = 0; i < n; i++) {
+            digitalWrite(${SIG}, HIGH); delayMicroseconds(demi);
+            digitalWrite(${SIG}, LOW); delayMicroseconds(demi);
+          }
+        }
+        void ${name}_stop() { digitalWrite(${SIG}, LOW); }
   wokwi: { type: wokwi-buzzer, pins: { SIG: "1", GND: "2" } }
   kicad: { symbol: "Device:Buzzer", footprint: "Buzzer_Beeper:Buzzer_12x9.5RM7.6" }
   price_eur: 0.5
+  notes: ["Arduino Due : pas de tone() dans le cœur SAM, le bip est généré par logiciel et bloque le programme pendant sa durée."]
 
 - id: relay-module-1ch
   name: Module relais 1 canal 5 V (optocoupleur)

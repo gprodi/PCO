@@ -56,6 +56,8 @@
   category: capteur
   description: Sonde inox -55…125 °C, précision ±0,5 °C, bus 1-Wire (plusieurs sondes sur un fil).
   aliases: [ds18b20 probe, sonde temperature, onewire]
+  exclude_mcu: ["ESP32-C6"]
+  compat_note: "OneWire 2.3.8, dernière version publiée, ne gère pas les registres GPIO de l'ESP32-C6 (correctif présent seulement sur la branche master du projet)."
   supply_v: [3.0, 5.5]
   current_ma: 1.5
   is_module: false
@@ -454,6 +456,8 @@
   category: communication
   description: Reçoit les codes de n'importe quelle télécommande TV.
   aliases: [ir, infrarouge, vs1838b, telecommande, ir receiver]
+  exclude_families: [sam]
+  compat_note: "IRremote n'a pas de minuterie pour l'Arduino Due (cœur SAM)."
   supply_v: [2.7, 5.5]
   current_ma: 1.5
   pins:

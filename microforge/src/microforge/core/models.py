@@ -91,6 +91,11 @@ class ComponentDef(BaseModel):
     passive: bool = False  # résistance, condensateur… (pas de code)
     needs_series_resistor_ohm: dict[str, int] | None = None  # LED : {"3.3": 150, "5": 220}
     families: list[str] | None = None  # None = toutes les familles de cartes
+    exclude_families: list[str] = Field(default_factory=list)  # cœurs où le code ne compile pas
+    #: Puces exclues (sous-chaîne de ``BoardDef.mcu``, sans casse) : incompatibilité propre à une
+    #: variante d'une famille (ex. OneWire 2.3.8 et l'ESP32-C6).
+    exclude_mcu: list[str] = Field(default_factory=list)
+    compat_note: str = ""  # pourquoi certaines cartes sont exclues (affiché à l'utilisateur)
     code: dict[str, CodeTemplate] = Field(
         default_factory=dict
     )  # "default", "esp32", "avr", "rp2040"
@@ -110,6 +115,18 @@ class ComponentDef(BaseModel):
     def code_for(self, family: str) -> CodeTemplate:
         """Fragment de code adapté à la famille de MCU (repli sur ``default``)."""
         return self.code.get(family) or self.code.get("default") or CodeTemplate()
+
+    def supports_family(self, family: str) -> bool:
+        if self.families is not None and family not in self.families:
+            return False
+        return family not in self.exclude_families
+
+    def supports(self, board: BoardDef) -> bool:
+        """Le code du composant compile-t-il pour cette carte (famille et puce) ?"""
+        mcu = board.mcu.casefold()
+        return self.supports_family(board.family) and not any(
+            m.casefold() in mcu for m in self.exclude_mcu
+        )
 
 
 class BoardPin(BaseModel):

@@ -42,7 +42,7 @@ data = [
     "pypdf>=5.0",
 ]
 # Orchestration et big data (lourds : machines locales / Docker)
-orchestration = ["prefect>=3.0"]
+orchestration = ["prefect>=3.9.1"]  # 3.8.x casse avec FastAPI ≥ 0.151 (Body(min_items))
 bigdata = ["pyspark>=3.5", "google-cloud-bigquery>=3.25"]
 db = ["psycopg[binary]>=3.2", "pgvector>=0.3"]
 # E3 — modèle de vision + MLOps

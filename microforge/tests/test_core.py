@@ -647,3 +647,47 @@ def test_ci_matrix_covers_every_family_and_chip_variant():
     assert sum(e["smoke"] for e in include) == len(CAT.families)  # fumée : une fois par famille
     fqbns = {e["fqbn"] for e in include}
     assert {"esp32:esp32:esp32s3", "esp32:esp32:esp32c3", "esp32:esp32:esp32c6"} <= fqbns
+
+
+# ---------------------------------------------------------------- compatibilité composant ↔ carte
+def test_component_exclusions_follow_real_compile_failures():
+    """CI run n°36 : IRremote sans timer SAM (Due), OneWire 2.3.8 refusé sur ESP32-C6."""
+    due, c6, esp32 = (
+        CAT.board(b) for b in ("arduino-due", "esp32-c6-devkitc-1", "esp32-devkit-v1")
+    )
+    ir, ds = CAT.component("ir-receiver"), CAT.component("ds18b20")
+    assert not ir.supports(due) and ir.supports(esp32)
+    assert not ds.supports(c6) and not ds.supports(CAT.board("xiao-esp32c6"))
+    assert ds.supports(esp32) and ds.supports(due)
+    for tpl_id, tpl in CAT.templates.items():
+        ids = {CAT.resolve(p.component) for p in tpl.parts}
+        if "ds18b20" in ids:
+            assert not CAT.template_fits(tpl_id, c6), tpl_id
+        if "ir-receiver" in ids:
+            assert "sam" not in CAT.template_families(tpl_id), tpl_id
+
+
+def test_exclusion_patterns_match_real_boards():
+    mcus = [b.mcu.casefold() for b in CAT.boards.values()]
+    for comp in CAT.components.values():
+        assert set(comp.exclude_families) <= set(CAT.families), comp.id
+        for pattern in comp.exclude_mcu:
+            assert any(pattern.casefold() in m for m in mcus), (comp.id, pattern)
+        if comp.exclude_families or comp.exclude_mcu:
+            assert comp.compat_note, f"{comp.id} : expliquer l'exclusion"
+
+
+def test_unsupported_component_is_an_erc_error():
+    r = BUILDER.build(spec("esp32-c6-devkitc-1", ("sonde", "ds18b20")))
+    issue = next(i for i in r.issues if i.code == "CODE_UNSUPPORTED")
+    assert issue.severity == Severity.ERROR and "OneWire" in issue.message
+    assert "CODE_UNSUPPORTED" not in codes(
+        BUILDER.build(spec("esp32-devkit-v1", ("sonde", "ds18b20")))
+    )
+
+
+def test_due_buzzer_uses_software_tone():
+    tpl = CAT.component("buzzer").code_for("sam")
+    assert "tone(${SIG}" not in tpl.api and "noTone" not in tpl.api
+    assert "delayMicroseconds" in tpl.api
+    assert "tone(${SIG}" in CAT.component("buzzer").code_for("avr").api

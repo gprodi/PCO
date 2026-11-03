@@ -387,6 +387,7 @@
     - { gpio: 17, label: RX,   wokwi: RX,   caps: [digital, uart], reserved: true, note: "console série" }
 
 - id: esp32-h2-devkitm-1
+  ci_compile_all: true  # variante de puce : tous les projets compilés en CI
   name: ESP32-H2 DevKitM-1 (BLE + Zigbee/Thread, sans Wi-Fi)
   family: esp32
   mcu: ESP32-H2 (RISC-V 96 MHz)

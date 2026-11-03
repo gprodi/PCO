@@ -155,6 +155,21 @@ def _component_rules(
 ) -> list[ERCIssue]:
     issues: list[ERCIssue] = []
     ids = [catalog.component(p.component).id for p in spec.parts]
+    for inst in spec.parts:
+        comp = catalog.component(inst.component)
+        if not comp.supports(board):
+            issues.append(
+                ERCIssue(
+                    code="CODE_UNSUPPORTED",
+                    severity=Severity.ERROR,
+                    message=(
+                        f"{inst.name} ({comp.name}) : son code ne compile pas pour {board.name}."
+                        + (f" {comp.compat_note}" if comp.compat_note else "")
+                    ),
+                    fix="Choisir une autre carte ou un composant équivalent compatible.",
+                    parts=[inst.name],
+                )
+            )
     if "relay-module-1ch" in ids:
         issues.append(
             ERCIssue(
