@@ -134,3 +134,23 @@ def test_cli_writes_draft_and_json(tmp_path, monkeypatch):
     assert "1/1 flux lus" in res.output
     data = json.loads((out / "articles.json").read_text())
     assert data["flux"][0]["statut"] == "ok" and (out / "brouillon.md").exists()
+
+
+def test_generic_security_advisories_need_a_stack_product():
+    """Run veille n°1 : des avis Ivanti / Microsoft Edge remplissaient la rubrique T2."""
+    feed = Feed("CERT-FR - avis", "u", "T3")
+    off = Item(
+        "Multiples vulnérabilités dans Ivanti Connect Secure",
+        "https://a",
+        None,
+        "",
+        feed.title,
+        "T3",
+    )
+    on = Item(
+        "Vulnérabilité dans PostgreSQL", "https://b", None, "Exécution de code", feed.title, "T3"
+    )
+    assert themes_of(off) == [] and "T2" in themes_of(on)
+    sel = select([off, on], days=30, now=NOW)
+    titles = [it.title for its in sel.values() for it in its]
+    assert titles == ["Vulnérabilité dans PostgreSQL"]

@@ -13,7 +13,17 @@ from microforge.core.catalog import Catalog
 from microforge.core.models import BOMLine, ProjectSpec
 from microforge.core.netlist import added_part_refs
 
-TOOLING = ["breadboard-830", "jumper-wires", "usb-cable"]
+TOOLING = ["breadboard-830", "usb-cable"]
+
+
+def dupont_estimate(spec: ProjectSpec, alloc: Allocation, catalog: Catalog) -> int:
+    """Fils Dupont mâle-mâle pour un montage sur plaque d'essai : une liaison par broche de signal
+    affectée, plus l'alimentation et la masse de chaque composant qui a des broches, plus 2 fils
+    pour amener les rails de la carte à la plaque, plus une marge de 10 %."""
+    powered = sum(1 for p in spec.parts if catalog.component(p.component).pins)
+    resistors = len(alloc.added_parts)
+    raw = len(alloc.assignments) + 2 * powered + 2 + resistors
+    return max(4, round(raw * 1.1))
 
 
 def build_bom(
@@ -31,6 +41,9 @@ def build_bom(
             BOMLine(component=cid, name=comp.name, quantity=qty, unit_price_eur=comp.price_eur)
         )
     values = Counter(value for _, value in added_part_refs(alloc))
+    stocked = {p.value for p in alloc.added_parts if p.from_stock} | {
+        p.value_low for p in alloc.added_parts if p.from_stock and p.value_low
+    }
     for value, qty in sorted(values.items()):
         lines.append(
             BOMLine(
@@ -38,10 +51,20 @@ def build_bom(
                 name=f"Résistance {value} 1/4 W",
                 quantity=qty,
                 unit_price_eur=catalog.component("resistor").price_eur,
-                note=value,
+                note=f"{value} — dans ton stock" if value in stocked else value,
             )
         )
     if tooling:
+        if "dupont-wire-mm" not in counts:
+            lines.append(
+                BOMLine(
+                    component="dupont-wire-mm",
+                    name=catalog.component("dupont-wire-mm").name,
+                    quantity=dupont_estimate(spec, alloc, catalog),
+                    unit_price_eur=catalog.component("dupont-wire-mm").price_eur,
+                    note="estimation : une liaison par fil sur plaque d'essai (+10 %)",
+                )
+            )
         for tid in TOOLING:
             if tid not in counts:
                 comp = catalog.component(tid)

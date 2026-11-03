@@ -29,7 +29,9 @@ for s in suggestions:
         for w in s["warnings"]:
             st.warning(w)
         if st.button("Générer ce projet", key=f"gen-{s['template_id']}"):
-            st.session_state.build = c.generate(template_id=s["template_id"], board=s["board"])
+            st.session_state.build = c.generate(
+                template_id=s["template_id"], board=s["board"], owned_resistors=c.owned_resistors()
+            )
             st.session_state.build_key = s["template_id"]
 
 if st.session_state.get("build"):

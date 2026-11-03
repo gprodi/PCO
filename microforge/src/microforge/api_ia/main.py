@@ -186,7 +186,7 @@ def create_app() -> FastAPI:
     @app.post("/v1/builds/generate", response_model=BuildOut, tags=["projets"])
     def generate(body: BuildIn, _p: Principal = Depends(current_principal)) -> BuildOut:
         try:
-            return _build_out(services().builder.build(_spec(body)))
+            return _build_out(services().builder.build(_spec(body), body.owned_resistors))
         except (AllocationError, KeyError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -194,7 +194,7 @@ def create_app() -> FastAPI:
     def bundle(body: BuildIn, _p: Principal = Depends(current_principal)) -> Response:
         svc = services()
         try:
-            result = svc.builder.build(_spec(body))
+            result = svc.builder.build(_spec(body), body.owned_resistors)
         except (AllocationError, KeyError) as exc:
             raise HTTPException(422, str(exc)) from exc
         return Response(

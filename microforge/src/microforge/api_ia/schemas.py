@@ -21,6 +21,9 @@ class BuildIn(BaseModel):
     template_id: str | None = None
     board: str | None = None
     spec: ProjectSpec | None = None
+    #: Valeurs de résistances possédées (Ω, cf. api_data /v1/inventory/values) : les résistances
+    #: ajoutées par le moteur sont choisies parmi elles quand une valeur voisine convient.
+    owned_resistors: list[float] | None = Field(default=None, max_length=200)
 
 
 class GoalIn(BaseModel):

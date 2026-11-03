@@ -20,6 +20,12 @@ THEMES: dict[str, list[str]] = {
     "T5": ["esp32", "arduino", "raspberry", "pico", "rp2040", "rp2350", "kicad", "wokwi",
            "espressif", "microcontroleur", "microcontroller", "maker", "capteur", "sensor"],
 }  # fmt: skip
+#: Briques de MicroForge : un avis de sécurité générique (CERT-FR) n'est retenu que s'il en cite une.
+STACK = ["python", "pypi", "fastapi", "starlette", "pydantic", "uvicorn", "streamlit", "docker",
+         "postgresql", "postgres", "pgvector", "redis", "traefik", "nginx", "ollama", "litellm",
+         "github actions", "node.js", "npm", "grafana", "prometheus", "mlflow", "openssl", "esp-idf",
+         "arduino", "llama.cpp", "pytorch", "ultralytics"]  # fmt: skip
+GENERIC_SECURITY_FEEDS = ("CERT-FR",)
 #: Fiabilité (grille-fiabilite.md, sur 7) par source ; 5 par défaut (seuil de rétention).
 RELIABILITY = {
     "CNIL - actualités": 7,
@@ -40,6 +46,8 @@ def _plain(text: str) -> str:
 
 def themes_of(item: Item) -> list[str]:
     haystack = _plain(f"{item.title} {item.summary}")
+    if item.feed.startswith(GENERIC_SECURITY_FEEDS) and not any(w in haystack for w in STACK):
+        return []  # avis sur un produit que MicroForge n'utilise pas (Ivanti, Edge…)
     found = [t for t, words in THEMES.items() if any(w in haystack for w in words)]
     declared = [t for t in item.theme.split("/") if t in THEMES]
     return sorted(set(found) | set(declared))

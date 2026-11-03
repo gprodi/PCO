@@ -35,9 +35,15 @@ def _owned(session: Session, item_id: int, user: User) -> InventoryItem:
     return item
 
 
-def _check_component(session: Session, component_id: str) -> None:
+def _check_component(session: Session, component_id: str, value: float = 0.0) -> None:
     if session.get(Component, component_id) is None:
         raise HTTPException(422, f"Composant inconnu : {component_id}")
+    if value:
+        from microforge.core.catalog import get_catalog
+
+        comp = get_catalog().components.get(component_id)
+        if comp is None or comp.parametric is None:
+            raise HTTPException(422, f"{component_id} ne se décline pas par valeur")
 
 
 @router.get("/inventory", response_model=list[InventoryOut])
@@ -64,15 +70,30 @@ def inventory_summary(
     return out
 
 
+@router.get("/inventory/values")
+def inventory_values(
+    user: User = Depends(current_user), session: Session = Depends(get_session)
+) -> dict[str, dict[str, int]]:
+    """{composant: {valeur: quantité}} pour les passifs déclinés par valeur (choix des résistances)."""
+    out: dict[str, dict[str, int]] = {}
+    query = select(InventoryItem).where(InventoryItem.user_id == user.id, InventoryItem.value > 0)
+    for item in session.exec(query):
+        by_value = out.setdefault(item.component_id, {})
+        key = f"{item.value:g}"
+        by_value[key] = by_value.get(key, 0) + item.quantity
+    return out
+
+
 @router.post("/inventory", response_model=InventoryOut, status_code=201)
 def add_item(
     body: InventoryIn, user: User = Depends(current_user), session: Session = Depends(get_session)
 ) -> InventoryItem:
-    _check_component(session, body.component_id)
+    _check_component(session, body.component_id, body.value)
     existing = session.exec(
         select(InventoryItem).where(
             InventoryItem.user_id == user.id,
             InventoryItem.component_id == body.component_id,
+            InventoryItem.value == body.value,
             InventoryItem.location == body.location,
         )
     ).first()

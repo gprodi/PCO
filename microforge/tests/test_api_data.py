@@ -286,3 +286,20 @@ def test_rate_limit_on_token(data_client, monkeypatch):
         for _ in range(4)
     ]
     assert 429 in codes
+
+
+def test_inventory_by_value(data_client):
+    """Étape 3 : 20 × 220 Ω et 10 × 4,7 kΩ sont deux lignes ; la saisie « 4k7 » est normalisée."""
+    a = {"Authorization": f"Bearer {register_and_login(data_client, 'valeurs')['access_token']}"}
+    post = lambda body: data_client.post("/v1/inventory", json=body, headers=a)  # noqa: E731
+    assert post({"component_id": "resistor", "value": "220", "quantity": 20}).status_code == 201
+    r = post({"component_id": "resistor", "value": "4k7", "quantity": 10})
+    assert r.status_code == 201 and r.json()["value"] == 4700
+    assert post({"component_id": "resistor", "value": 4700, "quantity": 5}).json()["quantity"] == 15
+    assert post({"component_id": "resistor", "value": "abc"}).status_code == 422
+    assert post({"component_id": "dht22", "value": "10k"}).status_code == 422  # pas de valeur
+    assert post({"component_id": "dht22", "quantity": 2}).status_code == 201
+    values = data_client.get("/v1/inventory/values", headers=a).json()
+    assert values == {"resistor": {"220": 20, "4700": 15}}
+    summary = data_client.get("/v1/inventory/summary", headers=a).json()
+    assert summary["resistor"] == 35 and summary["dht22"] == 2

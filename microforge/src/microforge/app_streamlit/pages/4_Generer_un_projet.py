@@ -35,7 +35,9 @@ else:
     tid = st.selectbox("Modèle", list(templates), format_func=lambda t: templates[t])
     if st.button("Générer", type="primary"):
         try:
-            st.session_state.build = c.generate(template_id=tid, board=board or "arduino-uno")
+            st.session_state.build = c.generate(
+                template_id=tid, board=board or "arduino-uno", owned_resistors=c.owned_resistors()
+            )
         except ApiError as exc:
             show_error(exc)
 

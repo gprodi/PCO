@@ -317,6 +317,7 @@ class AddedPart(BaseModel):
     reason: str
     rail: str | None = None
     value_low: str | None = None  # résistance basse du pont diviseur
+    from_stock: bool = False  # valeur prise parmi les résistances que l'utilisateur possède
 
 
 class Severity(StrEnum):

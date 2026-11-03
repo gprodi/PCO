@@ -28,6 +28,15 @@ def run_erc(spec: ProjectSpec, alloc: Allocation, catalog: Catalog) -> list[ERCI
     return issues
 
 
+#: Étages de commande discrets, charges inductives et diodes de roue libre (étape 3).
+SWITCHES = {
+    "darlington-tip120", "mosfet-irlz44n", "mosfet-irf520", "mosfet-2n7000", "npn-2n2222",
+    "npn-s8050", "npn-bc547", "npn-2n3904", "mosfet-module",
+}  # fmt: skip
+INDUCTIVE = {"dc-motor-tt", "water-pump-5v", "vibration-motor", "fan-12v"}
+DIODES = {"diode-1n4007", "diode-1n5819", "diode-1n4148"}
+
+
 def _rail_v(board: BoardDef, rail: str | None) -> float | None:
     return board.rails.get(rail) if rail else None
 
@@ -179,7 +188,43 @@ def _component_rules(
                 fix="Pour du 230 V : boîtier isolant, fusible, et validation par une personne habilitée.",
             )
         )
-    if "dc-motor-tt" in ids and "l298n-driver" not in ids:
+    switches = SWITCHES & set(ids)
+    if INDUCTIVE & set(ids) and switches and not DIODES & set(ids):
+        issues.append(
+            ERCIssue(
+                code="FLYBACK_DIODE",
+                severity=Severity.WARNING,
+                message=(
+                    "Charge inductive (moteur, pompe, ventilateur) commutée par "
+                    f"{', '.join(sorted(switches))} sans diode de roue libre : à la coupure, la "
+                    "surtension détruit le transistor."
+                ),
+                fix="Diode 1N4007 (ou 1N5819) en inverse aux bornes de la charge, cathode (anneau) côté +.",
+            )
+        )
+    if "mosfet-irf520" in ids and board.logic_v < 4:
+        issues.append(
+            ERCIssue(
+                code="MOSFET_NOT_LOGIC_LEVEL",
+                severity=Severity.WARNING,
+                message=(
+                    f"L'IRF520 n'est pas à seuil logique : à {board.logic_v:g} V sur la grille il "
+                    "conduit mal et chauffe."
+                ),
+                fix="Utiliser un IRLZ44N (seuil logique) ou un étage transistor de commande.",
+            )
+        )
+    if "ws2812-ring-12" in ids and "capacitor-electrolytic" not in ids:
+        issues.append(
+            ERCIssue(
+                code="LED_STRIP_CAP",
+                severity=Severity.INFO,
+                message="LED adressables : un appel de courant à l'allumage peut faire redémarrer la carte.",
+                fix="Condensateur électrolytique de 1000 µF entre 5 V et GND au plus près de l'anneau, "
+                "et 330–470 Ω en série sur la ligne de données (recommandations Adafruit NeoPixel).",
+            )
+        )
+    if "dc-motor-tt" in ids and "l298n-driver" not in ids and not switches:
         issues.append(
             ERCIssue(
                 code="MOTOR_DRIVER",
@@ -188,7 +233,7 @@ def _component_rules(
                 fix="Ajouter un pont en H (L298N, TB6612FNG) ou un transistor MOSFET + diode de roue libre.",
             )
         )
-    if "water-pump-5v" in ids and "relay-module-1ch" not in ids:
+    if "water-pump-5v" in ids and "relay-module-1ch" not in ids and not switches:
         issues.append(
             ERCIssue(
                 code="PUMP_DRIVER",

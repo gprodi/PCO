@@ -20,7 +20,7 @@
     </outline>
     <outline text="T4 - Accessibilité et éco-conception" title="T4 - Accessibilité et éco-conception">
       <outline type="rss" text="W3C WAI - actualités" xmlUrl="https://www.w3.org/WAI/feed.xml" htmlUrl="https://www.w3.org/WAI/"/>
-      <outline type="rss" text="numerique.gouv.fr - actualités" xmlUrl="https://www.numerique.gouv.fr/actualites/feed/" htmlUrl="https://www.numerique.gouv.fr"/>
+      <outline type="rss" text="RGAA - dépôt du référentiel (DINUM)" xmlUrl="https://github.com/DISIC/accessibilite.numerique.gouv.fr/commits/main.atom" htmlUrl="https://accessibilite.numerique.gouv.fr"/>
     </outline>
     <outline text="T5 - Maker" title="T5 - Maker">
       <outline type="rss" text="Arduino ESP32 core releases" xmlUrl="https://github.com/espressif/arduino-esp32/releases.atom"/>

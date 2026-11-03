@@ -131,10 +131,17 @@ class Offer(SQLModel, table=True):
 # ------------------------------------------------------------------ inventaire & vision
 class InventoryItem(SQLModel, table=True):
     __tablename__ = "article_inventaire"
-    __table_args__ = (UniqueConstraint("user_id", "component_id", "location"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "component_id", "value", "location", name="uq_inventaire_composant_valeur"
+        ),
+    )
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="utilisateur.id", index=True)
     component_id: str = Field(foreign_key="composant.id")
+    #: Valeur des composants paramétriques (Ω, F, V, cm…) ; 0 = composant sans valeur. Pas de NULL :
+    #: deux NULL sont « différents » pour une contrainte d'unicité SQL, les doublons passeraient.
+    value: float = Field(default=0.0, ge=0)
     quantity: int = Field(default=1, ge=0)
     location: str = Field(default="", max_length=80)
     note: str = Field(default="", max_length=200)
