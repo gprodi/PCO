@@ -144,6 +144,34 @@ def test_attribution_and_determinism(prepared, tmp_path):
     assert [m["split"] for m in second] == [m["split"] for m in manifest]
 
 
+def test_negative_images_are_limited(tmp_path):
+    sources = make_sources(tmp_path)
+    cfg_path = sources / "roboflow" / "source.yaml"
+    cfg = yaml.safe_load(cfg_path.read_text())
+    cfg["classes"] = {"Resistor": None, "Capacitor": None, "LED": None}  # plus aucun objet retenu
+    cfg["negatifs"] = 0.25
+    cfg_path.write_text(yaml.safe_dump(cfg))
+    stats = prepare.prepare(sources, tmp_path / "out", DATASET_YAML)
+    manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
+    assert sum(m["source"] == "rf" for m in manifest) == 0  # 0 positive -> 0 négative gardée
+    assert stats["validation"]["ok"]
+
+
+def test_unused_unmapped_category_is_tolerated(tmp_path):
+    sources = make_sources(tmp_path)
+    data = yaml.safe_load((sources / "roboflow" / "data.yaml").read_text())
+    data["names"].append("parent-roboflow")  # catégorie sans aucune annotation
+    (sources / "roboflow" / "data.yaml").write_text(yaml.safe_dump(data))
+    assert prepare.prepare(sources, tmp_path / "out", DATASET_YAML)["validation"]["ok"]
+
+
+def test_iotkits_mapping_targets_existing_classes():
+    cfg = yaml.safe_load((ML / "sources" / "iotkits.yaml").read_text())
+    targets = {t for t in cfg["classes"].values() if t is not None}
+    assert targets <= set(INDEX) and len(cfg["classes"]) == 32
+    assert cfg["licence"] == "CC-BY-4.0" and "10.17632/x5thzmkxhy" in cfg["attribution"]
+
+
 def test_unmapped_or_unknown_classes_are_refused(tmp_path):
     sources = make_sources(tmp_path)
     cfg_path = sources / "roboflow" / "source.yaml"

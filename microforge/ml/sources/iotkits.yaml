@@ -1,0 +1,45 @@
+# Source IoTKITs, copiée en source.yaml par le workflow jeux-de-donnees après téléchargement.
+# Licence CC BY 4.0 vérifiée le 04/11/2026 (API Mendeley + article Data in Brief).
+nom: iotkits
+licence: CC-BY-4.0
+url: https://data.mendeley.com/datasets/x5thzmkxhy/1
+attribution: "Nguyen T.-T., Nguyen Do A.-T., Vu D.-L. (2025), IoTKITs: A novel dataset for IoT education kit recognition, Data in Brief (DOI 10.17632/x5thzmkxhy.1) ; images en partie issues de Kaggle et Roboflow Universe"
+groupes: original
+ratios: [0.7, 0.2, 0.1]
+negatifs: 0.25
+classes:
+  # cartes du catalogue MicroForge
+  "Arduino Uno -Black-": arduino_uno
+  "Arduino Uno -Green-": arduino_uno
+  "Arduino-Nano": arduino_nano
+  "Arduino Mega 2560 -Yellow-": arduino_mega
+  "Arduino Mega 2560 -Black-": arduino_mega
+  "Arduino Mega 2560 -Blue-": arduino_mega
+  "ESP32": esp32_devkit
+  "Arduino-leonardo": arduino_leonardo
+  "Arduino-Micro": arduino_micro
+  "Arduino-Due": arduino_due
+  "Arduino-ProMini": arduino_pro_mini
+  # ambiguës (plusieurs formats de carte sous le même nom, brochages différents) : ignorées
+  "Esp8266": null
+  "Wemos": null
+  "STM32": null
+  # hors catalogue (ordinateurs monocartes, boucliers, autres) : images gardées comme négatives
+  "Arduino-Zero": null
+  "Arduino Uno Camera Shield": null
+  "Arduino Uno WiFi Shield": null
+  "TelosB": null
+  "Jetson TX2": null
+  "Jetson Nano": null
+  "Raspberry Pi 1 B-": null
+  "Raspberry-Pi-1-A-": null
+  "Raspberry-Pi-2-B": null
+  "Raspberry Pi 3 B-": null
+  "Raspberry-Pi-3-A-": null
+  "Raspberry-Pi-3-B": null
+  "Raspberry-Pi-4-B": null
+  "Raspberry-Pi-5": null
+  "Raspberry-Pi-Zero": null
+  "Raspberry-Pi-Zero-W": null
+  "Raspberry-Pi-Zero-WH": null
+  "Raspberry-Pi-Zero-2-W": null

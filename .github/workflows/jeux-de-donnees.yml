@@ -10,6 +10,8 @@ on:
       - microforge/ml/coco_to_yolo.py
       - microforge/ml/prepare.py
       - microforge/ml/sources/**
+      - microforge/ml/train.py
+      - microforge/ml/data/dataset.yaml
       - .github/workflows/jeux-de-donnees.yml
   workflow_dispatch:
 permissions:
@@ -35,7 +37,7 @@ jobs:
     # IoTKITs (Data in Brief 2025, CC BY 4.0) : téléchargement après contrôle de la licence,
     # conversion COCO -> YOLO, inventaire des catégories, puis préparation si la correspondance existe.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -52,6 +54,25 @@ jobs:
           uv run --no-project --with pyyaml --with pillow python microforge/ml/prepare.py \
             --sources data/sources --out data/dataset --dataset-yaml microforge/ml/data/dataset.yaml | tee stats.json
           { echo "## Dataset préparé"; echo '```json'; cat stats.json; echo '```'; cat data/dataset/ATTRIBUTION.md; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Entraînement court sur CPU (YOLO11n, 15 epochs, 416 px) puis évaluation sur le test
+        if: hashFiles('microforge/ml/sources/iotkits.yaml') != ''
+        env:
+          LLM_PROFILE: cpu
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          DVC_DATA_VERSION: iotkits-v1
+        run: |
+          uv sync --all-packages --extra ml
+          # Ultralytics résout un « path » relatif depuis son propre dossier : chemin absolu ici.
+          uv run python - <<'PY'
+          import os, yaml
+          cfg = yaml.safe_load(open("microforge/ml/data/dataset.yaml"))
+          cfg["path"] = os.path.abspath("data/dataset")
+          yaml.safe_dump(cfg, open("dataset-runner.yaml", "w"), allow_unicode=True)
+          PY
+          uv run python microforge/ml/train.py --data dataset-runner.yaml --epochs 15 --imgsz 416 --batch 16 2>&1 | tee entrainement.log
+          best=$(ls -t runs/detect/*/weights/best.pt | head -1)
+          uv run yolo val model="$best" data=dataset-runner.yaml split=test imgsz=416 device=cpu 2>&1 | tee evaluation-test.log
+          { echo "## Entraînement CPU (15 epochs) et test"; echo '```'; tail -40 evaluation-test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: iotkits-rapport
@@ -61,4 +82,8 @@ jobs:
             data/raw/iotkits/provenance.json
             data/dataset/ATTRIBUTION.md
             data/dataset/manifest.json
+            entrainement.log
+            evaluation-test.log
+            runs/detect/*/results.csv
+            runs/detect/*/weights/best.pt
           if-no-files-found: ignore

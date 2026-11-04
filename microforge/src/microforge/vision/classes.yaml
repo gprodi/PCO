@@ -41,3 +41,8 @@ classes:
   sd_module: microsd-module
   hx711: hx711-load-cell
   jumper_wires: jumper-wires
+  # Ajoutées le 04/11/2026 (cartes présentes dans IoTKITs) ; ajoutées en fin de liste : indices stables.
+  arduino_leonardo: arduino-leonardo
+  arduino_micro: arduino-micro
+  arduino_due: arduino-due
+  arduino_pro_mini: arduino-pro-mini-5v  # 3,3 V et 5 V identiques à l'œil (quartz 8 / 16 MHz) : à confirmer par l'utilisateur

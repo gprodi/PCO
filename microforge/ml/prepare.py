@@ -11,6 +11,7 @@ Chaque sous-dossier de ``--sources`` est une source, décrite par un ``source.ya
     groupes: composant                # « composant » : <classe>/<composant>/photo.jpg = un groupe
                                       # « original » (défaut) : copies augmentées et quasi-doublons groupés
     ratios: [0.6, 0.2, 0.2]           # train / val / test (défaut 0.7 / 0.2 / 0.1)
+    negatifs: 0.25                    # images sans classe retenue gardées (fraction des positives)
     classes:                          # nom de classe de la source -> classe MicroForge (null = ignorée)
       Resistor: resistor
       Capacitor: null
@@ -125,9 +126,7 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
     cfg.setdefault("nom", src.name)
     names = _names(src, cfg)
     mapping = cfg.get("classes") or {}
-    unknown = sorted(set(names) - set(mapping))
-    if unknown:
-        raise ValueError(f"{src.name} : classes sans correspondance dans source.yaml : {unknown}")
+    unmapped_used: set[str] = set()
     items = []
     for image in sorted(p for p in src.rglob("*") if p.suffix.lower() in IMAGE_EXT):
         label = _label_for(image)
@@ -149,13 +148,29 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
             if len(parts) != 5:
                 continue
             source_class = names[int(parts[0])]
+            if source_class not in mapping:
+                unmapped_used.add(source_class)
+                continue
             target = mapping[source_class]
             if target is None:
                 summary.dropped[f"{cfg['nom']}:{source_class}"] += 1
             else:
                 item.boxes.append((target, " ".join(parts[1:])))
         items.append(item)
-    return cfg, items
+    if unmapped_used:  # une catégorie vide (parent Roboflow) peut rester sans correspondance
+        raise ValueError(
+            f"{src.name} : classes sans correspondance dans source.yaml : {sorted(unmapped_used)}"
+        )
+    return cfg, _limit_negatives(items, cfg.get("negatifs"))
+
+
+def _limit_negatives(items: list[Item], fraction: float | None) -> list[Item]:
+    """Garde au plus ``fraction`` × (images positives) images sans objet retenu, choisies de façon stable."""
+    if fraction is None:
+        return items
+    positives = [i for i in items if i.boxes]
+    negatives = sorted((i for i in items if not i.boxes), key=lambda i: i.sha256)
+    return positives + negatives[: int(len(positives) * fraction)]
 
 
 # ---------------------------------------------------------------- groupes et découpage

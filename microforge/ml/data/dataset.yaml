@@ -45,3 +45,7 @@ names:
   36: sd_module
   37: hx711
   38: jumper_wires
+  39: arduino_leonardo
+  40: arduino_micro
+  41: arduino_due
+  42: arduino_pro_mini

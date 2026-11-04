@@ -25,6 +25,8 @@ def main(argv: list[str] | None = None) -> str:
     )
     parser.add_argument("--experiment", default="microforge-detector")
     parser.add_argument("--smoke", action="store_true", help="1 epoch, 64 px, CPU (test fumée CI)")
+    parser.add_argument("--imgsz", type=int, default=None, help="taille d'image (défaut : profil)")
+    parser.add_argument("--batch", type=int, default=None, help="taille de lot (défaut : profil)")
     args = parser.parse_args(argv)
 
     import mlflow
@@ -35,6 +37,7 @@ def main(argv: list[str] | None = None) -> str:
     if args.smoke:
         cfg.update(device="cpu", imgsz=64, batch=2, workers=0)
         args.epochs = 1
+    cfg.update({k: v for k, v in (("imgsz", args.imgsz), ("batch", args.batch)) if v})
     weights = args.weights or cfg.pop("weights", "yolo11n.pt")
     cfg.pop("weights", None)
     settings.update({"mlflow": False})  # on journalise nous-mêmes, explicitement
