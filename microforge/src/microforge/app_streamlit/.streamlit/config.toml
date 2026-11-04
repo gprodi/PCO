@@ -1,13 +1,87 @@
+# Thème MicroForge : même identité que la démo en ligne (vernis d'épargne vert, plaque d'essai).
+# Polices auto-hébergées dans static/fonts (licence SIL OFL 1.1, fichiers OFL-*.txt) : aucune requête
+# vers Google Fonts, donc aucune adresse IP de visiteur transmise à un tiers (RGPD).
+# Contrastes vérifiés par tests/test_streamlit_theme.py : texte et liens ≥ 4,5:1 sur le fond ; Streamlit
+# écrit toujours en blanc sur les boutons principaux, donc blanc sur primaryColor ≥ 4,5:1, et la couleur
+# primaire (onglet actif, curseurs) ≥ 3:1 sur le fond.
+
 [theme]
-# Contrastes vérifiés AA (texte #0f172a sur #ffffff ; primaire #0f766e sur blanc = 5,4:1)
-primaryColor = "#0f766e"
+font = "IBM Plex Sans, sans-serif"
+headingFont = "Barlow Condensed, sans-serif"
+codeFont = "IBM Plex Mono, monospace"
+baseRadius = "0.5rem"
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-400-normal.woff2"
+weight = "400"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-500-normal.woff2"
+weight = "500"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-600-normal.woff2"
+weight = "600"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Barlow Condensed"
+url = "app/static/fonts/barlow-condensed-latin-600-normal.woff2"
+weight = "600"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Barlow Condensed"
+url = "app/static/fonts/barlow-condensed-latin-700-normal.woff2"
+weight = "700"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/ibm-plex-mono-latin-400-normal.woff2"
+weight = "400"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/ibm-plex-mono-latin-500-normal.woff2"
+weight = "500"
+style = "normal"
+
+[theme.light]
+primaryColor = "#17694f"
+backgroundColor = "#f4f7f5"
+secondaryBackgroundColor = "#e6eee9"
+textColor = "#12201a"
+linkColor = "#17694f"
+borderColor = "#c9d6cf"
+codeBackgroundColor = "#eaf1ed"
+
+[theme.light.sidebar]
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f1f5f9"
-textColor = "#0f172a"
-font = "sans serif"
+secondaryBackgroundColor = "#eef3f0"
+
+[theme.dark]
+primaryColor = "#1d8460"
+backgroundColor = "#0c1411"
+secondaryBackgroundColor = "#17241e"
+textColor = "#e4eee8"
+linkColor = "#4fc79c"
+borderColor = "#2c4237"
+codeBackgroundColor = "#101a16"
+
+[theme.dark.sidebar]
+backgroundColor = "#131f1a"
+secondaryBackgroundColor = "#1b2a23"
 
 [server]
 maxUploadSize = 8
+enableStaticServing = true
 
 [browser]
 gatherUsageStats = false
