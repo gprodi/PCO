@@ -1,0 +1,24 @@
+# Roboflow Universe, export YOLOv11 v1 (40 images, montages du kit de démarrage Arduino).
+# Licence : CC BY 4.0 (README.dataset.txt, 04/11/2026).
+nom: sem2l1-kit
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/sem2l1/electronic-components-vfiqs-xreon
+attribution: "sem2l1 (Roboflow Universe)"
+groupes: original
+classes:
+  ARDUINO: arduino_uno
+  Breadboard: breadboard
+  Button: push_button
+  "DC Motor": dc_motor
+  LCD: lcd_1602
+  LED: led
+  "Long wire": jumper_wires
+  "Short wire": jumper_wires
+  Piezo: buzzer
+  Potentiometer: potentiometer
+  Resistor: resistor
+  "5V": null                  # repères de fils, pas des composants
+  GND: null
+  Battery: null
+  "H Bridge": null            # puce L293D du kit, pas le module L298N
+  Phototransistor: null

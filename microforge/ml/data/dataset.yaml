@@ -49,3 +49,11 @@ names:
   40: arduino_micro
   41: arduino_due
   42: arduino_pro_mini
+  43: capacitor_ceramic
+  44: capacitor_electrolytic
+  45: diode
+  46: transistor
+  47: nodemcu
+  48: trimmer
+  49: crystal
+  50: screw_terminal

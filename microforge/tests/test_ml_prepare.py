@@ -172,6 +172,38 @@ def test_iotkits_mapping_targets_existing_classes():
     assert cfg["licence"] == "CC-BY-4.0" and "10.17632/x5thzmkxhy" in cfg["attribution"]
 
 
+@pytest.mark.parametrize("path", sorted((ML / "sources").glob("*.yaml")), ids=lambda p: p.stem)
+def test_every_source_config_is_licensed_and_maps_to_known_classes(path):
+    cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+    targets = {t for t in cfg["classes"].values() if t not in (None, prepare.EXCLUDE)}
+    assert targets <= set(INDEX), targets - set(INDEX)
+    assert (
+        cfg["licence"] == "CC-BY-4.0" and cfg["url"].startswith("https://") and cfg["attribution"]
+    )
+
+
+def test_ambiguous_class_removes_the_whole_image(tmp_path):
+    sources = make_sources(tmp_path)
+    cfg_path = sources / "roboflow" / "source.yaml"
+    cfg = yaml.safe_load(cfg_path.read_text())
+    cfg["classes"]["Capacitor"] = "exclure"  # chaque image Roboflow contient un « Capacitor »
+    cfg_path.write_text(yaml.safe_dump(cfg))
+    stats = prepare.prepare(sources, tmp_path / "out", DATASET_YAML)
+    assert stats["images_exclues"] == {"rf": 20}
+    manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
+    assert {m["source"] for m in manifest} == {"photos"} and stats["validation"]["ok"]
+
+
+def test_near_duplicates_are_grouped_across_names(tmp_path):
+    a = prepare.Item("s", Path("a.jpg"), None, "s:a", "1", dhash=0b1011 << 40)
+    b = prepare.Item(
+        "s", Path("b.jpg"), None, "s:b", "2", dhash=(0b1011 << 40) ^ 0b111
+    )  # 3 bits d'écart
+    c = prepare.Item("s", Path("c.jpg"), None, "s:c", "3", dhash=~(0b1011 << 40) & (2**64 - 1))
+    prepare.merge_near_duplicates([a, b, c])
+    assert a.group == b.group != c.group
+
+
 def test_unmapped_or_unknown_classes_are_refused(tmp_path):
     sources = make_sources(tmp_path)
     cfg_path = sources / "roboflow" / "source.yaml"

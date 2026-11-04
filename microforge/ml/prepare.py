@@ -12,9 +12,9 @@ Chaque sous-dossier de ``--sources`` est une source, décrite par un ``source.ya
                                       # « original » (défaut) : copies augmentées et quasi-doublons groupés
     ratios: [0.6, 0.2, 0.2]           # train / val / test (défaut 0.7 / 0.2 / 0.1)
     negatifs: 0.25                    # images sans classe retenue gardées (fraction des positives)
-    classes:                          # nom de classe de la source -> classe MicroForge (null = ignorée)
-      Resistor: resistor
-      Capacitor: null
+    classes:                          # nom de classe de la source -> classe MicroForge
+      Resistor: resistor              #   null : boîte ignorée, image gardée
+      Capacitor: exclure              #   exclure : images contenant cette classe retirées (classe ambiguë)
 
 Les images sont au format YOLO : chaque image a un fichier de labels du même nom, à côté d'elle ou dans
 le dossier ``labels`` correspondant à ``images`` (export Roboflow, Label Studio, CVAT). Les noms des classes
@@ -50,6 +50,9 @@ import dataset_checks as dc  # noqa: E402
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 SPLITS = ("train", "val", "test")
 NEAR_DUPLICATE_BITS = 4  # distance de Hamming maximale entre empreintes dHash (64 bits)
+EXCLURE = EXCLUDE = (
+    "exclure"  # valeur de correspondance : retirer les images contenant cette classe
+)
 
 
 @dataclass
@@ -61,6 +64,7 @@ class Item:
     sha256: str
     dhash: int
     boxes: list[tuple[str, str]] = field(default_factory=list)  # (classe MicroForge, « cx cy w h »)
+    excluded: bool = False
 
 
 @dataclass
@@ -68,6 +72,7 @@ class Summary:
     images: Counter = field(default_factory=Counter)
     instances: dict[str, Counter] = field(default_factory=lambda: defaultdict(Counter))
     dropped: Counter = field(default_factory=Counter)
+    excluded: Counter = field(default_factory=Counter)
     unlabeled: int = 0
     duplicates: int = 0
 
@@ -152,10 +157,17 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
                 unmapped_used.add(source_class)
                 continue
             target = mapping[source_class]
-            if target is None:
+            if target == EXCLUDE:
+                item.excluded = True
+            elif target is None:
                 summary.dropped[f"{cfg['nom']}:{source_class}"] += 1
             else:
                 item.boxes.append((target, " ".join(parts[1:])))
+        if item.excluded:
+            # classe ambiguë qui recouvre une classe MicroForge (« Capacitor » générique…) : sans boîte,
+            # l'objet passerait pour du décor ; l'image entière est donc retirée.
+            summary.excluded[cfg["nom"]] += 1
+            continue
         items.append(item)
     if unmapped_used:  # une catégorie vide (parent Roboflow) peut rester sans correspondance
         raise ValueError(
@@ -184,10 +196,19 @@ def merge_near_duplicates(items: list[Item]) -> None:
             g = parent[g]
         return g
 
-    for i, a in enumerate(items):
-        for b in items[i + 1 :]:
-            if a.group != b.group and (a.dhash ^ b.dhash).bit_count() <= NEAR_DUPLICATE_BITS:
-                parent[find(a.group)] = find(b.group)
+    # Principe des tiroirs : deux empreintes à ≤ 4 bits d'écart ont au moins une des 5 tranches de
+    # 13 bits identique. On ne compare que les images qui partagent une tranche (au lieu de n² paires).
+    bands = 5
+    width = -(-64 // bands)
+    buckets: dict[tuple[int, int], list[Item]] = defaultdict(list)
+    for item in items:
+        for band in range(bands):
+            buckets[(band, (item.dhash >> (band * width)) & ((1 << width) - 1))].append(item)
+    for bucket in buckets.values():
+        for i, a in enumerate(bucket):
+            for b in bucket[i + 1 :]:
+                if a.group != b.group and (a.dhash ^ b.dhash).bit_count() <= NEAR_DUPLICATE_BITS:
+                    parent[find(a.group)] = find(b.group)
     for item in items:
         item.group = find(item.group)
 
@@ -233,7 +254,9 @@ def prepare(sources: Path, out: Path, dataset_yaml: Path, seed: str = "microforg
     configs, items = {}, []
     for src in sorted(p for p in sources.iterdir() if (p / "source.yaml").exists()):
         cfg, found = read_source(src, summary)
-        unknown = {t for t in (cfg.get("classes") or {}).values() if t is not None} - set(index)
+        unknown = {
+            t for t in (cfg.get("classes") or {}).values() if t not in (None, EXCLUDE)
+        } - set(index)
         if unknown:
             raise ValueError(f"{src.name} : classes MicroForge inconnues {sorted(unknown)}")
         configs[cfg["nom"]] = cfg
@@ -281,6 +304,7 @@ def prepare(sources: Path, out: Path, dataset_yaml: Path, seed: str = "microforg
         "images": dict(summary.images),
         "instances": {s: dict(c) for s, c in summary.instances.items()},
         "classes_ignorees": dict(summary.dropped),
+        "images_exclues": dict(summary.excluded),
         "images_sans_label": summary.unlabeled,
         "doublons_exacts": summary.duplicates,
         "groupes": len(set(split_of)),

@@ -1,0 +1,8 @@
+# Roboflow Universe, export YOLOv11 v1 (175 images). Licence : CC BY 4.0 (README.dataset.txt, 04/11/2026).
+nom: arduino-boards
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/tanish/arduino-boards
+attribution: "tanish (Roboflow Universe)"
+groupes: original
+classes:
+  "Arduino UNO R3": arduino_uno

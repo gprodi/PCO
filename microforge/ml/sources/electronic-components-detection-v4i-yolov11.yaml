@@ -1,0 +1,24 @@
+# Roboflow Universe, export YOLOv11 v4 (628 images, composants traversants, noms de classes en espagnol).
+# Licence : CC BY 4.0 (README.dataset.txt, 04/11/2026).
+nom: cv2024-composants
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/cv2024-4skvf/electronic-components-detection-jzf42
+attribution: "cv2024-4skvf (Roboflow Universe)"
+groupes: original
+negatifs: 0.25
+classes:
+  Resistor: resistor
+  bornera: screw_terminal
+  button: push_button
+  capacitor-ceramico: capacitor_ceramic
+  capacitor-electrolitico: capacitor_electrolytic
+  capacitor-poliester: null   # pas de classe : boîtier rectangulaire, distinct des céramiques
+  cristal: crystal
+  diodo: diode
+  ic: null                    # circuit intégré DIP sans référence lisible : pas de classe
+  led: led
+  power-resistor: null        # résistance de puissance céramique, absente du catalogue
+  preset: trimmer
+  to-220: null                # TIP120, MOSFET ou régulateur : impossible à distinguer sur la photo
+  to-92: transistor
+  trafo: null

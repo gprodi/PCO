@@ -1,0 +1,15 @@
+# Roboflow Universe, export YOLOv11 v5 (4 411 images, dont 3 versions augmentées par photo source).
+# Licence lue dans README.dataset.txt de l'export : CC BY 4.0 (04/11/2026).
+nom: airost
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/airost-internship/airost-internship-project
+attribution: "airost-internship (Roboflow Universe)"
+groupes: original            # copies augmentées « xxx_jpg.rf.<hash> » regroupées : pas de fuite
+negatifs: 0.25
+classes:
+  "Arduino Uno": arduino_uno
+  NodeMCU: nodemcu
+  Servomotor: servo_sg90
+  breadboard: breadboard
+  "ultrasonic sensor": hc_sr04
+  MG: exclure                # servo MG90S/MG996R : ressemble au SG90 sans classe dédiée
