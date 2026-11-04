@@ -18,11 +18,15 @@ Chaque sous-dossier de ``--sources`` est une source, décrite par un ``source.ya
 
 Les images sont au format YOLO : chaque image a un fichier de labels du même nom, à côté d'elle ou dans
 le dossier ``labels`` correspondant à ``images`` (export Roboflow, Label Studio, CVAT). Les noms des classes
-de la source viennent de ``names`` dans source.yaml, sinon de data.yaml, sinon de classes.txt.
+de la source viennent de ``names`` dans source.yaml, sinon de data.yaml, sinon de classes.txt. Une ligne de
+polygone (export « segmentation » : ``classe x1 y1 x2 y2 …``) est convertie en boîte englobante ; une image
+dont une ligne est illisible est écartée (sinon ses objets passeraient pour du décor).
 
 Garanties :
 - **aucune fuite** : toutes les photos d'un même composant physique, les copies augmentées d'une même
-  image (« xxx_jpg.rf.<hash> ») et les quasi-doublons (empreinte perceptuelle) restent dans le même split ;
+  image (« xxx_jpg.rf.<hash> ») et les quasi-doublons (deux empreintes perceptuelles) restent dans le même
+  split ; les plus gros groupes sont placés en premier, donc en entraînement, pour qu'une longue série de
+  photos presque identiques ne remplisse pas à elle seule la validation ou le test ;
 - **métadonnées retirées** : orientation EXIF appliquée puis image réenregistrée sans EXIF (la position
   GPS d'une photo de téléphone ne quitte pas l'ordinateur) ;
 - **traçabilité** : manifest.json (origine, licence, empreinte de chaque image) et ATTRIBUTION.md ;
@@ -34,6 +38,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -65,6 +70,7 @@ class Item:
     dhash: int
     boxes: list[tuple[str, str]] = field(default_factory=list)  # (classe MicroForge, « cx cy w h »)
     excluded: bool = False
+    vhash: int | None = None  # 2e empreinte (différences verticales) : confirme les quasi-doublons
 
 
 @dataclass
@@ -75,18 +81,62 @@ class Summary:
     excluded: Counter = field(default_factory=Counter)
     unlabeled: int = 0
     duplicates: int = 0
+    invalid: Counter = field(default_factory=Counter)  # images écartées : ligne de label illisible
+    polygons: Counter = field(default_factory=Counter)  # polygones convertis en boîtes
 
 
 # ---------------------------------------------------------------- lecture des sources
-def dhash(img: Image.Image) -> int:
-    """Empreinte perceptuelle (différences horizontales sur 9×8 en niveaux de gris)."""
-    small = img.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
-    px = list(small.getdata())
+def _pixels(img: Image.Image) -> list[int]:
+    # getdata() est déprécié (Pillow 12, retrait prévu en Pillow 14) au profit de get_flattened_data()
+    flat = getattr(img, "get_flattened_data", None)
+    return list(flat() if flat else img.getdata())
+
+
+def dhash(img: Image.Image, vertical: bool = False) -> int:
+    """Empreinte perceptuelle sur 64 bits : différences entre pixels voisins d'une vignette en gris.
+
+    Horizontale par défaut (vignette 9×8) ; ``vertical=True`` compare les pixels du dessus et du dessous
+    (vignette 8×9). Les deux empreintes ensemble évitent de prendre pour des quasi-doublons deux photos
+    différentes qui se ressemblent dans un seul sens (fond blanc, breadboard…).
+    """
+    gray = img.convert("L")
+    if vertical:
+        gray = gray.transpose(Image.Transpose.TRANSPOSE)
+    px = _pixels(gray.resize((9, 8), Image.Resampling.LANCZOS))
     bits = 0
     for row in range(8):
         for col in range(8):
             bits = (bits << 1) | (px[row * 9 + col] > px[row * 9 + col + 1])
     return bits
+
+
+def parse_label_line(line: str, n_names: int) -> tuple[int, str, bool] | None:
+    """``(classe, « cx cy w h », polygone ?)`` ; ``None`` si la ligne est illisible.
+
+    Boîte YOLO : 4 coordonnées. Polygone (segmentation YOLO) : au moins 3 points, convertis en boîte
+    englobante bornée à l'image.
+    """
+    parts = line.split()
+    try:
+        cls, values = int(parts[0]), [float(v) for v in parts[1:]]
+    except (IndexError, ValueError):
+        return None
+    if not 0 <= cls < n_names:
+        return None
+    if len(values) == 4:
+        cx, cy, w, h = values
+        if not (0 <= cx <= 1 and 0 <= cy <= 1 and 0 < w <= 1 and 0 < h <= 1):
+            return None
+        return cls, " ".join(parts[1:]), False
+    if len(values) < 6 or len(values) % 2:
+        return None
+    xs = [min(max(v, 0.0), 1.0) for v in values[0::2]]
+    ys = [min(max(v, 0.0), 1.0) for v in values[1::2]]
+    w, h = max(xs) - min(xs), max(ys) - min(ys)
+    if w <= 0 or h <= 0:
+        return None
+    cx, cy = min(xs) + w / 2, min(ys) + h / 2
+    return cls, f"{cx:.6f} {cy:.6f} {w:.6f} {h:.6f}", True
 
 
 def _names(src: Path, cfg: dict) -> list[str]:
@@ -139,7 +189,8 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
             summary.unlabeled += 1
             continue
         with Image.open(image) as img:
-            fingerprint = dhash(ImageOps.exif_transpose(img))
+            upright = ImageOps.exif_transpose(img)
+            fingerprint, vertical = dhash(upright), dhash(upright, vertical=True)
         item = Item(
             source=cfg["nom"],
             image=image,
@@ -147,12 +198,19 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
             group=_group(src, image, cfg.get("groupes", "original")),
             sha256=hashlib.sha256(image.read_bytes()).hexdigest(),
             dhash=fingerprint,
+            vhash=vertical,
         )
-        for line in label.read_text().splitlines():
-            parts = line.split()
-            if len(parts) != 5:
+        unreadable = False
+        for line in label.read_text(encoding="utf-8", errors="replace").splitlines():
+            if not line.strip():
                 continue
-            source_class = names[int(parts[0])]
+            parsed = parse_label_line(line, len(names))
+            if parsed is None:
+                unreadable = True
+                break
+            cls, coords, polygon = parsed
+            summary.polygons[cfg["nom"]] += polygon
+            source_class = names[cls]
             if source_class not in mapping:
                 unmapped_used.add(source_class)
                 continue
@@ -162,7 +220,10 @@ def read_source(src: Path, summary: Summary) -> tuple[dict, list[Item]]:
             elif target is None:
                 summary.dropped[f"{cfg['nom']}:{source_class}"] += 1
             else:
-                item.boxes.append((target, " ".join(parts[1:])))
+                item.boxes.append((target, coords))
+        if unreadable:
+            summary.invalid[cfg["nom"]] += 1
+            continue
         if item.excluded:
             # classe ambiguë qui recouvre une classe MicroForge (« Capacitor » générique…) : sans boîte,
             # l'objet passerait pour du décor ; l'image entière est donc retirée.
@@ -207,14 +268,27 @@ def merge_near_duplicates(items: list[Item]) -> None:
     for bucket in buckets.values():
         for i, a in enumerate(bucket):
             for b in bucket[i + 1 :]:
-                if a.group != b.group and (a.dhash ^ b.dhash).bit_count() <= NEAR_DUPLICATE_BITS:
+                if a.group != b.group and _near(a, b):
                     parent[find(a.group)] = find(b.group)
     for item in items:
         item.group = find(item.group)
 
 
+def _near(a: Item, b: Item) -> bool:
+    if (a.dhash ^ b.dhash).bit_count() > NEAR_DUPLICATE_BITS:
+        return False
+    if a.vhash is None or b.vhash is None:
+        return True
+    return (a.vhash ^ b.vhash).bit_count() <= NEAR_DUPLICATE_BITS
+
+
 def assign_splits(items: list[Item], ratios: dict[str, list[float]], seed: str) -> dict[str, str]:
-    """Groupe -> split, par source, en visant les proportions (en nombre d'images), de façon déterministe."""
+    """Groupe -> split, par source, en visant les proportions (en nombre d'images), de façon déterministe.
+
+    Les groupes sont placés du plus gros au plus petit (à taille égale, dans un ordre pseudo-aléatoire
+    fixé par ``seed``) : un gros groupe arrive quand tous les splits sont vides et va donc en
+    entraînement, les petits groupes ajustent ensuite les proportions.
+    """
     by_source: dict[str, dict[str, int]] = defaultdict(Counter)
     for item in items:
         by_source[item.source][item.group] += 1
@@ -223,7 +297,10 @@ def assign_splits(items: list[Item], ratios: dict[str, list[float]], seed: str) 
         target = ratios.get(source) or [0.7, 0.2, 0.1]
         total = sum(groups.values())
         filled = dict.fromkeys(SPLITS, 0)
-        order = sorted(groups, key=lambda g: hashlib.sha256(f"{seed}:{g}".encode()).hexdigest())
+        order = sorted(
+            groups,
+            key=lambda g: (-groups[g], hashlib.sha256(f"{seed}:{g}".encode()).hexdigest()),
+        )
         allowed = [s for s, r in zip(SPLITS, target, strict=True) if r > 0]
         for group in order:
             # le split le plus en retard sur sa cible (en proportion) reçoit le groupe
@@ -303,8 +380,12 @@ def prepare(sources: Path, out: Path, dataset_yaml: Path, seed: str = "microforg
     stats = {
         "images": dict(summary.images),
         "instances": {s: dict(c) for s, c in summary.instances.items()},
+        "par_source": _per_source(manifest, unique),
+        "plus_gros_groupes": _largest_groups(manifest),
         "classes_ignorees": dict(summary.dropped),
         "images_exclues": dict(summary.excluded),
+        "images_labels_illisibles": dict(summary.invalid),
+        "polygones_convertis": {k: v for k, v in summary.polygons.items() if v},
         "images_sans_label": summary.unlabeled,
         "doublons_exacts": summary.duplicates,
         "groupes": len(set(split_of)),
@@ -318,6 +399,26 @@ def prepare(sources: Path, out: Path, dataset_yaml: Path, seed: str = "microforg
         json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8"
     )
     return stats
+
+
+def _per_source(manifest: list[dict], items: list[Item]) -> dict:
+    """Images par split, boîtes et images négatives de chaque source."""
+    out: dict[str, dict] = {}
+    for m, item in zip(manifest, items, strict=True):
+        entry = out.setdefault(m["source"], {"images": Counter(), "boites": 0, "negatives": 0})
+        entry["images"][m["split"]] += 1
+        entry["boites"] += len(item.boxes)
+        entry["negatives"] += not item.boxes
+    return {s: {**e, "images": dict(e["images"])} for s, e in sorted(out.items())}
+
+
+def _largest_groups(manifest: list[dict], top: int = 5) -> list[dict]:
+    """Les plus gros groupes (séries de photos quasi identiques) : à surveiller s'ils dominent un split."""
+    sizes = Counter(m["groupe"] for m in manifest)
+    split_of = {m["groupe"]: m["split"] for m in manifest}
+    return [
+        {"groupe": g, "images": n, "split": split_of[g]} for g, n in sizes.most_common(top) if n > 1
+    ]
 
 
 def _attribution(out: Path, configs: dict, manifest: list[dict]) -> None:
@@ -345,9 +446,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=Path("data/dataset"))
     parser.add_argument("--dataset-yaml", type=Path, default=HERE / "data" / "dataset.yaml")
     parser.add_argument("--seed", default="microforge")
+    parser.add_argument(
+        "--remplacer",
+        action="store_true",
+        help="effacer d'abord un dataset déjà produit par ce script dans --out",
+    )
     args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     if args.out.exists() and any(args.out.iterdir()):
-        parser.error(f"{args.out} n'est pas vide : choisir un dossier de sortie neuf")
+        if not args.remplacer:
+            parser.error(
+                f"{args.out} n'est pas vide : ajouter --remplacer ou choisir un dossier neuf"
+            )
+        if not (args.out / "manifest.json").exists():
+            # garde-fou : on n'efface qu'un dossier produit par prepare.py
+            parser.error(f"{args.out} ne contient pas de manifest.json : dossier non effacé")
+        shutil.rmtree(args.out)
     stats = prepare(args.sources, args.out, args.dataset_yaml, args.seed)
     print(json.dumps(stats, ensure_ascii=False, indent=1))
     return 0 if stats["validation"]["ok"] else 1

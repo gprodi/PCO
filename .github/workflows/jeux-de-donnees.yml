@@ -16,9 +16,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Un entraînement à la fois par branche ; un push pendant un entraînement attend la fin de celui-ci
+# (une mesure commencée n'est pas perdue) et seul le dernier push en attente est gardé.
 concurrency:
   group: jeux-de-donnees-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   inspecter:
     runs-on: ubuntu-latest

@@ -286,3 +286,75 @@ def test_mendeley_licence_check():
     ):
         with pytest.raises(SystemExit):
             fetch_mendeley.check_licence(bad)
+
+
+def test_label_lines_boxes_polygons_and_garbage():
+    assert prepare.parse_label_line("2 0.5 0.5 0.2 0.4", 3) == (2, "0.5 0.5 0.2 0.4", False)
+    cls, coords, polygon = prepare.parse_label_line("1 0.1 0.2 0.5 0.2 0.5 0.6 0.1 0.6", 3)
+    assert (cls, polygon) == (1, True)
+    assert [round(float(v), 6) for v in coords.split()] == [0.3, 0.4, 0.4, 0.4]
+    # polygone qui déborde de l'image : borné à [0, 1]
+    assert prepare.parse_label_line("0 -0.1 0.2 0.4 0.2 0.4 1.2", 3)[1].split()[3] == "0.800000"
+    for bad in (
+        "9 0.5 0.5 0.2 0.2",
+        "0 0.5 0.5 0.2",
+        "0 a b c d",
+        "0 0.5 0.5 0 0.2",
+        "0 0.1 0.1 0.2",
+    ):
+        assert prepare.parse_label_line(bad, 3) is None, bad
+
+
+def test_polygon_labels_are_converted_and_unreadable_images_dropped(tmp_path):
+    sources = make_sources(tmp_path)
+    labels = sorted((sources / "roboflow").rglob("labels/*.txt"))
+    # 1er original (2 copies) : export « segmentation » ; 2e original : une ligne illisible
+    for lbl in labels[:2]:
+        lbl.write_text("0 0.4 0.4 0.6 0.4 0.6 0.6 0.4 0.6\n2 0.7 0.7 0.1 0.2\n")
+    labels[2].write_text("0 0.5 0.5 0.2 0.2\n2 0.7 oups 0.1 0.2\n")
+    stats = prepare.prepare(sources, tmp_path / "out", DATASET_YAML)
+    assert stats["polygones_convertis"] == {"rf": 2}
+    assert stats["images_labels_illisibles"] == {"rf": 1}
+    assert stats["par_source"]["rf"]["boites"] == 19 * 2 and stats["validation"]["ok"]
+    assert sum(stats["par_source"]["rf"]["images"].values()) == 19
+
+
+def test_second_fingerprint_rejects_one_way_lookalikes():
+    a = prepare.Item("s", Path("a.jpg"), None, "s:a", "1", dhash=7, vhash=0)
+    b = prepare.Item("s", Path("b.jpg"), None, "s:b", "2", dhash=7, vhash=2**64 - 1)
+    c = prepare.Item("s", Path("c.jpg"), None, "s:c", "3", dhash=6, vhash=1)
+    prepare.merge_near_duplicates([a, b, c])
+    assert a.group == c.group != b.group
+
+
+def test_largest_group_goes_to_train():
+    def items(group, n):
+        return [
+            prepare.Item("s", Path(f"{group}{i}.jpg"), None, group, f"{group}{i}", 0)
+            for i in range(n)
+        ]
+
+    big = items("s:serie", 40)  # longue série de photos presque identiques
+    small = [it for k in range(30) for it in items(f"s:g{k}", 2)]
+    split_of = prepare.assign_splits(big + small, {}, "graine")
+    assert split_of["s:serie"] == "train"
+    counts = {s: 0 for s in prepare.SPLITS}
+    for it in big + small:
+        counts[split_of[it.group]] += 1
+    assert counts == {"train": 70, "val": 20, "test": 10}
+
+
+def test_cli_replaces_only_its_own_output(tmp_path, capsys):
+    sources = make_sources(tmp_path)
+    out = tmp_path / "dataset"
+    assert prepare.main(["--sources", str(sources), "--out", str(out)]) == 0
+    (out / "vieux.txt").write_text("reste d'un ancien passage")
+    assert prepare.main(["--sources", str(sources), "--out", str(out), "--remplacer"]) == 0
+    assert not (out / "vieux.txt").exists() and (out / "manifest.json").exists()
+    assert '"par_source"' in capsys.readouterr().out
+    autre = tmp_path / "autre"
+    autre.mkdir()
+    (autre / "precieux.txt").write_text("à garder")
+    with pytest.raises(SystemExit):
+        prepare.main(["--sources", str(sources), "--out", str(autre), "--remplacer"])
+    assert (autre / "precieux.txt").exists()

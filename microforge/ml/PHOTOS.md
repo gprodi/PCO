@@ -23,7 +23,7 @@ Une trentaine de composants suffit, à condition de varier les prises de vue.
 ## Ranger les fichiers
 
 ```
-data/sources/photos-gael/
+microforge/data/sources/photos-gael/
 ├── source.yaml
 ├── arduino_uno/
 │   └── uno-01/          ← un dossier par composant PHYSIQUE (pas par photo)
@@ -69,15 +69,18 @@ personnels dans le champ.
 
 ## Composants sans classe
 
-Les 39 classes actuelles couvrent les cartes, modules et capteurs courants. Si un de tes composants n'y est pas
-(condensateur, transistor, diode…), envoie la liste : la classe est ajoutée à `ml/data/dataset.yaml`,
-`src/microforge/vision/classes.yaml` et reliée au catalogue (vérifié par `tests/test_ml_data.py`) **avant**
-l'annotation.
+Les 51 classes actuelles couvrent les cartes, modules, capteurs et passifs courants (condensateurs, diode,
+transistor, quartz, bornier…). Si un de tes composants n'y est pas, envoie la liste : la classe est ajoutée à
+`ml/data/dataset.yaml`, `src/microforge/vision/classes.yaml` et reliée au catalogue (vérifié par
+`tests/test_ml_data.py`) **avant** l'annotation.
+
+En priorité, photographie ce que les jeux publics couvrent mal (voir « Assez de données ? » dans
+[`README.md`](README.md)) : modules et capteurs sans aucune image, puis quartz, bornier, trimmer, diode.
 
 ## Ensuite
 
 ```bash
-uv run python microforge/ml/prepare.py --sources data/sources --out data/dataset   # fusion + contrôles
+uv run python microforge/ml/prepare.py --sources microforge/data/sources --out microforge/data/dataset --remplacer
 uv run python microforge/ml/train.py --epochs 80                                   # PC avec GPU ou Colab
 ```
 
