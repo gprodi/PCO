@@ -65,6 +65,7 @@ markers = [
     "integration: tests nécessitant des services (Postgres, Redis...)",
     "network: tests nécessitant Internet (désactivés en CI)",
     "pgvector: tests nécessitant PostgreSQL + pgvector (PGVECTOR_TEST_URL ; job CI dédié)",
+    "e2e: parcours de bout en bout dans un navigateur (Playwright Node ; job CI dédié)",
 ]
 filterwarnings = ["ignore::DeprecationWarning"]
 

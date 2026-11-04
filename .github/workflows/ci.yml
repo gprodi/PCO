@@ -38,13 +38,42 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
       - name: Tests + couverture (porte 80 %)
-        run: uv run pytest --cov --cov-report=xml --cov-report=term -m "not integration and not network"
+        run: uv run pytest --cov --cov-report=xml --cov-report=term -m "not integration and not network and not e2e"
       - name: Rapport de couverture
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-${{ matrix.python }}
           path: coverage.xml
+
+  e2e:
+    # Parcours de bout en bout : api_data, api_ia et Streamlit démarrés par le test (SQLite, clés JWT
+    # éphémères, modèle de langage simulé), navigateur Chromium piloté par Playwright (Node).
+    name: Parcours de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Installer les dépendances
+        run: uv sync --all-packages --group dev --extra data --extra app --extra anthropic
+      - name: Playwright pour Node et Chromium
+        working-directory: microforge/tests
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Parcours inscription → stock → idées → projet (8 onglets) → explorer → copilote
+        run: uv run pytest -m e2e microforge/tests/test_e2e_parcours.py --basetemp=e2e-sortie
+      - name: Captures et journaux du parcours
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: parcours-e2e
+          path: e2e-sortie/**
+          if-no-files-found: ignore
 
   pgvector:
     # RAG (cours + copilote MicroForge) sur une vraie base PostgreSQL + pgvector : index HNSW,

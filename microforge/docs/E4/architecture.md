@@ -119,7 +119,7 @@ flowchart LR
 | Application | Streamlit (preuve de concept) puis PWA React + Vite | Streamlit en place ; PWA à construire |
 | Accès | Traefik en reverse proxy, TLS Let's Encrypt, redirection HTTPS | à configurer (profil compose dédié) |
 | Préproduction | VPS chez un hébergeur européen, pile `core` + Traefik, images GHCR | à déployer (serveur à choisir) |
-| Parcours de bout en bout | test Playwright versionné et lancé par la CI (inscription → stock → idées → génération → chaque onglet) | vérifié le 02/11 par un script hors dépôt ; à versionner |
+| Parcours de bout en bout | test Playwright versionné et lancé par la CI (inscription → stock → idées → génération → chaque onglet) | en place : `tests/test_e2e_parcours.py` + `tests/e2e/parcours.cjs`, job CI `e2e` |
 | Démo | page statique en ligne, moteur réel et résultats pré-calculés | en ligne |
 
 Aujourd'hui, la preuve de concept se lance en local avec `docker compose --profile core up`, à partir des
