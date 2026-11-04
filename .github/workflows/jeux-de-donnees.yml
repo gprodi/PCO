@@ -97,7 +97,7 @@ jobs:
           uv run python microforge/ml/train.py --data dataset-runner.yaml --epochs 15 --imgsz 416 --batch 16 2>&1 | tee entrainement.log
           best=$(ls -t "$PWD"/runs/detect/*/weights/best.pt | head -1)
           test -n "$best"
-          uv run yolo val model="$best" data=dataset-runner.yaml split=test imgsz=416 device=cpu 2>&1 | tee evaluation-test.log
+          uv run yolo val model="$best" data=dataset-runner.yaml split=test imgsz=416 device=cpu project="$PWD/runs/val" name=test 2>&1 | tee evaluation-test.log
           { echo "## Entraînement CPU (15 epochs) et test"; echo '```'; tail -40 evaluation-test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

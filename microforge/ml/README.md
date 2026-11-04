@@ -90,26 +90,30 @@ test.
 
 ### Premier entraînement de référence (04/11/2026, runner GitHub, CPU)
 
-YOLO11n pré-entraîné, 15 epochs, 416 px, lot de 16, sur **IoTKITs seul** (8 classes de cartes) ; 32 min sur
-CPU AMD EPYC (workflow `jeux-de-donnees`, run 41781341808). Mesures sur le split de **validation**
-(272 images, 213 cartes) — c'est aussi lui qui choisit le meilleur epoch, donc légèrement optimiste :
+YOLO11n pré-entraîné, 15 epochs, 416 px, lot de 16, sur **IoTKITs seul** (8 classes de cartes) ; 31 min sur
+CPU AMD EPYC 7763 (workflow `jeux-de-donnees`, run 41785539714, commit 75066c7). La validation choisit le
+meilleur epoch (donc légèrement optimiste) ; le **test** n'a servi à rien pendant l'entraînement :
 
-| Classe | mAP50 | mAP50-95 |
-|---|---|---|
-| **toutes** | **0,965** | **0,943** (précision 0,894, rappel 0,955) |
-| arduino_uno | 0,995 | 0,995 |
-| arduino_mega | 0,995 | 0,995 |
-| arduino_leonardo | 0,990 | 0,990 |
-| arduino_micro | 0,981 | 0,949 |
-| arduino_due | 0,963 | 0,947 |
-| arduino_nano | 0,954 | 0,898 |
-| esp32_devkit | 0,941 | 0,925 |
-| arduino_pro_mini | 0,905 | 0,843 |
+| Classe | Test : objets | Test mAP50 | Test mAP50-95 | Validation mAP50 | Validation mAP50-95 |
+|---|---|---|---|---|---|
+| **toutes** | **119** (138 images) | **0,974** | **0,930** | 0,966 | 0,930 |
+| arduino_uno | 14 | 0,995 | 0,995 | 0,995 | 0,995 |
+| arduino_mega | 49 | 0,995 | 0,995 | 0,995 | 0,995 |
+| arduino_nano | 8 | 0,995 | 0,952 | 0,954 | 0,937 |
+| arduino_due | 6 | 0,995 | 0,976 | 0,990 | 0,911 |
+| arduino_micro | 3 | 0,995 | 0,940 | 0,971 | 0,945 |
+| arduino_leonardo | 8 | 0,962 | 0,902 | 0,995 | 0,988 |
+| esp32_devkit | 16 | 0,984 | 0,830 | 0,921 | 0,866 |
+| arduino_pro_mini | 15 | 0,869 | 0,847 | 0,907 | 0,804 |
 
-Inférence : 33,6 ms par image sur CPU. **À faire** : score sur le split de test (relance du workflow après
-correction du chemin des résultats), puis sur les photos réelles de Gaël, seul test représentatif de l'usage.
-Ces chiffres valent pour des photos de cartes seules et bien cadrées ; les modules, capteurs et passifs
-viennent des jeux Roboflow préparés sur le PC de Gaël (`importer_zips.py`).
+Test : précision 0,944, rappel 0,931 ; validation (273 images, 219 cartes) : précision 0,935, rappel
+0,877. Inférence : 35,5 ms par image sur CPU. Les classes ayant moins de 10 objets en test (Micro, Due,
+Nano, Leonardo) ont un score très instable d'un découpage à l'autre. Le run précédent (41781341808,
+découpage légèrement différent) donnait en validation mAP50 0,965 et mAP50-95 0,943.
+
+Ces chiffres valent pour des **photos de cartes seules et bien cadrées**, de même origine que
+l'entraînement. **À faire** : l'entraînement sur l'ensemble des jeux (IoTKITs + jeux Roboflow, voir
+ci-dessus) et la mesure sur les photos réelles de Gaël, seul test représentatif de l'usage.
 
 Chaîne : `fetch_mendeley.py` (licence vérifiée) → `coco_to_yolo.py` → `prepare.py` (correspondance des classes
 dans `sources/*.yaml`, groupes sans fuite, EXIF retiré, `manifest.json`) → `dataset_checks.py` (C12).
