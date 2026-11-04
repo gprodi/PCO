@@ -1,0 +1,13 @@
+# Jeux de données candidats pour le détecteur (E3), inspectés sur un runner GitHub
+# (workflow jeux-de-donnees) : licence lue dans la fiche, classes, volumes. Rien n'est utilisé
+# avant vérification de la licence et du contenu (photos réelles de composants, pas de schémas).
+huggingface:
+  - LibreYOLO/circuit-elements
+  - Libre-YOLO/circuit-elements
+  - Arshia82sbn/pcb-object-detection-dataset
+  - qipchip31/electronic_components
+  - MithatGuner/resistordataset
+mendeley:
+  - id: x5thzmkxhy          # IoTKITs (Data in Brief, 2025)
+    version: 1
+    pmc: PMC12149570
