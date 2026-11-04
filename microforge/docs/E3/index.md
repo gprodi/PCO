@@ -9,5 +9,6 @@ servi par l'API IA et intégré à l'application.
 api-ia
 monitoring-modele
 tests-modele
+accessibilite
 cd-modele
 ```

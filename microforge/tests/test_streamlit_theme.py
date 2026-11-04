@@ -21,6 +21,16 @@ def luminance(hex_color: str) -> float:
     return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
 
 
+def mix(text: str, background: str, weight: float = 0.6) -> str:
+    """Couleur des légendes (st.caption) : Streamlit 1.66 mélange 60 % du texte et 40 % du fond
+    (mesuré dans Chromium : #12201a sur #f4f7f5 donne #6c7672)."""
+    a = [int(text.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
+    b = [int(background.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(
+        f"{round(weight * x + (1 - weight) * y):02x}" for x, y in zip(a, b, strict=True)
+    )
+
+
 def contrast(a: str, b: str) -> float:
     la, lb = sorted((luminance(a), luminance(b)), reverse=True)
     return (la + 0.05) / (lb + 0.05)
@@ -42,10 +52,12 @@ def test_fonts_are_self_hosted_and_licensed():
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
 def test_contrasts(mode):
+    assert mix("#12201a", "#f4f7f5") == "#6c7672"  # valeur mesurée qui a fixé la règle
     t = THEME[mode]
     assert contrast(t["textColor"], t["backgroundColor"]) >= 7
     assert contrast(t["textColor"], t["secondaryBackgroundColor"]) >= 7
     assert contrast(t["linkColor"], t["backgroundColor"]) >= 4.5
+    assert contrast(mix(t["textColor"], t["backgroundColor"]), t["backgroundColor"]) >= 4.5
     assert contrast("#ffffff", t["primaryColor"]) >= 4.5  # texte des boutons principaux
     assert contrast(t["primaryColor"], t["backgroundColor"]) >= 3  # onglet actif, curseurs
     sidebar = THEME[mode]["sidebar"]

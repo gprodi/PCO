@@ -340,7 +340,8 @@
       boardArt,
       h("div", {}, h("strong", { text: payload.boardName || board.name || payload.board }), h("span", { text: ` · logique ${board.logicV || ""} V` }), countEl));
     const grid = h("div", { class: "mfa-grid" });
-    const serial = h("pre", { class: "mfa-serial", "aria-label": "Moniteur série", tabindex: "0" });
+    // rôle « log » : sortie qui défile ; aria-live off pour ne pas faire lire chaque ligne à voix haute
+    const serial = h("pre", { class: "mfa-serial", role: "log", "aria-live": "off", "aria-label": "Moniteur série", tabindex: "0" });
     const webBox = h("div", { class: "mfa-web", hidden: !payload.wifi });
     const webFrame = h("iframe", { title: "Page web du projet", sandbox: "" });
     webBox.append(h("button", { type: "button", class: "mfa-btn", text: "Ouvrir la page du projet sur le téléphone", onclick: () => sim && sim.request() }), h("div", { class: "mfa-phone" }, webFrame));
