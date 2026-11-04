@@ -150,6 +150,15 @@ Lecture :
   essai sur GPU (PC de Gaël ou Colab, `train.py --epochs 80`) et 640 px, avec plus de photos de
   condensateurs, fils et modules.
 
+### Comparer les entraînements
+Chaque entraînement exécuté est enregistré dans [`experiences.yaml`](experiences.yaml) (run GitHub, commit,
+données, paramètres, matériel, durée, scores globaux et par classe, recopiés des journaux).
+`uv run python microforge/ml/compare_runs.py` affiche le tableau de comparaison (`--split validation`,
+`--json` pour une page) ; tests : `tests/test_ml_experiences.py`. Une page de comparaison avec graphiques
+par classe est construite à partir de ces mêmes données (tableau de bord « Entraînements du détecteur
+MicroForge »). Sur le runner, la base MLflow est temporaire : à garder en artefact au prochain
+réentraînement (`mlflow.db`) pour rouvrir les runs dans l'interface MLflow.
+
 ## Licence du modèle
 Ultralytics YOLO est sous **AGPL-3.0** : compatible avec un dépôt public. Alternative comparée
 dans le benchmark C7 : RF-DETR (Apache 2.0, tailles N/S/M/L).

@@ -1,0 +1,162 @@
+# Registre des entraînements du détecteur (C11, C13) : une entrée par run réellement exécuté.
+# Chiffres recopiés des journaux GitHub Actions (workflow jeux-de-donnees) ; rien n'est estimé.
+# Comparer : uv run python microforge/ml/compare_runs.py
+# Par classe : [objets, mAP50, mAP50-95] sur le split concerné.
+
+runs:
+  - id: iotkits-v0
+    date: "2026-11-04"
+    github_run: 41781341808
+    commit: a83dc42
+    donnees: "IoTKITs (Mendeley, CC BY 4.0)"
+    classes: 8
+    modele: yolo11n.pt
+    epochs: 15
+    imgsz: 416
+    batch: 16
+    materiel: "CPU AMD EPYC 7763 (runner GitHub)"
+    duree_h: 0.536
+    note: "Évaluation sur le test perdue : poids rangés hors du dépôt (incident n°5)."
+    validation:
+      images: 272
+      objets: 213
+      precision: 0.894
+      rappel: 0.955
+      map50: 0.965
+      map50_95: 0.943
+      par_classe:
+        arduino_uno: [null, 0.995, 0.995]
+        arduino_mega: [null, 0.995, 0.995]
+        arduino_leonardo: [null, 0.990, 0.990]
+        arduino_micro: [null, 0.981, 0.949]
+        arduino_due: [null, 0.963, 0.947]
+        arduino_nano: [null, 0.954, 0.898]
+        esp32_devkit: [null, 0.941, 0.925]
+        arduino_pro_mini: [null, 0.905, 0.843]
+
+  - id: iotkits-v1
+    date: "2026-11-04"
+    github_run: 41785539714
+    commit: 75066c7
+    donnees: "IoTKITs (Mendeley, CC BY 4.0)"
+    classes: 8
+    modele: yolo11n.pt
+    epochs: 15
+    imgsz: 416
+    batch: 16
+    materiel: "CPU AMD EPYC 7763 (runner GitHub)"
+    duree_h: 0.512
+    inference_ms: 35.5
+    validation:
+      images: 273
+      objets: 219
+      precision: 0.935
+      rappel: 0.877
+      map50: 0.966
+      map50_95: 0.930
+      par_classe:
+        arduino_uno: [38, 0.995, 0.995]
+        arduino_nano: [20, 0.954, 0.937]
+        arduino_mega: [54, 0.995, 0.995]
+        esp32_devkit: [37, 0.921, 0.866]
+        arduino_leonardo: [15, 0.995, 0.988]
+        arduino_micro: [24, 0.971, 0.945]
+        arduino_due: [23, 0.990, 0.911]
+        arduino_pro_mini: [8, 0.907, 0.804]
+    test:
+      images: 138
+      objets: 119
+      precision: 0.944
+      rappel: 0.931
+      map50: 0.974
+      map50_95: 0.930
+      par_classe:
+        arduino_uno: [14, 0.995, 0.995]
+        arduino_nano: [8, 0.995, 0.952]
+        arduino_mega: [49, 0.995, 0.995]
+        esp32_devkit: [16, 0.984, 0.830]
+        arduino_leonardo: [8, 0.962, 0.902]
+        arduino_micro: [3, 0.995, 0.940]
+        arduino_due: [6, 0.995, 0.976]
+        arduino_pro_mini: [15, 0.869, 0.847]
+
+  - id: complet-v1
+    date: "2026-11-04"
+    github_run: 41791374429
+    commit: b6da7c2
+    donnees: "IoTKITs + 6 jeux Roboflow Universe (CC BY 4.0)"
+    classes: 27
+    modele: yolo11n.pt
+    epochs: 15
+    imgsz: 416
+    batch: 16
+    materiel: "CPU Intel Xeon 6975P-C (runner GitHub)"
+    duree_h: 3.488
+    inference_ms: 18.9
+    validation:
+      images: 2722
+      objets: 3465
+      precision: 0.837
+      rappel: 0.669
+      map50: 0.734
+      map50_95: 0.639
+      par_classe:
+        arduino_uno: [204, 0.984, 0.960]
+        arduino_nano: [27, 0.943, 0.888]
+        arduino_mega: [58, 0.995, 0.995]
+        esp32_devkit: [28, 0.933, 0.857]
+        breadboard: [200, 0.984, 0.907]
+        led: [231, 0.829, 0.669]
+        resistor: [1030, 0.721, 0.547]
+        push_button: [219, 0.876, 0.641]
+        potentiometer: [150, 0.959, 0.838]
+        buzzer: [1, 0.995, 0.697]
+        hc_sr04: [127, 0.922, 0.803]
+        lcd_1602: [2, 0.0, 0.0]
+        servo_sg90: [151, 0.989, 0.808]
+        dc_motor: [1, 0.0, 0.0]
+        jumper_wires: [76, 0.068, 0.0172]
+        arduino_leonardo: [12, 0.989, 0.981]
+        arduino_micro: [16, 0.976, 0.956]
+        arduino_due: [20, 0.952, 0.891]
+        arduino_pro_mini: [31, 0.948, 0.931]
+        capacitor_ceramic: [87, 0.141, 0.0423]
+        capacitor_electrolytic: [138, 0.311, 0.154]
+        diode: [95, 0.768, 0.654]
+        transistor: [336, 0.805, 0.646]
+        nodemcu: [192, 0.995, 0.823]
+        trimmer: [32, 0.995, 0.899]
+        screw_terminal: [1, 0.0, 0.0]
+    test:
+      images: 1801
+      objets: 2560
+      precision: 0.777
+      rappel: 0.694
+      map50: 0.692
+      map50_95: 0.592
+      par_classe:
+        arduino_uno: [179, 0.995, 0.916]
+        arduino_nano: [16, 0.991, 0.991]
+        arduino_mega: [33, 0.995, 0.995]
+        esp32_devkit: [2, 0.517, 0.517]
+        breadboard: [28, 0.995, 0.910]
+        led: [217, 0.844, 0.635]
+        resistor: [766, 0.599, 0.424]
+        push_button: [134, 0.895, 0.676]
+        potentiometer: [87, 0.990, 0.858]
+        buzzer: [1, 0.995, 0.895]
+        hc_sr04: [69, 0.978, 0.873]
+        servo_sg90: [99, 0.982, 0.813]
+        jumper_wires: [19, 0.0641, 0.0136]
+        arduino_leonardo: [8, 0.995, 0.983]
+        arduino_micro: [6, 0.431, 0.370]
+        arduino_due: [15, 0.970, 0.952]
+        arduino_pro_mini: [2, 0.039, 0.037]
+        capacitor_ceramic: [68, 0.0399, 0.0118]
+        capacitor_electrolytic: [52, 0.449, 0.189]
+        diode: [145, 0.830, 0.644]
+        transistor: [228, 0.790, 0.620]
+        nodemcu: [185, 0.995, 0.796]
+        trimmer: [192, 0.917, 0.669]
+        crystal: [2, 0.0, 0.0]
+        screw_terminal: [7, 0.0, 0.0]
