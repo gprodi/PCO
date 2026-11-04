@@ -21,7 +21,7 @@ font sur un runner GitHub (workflow `jeux-de-donnees`), qui publie licence, cat�
 | Roboflow 100 « circuit-elements » (CC BY 4.0) | écarté : photos de cartes électroniques (CMS), pas de modules |
 | PCB object detection (MIT) | écarté : images hébergées sur Roboflow seulement, même domaine CMS |
 | **Photos personnelles** (~30 composants) | protocole : [`PHOTOS.md`](PHOTOS.md) ; servent de test réel (composants jamais vus) et d'adaptation |
-| **Roboflow Universe** — 8 jeux téléchargés par Gaël (CC BY 4.0, lus dans les README des exports) | **5 retenus** (correspondances dans `sources/*.yaml`) ; 2 exports « folder » écartés (classification, sans boîtes) ; `arduino-wf8el` écarté (détection de pièces manquantes, autre tâche). Préparés sur le PC de Gaël : 10 063 images (6 744 / 1 904 / 1 415), validation OK. |
+| **Roboflow Universe** — 11 jeux téléchargés par Gaël (licences lues dans les README des exports) | **6 retenus**, tous CC BY 4.0 (correspondances dans `sources/*.yaml`) ; **5 écartés**, raison dans [`jeux_ecartes.yaml`](jeux_ecartes.yaml) : exports « folder » sans boîtes, détection de pièces manquantes, symboles de schéma, composants soudés sur cartes. Les 5 premiers retenus, préparés sur le PC de Gaël : 10 063 images (6 744 / 1 904 / 1 415), validation OK ; `components-model` (diodes, trimmers) ajouté ensuite. |
 
 ### Assez de données ?
 D'après le [guide de collecte et d'annotation d'Ultralytics](https://docs.ultralytics.com/guides/data-collection-and-annotation/)

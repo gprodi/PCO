@@ -1,0 +1,14 @@
+# Jeux téléchargés mais non utilisés : importer_zips.py affiche la raison au lieu de
+# « pas encore de correspondance », et prepare.py les ignore (aucun source.yaml installé).
+# Clé = nom du dossier dans microforge/data/sources (nom du zip simplifié).
+arduino-v3i-yolov11: >-
+  détection de pièces manquantes sur une carte (cpu_absent, port_absent…), pas d'identification
+  de composants
+blinduino-v7i-folder: export « folder » (classification, sans boîtes) ; retélécharger en YOLOv11
+electronic-component-recognition-v1i-folder: export « folder » (classification, sans boîtes) ; retélécharger en YOLOv11
+circuit-components-v4i-yolov11: >-
+  classes gate / led / resistor : symboles de schéma plutôt que photos, et résistances et LED
+  déjà très nombreuses (chaque image source copiée 10 fois)
+pcb-electronic-components-v5i-yolov11: >-
+  composants soudés sur cartes électroniques (pastilles, points de test, perles de ferrite) :
+  autre domaine que les modules et composants de MicroForge

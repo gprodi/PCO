@@ -12,7 +12,8 @@ Depuis la racine de PCO (Windows, macOS, Linux) :
    licence et d'origine des README Roboflow. **À copier dans la conversation** : la correspondance
    des classes et la licence sont ensuite écrites dans ``microforge/ml/sources/<nom>.yaml``.
 3. ``--appliquer`` copie chaque ``microforge/ml/sources/<nom>.yaml`` en ``source.yaml`` du jeu ; il
-   reste à lancer ``microforge/ml/prepare.py``.
+   reste à lancer ``microforge/ml/prepare.py``. Les jeux non retenus sont listés, avec la raison, dans
+   ``microforge/ml/jeux_ecartes.yaml``.
 """
 
 from __future__ import annotations
@@ -99,11 +100,25 @@ def describe(dest: Path) -> list[str]:
     return lines
 
 
-def apply_configs(sources: Path, configs: Path) -> list[str]:
+def load_rejected(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    return {
+        str(k): " ".join(str(v).split())
+        for k, v in (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).items()
+    }
+
+
+def apply_configs(
+    sources: Path, configs: Path, rejected: dict[str, str] | None = None
+) -> list[str]:
     out = []
+    rejected = rejected or {}
     for dest in sorted(p for p in sources.iterdir() if p.is_dir()):
         cfg = configs / f"{dest.name}.yaml"
-        if cfg.exists():
+        if dest.name in rejected:
+            out.append(f"- {dest.name} : écarté ({rejected[dest.name]})")
+        elif cfg.exists():
             shutil.copyfile(cfg, dest / "source.yaml")
             out.append(f"- {dest.name} : source.yaml installé")
         elif not (dest / "source.yaml").exists():
@@ -120,6 +135,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--racine", type=Path, default=ROOT, help="dossier où chercher les zips")
     parser.add_argument("--sources", type=Path, default=ROOT / "microforge" / "data" / "sources")
     parser.add_argument("--configs", type=Path, default=ROOT / "microforge" / "ml" / "sources")
+    parser.add_argument(
+        "--ecartes", type=Path, default=ROOT / "microforge" / "ml" / "jeux_ecartes.yaml"
+    )
     parser.add_argument(
         "--appliquer", action="store_true", help="installer les source.yaml préparés"
     )
@@ -143,7 +161,11 @@ def main(argv: list[str] | None = None) -> int:
     for dest in sorted(p for p in args.sources.iterdir() if p.is_dir()):
         report += [*describe(dest), ""]
     if args.appliquer:
-        report += ["## source.yaml", *apply_configs(args.sources, args.configs), ""]
+        report += [
+            "## source.yaml",
+            *apply_configs(args.sources, args.configs, load_rejected(args.ecartes)),
+            "",
+        ]
         report.append(
             "Ensuite : uv run python microforge/ml/prepare.py --sources microforge/data/sources "
             "--out microforge/data/dataset"

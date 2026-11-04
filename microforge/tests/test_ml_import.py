@@ -99,3 +99,20 @@ def test_apply_installs_prepared_source_yaml(tmp_path, capsys):
 def test_no_zip_found(tmp_path, capsys):
     code = importer_zips.main(["--racine", str(tmp_path), "--sources", str(tmp_path / "s")])
     assert code == 1 and "Aucun zip" in capsys.readouterr().out
+
+
+def test_rejected_datasets_are_reported_not_installed(tmp_path, capsys):
+    roboflow_zip(tmp_path / "PCB composants.v5i.yolov11.zip")
+    (tmp_path / "configs").mkdir()
+    ecartes = tmp_path / "ecartes.yaml"
+    ecartes.write_text("pcb-composants-v5i-yolov11: >-\n  composants soudés\n  sur cartes\n")
+    out = run(tmp_path, capsys, "--appliquer", "--ecartes", str(ecartes))
+    assert "pcb-composants-v5i-yolov11 : écarté (composants soudés sur cartes)" in out
+    assert not (tmp_path / "sources" / "pcb-composants-v5i-yolov11" / "source.yaml").exists()
+
+
+def test_rejected_list_names_no_retained_dataset():
+    rejected = importer_zips.load_rejected(importer_zips.ROOT / "microforge/ml/jeux_ecartes.yaml")
+    retained = {p.stem for p in (importer_zips.ROOT / "microforge/ml/sources").glob("*.yaml")}
+    assert rejected and not set(rejected) & retained
+    assert all(len(reason) > 20 for reason in rejected.values())
