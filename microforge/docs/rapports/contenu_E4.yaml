@@ -11,7 +11,12 @@ sections:
     - "Modèle Merise partagé avec le service de données (dossier E1) : utilisateur, inventaire, photo, retour de détection, projet, composant, offre. Côté métier, le catalogue décrit chaque composant (broches, rôles électriques, tensions, code Arduino, rendu Wokwi, symbole KiCad) dans des fichiers YAML versionnés."
   Modéliser les parcours utilisateurs:
     - "- Découvrir : parcours de progression en 7 étapes (de la première LED au robot autonome) et vitrine de vrais projets open source ;\n- Inventaire : photo → détection → correction → stock ;\n- Explorer : thème → idée → projet généré (câblage, code, guide) ;\n- Je veux construire X : description libre → projet + liste d'achat ;\n- Compte : export et suppression des données."
-    - "[À COMPLÉTER : maquettes Penpot des écrans principaux]"
+    - "Pas de maquette Penpot séparée : l'interface a été prototypée directement dans la démo en ligne, puis reprise dans l'application Streamlit. Écrans réels du 04/11/2026 :"
+    - "![Accueil de la démo : parcours, chiffres clés et montage d'exemple animé](E4/img/ecran-decouvrir.png)"
+    - "![Explorer par thème : idées de projets et jauge des projets réalisables avec le stock](E4/img/ecran-explorer.png)"
+    - "![Projet : contrôle électrique et tableau de câblage, fils Dupont en couleur](E4/img/ecran-projet-cablage.png)"
+    - "![Atelier virtuel : composants branchés, capteur réglable et écran OLED simulé](E4/img/ecran-atelier.png)"
+    - "![Application Streamlit : connexion et création de compte, thème MicroForge](E4/img/ecran-streamlit-accueil.png)"
   Rédiger les spécifications fonctionnelles sous forme de user stories:
     - "| # | En tant que… je veux… afin de… | Critères d'acceptation (dont RGAA) |\n|---|---|---|\n| US1 | maker, photographier mon stock pour obtenir l'inventaire | composants courants reconnus ; résultat aussi sous forme de liste texte (1.1) |\n| US2 | maker, corriger une détection | tableau éditable au clavier (7.1, 12.8) ; libellés explicites (11.1) |\n| US3 | maker, voir les projets réalisables avec mon stock | statut en texte et icône, jamais par la seule couleur (3.1) |\n| US4 | maker, obtenir câblage, code et guide | tableau avec en-têtes (5.6) ; SVG avec titre et description (1.1) ; code compilable |\n| US5 | maker, décrire un projet en langage naturel | composants issus du catalogue ; mention « généré par IA » |\n| US6 | maker, connaître la liste d'achat et son coût | total TTC ; liens explicites (6.1) |\n| US8 | maker, saisir mes résistances et condensateurs par valeur ou ajouter un assortiment en un clic | sélecteur de catégorie et de valeur au clavier, saisie libre « 4k7 » normalisée, lots E12/E6/semi-conducteurs/fils Dupont/kit débutant ; le câblage généré utilise les valeurs que je possède |\n| US7 | maker, poser une question sur un composant ou une carte | réponse citée [n] avec ses sources consultables ; « je ne sais pas » plutôt qu'une invention ; mention « généré par IA » |\n| US10 | utilisateur, exporter ou supprimer mes données | export JSON ; suppression confirmée |"
     - "Liste complète et scénarios Gherkin : docs/E4/user-stories.md."
@@ -21,7 +26,9 @@ sections:
   # ------------------------------------------------------------------ C15
   Concevoir l’architecture de l’application:
     - "Architecture en micro-services : application (Streamlit puis PWA React) → api_data (comptes, inventaire, catalogue, projets) et api_ia (vision, génération) → PostgreSQL, stockage objet, passerelle LLM (Ollama local, repli Gemini gratuit), base vectorielle pgvector (copilote), MLflow. Le cœur métier (allocateur de broches, contrôle électrique, génération du firmware et des sorties) est une bibliothèque Python pure, testée indépendamment."
-    - "[À COMPLÉTER : diagrammes C4 contexte et conteneurs (Mermaid, docs/E4/architecture.md)]"
+    - "Diagrammes C4 tracés à partir des services réels de infra/docker-compose.yml (source Mermaid dans docs/E4/architecture.md). En pointillés : la cible pas encore en place (Traefik en reverse proxy avec TLS, PWA React)."
+    - "![C4 niveau 1, contexte : le maker, MicroForge et les systèmes externes](E4/img/c4-contexte.png)"
+    - "![C4 niveau 2, conteneurs : services par profil docker compose](E4/img/c4-conteneurs.png)"
   Choisir les langages de programmation et les outils de développement:
     - "| Besoin | Choix | Alternative écartée |\n|---|---|---|\n| Back-end | Python 3.12 + FastAPI | Node.js |\n| Front | Streamlit (preuve de concept) puis React + Vite (PWA : caméra, hors ligne, WebSerial) | Flutter |\n| Base | PostgreSQL + pgvector | MongoDB |\n| IA | Ollama local + LiteLLM | API cloud seules |\n| Qualité | uv, ruff, pytest, hypothesis, Playwright | — |"
   Identifier les flux de données et les zones de stockage:
@@ -94,11 +101,13 @@ sections:
   Versionner les configurations de la chaîne:
     - "Workflows et fichiers compose versionnés."
   Tester la chaîne de livraison continue:
-    - "[À COMPLÉTER : première livraison en préproduction et tests de fumée]"
+    - "Le job « smoke » de cd.yml démarre la pile et contrôle les /health après la construction des images. [À COMPLÉTER : première livraison en préproduction (serveur à choisir, Traefik et TLS) et tests de fumée en ligne]"
   Documenter la procédure de livraison continue:
     - "docs/E4/cd.md, avec la procédure de retour arrière (redéploiement de l'image précédente)."
 
   Conclusion:
     - "L'application est conçue à partir des besoins des makers, développée sur un cœur métier testé, et livrée par des chaînes automatisées qui ont déjà prouvé leur utilité en détectant des erreurs réelles."
   Annexes:
-    - "[À COMPLÉTER : user stories complètes, ci.yml et cd.yml]"
+    - "User stories : US1 à US11 avec critères d'acceptation RGAA (docs/E4/user-stories.md) ; chaque US est une issue GitHub au format .github/ISSUE_TEMPLATE/user-story.md."
+    - "| Workflow | Déclencheurs | Jobs (dans l'ordre) |\n|---|---|---|\n| ci.yml | push, pull_request, manuel | python (3.12 et 3.13 : ruff, pytest, porte de couverture 80 %) ; pgvector (tests RAG sur PostgreSQL + pgvector) ; firmware-matrix (matrice des cartes tirée du catalogue) puis firmware (16 compilations réelles arduino-cli : tous les modèles compatibles et un croquis de fumée par carte) ; secrets (gitleaks) |\n| cd.yml | push, manuel | images (Docker Buildx, connexion GHCR, métadonnées, build et push) puis smoke (démarrage de la pile et tests de fumée) puis release (release-please : changelog et version) |"
+    - "Dernière CI complète : run 94 (commit 47dd796, 04/11/2026), tous les jobs verts."

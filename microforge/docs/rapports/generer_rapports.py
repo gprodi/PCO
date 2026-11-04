@@ -11,6 +11,7 @@ Conventions du contenu (liste de chaînes par titre) :
   * ``- texte``             -> puce
   * ``| a | b |`` (lignes)  -> tableau bordé (1re ligne = en-tête)
   * bloc commençant par ```` ``` ```` -> code (police à chasse fixe)
+  * ``![légende](E4/img/c4.png)``  -> image (chemin relatif à microforge/docs), largeur 16 cm, légende
   * ``[À COMPLÉTER : …]``    -> surligné en jaune (captures, mesures réelles à ajouter)
   * clé ``Parent > Titre``  -> pour les titres en double (« Définition » sous MCD/MLD/MPD)
 
@@ -30,10 +31,11 @@ from docx import Document
 from docx.enum.text import WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Pt, RGBColor
+from docx.shared import Cm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 
 HERE = Path(__file__).parent
+DOCS = HERE.parent  # microforge/docs : base des chemins d'images
 ROOT = HERE.parents[2]
 MODELES = ROOT / "referentiel" / "modeles"
 
@@ -121,10 +123,28 @@ def _bordered_table(doc, rows: list[list[str]]):
     return table
 
 
+IMAGE = re.compile(r"^!\[(?P<caption>[^\]]*)\]\((?P<path>[^)]+)\)$")
+
+
 def insert_blocks(doc, anchor, blocks: list[str], body_style) -> None:
     """Insère les blocs après ``anchor`` (élément XML), dans l'ordre."""
     for block in blocks:
         block = block.rstrip()
+        image = IMAGE.match(block)
+        if image:
+            path = DOCS / image["path"]
+            if not path.is_file():
+                raise FileNotFoundError(f"image introuvable : {path}")
+            p = _new_paragraph_after(anchor, doc._body)
+            p.style = body_style
+            p.add_run().add_picture(str(path), width=Cm(16))
+            caption = _new_paragraph_after(p._p, doc._body)
+            caption.style = body_style
+            _add_runs(caption, image["caption"])
+            for run in caption.runs:
+                run.italic = True
+            anchor = caption._p
+            continue
         if block.startswith("|"):
             rows = [
                 [c.strip() for c in line.strip().strip("|").split("|")]
