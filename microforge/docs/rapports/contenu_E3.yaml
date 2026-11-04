@@ -72,15 +72,15 @@ sections:
 
   # ------------------------------------------------------------------ C12
   Définir le périmètre des tests pour chaque composante du modèle:
-    - "| Partie | Cas testés |\n|---|---|\n| Données | format des lignes YOLO, classes connues, coordonnées normalisées, labels manquants |\n| Fuites | même image (SHA-256) dans deux ensembles |\n| Cohérence | dataset.yaml = classes.yaml = identifiants du catalogue |\n| Entraînement | test fumée d'une epoch sur CPU |\n| Évaluation | porte de non-régression : mAP50 ≥ production − 0,02 |\n| Inférence | schéma de sortie, correspondance avec le catalogue |"
+    - "| Partie | Cas testés |\n|---|---|\n| Données | format des lignes YOLO, classes connues, coordonnées normalisées, labels manquants |\n| Sources | licence CC BY ou domaine public (API et README), archives sans chemin dangereux |\n| Préparation | correspondance des classes, polygones convertis, EXIF retiré, attribution, déterminisme |\n| Fuites | même image (SHA-256) dans deux ensembles ; photos d'un même composant, copies augmentées et quasi-doublons dans le même ensemble |\n| Cohérence | dataset.yaml = classes.yaml = identifiants du catalogue |\n| Entraînement | test fumée d'une epoch sur CPU |\n| Évaluation | porte de non-régression : mAP50 ≥ production − 0,02 |\n| Inférence | schéma de sortie, correspondance avec le catalogue |"
   Choisir les outils de test:
     - "pytest (tests paramétrés, fixtures), hypothesis pour l'allocateur de broches, CI GitHub Actions."
   Installer et configurer l'environnement d'exécution des tests:
-    - "uv sync puis uv run pytest ; les tests d'entraînement réels tournent sur le runner GPU (étiquette « gpu »)."
+    - "uv sync puis uv run pytest ; l'entraînement réel de référence et son évaluation sur le split de test tournent sur un runner GitHub sans GPU (workflow jeux-de-donnees), le runner GPU auto-hébergé de la chaîne model-cd restant à installer."
   Intégrer les tests:
-    - "tests/test_ml_data.py et ml/evaluate.py, exécutés à chaque push et dans la chaîne de livraison du modèle."
+    - "tests/test_ml_data.py, test_ml_prepare.py, test_ml_import.py et test_ml_roboflow.py (63 tests) et ml/evaluate.py, exécutés à chaque push et dans la chaîne de livraison du modèle."
   Versionner les sources et les données avec Git:
-    - "Code dans Git, images et annotations versionnées avec DVC (stockage objet S3 compatible)."
+    - "Code, correspondances de classes et licences dans Git ; chaque source épinglée (version Roboflow, version Mendeley et SHA-256 du zip) ; préparation déterministe et manifest.json (origine, licence, SHA-256 de chaque image) : le dataset se reconstruit à l'identique. DVC (dvc.yaml présent) n'est pas encore initialisé : il versionnera les photos personnelles une fois choisi un stockage S3 joignable depuis la CI."
   C12. Tests Automatisés d'un Modèle d'IA > Rédiger la documentation technique:
     - "docs/E3/tests-modele.md."
 

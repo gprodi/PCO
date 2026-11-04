@@ -7,7 +7,7 @@
 | Entraîner (profil matériel auto) | `uv run python microforge/ml/train.py --epochs 80` | PC bureau (GPU 8 Go) / Mac M4 (`mps`) |
 | Évaluer + comparer à `@production` | `uv run python microforge/ml/evaluate.py --weights runs/detect/train/weights/best.pt` | toutes |
 | Enregistrer dans MLflow (alias `@staging`) | `uv run python microforge/ml/register.py --run-id <id>` | toutes |
-| Chaîne complète | `dvc repro` ou workflow GitHub `model-cd` | runner GPU |
+| Chaîne complète | workflow GitHub `model-cd` (à activer : runner GPU et stockage S3 des données à mettre en place) ; `dvc repro` une fois DVC initialisé | runner GPU |
 
 Sans GPU : notebook `colab_train.ipynb` (Google Colab / Kaggle, GPU gratuit), puis `register.py` en local.
 
