@@ -60,7 +60,12 @@ jobs:
         id: roboflow
         env:
           KEY: ${{ secrets.ROBOFLOW_API_KEY }}
-        run: echo "cle=$([ -n "$KEY" ] && echo oui || echo non)" >> "$GITHUB_OUTPUT"
+        run: |
+          cle=$([ -n "$KEY" ] && echo oui || echo non)
+          echo "cle=$cle" >> "$GITHUB_OUTPUT"
+          if [ "$cle" = oui ]; then msg="présente : jeux Roboflow téléchargés"; else
+            msg="**absente** : secret ROBOFLOW_API_KEY à créer dans Settings > Secrets and variables > Actions > onglet Secrets (pas Variables) > Repository secrets"; fi
+          echo "Clé Roboflow $msg" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Jeux Roboflow Universe retenus (licence vérifiée)
         if: steps.roboflow.outputs.cle == 'oui'
         continue-on-error: true # un jeu refusé (licence changée…) n'empêche pas d'entraîner sur les autres
