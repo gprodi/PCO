@@ -93,6 +93,7 @@ sections:
     - "Première étape de la chaîne : tests de données et test fumée."
   Intégrer les étapes d'entraînement et d’évaluation du modèle:
     - "ml/train.py (périphérique choisi selon la machine : cuda, mps ou cpu), suivi MLflow ; ml/evaluate.py calcule mAP50, mAP50-95, précision et rappel par classe."
+    - "Premier entraînement de référence, exécuté par la chaîne sur un runner GitHub sans GPU (04/11/2026) : YOLO11n, 15 epochs, 416 px, jeu public IoTKITs (CC BY 4.0, 8 classes de cartes), 32 minutes. Sur le split de validation (272 images, 213 cartes) : mAP50 0,965, mAP50-95 0,943, précision 0,894, rappel 0,955 ; classe la plus faible : Arduino Pro Mini (mAP50-95 0,843) ; 33,6 ms par image sur CPU. Score sur le split de test et sur les photos réelles : à mesurer."
   Intégrer la génération des rapports d'évaluation:
     - "Rapport Markdown et matrice de confusion joints à la demande de fusion ouverte automatiquement."
   Intégrer l'étape de livraison:
@@ -105,6 +106,6 @@ sections:
     - "[À COMPLÉTER : capture d'une demande de fusion « Modèle vX » avec son rapport]"
 
   Conclusion:
-    - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Reste à entraîner la première version sur les photos annotées et à mesurer ses performances réelles."
+    - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Une première version de référence est entraînée sur un jeu public (cartes uniquement, mAP50 0,965 en validation) ; reste à l'entraîner sur l'ensemble des données (jeux Roboflow CC BY 4.0 et photos annotées) et à mesurer ses performances sur les composants réels."
   Annexes:
     - "[À COMPLÉTER : extrait de model-cd.yml et d'un rapport d'évaluation]"

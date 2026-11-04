@@ -16,6 +16,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: jeux-de-donnees-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   inspecter:
     runs-on: ubuntu-latest
@@ -50,6 +53,7 @@ jobs:
       - name: Préparer le dataset (correspondance des classes)
         if: hashFiles('microforge/ml/sources/iotkits.yaml') != ''
         run: |
+          set -o pipefail
           cp microforge/ml/sources/iotkits.yaml data/sources/iotkits/source.yaml
           uv run --no-project --with pyyaml --with pillow python microforge/ml/prepare.py \
             --sources data/sources --out data/dataset --dataset-yaml microforge/ml/data/dataset.yaml | tee stats.json
@@ -61,6 +65,7 @@ jobs:
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
           DVC_DATA_VERSION: iotkits-v1
         run: |
+          set -o pipefail
           uv sync --all-packages --extra ml
           # Ultralytics résout un « path » relatif depuis son propre dossier : chemin absolu ici.
           uv run python - <<'PY'
@@ -70,7 +75,8 @@ jobs:
           yaml.safe_dump(cfg, open("dataset-runner.yaml", "w"), allow_unicode=True)
           PY
           uv run python microforge/ml/train.py --data dataset-runner.yaml --epochs 15 --imgsz 416 --batch 16 2>&1 | tee entrainement.log
-          best=$(ls -t runs/detect/*/weights/best.pt | head -1)
+          best=$(ls -t "$PWD"/runs/detect/*/weights/best.pt | head -1)
+          test -n "$best"
           uv run yolo val model="$best" data=dataset-runner.yaml split=test imgsz=416 device=cpu 2>&1 | tee evaluation-test.log
           { echo "## Entraînement CPU (15 epochs) et test"; echo '```'; tail -40 evaluation-test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -86,4 +92,5 @@ jobs:
             evaluation-test.log
             runs/detect/*/results.csv
             runs/detect/*/weights/best.pt
+            runs/val*/**/*.png
           if-no-files-found: ignore

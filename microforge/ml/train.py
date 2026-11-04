@@ -24,6 +24,7 @@ def main(argv: list[str] | None = None) -> str:
         "--weights", default=None, help="poids de départ (défaut : selon le profil)"
     )
     parser.add_argument("--experiment", default="microforge-detector")
+    parser.add_argument("--project", default="runs/detect", help="dossier des résultats")
     parser.add_argument("--smoke", action="store_true", help="1 epoch, 64 px, CPU (test fumée CI)")
     parser.add_argument("--imgsz", type=int, default=None, help="taille d'image (défaut : profil)")
     parser.add_argument("--batch", type=int, default=None, help="taille de lot (défaut : profil)")
@@ -51,7 +52,8 @@ def main(argv: list[str] | None = None) -> str:
         results = model.train(
             data=args.data,
             epochs=args.epochs,
-            project="runs/detect",
+            # chemin absolu : un chemin relatif est préfixé par le runs_dir d'Ultralytics
+            project=str(Path(args.project).resolve()),
             name=run.info.run_id,
             exist_ok=True,
             **cfg,

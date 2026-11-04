@@ -22,6 +22,29 @@ font sur un runner GitHub (workflow `jeux-de-donnees`), qui publie licence, cat�
 | PCB object detection (MIT) | écarté : images hébergées sur Roboflow seulement, même domaine CMS |
 | **Photos personnelles** (~30 composants) | protocole : [`PHOTOS.md`](PHOTOS.md) ; servent de test réel (composants jamais vus) et d'adaptation |
 
+### Premier entraînement de référence (04/11/2026, runner GitHub, CPU)
+
+YOLO11n pré-entraîné, 15 epochs, 416 px, lot de 16, sur **IoTKITs seul** (8 classes de cartes) ; 32 min sur
+CPU AMD EPYC (workflow `jeux-de-donnees`, run 41781341808). Mesures sur le split de **validation**
+(272 images, 213 cartes) — c'est aussi lui qui choisit le meilleur epoch, donc légèrement optimiste :
+
+| Classe | mAP50 | mAP50-95 |
+|---|---|---|
+| **toutes** | **0,965** | **0,943** (précision 0,894, rappel 0,955) |
+| arduino_uno | 0,995 | 0,995 |
+| arduino_mega | 0,995 | 0,995 |
+| arduino_leonardo | 0,990 | 0,990 |
+| arduino_micro | 0,981 | 0,949 |
+| arduino_due | 0,963 | 0,947 |
+| arduino_nano | 0,954 | 0,898 |
+| esp32_devkit | 0,941 | 0,925 |
+| arduino_pro_mini | 0,905 | 0,843 |
+
+Inférence : 33,6 ms par image sur CPU. **À faire** : score sur le split de test (relance du workflow après
+correction du chemin des résultats), puis sur les photos réelles de Gaël, seul test représentatif de l'usage.
+Ces chiffres valent pour des photos de cartes seules et bien cadrées ; les modules, capteurs et passifs
+viennent des jeux Roboflow préparés sur le PC de Gaël (`importer_zips.py`).
+
 Chaîne : `fetch_mendeley.py` (licence vérifiée) → `coco_to_yolo.py` → `prepare.py` (correspondance des classes
 dans `sources/*.yaml`, groupes sans fuite, EXIF retiré, `manifest.json`) → `dataset_checks.py` (C12).
 
