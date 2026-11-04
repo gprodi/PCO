@@ -1,0 +1,37 @@
+# PWA MicroForge servie par nginx (modèle traité au démarrage par l'image officielle : envsubst).
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    gzip on;
+    gzip_types text/css application/javascript image/svg+xml application/manifest+json;
+
+    # Adresses des API, lues dans l'environnement du conteneur (même image en local et en préproduction).
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/conf.d/securite.inc;
+        return 200 "window.MF_CONFIG = { apiDataUrl: '${MF_PUBLIC_API_DATA_URL}', apiIaUrl: '${MF_PUBLIC_API_IA_URL}' };\n";
+    }
+
+    # Fichiers à noms hachés : cache long. Le service worker et la page : toujours revalidés.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        include /etc/nginx/conf.d/securite.inc;
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        include /etc/nginx/conf.d/securite.inc;
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/conf.d/securite.inc;
+        try_files $uri $uri/ =404;
+    }
+}

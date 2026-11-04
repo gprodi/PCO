@@ -36,7 +36,7 @@ sections:
 
   # ------------------------------------------------------------------ C10
   Installer l'environnement de développement de l'application:
-    - "Preuve de concept Streamlit multipage (app_streamlit/) ; la PWA React prendra le relais en phase 2."
+    - "Preuve de concept Streamlit multipage (app_streamlit/), puis PWA React + Vite (microforge/pwa) pour les utilisateurs, au format téléphone : mêmes API, même authentification."
   Programmer les étapes d'authentification et d'autorisation:
     - "Inscription et connexion par l'API de données ; le client conserve le jeton d'accès en mémoire et le renouvelle automatiquement avec le jeton de rafraîchissement quand il reçoit une 401, puis rejoue la requête (testé dans tests/test_streamlit_client.py)."
   Programmer la communication avec l'API:

@@ -5,7 +5,9 @@
 #   docker compose -f docker-compose.yml -f docker-compose.edge.yml --profile core --profile edge up -d
 #
 # Variables (fichier ../.env) : MF_DOMAIN (ex. microforge.example.org, avec les enregistrements DNS
-# app., api. et ia. vers le serveur) et ACME_EMAIL (contact Let's Encrypt). Procédure : docs/E4/cd.md.
+# app., poc., api. et ia. vers le serveur) et ACME_EMAIL (contact Let's Encrypt). Procédure : docs/E4/cd.md.
+#   app.  → PWA (application des utilisateurs)      api. → api_data
+#   poc.  → Streamlit (preuve de concept)            ia.  → api_ia
 
 services:
   traefik:
@@ -36,7 +38,7 @@ services:
     mem_limit: 128m
     labels:
       - traefik.enable=true
-      # En-têtes de sécurité, partagés par les trois routes
+      # En-têtes de sécurité, partagés par les quatre routes
       - traefik.http.middlewares.securite.headers.stsSeconds=31536000
       - traefik.http.middlewares.securite.headers.stsIncludeSubdomains=true
       - traefik.http.middlewares.securite.headers.contentTypeNosniff=true
@@ -44,15 +46,28 @@ services:
       - traefik.http.middlewares.securite.headers.referrerPolicy=strict-origin-when-cross-origin
       - traefik.http.middlewares.securite.headers.permissionsPolicy=camera=(self), geolocation=()
 
+  pwa:
+    ports: !reset []
+    environment:
+      MF_PUBLIC_API_DATA_URL: https://api.${MF_DOMAIN:?MF_DOMAIN requis}
+      MF_PUBLIC_API_IA_URL: https://ia.${MF_DOMAIN}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`app.${MF_DOMAIN}`)
+      - traefik.http.routers.app.entrypoints=websecure
+      - traefik.http.routers.app.middlewares=securite@docker
+      - traefik.http.services.app.loadbalancer.server.port=8080
+
   streamlit:
     ports: !reset []
     labels:
       - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`app.${MF_DOMAIN:?MF_DOMAIN requis}`)
-      - traefik.http.routers.app.entrypoints=websecure
-      - traefik.http.routers.app.middlewares=securite@docker
-      - traefik.http.services.app.loadbalancer.server.port=8501
+      - traefik.http.routers.poc.rule=Host(`poc.${MF_DOMAIN}`)
+      - traefik.http.routers.poc.entrypoints=websecure
+      - traefik.http.routers.poc.middlewares=securite@docker
+      - traefik.http.services.poc.loadbalancer.server.port=8501
 
+  # Le navigateur (PWA) appelle les deux API : seule l'origine https://app. est autorisée (CORS).
   api_data:
     ports: !reset []
     networks: [backend, frontend]
@@ -68,6 +83,8 @@ services:
   api_ia:
     ports: !reset []
     networks: [backend, frontend]
+    environment:
+      MF_CORS_ORIGINS: https://app.${MF_DOMAIN}
     labels:
       - traefik.enable=true
       - traefik.http.routers.ia.rule=Host(`ia.${MF_DOMAIN}`)

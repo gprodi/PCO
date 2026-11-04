@@ -64,7 +64,7 @@ def test_only_traefik_is_published(merged):
 
 def test_routes_are_https_with_security_headers(merged):
     services = merged["services"]
-    expected = {"streamlit": "app", "api_data": "api", "api_ia": "ia"}
+    expected = {"pwa": "app", "streamlit": "poc", "api_data": "api", "api_ia": "ia"}
     for name, sub in expected.items():
         labels = services[name]["labels"]
         assert labels["traefik.enable"] == "true"
@@ -75,10 +75,20 @@ def test_routes_are_https_with_security_headers(merged):
         assert labels[f"traefik.http.routers.{router}.entrypoints"] == "websecure"
         assert labels[f"traefik.http.routers.{router}.middlewares"] == "securite@docker"
         assert "frontend" in services[name]["networks"]
-    assert (
-        services["api_data"]["environment"]["MF_CORS_ORIGINS"]
-        == "https://app.microforge.example.org"
-    )
+    # La PWA appelle les deux API depuis le navigateur : CORS limité à son origine, sur les deux.
+    for api in ("api_data", "api_ia"):
+        cors = services[api]["environment"]["MF_CORS_ORIGINS"]
+        assert cors == "https://app.microforge.example.org"
+
+
+def test_pwa_targets_public_https_apis(merged):
+    pwa = merged["services"]["pwa"]
+    assert pwa["environment"] == {
+        "MF_PUBLIC_API_DATA_URL": "https://api.microforge.example.org",
+        "MF_PUBLIC_API_IA_URL": "https://ia.microforge.example.org",
+    }
+    assert pwa["labels"]["traefik.http.services.app.loadbalancer.server.port"] == "8080"
+    assert pwa["build"]["context"].endswith("microforge/pwa")
 
 
 def test_traefik_is_pinned_and_locked_down(merged):

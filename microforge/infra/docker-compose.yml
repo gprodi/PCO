@@ -1,5 +1,5 @@
 # MicroForge — pile Docker Compose par profils :
-#   docker compose --profile core up -d                 # API + preuve de concept + Postgres
+#   docker compose --profile core up -d                 # API + PWA + preuve de concept + Postgres
 #   docker compose --profile core --profile ai up -d    # + passerelle LiteLLM (+ Ollama Linux/Windows GPU)
 #   docker compose --profile mlops up -d                # MLflow + stockage S3 (SeaweedFS)
 #   docker compose --profile monitoring up -d           # Prometheus, Grafana, Loki, Alloy, Uptime Kuma
@@ -58,6 +58,21 @@ services:
     depends_on: [api_data, api_ia]
     ports: ["8501:8501"]
     networks: [backend, frontend]
+
+  pwa:
+    # Application web installable (React + Vite) servie par nginx : http://localhost:5173.
+    # Le navigateur appelle directement les deux API (adresses publiques, CORS) ; même image partout.
+    profiles: [core]
+    image: ghcr.io/gprodi/microforge-pwa:${MF_IMAGE_TAG:-main}
+    build: { context: ../pwa }
+    restart: unless-stopped
+    environment:
+      MF_PUBLIC_API_DATA_URL: ${MF_PUBLIC_API_DATA_URL:-http://localhost:8000}
+      MF_PUBLIC_API_IA_URL: ${MF_PUBLIC_API_IA_URL:-http://localhost:8001}
+    depends_on: [api_data, api_ia]
+    ports: ["5173:8080"]
+    networks: [frontend]
+    mem_limit: 64m
 
   # ------------------------------------------------------------------ IA (C8)
   litellm:

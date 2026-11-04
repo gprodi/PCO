@@ -47,8 +47,8 @@ jobs:
           path: coverage.xml
 
   e2e:
-    # Parcours de bout en bout : api_data, api_ia et Streamlit démarrés par le test (SQLite, clés JWT
-    # éphémères, modèle de langage simulé), navigateur Chromium piloté par Playwright (Node).
+    # Parcours de bout en bout : api_data et api_ia démarrées par le test (SQLite, clés JWT éphémères,
+    # modèle de langage simulé), puis Streamlit ou la PWA construite ; Chromium piloté par Playwright.
     name: Parcours de bout en bout (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -60,12 +60,27 @@ jobs:
           python-version: "3.12"
       - name: Installer les dépendances
         run: uv sync --all-packages --group dev --extra data --extra app --extra anthropic
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: microforge/pwa/package-lock.json
       - name: Playwright pour Node et Chromium
         working-directory: microforge/tests
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
-      - name: Parcours inscription → stock → idées → projet (8 onglets) → explorer → copilote
+      - name: Construire la PWA
+        working-directory: microforge/pwa
+        run: |
+          npm ci
+          npm run build
+      # Streamlit : inscription → stock → idées → projet (8 onglets) → explorer → copilote.
+      # PWA : inscription → stock → idées → projet (5 onglets) → copilote → photo → hors ligne,
+      # servie avec les en-têtes de son image nginx (CSP) et auditée par axe à chaque vue.
+      - name: Parcours Streamlit et PWA
+        env:
+          MF_E2E_STRICT: "1" # un prérequis manquant fait échouer le job au lieu d'ignorer le test
         run: uv run pytest -m e2e microforge/tests/test_e2e_parcours.py --basetemp=e2e-sortie
       - name: Captures et journaux du parcours
         if: always()
@@ -74,6 +89,34 @@ jobs:
           name: parcours-e2e
           path: e2e-sortie/**
           if-no-files-found: ignore
+
+  pwa:
+    # PWA React + Vite : tests unitaires du client d'API (Vitest), construction de production.
+    name: PWA — tests et construction
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microforge/pwa
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: microforge/pwa/package-lock.json
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - run: npm test
+      - run: npm run build
+      - name: Taille de la construction
+        run: |
+          {
+            echo "### PWA construite"
+            echo '```'
+            du -ah dist | sort -h | tail -n 12
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   pgvector:
     # RAG (cours + copilote MicroForge) sur une vraie base PostgreSQL + pgvector : index HNSW,

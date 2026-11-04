@@ -28,9 +28,9 @@ Services du fichier `infra/docker-compose.yml`, regroupés par profil de lanceme
 flowchart TB
   maker(("Maker"))
   traefik["Traefik v3.7.16<br/>[reverse proxy, TLS]<br/>configuré, préprod à déployer"]:::cible
-  pwa["PWA React + Vite<br/>à construire"]:::cible
   subgraph core["profil core"]
-    st["Application<br/>[Streamlit, Python]<br/>:8501"]
+    pwa["PWA<br/>[React + Vite, nginx]<br/>:5173 — téléphone, hors ligne"]
+    st["Preuve de concept<br/>[Streamlit, Python]<br/>:8501"]
     data["api_data<br/>[FastAPI]<br/>:8000 — comptes, stock,<br/>catalogue, projets"]
     ia["api_ia<br/>[FastAPI]<br/>:8001 — vision, génération,<br/>copilote"]
     pg[("PostgreSQL 17 + pgvector<br/>données, passages du copilote")]
@@ -50,10 +50,10 @@ flowchart TB
   end
   pipe["data_pipeline<br/>[Prefect, CLI mf-pipeline]<br/>collecte E1"]
   maker -- HTTPS --> traefik
-  traefik -.-> st
-  traefik -.-> pwa
-  pwa -. "JSON + JWT" .-> data
-  pwa -. "JSON + JWT" .-> ia
+  traefik -. "app." .-> pwa
+  traefik -. "poc." .-> st
+  pwa -- "JSON + JWT (CORS)" --> data
+  pwa -- "JSON + JWT (CORS)" --> ia
   st -- "JSON + JWT" --> data
   st -- "JSON + JWT" --> ia
   data --> pg
@@ -66,7 +66,9 @@ flowchart TB
   kuma -. "/health" .-> data
   classDef cible stroke-dasharray: 5 4
 ```
-Les éléments en pointillés sont la cible, pas encore en place (voir « Cible et état d'avancement »).
+Les éléments en pointillés sont la cible, pas encore en place (voir « Cible et état d'avancement ») :
+Traefik est configuré et testé, mais aucun serveur de préproduction ne l'exécute encore. En local, la
+PWA est sur http://localhost:5173 et la preuve de concept Streamlit sur http://localhost:8501.
 
 Le profil `veille` ajoute FreshRSS (agrégation des flux de veille, E2).
 
@@ -74,7 +76,7 @@ Le profil `veille` ajoute FreshRSS (agrégation des flux de veille, E2).
 ```mermaid
 flowchart LR
   subgraph Client
-    ST[Streamlit, preuve de concept] & PWA[PWA React, à construire]
+    PWA[PWA React + Vite] & ST[Streamlit, preuve de concept]
   end
   subgraph Services
     DATA[api_data FastAPI] --- PG[(PostgreSQL + pgvector)]
@@ -108,7 +110,7 @@ flowchart LR
 | Besoin | Choix | Alternatives écartées |
 |---|---|---|
 | Langage back | Python 3.12 + FastAPI (vu en formation, typage Pydantic, OpenAPI) | Node.js |
-| Front | Streamlit (preuve de concept, en place), puis PWA React + Vite (à construire : caméra, hors ligne, WebSerial) | Flutter (2 bases de code) |
+| Front | PWA React + Vite (caméra, hors ligne, installable) ; Streamlit garde le rôle de preuve de concept | Flutter (2 bases de code) |
 | Base | PostgreSQL + pgvector | MongoDB (données relationnelles) |
 | IA | Ollama local + LiteLLM (cf. E2) | API cloud seules |
 | Hébergement préprod | VPS chez un hébergeur européen éco-engagé (Scaleway / OVHcloud / Infomaniak, comparés dans le benchmark) | hyperscalers US |
@@ -116,10 +118,10 @@ flowchart LR
 ## Cible et état d'avancement
 | Élément | Cible | État au 04/11/2026 |
 |---|---|---|
-| Application | Streamlit (preuve de concept) puis PWA React + Vite | Streamlit en place ; PWA à construire |
+| Application | PWA React + Vite pour les utilisateurs ; Streamlit en preuve de concept | en place : `pwa/` (6 vues, service worker, image nginx avec CSP), job CI `pwa` ; reste la lecture de la carte par WebSerial (US8) |
 | Accès | Traefik en reverse proxy, TLS Let's Encrypt, redirection HTTPS | configuré : `infra/docker-compose.edge.yml` (Traefik v3.7.16), vérifié par `tests/test_infra_edge.py` |
 | Préproduction | VPS chez un hébergeur européen, pile `core` + Traefik, images GHCR | à déployer (serveur à choisir) |
-| Parcours de bout en bout | test Playwright versionné et lancé par la CI (inscription → stock → idées → génération → chaque onglet) | en place : `tests/test_e2e_parcours.py` + `tests/e2e/parcours.cjs`, job CI `e2e` |
+| Parcours de bout en bout | test Playwright versionné et lancé par la CI (inscription → stock → idées → génération → chaque onglet) | en place, pour Streamlit et pour la PWA (format téléphone, audit axe de chaque vue, rechargement hors ligne, en-têtes CSP de l'image) : `tests/test_e2e_parcours.py`, job CI `e2e` |
 | Démo | page statique en ligne, moteur réel et résultats pré-calculés | en ligne |
 
 Aujourd'hui, la preuve de concept se lance en local avec `docker compose --profile core up`, à partir des

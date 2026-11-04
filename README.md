@@ -112,7 +112,7 @@ uv run pytest
 
 ### MicroForge
 
-Lancer MicroForge sans IA (réponses simulées), en trois terminaux :
+Lancer MicroForge sans IA (réponses simulées), en quatre terminaux :
 
 ```bash
 LLM_CHAIN=fake uv run uvicorn microforge.api_data.main:app --port 8000
@@ -125,6 +125,12 @@ LLM_CHAIN=fake MF_API_DATA_URL=http://localhost:8000 uv run uvicorn microforge.a
 ```bash
 cd microforge/src/microforge/app_streamlit && MF_API_DATA_URL=http://localhost:8000 MF_API_IA_URL=http://localhost:8001 uv run streamlit run Accueil.py
 ```
+
+```bash
+cd microforge/pwa && npm ci && npm run dev
+```
+
+La PWA est sur http://localhost:5173, la preuve de concept Streamlit sur http://localhost:8501.
 
 Avec Docker : `docker compose -f microforge/infra/docker-compose.yml --profile core up`. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
 

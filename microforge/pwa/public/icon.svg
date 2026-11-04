@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MicroForge">
+  <rect width="64" height="64" rx="14" fill="#17694f"/>
+  <g fill="#f3e3d3">
+    <circle cx="16" cy="16" r="2.4"/><circle cx="32" cy="16" r="2.4"/><circle cx="48" cy="16" r="2.4"/>
+    <circle cx="16" cy="48" r="2.4"/><circle cx="32" cy="48" r="2.4"/><circle cx="48" cy="48" r="2.4"/>
+  </g>
+  <rect x="20" y="24" width="24" height="16" rx="3" fill="#0c1411"/>
+  <circle cx="44" cy="20" r="5" fill="#2fd27a"/>
+  <path d="M16 16v8h4M48 48v-8h-4M32 16v8M32 48v-8" stroke="#d9955a" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

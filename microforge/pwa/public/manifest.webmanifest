@@ -1,0 +1,15 @@
+{
+  "name": "MicroForge",
+  "short_name": "MicroForge",
+  "description": "Ton stock de composants électroniques, des idées de projets, le câblage et le code.",
+  "lang": "fr",
+  "start_url": "./#stock",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f5",
+  "theme_color": "#17694f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
