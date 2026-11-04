@@ -1,0 +1,4 @@
+# Faux positifs de gitleaks, vérifiés à la main (un par ligne : empreinte du constat).
+# Exemple de valeur dans le .env.example d'un gabarit (texte « remplacer-par-… », aucun secret réel) ;
+# la valeur a été vidée dans le commit suivant, l'empreinte reste dans l'historique de la PR.
+dbab71055fb24c0f9a3a704a1177a35bc2ad0d27:revision/boilerplates/fastapi-jwt-sqlmodel/.env.example:generic-api-key:2

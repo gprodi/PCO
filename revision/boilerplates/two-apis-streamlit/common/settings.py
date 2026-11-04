@@ -2,13 +2,14 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    api_key: str = "changer-moi"
+    api_key: str = Field(min_length=16)  # obligatoire : sans clé, aucun service ne démarre
     data_url: str = "http://127.0.0.1:8000"
     ia_url: str = "http://127.0.0.1:8001"
     database_url: str = "sqlite:///./avis.db"
