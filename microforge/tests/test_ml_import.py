@@ -116,3 +116,14 @@ def test_rejected_list_names_no_retained_dataset():
     retained = {p.stem for p in (importer_zips.ROOT / "microforge/ml/sources").glob("*.yaml")}
     assert rejected and not set(rejected) & retained
     assert all(len(reason) > 20 for reason in rejected.values())
+
+
+def test_report_does_not_depend_on_filesystem_order(tmp_path, capsys, monkeypatch):
+    roboflow_zip(tmp_path / "Blinduino.v2i.yolov8.zip")
+    first = run(tmp_path, capsys)
+    original = Path.rglob
+    monkeypatch.setattr(
+        Path, "rglob", lambda self, pattern: reversed(list(original(self, pattern)))
+    )
+    assert run(tmp_path, capsys).split("<!--")[0] == first.split("<!--")[0]
+    assert "images : 4 {'train': 3, 'valid': 1}" in run(tmp_path, capsys)

@@ -74,7 +74,8 @@ def _names(dest: Path) -> list[str] | None:
 
 
 def describe(dest: Path) -> list[str]:
-    images = [p for p in dest.rglob("*") if p.suffix.lower() in IMAGE_EXT]
+    # ordre stable : rglob ne garantit aucun ordre (il diffère entre Python 3.12 et 3.13)
+    images = sorted(p for p in dest.rglob("*") if p.suffix.lower() in IMAGE_EXT)
     splits: dict[str, int] = {}
     for img in images:
         parts = img.relative_to(dest).parts
