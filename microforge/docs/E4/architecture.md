@@ -27,7 +27,7 @@ Services du fichier `infra/docker-compose.yml`, regroupés par profil de lanceme
 ```mermaid
 flowchart TB
   maker(("Maker"))
-  traefik["Traefik<br/>[reverse proxy, TLS]<br/>à configurer"]:::cible
+  traefik["Traefik v3.7.16<br/>[reverse proxy, TLS]<br/>configuré, préprod à déployer"]:::cible
   pwa["PWA React + Vite<br/>à construire"]:::cible
   subgraph core["profil core"]
     st["Application<br/>[Streamlit, Python]<br/>:8501"]
@@ -117,7 +117,7 @@ flowchart LR
 | Élément | Cible | État au 04/11/2026 |
 |---|---|---|
 | Application | Streamlit (preuve de concept) puis PWA React + Vite | Streamlit en place ; PWA à construire |
-| Accès | Traefik en reverse proxy, TLS Let's Encrypt, redirection HTTPS | à configurer (profil compose dédié) |
+| Accès | Traefik en reverse proxy, TLS Let's Encrypt, redirection HTTPS | configuré : `infra/docker-compose.edge.yml` (Traefik v3.7.16), vérifié par `tests/test_infra_edge.py` |
 | Préproduction | VPS chez un hébergeur européen, pile `core` + Traefik, images GHCR | à déployer (serveur à choisir) |
 | Parcours de bout en bout | test Playwright versionné et lancé par la CI (inscription → stock → idées → génération → chaque onglet) | en place : `tests/test_e2e_parcours.py` + `tests/e2e/parcours.cjs`, job CI `e2e` |
 | Démo | page statique en ligne, moteur réel et résultats pré-calculés | en ligne |

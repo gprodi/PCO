@@ -101,7 +101,7 @@ sections:
   Versionner les configurations de la chaîne:
     - "Workflows et fichiers compose versionnés."
   Tester la chaîne de livraison continue:
-    - "Le job « smoke » de cd.yml démarre la pile et contrôle les /health après la construction des images. [À COMPLÉTER : première livraison en préproduction (serveur à choisir, Traefik et TLS) et tests de fumée en ligne]"
+    - "Le job « smoke » de cd.yml démarre la pile et contrôle les /health après la construction des images. La préproduction est prête à déployer : Traefik v3.7.16 avec HTTPS Let's Encrypt et en-têtes de sécurité (infra/docker-compose.edge.yml, procédure dans docs/E4/cd.md, configuration vérifiée à chaque commit). [À COMPLÉTER : première livraison sur le serveur de préproduction et tests de fumée en ligne]"
   Documenter la procédure de livraison continue:
     - "docs/E4/cd.md, avec la procédure de retour arrière (redéploiement de l'image précédente)."
 
