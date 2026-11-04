@@ -1,0 +1,14 @@
+_titre: "Journaux centralisés : Loki, Alloy, Grafana"
+_description: "Application qui journalise en JSON (loguru : route, statut, durée, identifiant de requête), collecte des journaux des conteneurs par Grafana Alloy, stockage Loki, requêtes LogQL dans Grafana."
+_cours: [loki-grafana, mlops-3-monitoring, pytest-loguru]
+_competences: [C11, C20]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: journaux-centralises
+python_version:
+  type: str
+  default: "3.12"

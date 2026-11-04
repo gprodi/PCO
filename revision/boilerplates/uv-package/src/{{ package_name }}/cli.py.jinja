@@ -1,0 +1,22 @@
+"""Commande « {{ project_name }} »."""
+
+import argparse
+
+from . import __version__
+from .core import slugify
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="{{ project_name }}", description="{{ description }}")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    sub = parser.add_subparsers(dest="command", required=True)
+    slug = sub.add_parser("slug", help="transforme un texte en identifiant d'URL")
+    slug.add_argument("text")
+    args = parser.parse_args(argv)
+    if args.command == "slug":
+        print(slugify(args.text))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

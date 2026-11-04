@@ -1,0 +1,25 @@
+services:
+  api_data:
+    build: .
+    command: uvicorn api_data.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////data/avis.db
+    volumes: [data:/data]
+    ports: ["8000:8000"]
+  api_ia:
+    build: .
+    command: uvicorn api_ia.main:app --host 0.0.0.0 --port 8001
+    env_file: .env
+    ports: ["8001:8001"]
+  app:
+    build: .
+    command: streamlit run streamlit_app.py --server.address 0.0.0.0
+    env_file: .env
+    environment:
+      DATA_URL: http://api_data:8000
+      IA_URL: http://api_ia:8001
+    ports: ["8501:8501"]
+    depends_on: [api_data, api_ia]
+volumes:
+  data:

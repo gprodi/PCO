@@ -1,0 +1,6 @@
+.env
+mlruns/
+*.db
+__pycache__/
+.venv/
+.pytest_cache/

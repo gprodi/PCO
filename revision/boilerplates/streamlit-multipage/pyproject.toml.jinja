@@ -1,0 +1,15 @@
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+requires-python = ">={{ python_version }}"
+dependencies = ["streamlit>=1.66", "pandas>=2.2", "httpx>=0.28"]
+
+[dependency-groups]
+dev = ["pytest>=9", "ruff>=0.17"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

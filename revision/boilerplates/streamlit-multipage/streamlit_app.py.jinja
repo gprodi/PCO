@@ -1,0 +1,15 @@
+"""Point d'entrée : navigation entre les pages."""
+
+import streamlit as st
+
+from lib.state import init_state
+
+st.set_page_config(page_title="{{ app_title }}", page_icon="📊", layout="wide")
+init_state()
+
+pages = [
+    st.Page("pages_src/accueil.py", title="Accueil", icon="🏠", default=True),
+    st.Page("pages_src/donnees.py", title="Données", icon="📄"),
+    st.Page("pages_src/prediction.py", title="Prédiction", icon="🤖"),
+]
+st.navigation(pages).run()

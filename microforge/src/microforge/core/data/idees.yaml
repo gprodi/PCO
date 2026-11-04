@@ -20,6 +20,7 @@ themes:
       - { titre: "Détecteur de fenêtre ouverte + chauffage", difficulte: 2, composants: [reed-switch, relay-module-1ch, led], description: "Coupe le chauffage tant que la fenêtre est ouverte." }
       - { titre: "Rappel « porte du frigo ouverte »", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip si la porte reste ouverte plus de 30 s." }
       - { titre: "Variateur pour ruban LED 12 V", difficulte: 1, composants: [mosfet-module, potentiometer-10k], description: "Un bouton rotatif règle l'intensité d'un ruban LED." }
+      - { titre: "Lumière de couloir à radar", template: lumiere-couloir-radar, difficulte: 2, composants: [rcwl-0516, ldr-module, relay-module-1ch], description: "S'allume la nuit au moindre passage, même derrière une porte." }
 
   - id: interieur
     titre: Maison & confort
@@ -36,6 +37,7 @@ themes:
       - { titre: "Indicateur de confort (trop chaud / trop sec)", difficulte: 1, composants: [dht11, rgb-led], description: "Une seule LED qui résume le confort de la pièce." }
       - { titre: "Sonnette silencieuse (bébé dort)", difficulte: 1, composants: [pushbutton, vibration-motor, led], description: "Le visiteur sonne, toi seul sens la vibration." }
       - { titre: "Ventilateur qui accélère avec la chaleur", template: ventilateur-pwm-mosfet, difficulte: 3, composants: [dht22, mosfet-irlz44n, diode-1n4007, fan-12v], description: "Arrêté sous 25 °C, pleine vitesse à 35 °C, progressif entre les deux." }
+      - { titre: "Baromètre à tendance", template: barometre-bmp280, difficulte: 2, composants: [bmp280, ssd1306-i2c], description: "La pression monte ou baisse depuis 3 h : beau temps ou pluie en approche." }
 
   - id: plantes
     titre: Plantes & jardin
@@ -100,6 +102,7 @@ themes:
       - { titre: "Tête de robot expressive", difficulte: 2, composants: [max7219-matrix, sg90-servo, hc-sr04], description: "Les yeux sur matrice LED suivent et réagissent quand on s'approche." }
       - { titre: "Robot télécommandé infrarouge", difficulte: 3, composants: [ir-receiver, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Pilote le châssis avec une télécommande de TV." }
       - { titre: "Moteur à vitesse réglable (TIP120)", template: moteur-vitesse-tip120, difficulte: 2, composants: [dc-motor-tt, darlington-tip120, diode-1n4007, potentiometer-10k], description: "La base de tout robot : un moteur piloté en PWM par un transistor." }
+      - { titre: "Robot qui suit ta main", template: robot-suiveur-tb6612, difficulte: 3, composants: [tb6612fng-driver, hc-sr04, dc-motor-tt, battery-holder-4aa], description: "Garde 15 cm d'écart : il avance quand ta main s'éloigne." }
 
   - id: vehicules
     titre: Véhicules, vélo & trottinette
@@ -166,6 +169,7 @@ themes:
       - { titre: "Rappel d'hydratation", difficulte: 2, composants: [hx711-load-cell, buzzer, led], description: "La gourde posée sur la balance : alerte si elle ne baisse pas." }
       - { titre: "Guide de respiration (cohérence cardiaque)", difficulte: 1, composants: [ws2812-ring-12], description: "Inspire quand l'anneau s'allume, expire quand il s'éteint (6 cycles/min)." }
       - { titre: "Chronomètre de corde à sauter", difficulte: 2, composants: [mpu6050, tm1637-display], description: "Compte les sauts grâce à l'accéléromètre." }
+      - { titre: "Voyant de qualité de l'air", template: qualite-air-mq135, difficulte: 2, composants: [mq135-air, rgb-led, buzzer], description: "Vert, orange, rouge : le signal pour ouvrir la fenêtre." }
 
   - id: sciences
     titre: Sciences & expériences
@@ -180,6 +184,9 @@ themes:
       - { titre: "Détecteur de champ magnétique", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip quand un aimant passe : idéal pour expliquer le magnétisme." }
       - { titre: "Sonde de qualité de l'air (gaz)", difficulte: 2, composants: [mq2-gas, ssd1306-i2c], description: "Observe l'effet d'une fenêtre ouverte ou d'une cuisson." }
       - { titre: "Lire 8 interrupteurs avec 3 broches (74HC165)", template: lecteur-8-interrupteurs, difficulte: 2, composants: [shift-register-74hc165, pushbutton], description: "Comprendre les registres à décalage en entrée." }
+      - { titre: "Luxmètre de poche", template: luxmetre-bh1750, difficulte: 1, composants: [bh1750, ssd1306-i2c], description: "Assez de lumière pour lire ? Mesure-le en lux." }
+      - { titre: "Télémètre laser au millimètre", template: telemetre-laser-vl53l0x, difficulte: 2, composants: [vl53l0x, ssd1306-i2c, pushbutton], description: "Mesure par temps de vol d'un laser, valeur figée d'un appui." }
+      - { titre: "Wattmètre de montage", template: wattmetre-ina219, difficulte: 2, composants: [ina219, ssd1306-i2c], description: "Combien consomme ton montage ? Tension, courant, énergie cumulée." }
 
   - id: iot
     titre: Objets connectés (Wi-Fi)

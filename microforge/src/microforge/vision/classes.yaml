@@ -41,3 +41,18 @@ classes:
   sd_module: microsd-module
   hx711: hx711-load-cell
   jumper_wires: jumper-wires
+  # Ajoutées le 04/11/2026 (cartes présentes dans IoTKITs) ; ajoutées en fin de liste : indices stables.
+  arduino_leonardo: arduino-leonardo
+  arduino_micro: arduino-micro
+  arduino_due: arduino-due
+  arduino_pro_mini: arduino-pro-mini-5v  # 3,3 V et 5 V identiques à l'œil (quartz 8 / 16 MHz) : à confirmer par l'utilisateur
+  # Ajoutées le 04/11/2026 (jeux Roboflow CC BY 4.0 de Gaël). La photo donne la famille, pas la référence
+  # exacte : l'application fait confirmer la valeur ou la référence (lue sur le boîtier).
+  capacitor_ceramic: capacitor-ceramic
+  capacitor_electrolytic: capacitor-electrolytic
+  diode: diode-1n4007            # boîtier noir ; une 1N4148 (verre) ou une Zener est à confirmer
+  transistor: npn-bc547          # boîtier TO-92 : référence à lire sur la face plate
+  nodemcu: nodemcu-esp8266
+  trimmer: trimmer-potentiometer
+  crystal: crystal-16mhz
+  screw_terminal: screw-terminal-2p

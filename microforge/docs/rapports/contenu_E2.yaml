@@ -23,7 +23,7 @@ sections:
     - "Import de l'OPML dans FreshRSS, une catégorie par thème, filtres par mots-clés (ex. « ESP32 », « AI Act », « RGAA »), étiquette « à synthétiser »."
     - "[À COMPLÉTER : capture de FreshRSS configuré]"
   Rédiger des synthèses des informations collectées:
-    - "Une synthèse hebdomadaire courte (faits, source, impact sur MicroForge, décision). Première synthèse : veille/syntheses/2026-45.md (03/11/2026 : AI Act article 50, Ollama 0.40.14, LiteLLM, YOLO26, pgvector 0.8)."
+    - "Une synthèse hebdomadaire courte (faits, source, impact sur MicroForge, décision). Première synthèse : veille/syntheses/2026-45.md (03/11/2026 : AI Act article 50, Ollama 0.40.14, LiteLLM, YOLO26, pgvector 0.8 ; complétée le 04/11 : images de supervision et MLflow mises à jour, MLflow 3.x qui refuse désormais les en-têtes Host autres que localhost et IP privées sans --allowed-hosts)."
     - "[À COMPLÉTER : au moins 8 synthèses avant l'épreuve]"
   Communiquer les synthèses aux parties prenantes du projet:
     - "Format accessible : titres hiérarchisés, liens explicites, langage clair, contraste suffisant, aucune information portée par la seule couleur."

@@ -15,9 +15,10 @@ Ce dépôt réunit deux projets et les supports de l'année :
 
 ## MicroForge en chiffres
 
-- 52 projets générables (domotique, sécurité, robots, lumière, musique, fêtes…) et 138 idées réparties en 17 thèmes ;
-- 96 composants et 40 cartes en 11 familles (ESP32 classique/S2/S3/C3/C6/H2, ESP8266, Arduino Uno R3/R4, Nano, Mega, Leonardo, Nano Every, Nano 33, MKR, Due, Pico/Pico 2, STM32, Teensy) ;
-- un copilote qui répond aux questions sur le matériel en citant le catalogue (358 passages indexés dans PostgreSQL + pgvector) ;
+- 59 projets générables (domotique, sécurité, robots, lumière, musique, fêtes…) et 145 idées réparties en 17 thèmes ;
+- 103 composants et 40 cartes en 11 familles (ESP32 classique/S2/S3/C3/C6/H2, ESP8266, Arduino Uno R3/R4, Nano, Mega, Leonardo, Nano Every, Nano 33, MKR, Due, Pico/Pico 2, STM32, Teensy) ;
+- un copilote qui répond aux questions sur le matériel en citant le catalogue (379 passages indexés dans PostgreSQL + pgvector) ;
+- un atelier virtuel : on branche chaque composant sur une broche de la carte (une erreur est expliquée), puis le projet tourne dans le navigateur (sa logique C++ traduite en JavaScript, un modèle de comportement par composant) ;
 - un parcours de progression en 7 étapes, de la première LED au robot autonome, et une vitrine de vrais projets open source (WLED, ESPHome, OpenBikeSensor, Otto, InMoov…).
 
 ### Ce qui est vérifié, et comment
@@ -25,9 +26,10 @@ Ce dépôt réunit deux projets et les supports de l'année :
 | Vérification | Où |
 |---|---|
 | Allocation des broches et contrôle électrique, à chaque génération | `microforge/src/microforge/core/` |
-| Syntaxe C++ des 555 firmwares (52 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
+| Syntaxe C++ des 628 firmwares (59 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
 | Compilation réelle avec arduino-cli sur les 11 familles et les variantes de puce (ESP32-S3, C3, C6, H2, Pico 2 W) | job `firmware` de [la CI](.github/workflows/ci.yml) (16 jobs) |
 | Copilote RAG : réponses citées, « je ne sais pas » sous le seuil, repli sans LLM, index PostgreSQL + pgvector | `microforge/tests/test_copilot.py`, job `pgvector` de la CI |
+| Atelier virtuel : les 59 projets transpilés et exécutés 120 s virtuelles, capteurs sollicités, sans erreur ; sémantique du C (division entière, débordements) ; erreurs de branchement expliquées ; page testée dans Chromium | `microforge/tests/test_sim.py` |
 | Chaque projet renvoie vers des tutoriels publics du même montage | `microforge/src/microforge/core/data/references.yaml` |
 | Montage sur du vrai matériel | **à faire** : champ `hardware_tested` de chaque modèle, à remplir après essai |
 
@@ -88,6 +90,19 @@ REVISION_VECTOR_URL=postgresql+psycopg://postgres:revision@127.0.0.1:5433/postgr
 La même variable `REVISION_VECTOR_URL` doit être définie dans le terminal qui lance `revise start` (le chat interroge alors PostgreSQL).
 
 Version en ligne, sans installation (lecture, QCM, flashcards) : le lien privé partagé par Claude. Autres commandes : `uv run revise --help`.
+
+#### Boilerplates (gabarits copier)
+
+Neuf gabarits de projet, rédigés à partir des cours et reliés aux compétences du référentiel
+(page « Boilerplates » du site) : API FastAPI sécurisée (JWT à rotation, Argon2id), deux API + Streamlit,
+Streamlit multipage, registre MLflow avec alias, pipeline Prefect, CI/CD GitHub Actions, supervision
+Prometheus/Grafana/Uptime Kuma, journaux Loki/Alloy, paquet uv. Pour en créer un projet :
+
+```bash
+uvx copier copy revision/boilerplates/fastapi-jwt-sqlmodel mon-api
+```
+
+Chaque gabarit est rendu et ses propres tests passent dans la CI (`revision/tests/test_boilerplates.py`).
 
 ### Tests
 

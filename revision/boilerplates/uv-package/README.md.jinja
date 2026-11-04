@@ -1,0 +1,19 @@
+# {{ project_name }}
+
+{{ description }}
+
+```bash
+uv sync                      # environnement + installation éditable
+uv run {{ project_name }} slug "Été à Lyon !"    # -> ete-a-lyon
+uv run pytest
+uv build                     # dist/*.whl et dist/*.tar.gz
+```
+
+## Publier sur PyPI sans jeton (Trusted Publishing)
+
+1. Sur pypi.org (ou test.pypi.org) : *Your projects → Publishing → Add a new pending publisher* :
+   dépôt GitHub, fichier `publish.yml`, environnement `pypi`.
+2. Créer une *release* GitHub : le workflow construit le paquet et le publie ; PyPI vérifie
+   l'identité du workflow (OIDC), aucun mot de passe n'est stocké dans le dépôt.
+
+La version se change dans `pyproject.toml` (`uv version --bump minor`).

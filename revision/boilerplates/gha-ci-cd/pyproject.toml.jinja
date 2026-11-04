@@ -1,0 +1,23 @@
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+requires-python = ">={{ python_version }}"
+dependencies = ["fastapi>=0.150", "uvicorn[standard]>=0.54"]
+
+[dependency-groups]
+dev = ["pytest>=9", "pytest-cov>=7", "httpx>=0.28", "ruff>=0.17"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = {{ coverage_min }}
+show_missing = true
+
+[tool.ruff]
+line-length = 100

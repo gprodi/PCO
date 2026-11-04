@@ -1,0 +1,23 @@
+# {{ project_name }}
+
+Collecte quotidienne des communes du département {{ departement }} depuis l'API publique
+[geo.api.gouv.fr](https://geo.api.gouv.fr/decoupage-administratif/communes) (sans clé), nettoyage, puis
+chargement dans SQLite.
+
+| Fichier | Rôle |
+|---|---|
+| `etl/core.py` | logique pure : `fetch`, `clean`, `save` (testée sans Prefect) |
+| `flows/communes.py` | tâches Prefect (relances, journal), flow `communes`, planification quotidienne |
+| `prefect.yaml` | déploiement sur un pool de travail Docker |
+| `docker-compose.yml` | serveur Prefect (interface sur http://localhost:4200) et worker |
+
+```bash
+uv sync
+uv run python -m flows.communes            # une exécution locale
+uv run pytest
+docker compose up -d                       # serveur + worker
+uv run prefect deploy --all                # enregistre le déploiement planifié
+```
+
+Le chargement est **idempotent** : relancer le flow met à jour les communes (clé : code INSEE)
+au lieu de créer des doublons.

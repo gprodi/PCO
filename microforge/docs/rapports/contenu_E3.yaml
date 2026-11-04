@@ -19,7 +19,7 @@ sections:
     - "Le type réel du fichier est vérifié par Pillow (et non par l'extension), la taille est bornée, les métadonnées EXIF/GPS sont supprimées (RGPD) et l'image est redimensionnée avant l'inférence."
   Développer l'exécution du modèle à partir de la requête client:
     - "Le détecteur est chargé une seule fois au démarrage depuis le registre MLflow (alias @production) ou depuis un fichier local ; les classes sont rapprochées du catalogue (correspondance exacte puis approximative)."
-    - "Copilote (POST /v1/copilot/ask) : RAG sur le catalogue lui-même (358 passages : composants, 40 cartes, projets, idées). La question est vectorisée (bge-m3 via Ollama), les passages les plus proches sont cherchés dans PostgreSQL + pgvector (index HNSW, distance cosinus) puis le modèle local répond en citant [n]. Sous un seuil de similarité (MF_COPILOT_MIN_SCORE), la réponse est « je ne sais pas » sans appel au LLM ; sans LLM joignable, les passages sont renvoyés tels quels. L'index est reconstruit automatiquement si le catalogue (empreinte) ou le modèle d'embeddings (dimension) change."
+    - "Copilote (POST /v1/copilot/ask) : RAG sur le catalogue lui-même (379 passages : composants, 40 cartes, projets, idées). La question est vectorisée (bge-m3 via Ollama), les passages les plus proches sont cherchés dans PostgreSQL + pgvector (index HNSW, distance cosinus) puis le modèle local répond en citant [n]. Sous un seuil de similarité (MF_COPILOT_MIN_SCORE), la réponse est « je ne sais pas » sans appel au LLM ; sans LLM joignable, les passages sont renvoyés tels quels. L'index est reconstruit automatiquement si le catalogue (empreinte) ou le modèle d'embeddings (dimension) change."
   Développer la réponse de l'API avec le résultat du modèle:
     - "Réponse typée (ScanResult) : détections, composants proposés pour l'inventaire, version du modèle, durée d'analyse."
   Développer les règles d'autorisation et d'accès:
@@ -72,15 +72,15 @@ sections:
 
   # ------------------------------------------------------------------ C12
   Définir le périmètre des tests pour chaque composante du modèle:
-    - "| Partie | Cas testés |\n|---|---|\n| Données | format des lignes YOLO, classes connues, coordonnées normalisées, labels manquants |\n| Fuites | même image (SHA-256) dans deux ensembles |\n| Cohérence | dataset.yaml = classes.yaml = identifiants du catalogue |\n| Entraînement | test fumée d'une epoch sur CPU |\n| Évaluation | porte de non-régression : mAP50 ≥ production − 0,02 |\n| Inférence | schéma de sortie, correspondance avec le catalogue |"
+    - "| Partie | Cas testés |\n|---|---|\n| Données | format des lignes YOLO, classes connues, coordonnées normalisées, labels manquants |\n| Sources | licence CC BY ou domaine public (API et README), archives sans chemin dangereux |\n| Préparation | correspondance des classes, polygones convertis, EXIF retiré, attribution, déterminisme |\n| Fuites | même image (SHA-256) dans deux ensembles ; photos d'un même composant, copies augmentées et quasi-doublons dans le même ensemble |\n| Cohérence | dataset.yaml = classes.yaml = identifiants du catalogue |\n| Entraînement | test fumée d'une epoch sur CPU |\n| Évaluation | porte de non-régression : mAP50 ≥ production − 0,02 |\n| Inférence | schéma de sortie, correspondance avec le catalogue |"
   Choisir les outils de test:
     - "pytest (tests paramétrés, fixtures), hypothesis pour l'allocateur de broches, CI GitHub Actions."
   Installer et configurer l'environnement d'exécution des tests:
-    - "uv sync puis uv run pytest ; les tests d'entraînement réels tournent sur le runner GPU (étiquette « gpu »)."
+    - "uv sync puis uv run pytest ; l'entraînement réel de référence et son évaluation sur le split de test tournent sur un runner GitHub sans GPU (workflow jeux-de-donnees), le runner GPU auto-hébergé de la chaîne model-cd restant à installer."
   Intégrer les tests:
-    - "tests/test_ml_data.py et ml/evaluate.py, exécutés à chaque push et dans la chaîne de livraison du modèle."
+    - "tests/test_ml_data.py, test_ml_prepare.py, test_ml_import.py et test_ml_roboflow.py (63 tests) et ml/evaluate.py, exécutés à chaque push et dans la chaîne de livraison du modèle."
   Versionner les sources et les données avec Git:
-    - "Code dans Git, images et annotations versionnées avec DVC (stockage objet S3 compatible)."
+    - "Code, correspondances de classes et licences dans Git ; chaque source épinglée (version Roboflow, version Mendeley et SHA-256 du zip) ; préparation déterministe et manifest.json (origine, licence, SHA-256 de chaque image) : le dataset se reconstruit à l'identique. DVC (dvc.yaml présent) n'est pas encore initialisé : il versionnera les photos personnelles une fois choisi un stockage S3 joignable depuis la CI."
   C12. Tests Automatisés d'un Modèle d'IA > Rédiger la documentation technique:
     - "docs/E3/tests-modele.md."
 
@@ -93,6 +93,7 @@ sections:
     - "Première étape de la chaîne : tests de données et test fumée."
   Intégrer les étapes d'entraînement et d’évaluation du modèle:
     - "ml/train.py (périphérique choisi selon la machine : cuda, mps ou cpu), suivi MLflow ; ml/evaluate.py calcule mAP50, mAP50-95, précision et rappel par classe."
+    - "Premier entraînement de référence, exécuté par la chaîne sur un runner GitHub sans GPU (04/11/2026, run 41785539714) : YOLO11n, 15 epochs, 416 px, jeu public IoTKITs (CC BY 4.0, 8 classes de cartes), 31 minutes. Sur le split de test, jamais utilisé pendant l'entraînement (138 images, 119 cartes) : mAP50 0,974, mAP50-95 0,930, précision 0,944, rappel 0,931 (validation : mAP50 0,966, mAP50-95 0,930). Classes les plus faibles : Arduino Pro Mini (mAP50 0,869) et ESP32 (rappel 0,751) ; les classes de moins de 10 objets en test ont un score instable. 35,5 ms par image sur CPU. Photos de cartes seules et bien cadrées : le score sur les photos réelles reste à mesurer."
   Intégrer la génération des rapports d'évaluation:
     - "Rapport Markdown et matrice de confusion joints à la demande de fusion ouverte automatiquement."
   Intégrer l'étape de livraison:
@@ -105,6 +106,6 @@ sections:
     - "[À COMPLÉTER : capture d'une demande de fusion « Modèle vX » avec son rapport]"
 
   Conclusion:
-    - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Reste à entraîner la première version sur les photos annotées et à mesurer ses performances réelles."
+    - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Une première version de référence est entraînée sur un jeu public (cartes uniquement, mAP50 0,974 sur le split de test) ; reste à l'entraîner sur l'ensemble des données (jeux Roboflow CC BY 4.0 et photos annotées) et à mesurer ses performances sur les composants réels."
   Annexes:
     - "[À COMPLÉTER : extrait de model-cd.yml et d'un rapport d'évaluation]"

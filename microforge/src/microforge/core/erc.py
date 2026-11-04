@@ -35,6 +35,7 @@ SWITCHES = {
 }  # fmt: skip
 INDUCTIVE = {"dc-motor-tt", "water-pump-5v", "vibration-motor", "fan-12v"}
 DIODES = {"diode-1n4007", "diode-1n5819", "diode-1n4148"}
+MOTOR_DRIVERS = {"l298n-driver", "tb6612fng-driver"}
 
 
 def _rail_v(board: BoardDef, rail: str | None) -> float | None:
@@ -224,7 +225,7 @@ def _component_rules(
                 "et 330–470 Ω en série sur la ligne de données (recommandations Adafruit NeoPixel).",
             )
         )
-    if "dc-motor-tt" in ids and "l298n-driver" not in ids and not switches:
+    if "dc-motor-tt" in ids and not MOTOR_DRIVERS & set(ids) and not switches:
         issues.append(
             ERCIssue(
                 code="MOTOR_DRIVER",

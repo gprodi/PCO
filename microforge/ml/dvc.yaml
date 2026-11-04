@@ -1,11 +1,12 @@
-# Chaîne reproductible : dvc repro (données versionnées sur le remote S3 (SeaweedFS), cf. README).
+# Chaîne reproductible : dvc repro, une fois DVC initialisé (pas encore fait : voir docs/E3/tests-modele.md).
+# Chemins relatifs à microforge/ml ; le dataset est dans microforge/data/dataset (comme data/dataset.yaml).
 stages:
   validate:
     cmd: uv run pytest ../tests/test_ml_data.py -q
-    deps: [../../data/dataset, data/dataset.yaml, dataset_checks.py]
+    deps: [../data/dataset, data/dataset.yaml, dataset_checks.py]
   train:
     cmd: uv run --extra ml python train.py --epochs 80
-    deps: [../../data/dataset, data/dataset.yaml, train.py]
+    deps: [../data/dataset, data/dataset.yaml, train.py]
     outs: [runs/detect]
   evaluate:
     cmd: uv run --extra ml python evaluate.py --weights runs/detect/latest/weights/best.pt

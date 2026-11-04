@@ -1,0 +1,18 @@
+# Roboflow Universe, export YOLOv11 v1 (9 850 images, dont 3 versions augmentées par photo source).
+# Licence : CC BY 4.0 (README.dataset.txt, 04/11/2026).
+nom: samu-composants
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/samu-drioq/electronic-components-d6uul
+roboflow_version: 1       # numéro de version Roboflow (nom du zip : « v1… »)
+attribution: "samu-drioq (Roboflow Universe)"
+groupes: original
+negatifs: 0.25
+classes:
+  Button: push_button
+  Led: led
+  Pot: potentiometer
+  Resistor: resistor
+  Transistor: transistor
+  Capacitor: exclure          # céramique ou électrolytique non précisé : recouvre nos deux classes
+  IC: null
+  Sensor: null                # capteur non précisé

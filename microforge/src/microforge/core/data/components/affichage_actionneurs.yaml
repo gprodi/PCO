@@ -370,7 +370,7 @@
   passive: true
   pins: []
   price_eur: 2.0
-  notes: ["Se branche sur OUT1/OUT2 (ou OUT3/OUT4) du L298N, jamais directement sur la carte."]
+  notes: ["Se branche sur OUT1/OUT2 (ou OUT3/OUT4) du L298N, ou A01/A02 (B01/B02) du TB6612FNG, jamais directement sur la carte."]
 
 - id: stepper-28byj48
   name: Moteur pas à pas 28BYJ-48 + carte ULN2003

@@ -19,6 +19,9 @@ build/
 # Data & models (versionnés par DVC / MinIO, pas Git)
 data/raw/
 data/interim/
+# Jeux de photos (zips Roboflow posés à la racine, photos personnelles, dataset préparé) : jamais dans Git
+/*.zip
+microforge/data/
 *.parquet
 !**/tests/fixtures/**/*.parquet
 *.sqlite3

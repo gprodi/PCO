@@ -1,0 +1,33 @@
+# {{ project_name }}
+
+```
+train.py ──► MLflow (suivi + registre) ──► alias « challenger » ──(meilleur F1 ?)──► alias « champion »
+                    │ métadonnées : PostgreSQL       │ artefacts : stockage S3
+serve.py ◄── charge models:/{{ model_name }}@champion, vérifie l'alias toutes les 30 s, se recharge à chaud
+```
+
+```bash
+cp .env.example .env                   # changer les secrets
+docker compose up -d                   # PostgreSQL, stockage S3, serveur MLflow (http://localhost:5000)
+                                       # (image MLflow complétée dans mlflow-server/)
+uv sync
+uv run python train.py --C 1.0         # version 1 : devient champion
+uv run python train.py --C 0.01        # version 2 : challenger, promue seulement si son F1 est meilleur
+uv run uvicorn serve:app --port 8000   # POST /predict, GET /model
+```
+
+## Stockage S3 : SeaweedFS ou MinIO
+
+Le gabarit utilise **SeaweedFS** (API S3, Apache 2.0), le stockage déjà retenu par MicroForge. Le
+dernier tag publié de MinIO date du 15/10/2025 (vérifié le 03/11/2026) ; MinIO s'utilise à
+l'identique : seule l'image du service `s3` change, MLflow ne voit qu'une URL S3.
+
+## Pourquoi des alias plutôt que des « stages »
+
+MLflow 3 a abandonné les stages (*Staging*, *Production*) au profit des **alias** : `champion`
+désigne la version servie, `challenger` la candidate. Promouvoir = déplacer l'alias ; revenir en
+arrière = le remettre sur l'ancienne version, sans redéployer l'API.
+
+```bash
+uv run pytest      # entraînement, promotion et rechargement testés avec un MLflow local (SQLite)
+```

@@ -1,0 +1,222 @@
+# Projets qui exploitent les modules ajoutés à l'étape 5 (2e partie) : BH1750, BMP280, VL53L0X,
+# INA219, TB6612FNG, RCWL-0516, MQ-135. Textes affichés : ASCII uniquement.
+
+- id: luxmetre-bh1750
+  title: Luxmètre de poche (BH1750 + OLED)
+  description: "Affiche l'éclairement en lux et dit si la lumière suffit pour lire ou travailler."
+  difficulty: 1
+  tags: [lumière, mesure, écran]
+  learning: [deux modules sur le même bus I2C, unité de mesure (lux), seuils et messages]
+  parts:
+    - { name: capteur, component: bh1750 }
+    - { name: ecran, component: ssd1306-i2c }
+  logic: |
+    float lux = capteur_lux();
+    // Repère : 500 lx = éclairement demandé pour un poste de bureau (norme EN 12464-1).
+    String avis = "trop sombre";
+    if (lux >= 1000) {
+      avis = "tres lumineux";
+    } else if (lux >= 500) {
+      avis = "bureau OK";
+    } else if (lux >= 300) {
+      avis = "lecture OK";
+    } else if (lux >= 100) {
+      avis = "ambiance";
+    }
+    ecran_print(lux < 0 ? String("---") : String(lux, 0) + " lx", avis, "", true);
+    delay(500);
+
+- id: barometre-bmp280
+  title: Baromètre à tendance (BMP280 + OLED)
+  description: "Pression, température et altitude estimée ; après 3 h de mesures, indique si la pression monte (beau temps) ou baisse (dégradation)."
+  difficulty: 2
+  tags: [météo, mesure, écran]
+  learning: [pression atmosphérique, historique glissant dans un tableau, temps écoulé avec millis()]
+  parts:
+    - { name: baro, component: bmp280 }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    // Une mesure toutes les 10 min ; 19 cases = la fenêtre de 3 h de la tendance barométrique.
+    const unsigned long PERIODE_MS = 600000UL;
+    float historique[19];
+    int nb_mesures = 0;
+    unsigned long derniere = 0;
+  logic: |
+    float p = baro_pressure_hpa();
+    if (nb_mesures == 0 || millis() - derniere >= PERIODE_MS) {
+      derniere = millis();
+      if (nb_mesures < 19) {
+        historique[nb_mesures++] = p;
+      } else {
+        for (int i = 0; i < 18; i++) {
+          historique[i] = historique[i + 1];
+        }
+        historique[18] = p;
+      }
+    }
+    String tendance = "tendance dans 3 h";
+    if (nb_mesures == 19) {
+      float ecart = p - historique[0];
+      if (ecart >= 1.6) {
+        tendance = "hausse : beau";
+      } else if (ecart <= -1.6) {
+        tendance = "baisse : pluie ?";
+      } else {
+        tendance = "stable";
+      }
+    }
+    ecran_print(String(p, 1) + " hPa",
+                String(baro_temperature(), 1) + " C  " + String(baro_altitude_m(), 0) + " m",
+                tendance);
+    delay(2000);
+
+- id: telemetre-laser-vl53l0x
+  title: Télémètre laser avec mesure figée (VL53L0X)
+  description: "Mesure au millimètre par temps de vol d'un laser ; un appui sur le bouton fige la valeur pour la noter."
+  difficulty: 2
+  tags: [distance, laser, écran]
+  learning: [mesure par temps de vol, bascule d'état avec un bouton, conversion mm -> cm]
+  parts:
+    - { name: laser, component: vl53l0x }
+    - { name: ecran, component: ssd1306-i2c }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    bool fige = false;
+    int memo = -1;
+  logic: |
+    if (bouton_clicked()) {
+      fige = !fige;
+    }
+    if (!fige) {
+      memo = laser_distance_mm();
+    }
+    String valeur = memo < 0 ? String("hors portee") : String(memo / 10.0, 1) + " cm";
+    ecran_print(valeur, fige ? "MESURE FIGEE" : "Telemetre laser", "", true);
+    delay(100);
+
+- id: wattmetre-ina219
+  title: Wattmètre USB / courant continu (INA219)
+  description: "Mesure ce que consomme un montage alimenté en continu (jusqu'à 26 V et 3,2 A) : tension, courant, puissance et énergie cumulée."
+  difficulty: 2
+  tags: [mesure, énergie, écran]
+  learning: [mesure de courant par shunt, puissance P = U x I, énergie = puissance x temps]
+  parts:
+    - { name: mesure, component: ina219 }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    float energie_mwh = 0;
+    unsigned long precedent = 0;
+  logic: |
+    unsigned long maintenant = millis();
+    float puissance = mesure_power_mw();
+    if (precedent != 0) {
+      energie_mwh += puissance * (maintenant - precedent) / 3600000.0;  // mW x ms -> mWh
+    }
+    precedent = maintenant;
+    float tension = mesure_voltage_v();
+    float courant = mesure_current_ma();
+    ecran_print(String(tension, 2) + " V  " + String(courant, 0) + " mA",
+                String(puissance, 0) + " mW",
+                String(energie_mwh, 1) + " mWh");
+    Serial.print(tension, 2);
+    Serial.print(" V ; ");
+    Serial.print(courant, 1);
+    Serial.println(" mA");
+    delay(1000);
+
+- id: robot-suiveur-tb6612
+  title: Robot qui suit ta main (TB6612FNG)
+  description: "Le robot garde environ 15 cm entre lui et ta main : il avance quand elle s'éloigne et recule quand elle approche."
+  difficulty: 3
+  tags: [robot, moteurs, distance, régulation]
+  learning: [pilote de moteurs à MOSFET, régulation proportionnelle, zone morte des moteurs]
+  parts:
+    - { name: moteurs, component: tb6612fng-driver }
+    - { name: sonar, component: hc-sr04 }
+    - { name: roue_gauche, component: dc-motor-tt }
+    - { name: roue_droite, component: dc-motor-tt }
+    - { name: piles, component: battery-holder-4aa }
+  logic: |
+    float d = sonar_distance_cm();
+    if (d < 0 || d > 60) {
+      moteurs_stop();  // rien à suivre
+    } else {
+      // Vitesse proportionnelle à l'écart avec la consigne de 15 cm.
+      int v = constrain((int)((d - 15) * 12), -200, 200);
+      if (abs(v) < 60) {
+        v = 0;  // zone morte : en dessous, les moteurs TT calent sans tourner
+      }
+      moteurs_motors(v, v);
+    }
+    delay(60);
+
+- id: lumiere-couloir-radar
+  title: Lumière de couloir à radar (RCWL-0516)
+  description: "La nuit, la lampe s'allume au moindre passage, même derrière une porte, et s'éteint 1 min après le dernier mouvement."
+  difficulty: 2
+  tags: [maison, radar, relais]
+  learning: [détection radar Doppler, minuterie relancée à chaque événement, éviter qu'une lampe s'auto-détecte]
+  parts:
+    - { name: radar, component: rcwl-0516 }
+    - { name: lumiere, component: ldr-module }
+    - { name: lampe, component: relay-module-1ch }
+  globals_extra: |
+    const unsigned long DUREE_MS = 60000UL;  // durée d'éclairage après le dernier mouvement
+    unsigned long dernier_mouvement = 0;
+    bool allumee = false;
+  logic: |
+    // Lampe allumée : on ne regarde plus la luminosité (le capteur verrait la lampe elle-même).
+    if (radar_motion() && (allumee || lumiere_light_percent() < 30)) {
+      dernier_mouvement = millis();
+      if (!allumee) {
+        lampe_on();
+        allumee = true;
+        Serial.println("Mouvement : lampe allumee");
+      }
+    }
+    if (allumee && millis() - dernier_mouvement > DUREE_MS) {
+      lampe_off();
+      allumee = false;
+      Serial.println("Plus de mouvement : lampe eteinte");
+    }
+    delay(100);
+
+- id: qualite-air-mq135
+  title: Voyant de qualité de l'air (MQ-135)
+  description: "Une LED verte, orange ou rouge selon l'écart avec l'air propre mesuré au démarrage ; bip quand il faut aérer."
+  difficulty: 2
+  tags: [santé, air, analogique]
+  learning: [capteur à chauffage, mesure relative à une référence, seuils à ajuster soi-même]
+  parts:
+    - { name: air, component: mq135-air }
+    - { name: voyant, component: rgb-led }
+    - { name: alarme, component: buzzer }
+  globals_extra: |
+    int reference = -1;  // niveau de l'air propre, mesuré à la fin de la chauffe
+  logic: |
+    if (reference < 0) {
+      // Chauffe : 3 min au minimum (24 h la toute première fois), à faire fenêtre ouverte.
+      voyant_color(0, 0, 80);
+      if (millis() < 180000UL) {
+        delay(1000);
+        return;
+      }
+      reference = air_raw();
+      Serial.print("Reference air propre : ");
+      Serial.println(reference);
+    }
+    int mesure = air_raw();
+    int ecart = reference > 0 ? (int)(100L * (mesure - reference) / reference) : 0;
+    Serial.print("Ecart avec l'air propre : ");
+    Serial.print(ecart);
+    Serial.println(" %");
+    // Seuils de départ, à ajuster selon la pièce : le MQ-135 ne mesure pas une concentration.
+    if (ecart < 20) {
+      voyant_color(0, 255, 0);
+    } else if (ecart < 50) {
+      voyant_color(255, 80, 0);
+    } else {
+      voyant_color(255, 0, 0);
+      alarme_beep(2000, 200);
+    }
+    delay(1000);

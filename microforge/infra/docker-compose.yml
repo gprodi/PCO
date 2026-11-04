@@ -92,7 +92,7 @@ services:
     # SeaweedFS (Apache 2.0) le remplace, compatible API S3. En dev, S3 sans authentification
     # et port lié à localhost uniquement ; en préprod, ajouter -s3.config (identités/clefs).
     profiles: [mlops]
-    image: chrislusf/seaweedfs:4.51
+    image: chrislusf/seaweedfs:4.52
     command: server -dir=/data -s3 -s3.port=8333 -master.volumeSizeLimitMB=1024
     volumes: [s3data:/data]
     ports: ["127.0.0.1:8333:8333"]
@@ -100,11 +100,12 @@ services:
 
   mlflow:
     profiles: [mlops]
-    image: ghcr.io/mlflow/mlflow:v3.5.0
+    image: ghcr.io/mlflow/mlflow:v3.17.2
     command: >
       mlflow server --host 0.0.0.0 --port 5000
       --backend-store-uri postgresql://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/mlflow
       --artifacts-destination s3://mlflow
+      --allowed-hosts mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000
     environment:
       MLFLOW_S3_ENDPOINT_URL: http://s3:8333
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-microforge}
@@ -114,9 +115,10 @@ services:
     networks: [backend]
 
   # ------------------------------------------------------------------ monitoring (C11, C20)
+  # Versions vérifiées le 03/11/2026 sur les tags des dépôts officiels (veille 2026-45).
   prometheus:
     profiles: [monitoring]
-    image: prom/prometheus:v3.6.0
+    image: prom/prometheus:v3.15.1
     volumes:
       - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -125,7 +127,7 @@ services:
 
   grafana:
     profiles: [monitoring]
-    image: grafana/grafana:12.2.0
+    image: grafana/grafana:13.3.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
       GF_USERS_DEFAULT_LANGUAGE: fr-FR
@@ -138,14 +140,14 @@ services:
 
   loki:
     profiles: [monitoring]
-    image: grafana/loki:3.5.5
+    image: grafana/loki:3.7.9
     command: -config.file=/etc/loki/local-config.yaml
     networks: [backend]
 
   alloy:
     # Grafana Alloy remplace Promtail (fin de vie mars 2026) pour collecter les logs Docker.
     profiles: [monitoring]
-    image: grafana/alloy:v1.11.0
+    image: grafana/alloy:v1.21.3
     command: run /etc/alloy/config.alloy
     volumes:
       - ../monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
@@ -154,7 +156,7 @@ services:
 
   uptime-kuma:
     profiles: [monitoring]
-    image: louislam/uptime-kuma:2.0.1
+    image: louislam/uptime-kuma:2.5.9
     volumes: [kuma:/app/data]
     ports: ["3001:3001"]
     networks: [backend]

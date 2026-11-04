@@ -143,3 +143,24 @@ ventilateur-pwm-mosfet:
 arrosage-mosfet:
   - { site: Science Buddies, title: "Arduino Automatic Plant Watering", url: "https://www.sciencebuddies.org/science-fair-projects/project-ideas/PlantBio_p055/plant-biology/arduino-automatic-plant-watering" }
   - { site: ArduinoGetStarted, title: "Arduino - Automatic Irrigation System", url: "https://arduinogetstarted.com/tutorials/arduino-automatic-irrigation-system", proche: true }
+luxmetre-bh1750:
+  - { site: Makerguides, title: "Ambient Light Sensor BH1750 with Arduino", url: "https://www.makerguides.com/ambient-light-sensor-bh1750-with-arduino/" }
+  - { site: Electromaker, title: "Light Meter Gauge Using Arduino", url: "https://electromaker.io/project/view/light-meter-gauge-using-arduino", proche: true }
+barometre-bmp280:
+  - { site: Arduino Project Hub, title: "BMP280: Measure Temperature, Pressure and Altitude", url: "https://projecthub.arduino.cc/SurtrTech/bmp280-measure-temperature-pressure-and-altitude-6002cd" }
+  - { site: SunFounder, title: "Lesson 20: Temperature, Pressure and Altitude Sensor (BMP280)", url: "https://docs.sunfounder.com/projects/umsk/en/latest/02_arduino/uno_lesson20_bmp280.html", proche: true }
+telemetre-laser-vl53l0x:
+  - { site: SunFounder, title: "Arduino VL53L0X Distance Sensor with OLED", url: "https://www.sunfounder.com/pages/arduino-vl53l0x-distance-sensor-with-oled" }
+  - { site: ShillehTek, title: "Arduino Uno VL53L0X OLED distance display", url: "https://shillehtek.com/blogs/news/arduino-uno-vl53l0x-oled-distance-display" }
+wattmetre-ina219:
+  - { site: Microcontrollers Lab, title: "INA219 Current Sensor Module with Arduino – Print values on OLED", url: "https://microcontrollerslab.com/ina219-current-sensor-module-pinout-interfacing-with-arduino-oled/" }
+  - { site: Adafruit, title: "Pro Trinket Power Meter", url: "https://learn.adafruit.com/pro-trinket-power-meter", proche: true }
+robot-suiveur-tb6612:
+  - { site: Keyestudio, title: "Project 25 Object Following Robot (KS0436)", url: "https://docs.keyestudio.com/projects/KS0436/en/latest/docs/4.%20Arduino/Project/Project25.html", proche: true }
+  - { site: Keyestudio, title: "Project 24 Ultrasonic Ranging Robot (KS0436, TB6612FNG)", url: "https://docs.keyestudio.com/projects/KS0436/en/latest/docs/4.%20Arduino/Project/Project24.html", proche: true }
+lumiere-couloir-radar:
+  - { site: Random Nerd Tutorials, title: "Arduino with RCWL-0516 Microwave Radar Proximity Sensor", url: "https://randomnerdtutorials.com/arduino-rcwl-0516/" }
+  - { site: ShillehTek, title: "Arduino Nano RCWL-0516 through-wall motion (relay)", url: "https://shillehtek.com/blogs/news/arduino-nano-rcwl-0516-through-wall-motion", proche: true }
+qualite-air-mq135:
+  - { site: Makerguides, title: "Air Pollution Monitoring and Alert System Using Arduino and MQ135", url: "https://www.makerguides.com/air-pollution-monitoring-and-alert-system-using-arduino-and-mq135/" }
+  - { site: RadioLocman, title: "Air Pollution Monitoring and Alert System Using Arduino", url: "https://radiolocman.com/review/article.html?di=643721" }

@@ -1,0 +1,19 @@
+_titre: "API FastAPI sécurisée : JWT, Argon2id, SQLModel"
+_description: "Comptes utilisateurs, jetons d'accès courts et jetons de rafraîchissement à rotation (réutilisation détectée), mots de passe Argon2id, limitation des tentatives, en-têtes de sécurité, tests."
+_cours: [securiser-api-fastapi, sqlmodel, glossaire-securite-api]
+_competences: [C4, C5, C9, C17]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: mon-api
+description:
+  type: str
+  help: Description courte
+  default: API sécurisée par jetons JWT
+python_version:
+  type: str
+  help: Version minimale de Python
+  default: "3.12"

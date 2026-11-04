@@ -1,0 +1,14 @@
+_titre: "Supervision : Prometheus, Grafana, Uptime Kuma"
+_description: "API instrumentée (requêtes, latence, confiance du modèle, version), règles d'alerte Prometheus, tableau de bord Grafana provisionné, disponibilité vue de l'extérieur par Uptime Kuma."
+_cours: [mlops-3-monitoring, projet-5-forge-mlops, mlops-1-orchestration]
+_competences: [C8, C11, C20]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: supervision-ia
+python_version:
+  type: str
+  default: "3.12"

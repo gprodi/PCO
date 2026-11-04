@@ -1,0 +1,33 @@
+# {{ project_name }}
+
+{{ description }}
+
+```
+navigateur ──► app (Streamlit :8501) ──► api_ia   (:8001)  POST /predict   ← le modèle
+                                    └──► api_data (:8000)  /avis            ← la base
+```
+
+- **api_data** : CRUD des avis (SQLModel, SQLite par défaut) ; l'écriture exige l'en-tête `X-API-Key`.
+- **api_ia** : expose le modèle (ici un modèle lexical de démonstration, à remplacer par le vôtre :
+  scikit-learn, Hugging Face…) ; même protection par clé.
+- **app** : saisie d'un avis → prédiction → enregistrement → liste ; erreurs réseau affichées
+  proprement.
+- **common** : réglages (`.env`) et journaux loguru (JSON en production : `LOG_JSON=1`).
+
+## Démarrer
+
+```bash
+cp .env.example .env     # changer API_KEY
+uv sync
+uv run uvicorn api_data.main:app --port 8000 &
+uv run uvicorn api_ia.main:app --port 8001 &
+uv run streamlit run streamlit_app.py
+```
+
+Ou tout d'un coup : `docker compose up --build`.
+
+## Tests
+
+```bash
+uv run pytest
+```

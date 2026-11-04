@@ -1,0 +1,28 @@
+# Roboflow Universe, export YOLOv11 v9 (7 507 images, dont 3 versions augmentées par photo source).
+# Licence : CC BY 4.0 (README.dataset.txt, 04/11/2026). Composants traversants photographiés seuls.
+nom: components-model
+licence: CC-BY-4.0
+url: https://universe.roboflow.com/electronics-component/components-model
+roboflow_version: 9       # numéro de version Roboflow (nom du zip : « v9… »)
+attribution: "electronics-component (Roboflow Universe)"
+groupes: original
+negatifs: 0.25
+classes:
+  Diode: diode
+  LED: led
+  Potentiometer: potentiometer
+  Resistor: resistor
+  Transistor: transistor
+  Trimpot: trimmer
+  Capacitor: exclure          # céramique ou électrolytique non précisé : recouvre nos deux classes
+  Switch: exclure             # interrupteurs et boutons-poussoirs mêlés : recouvre push_button
+  Battery: null
+  Fuse: null
+  IC: null
+  Inductor: null
+  LDR: null                   # photorésistance nue ; ldr_module est le module (carte + comparateur)
+  Photodiode: null
+  Speaker: null               # haut-parleur, pas le buzzer
+  Thermistor: null
+  Transformator: null
+  Varco: null
