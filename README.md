@@ -91,6 +91,19 @@ La même variable `REVISION_VECTOR_URL` doit être définie dans le terminal qui
 
 Version en ligne, sans installation (lecture, QCM, flashcards) : le lien privé partagé par Claude. Autres commandes : `uv run revise --help`.
 
+#### Boilerplates (gabarits copier)
+
+Neuf gabarits de projet, rédigés à partir des cours et reliés aux compétences du référentiel
+(page « Boilerplates » du site) : API FastAPI sécurisée (JWT à rotation, Argon2id), deux API + Streamlit,
+Streamlit multipage, registre MLflow avec alias, pipeline Prefect, CI/CD GitHub Actions, supervision
+Prometheus/Grafana/Uptime Kuma, journaux Loki/Alloy, paquet uv. Pour en créer un projet :
+
+```bash
+uvx copier copy revision/boilerplates/fastapi-jwt-sqlmodel mon-api
+```
+
+Chaque gabarit est rendu et ses propres tests passent dans la CI (`revision/tests/test_boilerplates.py`).
+
 ### Tests
 
 ```bash
