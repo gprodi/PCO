@@ -118,6 +118,38 @@ ci-dessus) et la mesure sur les photos réelles de Gaël, seul test représentat
 Chaîne : `fetch_mendeley.py` (licence vérifiée) → `coco_to_yolo.py` → `prepare.py` (correspondance des classes
 dans `sources/*.yaml`, groupes sans fuite, EXIF retiré, `manifest.json`) → `dataset_checks.py` (C12).
 
+### Entraînement sur l'ensemble des données (04/11/2026, runner GitHub, CPU)
+
+IoTKITs + les 6 jeux Roboflow retenus, téléchargés par le runner (`fetch_roboflow.py`, licences
+vérifiées) ; YOLO11n pré-entraîné, **15 epochs**, 416 px, sur CPU Intel Xeon : 3 h 29 (workflow
+`jeux-de-donnees`, run 41791374429, commit b6da7c2). Le détail par jeu (licence, images) et `stats.json`
+sont dans l'artefact `iotkits-rapport` du run.
+
+| | Images | Objets | mAP50 | mAP50-95 | Précision | Rappel |
+|---|---|---|---|---|---|---|
+| **Test** (jamais vu pendant l'entraînement) | 1 801 | 2 560 | **0,692** | **0,592** | 0,777 | 0,694 |
+| Validation | 2 722 | 3 465 | 0,734 | 0,639 | 0,837 | 0,669 |
+
+Inférence : 18,9 ms par image sur CPU. Par classe, sur le **test** (objets, mAP50, mAP50-95) :
+
+| Situation | Classes |
+|---|---|
+| **Fiables** (≥ 30 objets, mAP50 ≥ 0,9) | `arduino_uno` (179 ; 0,995 ; 0,916), `nodemcu` (185 ; 0,995 ; 0,796), `trimmer` (192 ; 0,917 ; 0,669), `servo_sg90` (99 ; 0,982 ; 0,813), `potentiometer` (87 ; 0,990 ; 0,858), `hc_sr04` (69 ; 0,978 ; 0,873), `arduino_mega` (33 ; 0,995 ; 0,995) |
+| **Correctes, à améliorer** | `push_button` (134 ; 0,895 ; 0,676), `led` (217 ; 0,844 ; 0,635), `diode` (145 ; 0,830 ; 0,644), `transistor` (228 ; 0,790 ; 0,620), `resistor` (766 ; 0,599 ; 0,424 : petits objets, nombreux par photo) |
+| **En échec** | `capacitor_electrolytic` (52 ; 0,449 ; 0,189), `capacitor_ceramic` (68 ; 0,040 ; 0,012), `jumper_wires` (19 ; 0,064 ; 0,014) |
+| **Non mesurables** (moins de 30 objets en test) | `breadboard` (28 ; 0,995), `arduino_nano` (16 ; 0,991), `arduino_due` (15 ; 0,970), `arduino_leonardo` (8 ; 0,995), `screw_terminal` (7 ; 0), `arduino_micro` (6 ; 0,431), `esp32_devkit` (2 ; 0,517), `arduino_pro_mini` (2 ; 0,039), `crystal` (2 ; 0), `buzzer` (1) ; `lcd_1602` et `dc_motor` absents du test |
+
+Lecture :
+- les cartes et modules bien représentés sont reconnus de façon fiable ; les cartes IoTKITs gardent leur
+  niveau en validation (Nano 0,943, Pro Mini 0,948, ESP32 0,933, Micro 0,976), mais leur test, réduit à
+  quelques objets après fusion des sources, ne permet pas de conclure ;
+- les condensateurs échouent : la règle « exclure » a retiré beaucoup d'images de condensateurs
+  génériques, et céramiques et électrolytiques se ressemblent à 416 px ;
+- 15 epochs sur CPU, c'est court pour 27 classes : le guide d'Ultralytics cité plus haut donne « environ
+  300 epochs » comme point de départ courant. Prochain
+  essai sur GPU (PC de Gaël ou Colab, `train.py --epochs 80`) et 640 px, avec plus de photos de
+  condensateurs, fils et modules.
+
 ## Licence du modèle
 Ultralytics YOLO est sous **AGPL-3.0** : compatible avec un dépôt public. Alternative comparée
 dans le benchmark C7 : RF-DETR (Apache 2.0, tailles N/S/M/L).
