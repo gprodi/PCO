@@ -2,6 +2,7 @@
 nom: arduino-boards
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/tanish/arduino-boards
+roboflow_version: 1       # numéro de version Roboflow (nom du zip : « v1… »)
 attribution: "tanish (Roboflow Universe)"
 groupes: original
 classes:

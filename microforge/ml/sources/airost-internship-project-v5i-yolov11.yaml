@@ -3,6 +3,7 @@
 nom: airost
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/airost-internship/airost-internship-project
+roboflow_version: 5       # numéro de version Roboflow (nom du zip : « v5… »)
 attribution: "airost-internship (Roboflow Universe)"
 groupes: original            # copies augmentées « xxx_jpg.rf.<hash> » regroupées : pas de fuite
 negatifs: 0.25

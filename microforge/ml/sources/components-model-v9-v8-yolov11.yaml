@@ -3,6 +3,7 @@
 nom: components-model
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/electronics-component/components-model
+roboflow_version: 9       # numéro de version Roboflow (nom du zip : « v9… »)
 attribution: "electronics-component (Roboflow Universe)"
 groupes: original
 negatifs: 0.25

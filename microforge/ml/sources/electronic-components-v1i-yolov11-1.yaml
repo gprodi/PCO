@@ -3,6 +3,7 @@
 nom: samu-composants
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/samu-drioq/electronic-components-d6uul
+roboflow_version: 1       # numéro de version Roboflow (nom du zip : « v1… »)
 attribution: "samu-drioq (Roboflow Universe)"
 groupes: original
 negatifs: 0.25

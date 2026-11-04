@@ -8,6 +8,7 @@ on:
       - microforge/ml/inspect_sources.py
       - microforge/ml/fetch_mendeley.py
       - microforge/ml/coco_to_yolo.py
+      - microforge/ml/fetch_roboflow.py
       - microforge/ml/prepare.py
       - microforge/ml/sources/**
       - microforge/ml/train.py
@@ -41,8 +42,11 @@ jobs:
   iotkits:
     # IoTKITs (Data in Brief 2025, CC BY 4.0) : téléchargement après contrôle de la licence,
     # conversion COCO -> YOLO, inventaire des catégories, puis préparation si la correspondance existe.
+    # Avec le secret ROBOFLOW_API_KEY (compte Roboflow gratuit), les jeux Roboflow Universe retenus
+    # (ml/sources/*.yaml avec roboflow_version) sont ajoutés : entraînement plus long (~15 000 images).
+    name: IoTKITs (+ jeux Roboflow si clé)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -52,6 +56,20 @@ jobs:
         run: |
           uv run --no-project --with pyyaml python microforge/ml/coco_to_yolo.py data/raw/iotkits data/sources/iotkits | tee categories.md
           { echo "## IoTKITs : catégories"; cat categories.md; echo; echo '```json'; cat data/raw/iotkits/provenance.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Clé Roboflow configurée ?
+        id: roboflow
+        env:
+          KEY: ${{ secrets.ROBOFLOW_API_KEY }}
+        run: echo "cle=$([ -n "$KEY" ] && echo oui || echo non)" >> "$GITHUB_OUTPUT"
+      - name: Jeux Roboflow Universe retenus (licence vérifiée)
+        if: steps.roboflow.outputs.cle == 'oui'
+        continue-on-error: true # un jeu refusé (licence changée…) n'empêche pas d'entraîner sur les autres
+        env:
+          ROBOFLOW_API_KEY: ${{ secrets.ROBOFLOW_API_KEY }} # visible de cette seule étape
+        run: |
+          set -o pipefail
+          uv run --no-project --with httpx --with pyyaml python microforge/ml/fetch_roboflow.py data/sources | tee roboflow.md
+          { echo "## Jeux Roboflow Universe"; cat roboflow.md; } >> "$GITHUB_STEP_SUMMARY"
       - name: Préparer le dataset (correspondance des classes)
         if: hashFiles('microforge/ml/sources/iotkits.yaml') != ''
         run: |
@@ -65,7 +83,7 @@ jobs:
         env:
           LLM_PROFILE: cpu
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
-          DVC_DATA_VERSION: iotkits-v1
+          DVC_DATA_VERSION: ${{ steps.roboflow.outputs.cle == 'oui' && 'iotkits+roboflow-v1' || 'iotkits-v1' }}
         run: |
           set -o pipefail
           uv sync --all-packages --extra ml
@@ -86,6 +104,8 @@ jobs:
           name: iotkits-rapport
           path: |
             categories.md
+            roboflow.md
+            data/sources/roboflow-provenance.json
             stats.json
             data/raw/iotkits/provenance.json
             data/dataset/ATTRIBUTION.md

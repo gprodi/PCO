@@ -3,6 +3,7 @@
 nom: sem2l1-kit
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/sem2l1/electronic-components-vfiqs-xreon
+roboflow_version: 1       # numéro de version Roboflow (nom du zip : « v1… »)
 attribution: "sem2l1 (Roboflow Universe)"
 groupes: original
 classes:

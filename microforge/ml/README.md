@@ -49,6 +49,19 @@ font sur un runner GitHub (workflow `jeux-de-donnees`), qui publie licence, cat�
 | **Photos personnelles** (~30 composants) | protocole : [`PHOTOS.md`](PHOTOS.md) ; servent de test réel (composants jamais vus) et d'adaptation |
 | **Roboflow Universe** — 11 jeux téléchargés par Gaël (licences lues dans les README des exports) | **6 retenus**, tous CC BY 4.0 (correspondances dans `sources/*.yaml`) ; **5 écartés**, raison dans [`jeux_ecartes.yaml`](jeux_ecartes.yaml) : exports « folder » sans boîtes, détection de pièces manquantes, symboles de schéma, composants soudés sur cartes. Les 5 premiers retenus, préparés sur le PC de Gaël : 10 063 images (6 744 / 1 904 / 1 415), validation OK ; `components-model` (diodes, trimmers) ajouté ensuite. |
 
+### Télécharger les jeux Roboflow sur le runner (sans rien télécharger soi-même)
+Chaque `sources/*.yaml` d'un jeu Roboflow Universe porte son numéro de version (`roboflow_version`).
+Avec une clé d'API Roboflow (compte gratuit), le workflow `jeux-de-donnees` télécharge ces jeux,
+vérifie leur licence (API puis README de l'export ; refus si NC, ND ou différente de celle notée), les
+fusionne avec IoTKITs puis entraîne et évalue (`fetch_roboflow.py`). Pour l'activer :
+
+1. roboflow.com → compte gratuit → *Settings* → *API Keys* → copier la *Private API Key* ;
+2. GitHub, dépôt PCO → *Settings* → *Secrets and variables* → *Actions* → *New repository secret*,
+   nom `ROBOFLOW_API_KEY`. La clé ne se colle **jamais** dans une conversation ni dans un fichier.
+
+Seule l'étape de téléchargement reçoit la clé ; elle n'apparaît dans aucun message, même d'erreur.
+Ajouter un jeu = son fichier de correspondance avec `url` et `roboflow_version` (lus sur sa page Universe).
+
 ### Assez de données ?
 D'après le [guide de collecte et d'annotation d'Ultralytics](https://docs.ultralytics.com/guides/data-collection-and-annotation/)
 (relu le 04/11/2026 dans le dépôt `ultralytics/ultralytics`) : « quelques centaines d'objets annotés par

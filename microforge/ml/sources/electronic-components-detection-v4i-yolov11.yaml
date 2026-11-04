@@ -3,6 +3,7 @@
 nom: cv2024-composants
 licence: CC-BY-4.0
 url: https://universe.roboflow.com/cv2024-4skvf/electronic-components-detection-jzf42
+roboflow_version: 4       # numéro de version Roboflow (nom du zip : « v4… »)
 attribution: "cv2024-4skvf (Roboflow Universe)"
 groupes: original
 negatifs: 0.25
