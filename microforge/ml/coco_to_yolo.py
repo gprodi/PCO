@@ -62,6 +62,8 @@ def convert(src: Path, out: Path) -> Counter:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):  # console Windows
+        sys.stdout.reconfigure(encoding="utf-8")
     counts = convert(Path(sys.argv[1]), Path(sys.argv[2]))
     print("| Catégorie | Instances |\n|---|---|")
     for name, n in sorted(counts.items(), key=lambda kv: -kv[1]):

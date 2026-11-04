@@ -11,6 +11,32 @@
 
 Sans GPU : notebook `colab_train.ipynb` (Google Colab / Kaggle, GPU gratuit), puis `register.py` en local.
 
+## Entraîner sur son PC (commandes depuis la racine de PCO)
+
+1. **Ajouter IoTKITs** (7 cartes absentes des jeux Roboflow ; licence vérifiée par le script) :
+   ```bash
+   uv run --with httpx python microforge/ml/fetch_mendeley.py x5thzmkxhy 1 microforge/data/raw/iotkits
+   uv run python microforge/ml/coco_to_yolo.py microforge/data/raw/iotkits microforge/data/sources/iotkits
+   uv run python microforge/ml/importer_zips.py --appliquer
+   uv run python microforge/ml/prepare.py --sources microforge/data/sources --out microforge/data/dataset --remplacer
+   ```
+2. **Carte graphique** : `nvidia-smi` doit afficher la carte NVIDIA (sinon : Colab, ci-dessus). Sous
+   Windows, le PyTorch de PyPI n'utilise que le processeur ; installer la version CUDA de
+   l'[index officiel](https://pytorch.org/get-started/locally/), puis lancer avec `--no-sync` pour que
+   uv ne remette pas la version du verrou :
+   ```bash
+   uv sync --all-packages --extra ml
+   uv pip install --reinstall-package torch --reinstall-package torchvision torch torchvision --index-url https://download.pytorch.org/whl/cu128
+   uv run --no-sync python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+   ```
+3. **Entraîner** (profil choisi selon la carte détectée ; `--batch 8` si « CUDA out of memory ») :
+   ```bash
+   uv run --no-sync python microforge/ml/train.py --epochs 80
+   ```
+   `train.py` résout le chemin du dataset par rapport à `ml/data/dataset.yaml` (sinon Ultralytics le
+   cherche dans son propre dossier). Résultats dans `runs/detect/<run>/` et MLflow (`mlruns/`), jamais
+   commités ; la durée d'une epoch s'affiche dès la première.
+
 ## Données
 Le conteneur de développement n'atteint ni Hugging Face ni Mendeley : l'inspection et le téléchargement se
 font sur un runner GitHub (workflow `jeux-de-donnees`), qui publie licence, catégories et statistiques.

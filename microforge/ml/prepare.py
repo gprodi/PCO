@@ -55,6 +55,9 @@ import dataset_checks as dc  # noqa: E402
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 SPLITS = ("train", "val", "test")
 NEAR_DUPLICATE_BITS = 4  # distance de Hamming maximale entre empreintes dHash (64 bits)
+# Un groupe plus lourd que ce quart d'un split d'évaluation (val, test) de sa source le dominerait :
+# il va en entraînement. Plancher en images pour les petites sources.
+MAX_EVAL_SHARE, MIN_EVAL_GROUP = 0.25, 10
 EXCLURE = EXCLUDE = (
     "exclure"  # valeur de correspondance : retirer les images contenant cette classe
 )
@@ -287,7 +290,9 @@ def assign_splits(items: list[Item], ratios: dict[str, list[float]], seed: str) 
 
     Les groupes sont placés du plus gros au plus petit (à taille égale, dans un ordre pseudo-aléatoire
     fixé par ``seed``) : un gros groupe arrive quand tous les splits sont vides et va donc en
-    entraînement, les petits groupes ajustent ensuite les proportions.
+    entraînement, les petits groupes ajustent ensuite les proportions. Un groupe qui pèserait plus
+    de ``MAX_EVAL_SHARE`` de la cible d'un split d'évaluation n'y est jamais placé : une seule série
+    de photos ne doit pas faire à elle seule le score de validation ou de test.
     """
     by_source: dict[str, dict[str, int]] = defaultdict(Counter)
     for item in items:
@@ -303,9 +308,16 @@ def assign_splits(items: list[Item], ratios: dict[str, list[float]], seed: str) 
         )
         allowed = [s for s, r in zip(SPLITS, target, strict=True) if r > 0]
         for group in order:
+            fits = [
+                s
+                for s in allowed
+                if s == "train"
+                or groups[group]
+                <= max(MAX_EVAL_SHARE * target[SPLITS.index(s)] * total, MIN_EVAL_GROUP)
+            ]
             # le split le plus en retard sur sa cible (en proportion) reçoit le groupe
             split = min(
-                allowed,
+                fits or allowed,
                 key=lambda s: (
                     (filled[s] - target[SPLITS.index(s)] * total) / target[SPLITS.index(s)]
                 ),

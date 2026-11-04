@@ -358,3 +358,39 @@ def test_cli_replaces_only_its_own_output(tmp_path, capsys):
     with pytest.raises(SystemExit):
         prepare.main(["--sources", str(sources), "--out", str(autre), "--remplacer"])
     assert (autre / "precieux.txt").exists()
+
+
+def test_a_series_too_big_for_an_evaluation_split_goes_to_train():
+    def items(group, n):
+        return [
+            prepare.Item("s", Path(f"{group}{i}.jpg"), None, group, f"{group}{i}", 0)
+            for i in range(n)
+        ]
+
+    # trois longues séries (comme les photos de résistances de samu) et des petits groupes
+    series = {"s:a": 60, "s:b": 40, "s:c": 30}
+    small = [it for k in range(60) for it in items(f"s:g{k}", 2)]
+    pool = [it for g, n in series.items() for it in items(g, n)] + small
+    split_of = prepare.assign_splits(pool, {}, "graine")
+    assert {split_of[g] for g in series} == {"train"}
+    assert {split_of[f"s:g{k}"] for k in range(60)} >= {"val", "test"}
+    # une petite source garde un split de test malgré le plafond (plancher en images)
+    tiny = [it for k in range(12) for it in items(f"t:g{k}", 3)]
+    for it in tiny:
+        it.source = "t"
+    assert "test" in set(prepare.assign_splits(tiny, {}, "graine").values())
+
+
+def test_train_resolves_the_dataset_path_from_the_yaml_file(tmp_path):
+    train = pytest.importorskip("train")
+    cfg = tmp_path / "ml" / "data" / "dataset.yaml"
+    cfg.parent.mkdir(parents=True)
+    cfg.write_text("path: ../../data/dataset\ntrain: images/train\nnames: {0: led}\n")
+    resolved = Path(train.resolve_data(str(cfg), tmp_path / "runs"))
+    data = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    assert data["path"] == str((tmp_path / "data" / "dataset").resolve())
+    assert data["names"] == {0: "led"} and resolved.parent == tmp_path / "runs"
+    absolute = tmp_path / "abs.yaml"
+    absolute.write_text(f"path: {tmp_path}\nnames: [led]\n")
+    assert train.resolve_data(str(absolute), tmp_path / "runs") == str(absolute)
+    assert train.resolve_data("coco8.yaml", tmp_path / "runs") == "coco8.yaml"

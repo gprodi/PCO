@@ -62,11 +62,15 @@ def fetch(dataset: str, version: int, out: Path) -> dict:
                             raise SystemExit(f"chemin refusé dans l'archive : {member}")
                     zf.extractall(out / target.stem)
                 target.unlink()
-    (out / "provenance.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
+    (out / "provenance.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
     return report
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):  # console Windows : accents et symboles du titre
+        sys.stdout.reconfigure(encoding="utf-8")
     print(
         json.dumps(
             fetch(sys.argv[1], int(sys.argv[2]), Path(sys.argv[3])), ensure_ascii=False, indent=1
