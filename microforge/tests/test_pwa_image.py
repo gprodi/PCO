@@ -19,7 +19,11 @@ def test_csp_n_ouvre_que_les_deux_api():
     assert directives["connect-src"] == f"'self' {API} {IA}"
     assert directives["script-src"] == "'self'"
     assert directives["frame-ancestors"] == "'none'"
-    assert "unsafe-inline" not in csp and "unsafe-eval" not in csp
+    assert "unsafe-eval" not in csp
+    # Seuls les attributs style (dessins Wokwi) sont permis en ligne ; ni script ni balise <style>.
+    assert directives["style-src"] == "'self'"
+    assert directives["style-src-attr"] == "'unsafe-inline'"
+    assert [d for d, v in directives.items() if "unsafe-inline" in v] == ["style-src-attr"]
     # Schéma de câblage en data: et aperçu de la photo en blob:
     assert directives["img-src"] == "'self' data: blob:"
 

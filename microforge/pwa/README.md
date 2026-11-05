@@ -6,16 +6,20 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 
 | Vue | Ce qu'elle fait | API appelée |
 |---|---|---|
-| Connexion | création de compte, connexion, déconnexion | `api_data` `/v1/auth/*` |
-| Mon stock | ajout par carte ou composant, quantité, emplacement ; total des pièces | `api_data` `/v1/inventory*` |
+| Connexion | création de compte, connexion, à côté de l'établi animé | `api_data` `/v1/auth/*` |
+| Accueil | établi animé (Arduino Uno et chenillard de 3 LED, dessins Wokwi), état de l'atelier (pièces, projets réalisables), parcours en 7 étapes, vitrine de vrais projets | `api_ia` `/v1/ideas/inspiration`, `/v1/builds/suggest` |
+| Explorer | 145 idées en 17 thèmes, chaque idée annotée avec le stock (pièces possédées ou manquantes, réalisable ou non), projets les plus proches du stock | `api_ia` `/v1/ideas/explore`, `/v1/builds/suggest` |
+| Mon stock | pièces rangées par catégorie, ajout, retrait | `api_data` `/v1/inventory*` |
 | Photo | photo prise par l'appareil (`capture="environment"`), pièces reconnues ajoutées en un geste | `api_ia` `/v1/vision/scan` |
-| Idées | projets réalisables avec le stock, pièces manquantes | `api_ia` `/v1/builds/suggest` |
-| Projet | câblage, schéma, code, nomenclature, contrôle électrique | `api_ia` `/v1/builds/generate` |
-| Copilote | question sur le catalogue et le stock, réponse avec ses sources | `api_ia` `/v1/copilot/ask` |
+| Projet | câblage avec la couleur de chaque fil Dupont, schéma, code, nomenclature, contrôle électrique | `api_ia` `/v1/builds/generate` |
+| Copilote | conversation : questions sur les composants et les cartes, réponses avec leurs sources | `api_ia` `/v1/copilot/ask` |
+
+Navigation : barre en haut sur ordinateur, barre d'onglets en bas sur téléphone (Accueil, Explorer,
+Mon stock, Projet, Copilote) ; la photo s'ouvre depuis le stock et l'accueil.
 
 ## Choix techniques
 
-- **React 19 + Vite 8**, sans bibliothèque d'interface : les jetons de couleur, les polices
+- **React 19 + Vite 8**, sans bibliothèque d'interface ; dessins de la carte et des LED de l'établi : `@wokwi/elements` 1.9.2 (MIT). Par ailleurs : les jetons de couleur, les polices
   auto-hébergées (licence OFL) et les contrastes sont ceux de la démo et du thème Streamlit.
 - **Jetons** : jeton d'accès en mémoire, jeton de rafraîchissement dans `sessionStorage` (le temps de
   l'onglet). Sur une réponse 401, le client renouvelle les jetons puis rejoue la requête
@@ -28,7 +32,8 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
   en local, en CI et en préproduction ; seul `config.js` change (servi par nginx depuis les
   variables `MF_PUBLIC_API_DATA_URL` et `MF_PUBLIC_API_IA_URL`).
 - **Sécurité** : politique CSP stricte dans l'image nginx (`nginx/securite.inc.template`) — aucun
-  script en ligne, `connect-src` limité aux deux API, `frame-ancestors 'none'`. Le parcours E2E
+  script en ligne, `connect-src` limité aux deux API, `frame-ancestors 'none'`. Seuls les attributs
+  `style` sont permis en ligne (`style-src-attr`), pour les dessins Wokwi de l'établi. Le parcours E2E
   tourne avec ces en-têtes : une ressource bloquée fait échouer le test.
 - **Accessibilité** : lien d'évitement, navigation au clavier, onglets ARIA, zones défilantes
   focalisables, libellés sur chaque champ. Chaque vue est auditée par axe-core (WCAG 2.2 A/AA)

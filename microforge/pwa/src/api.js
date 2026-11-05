@@ -143,5 +143,9 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
     generate: (templateId, board) =>
       call(iaUrl, '/v1/builds/generate', { method: 'POST', json: { template_id: templateId, board } }),
     ask: (question, inventory = null) => call(iaUrl, '/v1/copilot/ask', { method: 'POST', json: { question, inventory } }),
+    /** Thèmes et idées (145), annotés avec le stock : pièces manquantes, réalisable ou non. */
+    explore: (inventory) => call(iaUrl, '/v1/ideas/explore', { method: 'POST', json: { inventory } }),
+    /** Parcours de progression, vitrine de vrais projets, chiffres du catalogue. */
+    inspiration: () => call(iaUrl, '/v1/ideas/inspiration'),
   };
 }

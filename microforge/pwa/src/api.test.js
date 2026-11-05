@@ -102,6 +102,16 @@ describe('client MicroForge', () => {
     expect(err3.url).toBe(IA);
   });
 
+  it('exploration par thème et inspiration : routes de l\'API IA', async () => {
+    const fetchImpl = fakeFetch([{ body: [{ id: 'domotique', idees: [] }] }, { body: { chiffres: { idees: 145 } } }]);
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    expect(await c.explore({ dht22: 1 })).toHaveLength(1);
+    expect(fetchImpl.calls[0].url).toBe(`${IA}/v1/ideas/explore`);
+    expect(JSON.parse(fetchImpl.calls[0].body)).toEqual({ inventory: { dht22: 1 } });
+    expect((await c.inspiration()).chiffres.idees).toBe(145);
+    expect(fetchImpl.calls[1].url).toBe(`${IA}/v1/ideas/inspiration`);
+  });
+
   it('stockage indisponible : aucune exception', () => {
     const broken = { getItem() { throw new Error('bloqué'); }, setItem() { throw new Error('bloqué'); }, removeItem() { throw new Error('bloqué'); } };
     const s = safeStorage(broken);

@@ -234,8 +234,17 @@ def test_parcours_pwa_dans_un_navigateur(pwa, tmp_path):
     lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("{")]
     assert lines, proc.stdout[-2000:] + proc.stderr[-2000:]
     result = json.loads(lines[-1])
-    assert result["ok"], result
+    assert result["ok"], json.dumps(result, ensure_ascii=False)
     names = [s["name"] for s in result["steps"]]
-    assert names == ["inscription", "stock", "idees", "projet", "copilote", "photo", "hors ligne"]
+    assert names == [
+        "inscription",
+        "accueil",
+        "stock",
+        "explorer",
+        "projet",
+        "copilote",
+        "photo",
+        "hors ligne",
+    ]
     assert all(v == [] for v in result["a11y"].values())
     assert result["errors"] == []
