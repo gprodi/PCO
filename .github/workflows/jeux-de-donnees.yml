@@ -120,4 +120,8 @@ jobs:
             runs/detect/*/results.csv
             runs/detect/*/weights/best.pt
             runs/val*/**/*.png
+            # Suivi MLflow du run (paramètres, métriques par epoch, modèle) : comparable dans « mlflow ui ».
+            mlflow.db
+            mlruns/**
+            mlartifacts/**
           if-no-files-found: ignore

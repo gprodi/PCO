@@ -156,8 +156,15 @@ données, paramètres, matériel, durée, scores globaux et par classe, recopié
 `uv run python microforge/ml/compare_runs.py` affiche le tableau de comparaison (`--split validation`,
 `--json` pour une page) ; tests : `tests/test_ml_experiences.py`. Une page de comparaison avec graphiques
 par classe est construite à partir de ces mêmes données (tableau de bord « Entraînements du détecteur
-MicroForge »). Sur le runner, la base MLflow est temporaire : à garder en artefact au prochain
-réentraînement (`mlflow.db`) pour rouvrir les runs dans l'interface MLflow.
+MicroForge »). Les runs 41785539714 et 41791374429 n'ont pas gardé leur base MLflow (temporaire sur le
+runner) ; à partir du prochain entraînement, l'artefact `iotkits-rapport` contient `mlflow.db` et les
+fichiers du run. Pour les rouvrir et comparer les courbes epoch par epoch :
+
+```bash
+uv run --with mlflow mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+(dans le dossier de l'artefact décompressé, puis http://127.0.0.1:5000).
 
 ## Licence du modèle
 Ultralytics YOLO est sous **AGPL-3.0** : compatible avec un dépôt public. Alternative comparée
