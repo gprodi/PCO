@@ -54,3 +54,17 @@ Décisions, puis vérification au run `collecte` n° 7 (même jour, mêmes volum
   pendant l'import hebdomadaire, acceptable pour un catalogue surtout lu.
 
 Le banc mesure désormais ces index comme « existants » (retirés dans une transaction annulée).
+
+### Statistiques du planificateur après l'import (run `collecte` n° 8)
+Au run 8, les index (composite et trigrammes) existaient déjà avant l'import : ils sont créés avec la
+table. Mesurés juste après le chargement, sans statistiques à jour, ils donnaient de moins bons plans :
+liste d'une catégorie 3,810 ms (lecture bitmap puis tri, au lieu de 0,040 ms), recherche de la route
+2,635 ms (au lieu de 0,044 ms). Cause : après un chargement massif, PostgreSQL garde les statistiques
+de tables vides jusqu'au passage de l'autovacuum. Correctif : `ANALYZE` des tables chargées à la fin de
+chaque import (`load/importer.py`, `analyze_after_load`), vérifié par un test sur PostgreSQL. Le
+prochain run de `collecte` mesure l'état réel de la base après import.
+
+Durée de l'étape « collecte, agrégation, import » : 95 s aux runs 6 et 7, 118 s au run 8 (avec les
+trois index GIN tenus à jour pendant le chargement). L'écart comprend aussi le téléchargement des
+sources : il n'isole pas le coût des index.
+

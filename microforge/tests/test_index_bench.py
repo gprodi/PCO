@@ -186,3 +186,52 @@ def test_bench_on_postgresql_leaves_database_untouched():
         with admin.connect() as conn:
             conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
         admin.dispose()
+
+
+@pytest.mark.pgvector
+@pytest.mark.skipif(not PG_URL, reason="PGVECTOR_TEST_URL non défini (base PostgreSQL)")
+def test_import_leaves_fresh_planner_statistics():
+    """Après l'import, les tables chargées ont des statistiques (ANALYZE), sans attendre l'autovacuum."""
+    from microforge.api_data.db import init_db
+    from microforge.data_pipeline.load.importer import LOADED_TABLES, import_clean
+    from sqlmodel import Session
+
+    name = f"mf_analyze_{uuid.uuid4().hex[:8]}"
+    admin = create_engine(PG_URL, isolation_level="AUTOCOMMIT")
+    with admin.connect() as conn:
+        conn.execute(text(f'CREATE DATABASE "{name}"'))
+    engine = create_engine(make_url(PG_URL).set(database=name))
+    try:
+        init_db(engine)
+        components = [
+            {
+                "component_key": f"lcsc:C{i}",
+                "name": f"Pièce {i}",
+                "category": "capteur",
+                "mpn": f"M{i}",
+            }
+            for i in range(50)
+        ]
+        offers = [
+            {
+                "component_key": f"lcsc:C{i}",
+                "supplier": "LCSC",
+                "sku": f"C{i}",
+                "unit_price_eur": 0.1,
+            }
+            for i in range(50)
+        ]
+        with Session(engine) as session:
+            import_clean(session, components, offers)
+        with engine.connect() as c:
+            analyzed = dict(
+                c.execute(
+                    text("SELECT relname, last_analyze IS NOT NULL FROM pg_stat_user_tables")
+                ).all()
+            )
+        assert all(analyzed[t] for t in LOADED_TABLES), analyzed
+    finally:
+        engine.dispose()
+        with admin.connect() as conn:
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        admin.dispose()

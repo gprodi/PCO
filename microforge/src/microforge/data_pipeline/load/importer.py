@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from microforge.api_data.catalog_sync import CATEGORY_LABELS, sync_catalog
@@ -149,8 +150,27 @@ def import_clean(
     run.finished_at = datetime.now(UTC)
     session.add(run)
     session.commit()
+    analyze_after_load(session)
     logger.info("Import : {} lignes écrites", written)
     return run
+
+
+#: Tables remplies en masse par l'import.
+LOADED_TABLES = ("composant", "offre", "fabricant", "bibliotheque")
+
+
+def analyze_after_load(session: Session) -> None:
+    """Statistiques du planificateur à jour juste après un chargement massif (PostgreSQL).
+
+    Sans ANALYZE, PostgreSQL garde des statistiques de tables vides jusqu'au passage de
+    l'autovacuum et choisit de mauvais plans : mesuré sur la base réelle, la liste par catégorie
+    passait de 0,040 ms à 3,8 ms et la recherche de 0,044 ms à 2,6 ms (docs/E1/requetes.md).
+    """
+    if session.get_bind().dialect.name != "postgresql":
+        return
+    for table in LOADED_TABLES:  # noms constants, aucune donnée extérieure
+        session.execute(text(f"ANALYZE {table}"))
+    session.commit()
 
 
 def read_clean(clean_dir: Path) -> tuple[list[dict], list[dict], list[dict]]:
