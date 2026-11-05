@@ -13,7 +13,7 @@ donne un le temps de la recréation de la table (mode batch) ; sous PostgreSQL, 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 
 revision: str = "0002"
 down_revision: str | Sequence[str] | None = "0001"
@@ -28,10 +28,17 @@ CONVENTION = {"uq": "uq_%(table_name)s_%(column_0_N_name)s"}
 SQLITE_OLD_NAME = "uq_article_inventaire_user_id_component_id_location"
 
 
+#: Nom donné par PostgreSQL à la contrainte sans nom de 0001 (table_colonnes_key), vérifié sur une base.
+POSTGRES_OLD_NAME = "article_inventaire_user_id_component_id_location_key"
+
+
 def _old_name() -> str:
-    bind = op.get_bind()
-    if bind.dialect.name == "sqlite":
+    dialect = op.get_context().dialect.name
+    if dialect == "sqlite":
         return SQLITE_OLD_NAME
+    if context.is_offline_mode():  # « alembic upgrade head --sql » : pas de base à inspecter
+        return POSTGRES_OLD_NAME
+    bind = op.get_bind()
     for uq in sa.inspect(bind).get_unique_constraints(TABLE):
         if uq["column_names"] == OLD_COLS:
             return uq["name"]

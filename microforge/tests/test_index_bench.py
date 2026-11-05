@@ -61,13 +61,20 @@ def test_gain_is_ratio_of_medians_and_never_divides_by_zero():
 
 
 def test_cases_target_real_schema_indexes_or_declare_their_ddl():
-    from microforge.api_data import db  # noqa: F401  (enregistre les tables)
+    from microforge.api_data import db
     from sqlmodel import SQLModel
 
+    # Index du schéma : métadonnées SQLModel + index trigrammes créés après la table (PostgreSQL).
     schema = {ix.name for t in SQLModel.metadata.tables.values() for ix in t.indexes}
-    existing = {c.index for c in CASES if c.mode == "existant"}
-    assert existing == {"ix_offre_component_id", "ix_composant_mpn", "ix_composant_category_id_id"}
-    assert existing <= schema  # un index « existant » est bien déclaré dans le schéma
+    schema |= set(db.TRGM_INDEXES)
+    dropped = {name for c in CASES if c.mode == "existant" for name in c.dropped()}
+    assert dropped == {
+        "ix_offre_component_id",
+        "ix_composant_mpn",
+        "ix_composant_category_id_id",
+        *db.TRGM_INDEXES,
+    }
+    assert dropped <= schema  # un index « existant » est bien en place dans le schéma
     for case in CASES:
         assert case.mode in {"existant", "candidat"}
         if case.mode == "candidat":
@@ -163,15 +170,17 @@ def test_bench_on_postgresql_leaves_database_untouched():
         assert mpn["with_index"]["plan"] == ["Index Scan ix_composant_mpn"]
         assert mpn["without_index"]["plan"] == ["Seq Scan composant"]
         assert mpn["with_index"]["rows"] == 1
-        trgm = by_case["recherche_dans_le_nom"]
-        assert any("ix_composant_name_trgm" in n for n in trgm["with_index"]["plan"])
-        assert trgm["with_index"]["rows"] == 10
-        # Transactions annulées : mêmes index, pas d'extension pg_trgm laissée derrière.
+        # Recherche : sur 5 000 lignes, le planificateur peut préférer une autre lecture que l'index
+        # trigrammes (sur la base réelle, il le choisit : docs/E1/requetes.md). Le test vérifie ce qui
+        # ne dépend pas de ce choix : mêmes lignes trouvées, index bien retiré pour la mesure « sans ».
+        for name in ("recherche_dans_le_nom", "recherche_route_complete"):
+            r = by_case[name]
+            assert r["with_index"]["rows"] == r["without_index"]["rows"] == 10
+            assert not any("trgm" in n for n in r["without_index"]["plan"])
+        # Transactions annulées : la base garde exactement ses index (trigrammes compris).
+        assert {"ix_composant_name_trgm", "ix_composant_description_trgm"} <= set(before)
         with engine.connect() as c:
             assert c.execute(text(indexes)).scalars().all() == before
-            assert not c.execute(
-                text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")
-            ).first()
     finally:
         engine.dispose()
         with admin.connect() as conn:

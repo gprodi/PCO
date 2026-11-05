@@ -11,13 +11,19 @@ from sqlmodel import SQLModel
 target_metadata = SQLModel.metadata
 
 
+def include_object(obj, name, type_, reflected, compare_to) -> bool:
+    """L'autogénération ignore les index trigrammes : créés hors métadonnées (PostgreSQL seulement)."""
+    return not (type_ == "index" and name and name.endswith("_trgm"))
+
+
 def run_migrations_offline() -> None:
     """Génère le SQL sans base (``alembic upgrade head --sql``) : sert au MPD du dossier E1."""
     context.configure(
-        url=get_settings().database_url,
+        url=context.config.attributes.get("url") or get_settings().database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         render_as_batch=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -28,7 +34,10 @@ def run_migrations_online() -> None:
     with engine.connect() as connection:
         # render_as_batch : les ALTER TABLE passent aussi sur SQLite (développement, tests).
         context.configure(
-            connection=connection, target_metadata=target_metadata, render_as_batch=True
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+            include_object=include_object,
         )
         with context.begin_transaction():
             context.run_migrations()

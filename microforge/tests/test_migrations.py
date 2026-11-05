@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import microforge.api_data.db  # noqa: F401
@@ -85,3 +86,17 @@ def test_inventory_value_migration_keeps_existing_rows(tmp_path):
     command.downgrade(cfg, "0001")  # les deux lignes fusionnent : 20 + 5
     with engine.begin() as c:
         assert c.execute(text("SELECT quantity FROM article_inventaire")).scalars().all() == [25]
+
+
+def test_offline_sql_for_postgresql_needs_no_database():
+    """« alembic upgrade head --sql » (MPD du dossier E1) : DDL PostgreSQL complet sans base."""
+    buf = io.StringIO()
+    cfg = Config(str(INI), output_buffer=buf)
+    cfg.attributes["url"] = "postgresql://utilisateur@hote/microforge"
+    command.upgrade(cfg, "head", sql=True)
+    sql = buf.getvalue()
+    assert sql.count("CREATE TABLE") == 15  # 14 tables + alembic_version
+    assert "DROP CONSTRAINT article_inventaire_user_id_component_id_location_key" in sql
+    assert "CREATE INDEX ix_composant_category_id_id" in sql
+    for name in ("name", "id", "description"):
+        assert f"ix_composant_{name}_trgm ON composant USING gin ({name} gin_trgm_ops)" in sql

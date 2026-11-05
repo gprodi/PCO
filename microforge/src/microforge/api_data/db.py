@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from functools import lru_cache
 
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import DDL, Index, UniqueConstraint, event
 from sqlalchemy.engine import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine
 
@@ -85,6 +85,30 @@ class Component(SQLModel, table=True):
     reference_price_eur: float | None = None
     source: str = "catalogue"  # catalogue | lcsc | digikey | fritzing…
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+# Recherche « contient » de GET /v1/components?q= (ILIKE '%…%' sur le nom, l'identifiant et la
+# description) : index trigrammes pg_trgm, PostgreSQL seulement (SQLite, en développement, garde la
+# lecture complète). Mesuré sur la base réelle : 104,9 ms -> 0,044 ms (docs/E1/requetes.md).
+# Hors des métadonnées : créés après la table (create_all) et par la migration Alembic 0004.
+TRGM_INDEXES = {
+    "ix_composant_name_trgm": "name",
+    "ix_composant_id_trgm": "id",
+    "ix_composant_description_trgm": "description",
+}
+event.listen(
+    Component.__table__,
+    "after_create",
+    DDL("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute_if(dialect="postgresql"),
+)
+for _name, _column in TRGM_INDEXES.items():
+    event.listen(
+        Component.__table__,
+        "after_create",
+        DDL(
+            f"CREATE INDEX IF NOT EXISTS {_name} ON composant USING gin ({_column} gin_trgm_ops)"
+        ).execute_if(dialect="postgresql"),
+    )
 
 
 class Library(SQLModel, table=True):

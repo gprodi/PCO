@@ -33,6 +33,11 @@ class Case:
     #: « candidat » : index proposé, créé pour la mesure « avec ».
     mode: str = "existant"
     create: tuple[str, ...] = ()
+    #: index retirés pour la mesure « sans » (par défaut : ``index``).
+    drop: tuple[str, ...] = ()
+
+    def dropped(self) -> tuple[str, ...]:
+        return self.drop or (self.index,)
 
 
 CASES: tuple[Case, ...] = (
@@ -59,32 +64,18 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         "recherche_dans_le_nom",
-        "recherche « contient » sur le nom (GET /v1/components?q=…)",
+        "recherche « contient » sur le nom seul",
         "SELECT id, name FROM composant WHERE name ILIKE :motif ORDER BY category_id, id LIMIT 50",
         "ix_composant_name_trgm",
-        mode="candidat",
-        create=(
-            "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-            "CREATE INDEX ix_composant_name_trgm ON composant USING gin (name gin_trgm_ops)",
-            "ANALYZE composant",
-        ),
     ),
     Case(
         "recherche_route_complete",
-        "GET /v1/components?q=… telle quelle (nom, identifiant ou description)",
+        "GET /v1/components?q=… (nom, identifiant ou description)",
         "SELECT id, name FROM composant "
         "WHERE name ILIKE :motif OR id ILIKE :motif OR description ILIKE :motif "
         "ORDER BY category_id, id LIMIT 50",
         "ix_composant_*_trgm (nom, id, description)",
-        mode="candidat",
-        create=(
-            "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-            "CREATE INDEX ix_composant_name_trgm ON composant USING gin (name gin_trgm_ops)",
-            "CREATE INDEX ix_composant_id_trgm ON composant USING gin (id gin_trgm_ops)",
-            "CREATE INDEX ix_composant_description_trgm ON composant "
-            "USING gin (description gin_trgm_ops)",
-            "ANALYZE composant",
-        ),
+        drop=("ix_composant_name_trgm", "ix_composant_id_trgm", "ix_composant_description_trgm"),
     ),
 )
 
@@ -176,7 +167,8 @@ def run_case(engine: Engine, case: Case, params: dict[str, Any], runs: int) -> R
         trans = conn.begin()
         try:
             if case.mode == "existant":
-                conn.execute(text(f"DROP INDEX {case.index}"))
+                for name in case.dropped():
+                    conn.execute(text(f"DROP INDEX {name}"))
             else:
                 for ddl in case.create:
                     conn.execute(text(ddl))

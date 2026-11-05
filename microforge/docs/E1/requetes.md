@@ -38,9 +38,19 @@ composants, 106 819 offres, 13 catégories.
 | liste d'une catégorie (50 lignes, triées) | idem | `(category_id, id)` (candidat) | 3,689 ms | 0,034 ms (une lecture ordonnée) | ×108 |
 | recherche « contient » dans le nom | `?q=` limité au nom | trigrammes `pg_trgm` sur `name` (candidat) | 118,690 ms | 0,030 ms | ×3 956 |
 
-Décisions :
-- l'index simple sur la catégorie **ralentissait** la liste par catégorie : il est remplacé par
-  l'index composite `(category_id, id)`, qui sert le filtre et le tri (migration Alembic `0003`) ;
-- les trigrammes divisent par près de 4 000 la recherche sur le nom ; la route actuelle cherche aussi
-  dans l'identifiant et la description (`OR`) : sa mesure telle quelle, avec trois index trigrammes
-  candidats, est ajoutée au banc avant toute migration.
+Décisions, puis vérification au run `collecte` n° 7 (même jour, mêmes volumes, après la migration `0003`) :
+
+| Requête | Index | Sans index | Avec index | Gain |
+|---|---|---|---|---:|
+| liste d'une catégorie (50 lignes, triées) | `ix_composant_category_id_id` (en place) | 3,313 ms | 0,040 ms | ×83 |
+| recherche de la route telle quelle (`name`, `id` ou `description` `ILIKE '%…%'`) | trois index trigrammes (candidats) | 104,911 ms (lecture complète) | 0,044 ms (trois lectures d'index combinées) | ×2 384 |
+| recherche « contient » dans le nom seul | trigrammes sur `name` (candidat) | 95,100 ms | 0,023 ms | ×4 135 |
+
+- l'index simple sur la catégorie **ralentissait** la liste par catégorie : remplacé par l'index composite
+  `(category_id, id)`, qui sert le filtre et le tri (migration Alembic `0003`) ;
+- la route de recherche, mesurée telle quelle, passe de 105 ms à 0,04 ms avec un index trigrammes sur
+  chacune de ses trois colonnes : index ajoutés (migration `0004`, PostgreSQL seulement ; sous SQLite,
+  en développement, la recherche reste une lecture complète). Coût : trois index GIN à tenir à jour
+  pendant l'import hebdomadaire, acceptable pour un catalogue surtout lu.
+
+Le banc mesure désormais ces index comme « existants » (retirés dans une transaction annulée).

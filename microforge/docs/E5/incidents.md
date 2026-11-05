@@ -51,3 +51,13 @@ absent), page « Explorer » en erreur (méthodes absentes du client, SVG passé
 | Reproduction | Python 3.12 absent du poste : un test inverse l'ordre de `rglob` ; il échoue sur l'ancien code (`1 failed, 10 passed`) et passe avec le correctif (`11 passed`) |
 | Solution | commit 69e0366 : images triées (`sorted(...)`) avant le décompte |
 | Prévention | test `test_report_does_not_depend_on_filesystem_order` ; matrice CI 3.12 + 3.13 conservée, c'est elle qui a révélé le défaut |
+
+## Incident n°9 — Génération du DDL hors ligne cassée depuis la migration 0002 (05/11/2026)
+| Étape | Contenu |
+|---|---|
+| Message d'erreur / logs | `MF_DATABASE_URL=postgresql://u@h/microforge uv run alembic upgrade head --sql` (commande citée par le dossier E1 pour produire le MPD) s'arrête après la révision 0001 : `sqlalchemy.exc.NoInspectionAvailable: No inspection system is available for object of type <class 'sqlalchemy.engine.mock.MockConnection'>`, code de sortie 1 |
+| Analyse | en mode hors ligne, Alembic écrit le SQL sans base : la connexion est factice. La migration 0002 (03/11) lit le nom de l'ancienne contrainte d'unicité en inspectant la base ; c'est impossible hors ligne. Aucun test ne couvrait ce mode : la commande documentée était cassée depuis deux jours sans que rien ne le signale |
+| Reproduction | la commande exacte du dossier E1 ; trouvé en vérifiant le SQL hors ligne de la nouvelle migration 0004 |
+| Solution | hors ligne, 0002 utilise le nom que PostgreSQL donne à une contrainte sans nom (`article_inventaire_user_id_component_id_location_key`, relevé sur une base réelle après `alembic upgrade 0001`) ; `migrations/env.py` lit l'URL de la configuration aussi hors ligne |
+| Prévention | test `test_offline_sql_for_postgresql_needs_no_database` : DDL PostgreSQL complet sans base (15 `CREATE TABLE`, la suppression de l'ancienne contrainte, les index composites et trigrammes) |
+
