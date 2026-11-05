@@ -8,7 +8,11 @@
 name: microforge
 
 x-app: &app
-  env_file: [{ path: ../.env, required: false }] # facultatif : les valeurs par défaut suffisent en dev
+  # Valeurs de développement versionnées (.env.example : PostgreSQL du compose, adresses des services),
+  # remplacées par celles de ../.env quand ce fichier existe (le dernier fichier l'emporte).
+  env_file:
+    - { path: ../.env.example, required: true }
+    - { path: ../.env, required: false }
   restart: unless-stopped
   extra_hosts: ["host.docker.internal:host-gateway"]
   networks: [backend]
@@ -82,7 +86,9 @@ services:
     # cosign (veille 2026-45). Ne jamais installer LiteLLM depuis PyPI (incident 1.82.7/1.82.8).
     image: ghcr.io/berriai/litellm:main-stable
     command: ["--config", "/app/config.yaml", "--port", "4000"]
-    env_file: [{ path: ../.env, required: false }]
+    env_file:
+      - { path: ../.env.example, required: true }
+      - { path: ../.env, required: false }
     environment:
       DATABASE_URL: postgresql://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/litellm
     volumes: ["./litellm/config.yaml:/app/config.yaml:ro"]

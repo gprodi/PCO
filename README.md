@@ -132,7 +132,58 @@ cd microforge/pwa && npm ci && npm run dev
 
 La PWA est sur http://localhost:5173, la preuve de concept Streamlit sur http://localhost:8501.
 
-Avec Docker : `docker compose -f microforge/infra/docker-compose.yml --profile core up`. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
+#### Avec Docker (Windows, Mac ou Linux)
+
+Prérequis : Docker Desktop démarré. Toutes les commandes se tapent depuis la racine du dépôt (le
+dossier `PCO`). Tant que la PR n'est pas fusionnée dans `main`, le travail récent est sur la branche
+`claude/amazing-bohr-o38ndx` :
+
+```bash
+git fetch origin
+```
+
+```bash
+git switch claude/amazing-bohr-o38ndx
+```
+
+```bash
+git pull
+```
+
+Puis, toujours depuis la racine :
+
+```bash
+docker compose -f microforge/infra/docker-compose.yml --profile core up -d --build
+```
+
+La première construction prend plusieurs minutes (4 images). Ensuite :
+
+| Interface | Adresse |
+|---|---|
+| Application (PWA) | http://localhost:5173 |
+| Preuve de concept Streamlit | http://localhost:8501 |
+| API données / API IA (documentation interactive) | http://localhost:8000/docs · http://localhost:8001/docs |
+
+État des services :
+
+```bash
+docker compose -f microforge/infra/docker-compose.yml --profile core ps
+```
+
+Arrêt :
+
+```bash
+docker compose -f microforge/infra/docker-compose.yml --profile core down
+```
+
+Aucun fichier `.env` n'est nécessaire : les valeurs de développement de `microforge/.env.example`
+servent par défaut. Pour en changer (clé Gemini, mot de passe PostgreSQL…), copier ce fichier en
+`microforge/.env` et le modifier : ses valeurs l'emportent. Si un port est déjà pris (message
+« port is already allocated »), arrêter le programme qui l'occupe ou changer le port publié dans
+`microforge/infra/docker-compose.yml`. Sans Ollama (ni clé Gemini), la génération des projets
+fonctionne (moteur déterministe) et le copilote répond par extraits de ses sources ; la reconnaissance
+des composants sur photo, elle, a besoin d'Ollama ou d'un modèle entraîné. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès
+au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
 
 Générer un projet en ligne de commande :
 

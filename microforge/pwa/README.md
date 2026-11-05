@@ -39,9 +39,10 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 Avec la pile Docker (API + PWA + Streamlit + PostgreSQL) :
 
 ```bash
-cd microforge/infra
-docker compose --profile core up -d --build
+docker compose -f microforge/infra/docker-compose.yml --profile core up -d --build
 ```
+
+(depuis la racine du dépôt ; ou `cd microforge/infra` puis la même commande sans `-f …`).
 
 La PWA est sur http://localhost:5173.
 

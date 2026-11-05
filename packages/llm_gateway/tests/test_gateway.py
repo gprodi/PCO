@@ -102,6 +102,12 @@ def test_profile_choice(hw, expected):
     assert profile.model_for("anthropic", "text") == "claude-opus-5-5"
 
 
+def test_empty_profile_name_means_detection():
+    """« LLM_PROFILE= » (vide, comme dans .env.example) : détection, et non « profil inconnu »."""
+    hw = HardwareInfo("Linux", "x86_64", 8.0)
+    assert load_profile("", hw).name == load_profile(None, hw).name == "cpu"
+
+
 def test_unknown_profile():
     with pytest.raises(ValueError):
         load_profile("inexistant")

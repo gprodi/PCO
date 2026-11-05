@@ -18,7 +18,7 @@ uv sync --all-packages --group dev --extra data --extra app
 uv run llm-gateway doctor                       # profil matériel et modèles conseillés
 uv run microforge suggest --stock "esp32=1,dht22=1,oled=1,led=3"
 uv run microforge build station-meteo-oled --board esp32-devkit-v1 --out build
-cd microforge/infra && cp ../.env.example ../.env && docker compose --profile core up -d --build
+docker compose -f microforge/infra/docker-compose.yml --profile core up -d --build   # depuis la racine du dépôt
 ```
 Application (PWA) : http://localhost:5173 · preuve de concept Streamlit : http://localhost:8501 · API données : http://localhost:8000/docs · API IA : http://localhost:8001/docs
 

@@ -129,7 +129,7 @@ def available_profiles() -> list[str]:
 def load_profile(name: str | None = None, hw: HardwareInfo | None = None) -> Profile:
     """Charge un profil par son nom, ou le détecte automatiquement."""
     data = _profiles_data()
-    if name is None:
+    if not name:  # absent ou vide (« LLM_PROFILE= » dans .env.example) : détection automatique
         hw = hw or detect_hardware()
         name = choose_profile_name(hw)
         logger.info("Profil matériel détecté : {} ({})", name, hw)
