@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from functools import lru_cache
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.engine import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine
 
@@ -67,9 +67,13 @@ class Component(SQLModel, table=True):
     """Composant du catalogue (cartes incluses, catégorie « carte »)."""
 
     __tablename__ = "composant"
+    # Index composite (catégorie, id) : sert à la fois le filtre et le tri de GET /v1/components.
+    # Mesuré sur la base réelle (99 325 composants) : 3,7 ms avec l'ancien index sur la seule
+    # catégorie (plus lent que sans index), 0,034 ms avec celui-ci (docs/E1/requetes.md).
+    __table_args__ = (Index("ix_composant_category_id_id", "category_id", "id"),)
     id: str = Field(primary_key=True, max_length=60)
     name: str
-    category_id: str = Field(foreign_key="categorie.id", index=True)
+    category_id: str = Field(foreign_key="categorie.id")
     manufacturer_id: int | None = Field(default=None, foreign_key="fabricant.id")
     mpn: str | None = Field(default=None, index=True, max_length=80)
     description: str = ""

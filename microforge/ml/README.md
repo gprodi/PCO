@@ -136,7 +136,7 @@ Inférence : 18,9 ms par image sur CPU. Par classe, sur le **test** (objets, mAP
 |---|---|
 | **Fiables** (≥ 30 objets, mAP50 ≥ 0,9) | `arduino_uno` (179 ; 0,995 ; 0,916), `nodemcu` (185 ; 0,995 ; 0,796), `trimmer` (192 ; 0,917 ; 0,669), `servo_sg90` (99 ; 0,982 ; 0,813), `potentiometer` (87 ; 0,990 ; 0,858), `hc_sr04` (69 ; 0,978 ; 0,873), `arduino_mega` (33 ; 0,995 ; 0,995) |
 | **Correctes, à améliorer** | `push_button` (134 ; 0,895 ; 0,676), `led` (217 ; 0,844 ; 0,635), `diode` (145 ; 0,830 ; 0,644), `transistor` (228 ; 0,790 ; 0,620), `resistor` (766 ; 0,599 ; 0,424 : petits objets, nombreux par photo) |
-| **En échec** | `capacitor_electrolytic` (52 ; 0,449 ; 0,189), `capacitor_ceramic` (68 ; 0,040 ; 0,012), `jumper_wires` (19 ; 0,064 ; 0,014) |
+| **En échec** | `capacitor_electrolytic` (52 ; 0,449 ; 0,189), `capacitor_ceramic` (68 ; 0,040 ; 0,012), `jumper_wires` (19 ; 0,064 ; 0,014 : moins de 30 objets, mais un score proche de zéro) |
 | **Non mesurables** (moins de 30 objets en test) | `breadboard` (28 ; 0,995), `arduino_nano` (16 ; 0,991), `arduino_due` (15 ; 0,970), `arduino_leonardo` (8 ; 0,995), `screw_terminal` (7 ; 0), `arduino_micro` (6 ; 0,431), `esp32_devkit` (2 ; 0,517), `arduino_pro_mini` (2 ; 0,039), `crystal` (2 ; 0), `buzzer` (1) ; `lcd_1602` et `dc_motor` absents du test |
 
 Lecture :

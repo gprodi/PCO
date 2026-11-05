@@ -19,7 +19,7 @@ porte sur 0,1 PHOTO (retour possible sans photo conservée, cf. RGPD).
 
 ## MLD
 Produit par Mocodo à partir du MCD (`-t markdown`) : 14 relations, exactement les 14 tables de la
-migration Alembic `0001` (+ `0002` pour la valeur des articles). Clé primaire soulignée, clés
+migration Alembic `0001` (+ `0002` pour la valeur des articles, `0003` pour l'index composite des composants). Clé primaire soulignée, clés
 étrangères préfixées par `#`.
 
 ![MLD MicroForge (Mocodo)](img/mld.png)
@@ -42,7 +42,7 @@ migration Alembic `0001` (+ `0002` pour la valeur des articles). Clé primaire s
 ## MPD
 `microforge/src/microforge/api_data/db.py` (SQLModel) et les migrations Alembic `microforge/migrations/`.
 Index : clés étrangères interrogées par l'application (`ix_offre_component_id`, `ix_offre_supplier_id`,
-`ix_composant_category_id`, `ix_*_user_id`), recherche par référence (`ix_composant_mpn`), unicités
+`ix_*_user_id`), liste par catégorie (`ix_composant_category_id_id`, composite, migration `0003`), recherche par référence (`ix_composant_mpn`), unicités
 (pseudo, index e-mail, fabricant). Leur effet est mesuré sur la base réelle par
 `mf-pipeline bench-index` (workflow `collecte`, résultats dans `docs/E1/requetes.md`). DDL complet sans
 base : `MF_DATABASE_URL=postgresql://u@h/microforge uv run alembic upgrade head --sql`.

@@ -94,7 +94,7 @@ sections:
   Intégrer les étapes d'entraînement et d’évaluation du modèle:
     - "ml/train.py (périphérique choisi selon la machine : cuda, mps ou cpu), suivi MLflow ; ml/evaluate.py calcule mAP50, mAP50-95, précision et rappel par classe."
     - "Premier entraînement de référence, exécuté par la chaîne sur un runner GitHub sans GPU (04/11/2026, run 41785539714) : YOLO11n, 15 epochs, 416 px, jeu public IoTKITs (CC BY 4.0, 8 classes de cartes), 31 minutes. Sur le split de test, jamais utilisé pendant l'entraînement (138 images, 119 cartes) : mAP50 0,974, mAP50-95 0,930, précision 0,944, rappel 0,931 (validation : mAP50 0,966, mAP50-95 0,930). Classes les plus faibles : Arduino Pro Mini (mAP50 0,869) et ESP32 (rappel 0,751) ; les classes de moins de 10 objets en test ont un score instable. 35,5 ms par image sur CPU. Photos de cartes seules et bien cadrées : le score sur les photos réelles reste à mesurer."
-    - "Entraînement sur l'ensemble des données (04/11/2026, run 41791374429) : IoTKITs et 6 jeux Roboflow Universe sous licence CC BY 4.0, téléchargés par la chaîne elle-même (licence vérifiée par l'API puis dans l'export) ; YOLO11n, 15 epochs, 416 px, 3 h 29 sur CPU. Sur le split de test (1 801 images, 2 560 objets, 27 classes) : mAP50 0,692, mAP50-95 0,592, précision 0,777, rappel 0,694 (validation : mAP50 0,734). Fiables (≥ 30 objets en test, mAP50 ≥ 0,9) : Uno, Mega, NodeMCU, servo SG90, potentiomètre, trimmer, HC-SR04. À améliorer : bouton, LED, diode, transistor, résistance (0,599). En échec : condensateurs (0,04 et 0,45) et fils Dupont (0,06). Dix classes ont moins de 30 objets en test et ne sont pas mesurables. Inférence : 18,9 ms par image sur CPU."
+    - "Entraînement sur l'ensemble des données (04/11/2026, run 41791374429) : IoTKITs et 6 jeux Roboflow Universe sous licence CC BY 4.0, téléchargés par la chaîne elle-même (licence vérifiée par l'API puis dans l'export) ; YOLO11n, 15 epochs, 416 px, 3 h 29 sur CPU. Sur le split de test (1 801 images, 2 560 objets, 27 classes) : mAP50 0,692, mAP50-95 0,592, précision 0,777, rappel 0,694 (validation : mAP50 0,734). Fiables (≥ 30 objets en test, mAP50 ≥ 0,9) : Uno, Mega, NodeMCU, servo SG90, potentiomètre, trimmer, HC-SR04. À améliorer : bouton, LED, diode, transistor, résistance (0,599). En échec : condensateurs (0,04 et 0,45) et fils Dupont (0,06, sur 19 objets seulement). Dix autres classes ont moins de 30 objets en test et ne sont pas mesurables ; deux classes n'ont aucun objet en test. Inférence : 18,9 ms par image sur CPU."
   Intégrer la génération des rapports d'évaluation:
     - "Rapport Markdown et matrice de confusion joints à la demande de fusion ouverte automatiquement."
   Intégrer l'étape de livraison:
@@ -109,4 +109,27 @@ sections:
   Conclusion:
     - "Le détecteur est exposé par une API sécurisée, intégré dans l'application avec renouvellement transparent des jetons, surveillé par des métriques métier (taux de corrections) et techniques, testé à chaque étape et réentraîné automatiquement. Une première version est entraînée par la chaîne sur des jeux publics sous licence vérifiée : mAP50 0,974 sur le test pour les 8 cartes d'IoTKITs, 0,692 pour 27 classes de cartes, modules et composants, avec des classes fiables (cartes, servo, capteur à ultrasons, potentiomètres) et d'autres en échec (condensateurs, fils). Restent : un entraînement plus long sur GPU, des photos pour les classes faibles ou absentes, et la mesure sur les composants réels de l'utilisateur."
   Annexes:
-    - "[À COMPLÉTER : extrait de model-cd.yml et d'un rapport d'évaluation]"
+    - "Extrait de la chaîne de livraison du modèle. Elle n'a pas encore tourné de bout en bout : il lui faut le runner GPU auto-hébergé et le stockage DVC (choix en attente). Les entraînements réels ont été faits par la chaîne CPU jeux-de-donnees.yml, qui applique les mêmes étapes (préparation contrôlée, entraînement, évaluation sur le split de test)."
+    - |-
+      ```yaml
+      # .github/workflows/model-cd.yml (extrait) : tests des données -> entraînement GPU -> porte -> PR
+      on:
+        push: { branches: [main], paths: ["microforge/ml/**", "**/*.dvc"] }
+        repository_dispatch: { types: [retrain] }   # alerte Grafana « taux de corrections > 25 % »
+        schedule: [{ cron: "17 3 1 * *" }]          # réentraînement mensuel
+      jobs:
+        data-tests:        # pytest microforge/tests/test_ml_data.py (C12)
+        train-evaluate:
+          runs-on: [self-hosted, gpu]
+          steps:
+            - id: eval     # code 1 si mAP50 < mAP50(@production) - 0,02 : pas de livraison
+              run: uv run python microforge/ml/evaluate.py --weights .../best.pt --out reports/evaluation
+        deliver:           # si la porte passe : MLflow @staging + PR « Modèle de détection — run … »
+          if: needs.train-evaluate.outputs.ok == 'true'
+        promote:           # PR fusionnée (label model-release) : alias @production
+      ```
+    - "Rapport d'évaluation réel, produit par ml/compare_runs.py à partir du registre ml/experiences.yaml (scores recopiés des journaux des runs GitHub Actions) :"
+    - "| Run | Données | Classes | Durée (CPU) | Validation mAP50 | Test mAP50 | Test mAP50-95 | Inférence |\n|---|---|---|---|---|---|---|---|\n| iotkits-v1 (41785539714) | IoTKITs (CC BY 4.0) | 8 | 0,51 h | 0,966 | 0,974 | 0,930 | 35,5 ms |\n| complet-v1 (41791374429) | IoTKITs + 6 jeux Roboflow Universe (CC BY 4.0) | 27 | 3,49 h | 0,734 | 0,692 | 0,592 | 18,9 ms |"
+    - "Run complet-v1, classes mesurables (au moins 30 objets dans le split de test), par score décroissant :"
+    - "| Classe | mAP50 test (objets) |\n|---|---|\n| arduino_uno | 0,995 (179) |\n| arduino_mega | 0,995 (33) |\n| nodemcu | 0,995 (185) |\n| potentiometer | 0,990 (87) |\n| servo_sg90 | 0,982 (99) |\n| hc_sr04 | 0,978 (69) |\n| trimmer | 0,917 (192) |\n| push_button | 0,895 (134) |\n| led | 0,844 (217) |\n| diode | 0,830 (145) |\n| transistor | 0,790 (228) |\n| resistor | 0,599 (766) |\n| capacitor_electrolytic | 0,449 (52) |\n| capacitor_ceramic | 0,040 (68) |"
+    - "Lecture : les cartes et les modules au contour net sont fiables ; les petits composants passifs, vus sous tous les angles et souvent mal annotés, ne le sont pas encore (condensateurs céramiques 0,04). Onze classes, fils Dupont compris, ont moins de 30 objets en test : leur score n'est pas interprétable."

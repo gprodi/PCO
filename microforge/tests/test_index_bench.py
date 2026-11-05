@@ -61,12 +61,18 @@ def test_gain_is_ratio_of_medians_and_never_divides_by_zero():
 
 
 def test_cases_target_real_schema_indexes_or_declare_their_ddl():
+    from microforge.api_data import db  # noqa: F401  (enregistre les tables)
+    from sqlmodel import SQLModel
+
+    schema = {ix.name for t in SQLModel.metadata.tables.values() for ix in t.indexes}
     existing = {c.index for c in CASES if c.mode == "existant"}
-    assert existing == {"ix_offre_component_id", "ix_composant_mpn", "ix_composant_category_id"}
+    assert existing == {"ix_offre_component_id", "ix_composant_mpn", "ix_composant_category_id_id"}
+    assert existing <= schema  # un index « existant » est bien déclaré dans le schéma
     for case in CASES:
         assert case.mode in {"existant", "candidat"}
         if case.mode == "candidat":
-            assert any(case.index in ddl for ddl in case.create)
+            assert any(ddl.startswith("CREATE INDEX") for ddl in case.create)
+            assert not {case.index} & schema  # un candidat n'est pas déjà en place
         assert case.sql.lstrip().upper().startswith("SELECT")
 
 

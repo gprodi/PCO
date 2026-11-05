@@ -52,22 +52,10 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         "composants_d_une_categorie",
-        "GET /v1/components?category=…",
-        "SELECT id, name FROM composant WHERE category_id = :category "
-        "ORDER BY category_id, id LIMIT 50",
-        "ix_composant_category_id",
-    ),
-    Case(
-        "composants_d_une_categorie_tries",
         "GET /v1/components?category=… (filtre et tri servis par le même index)",
         "SELECT id, name FROM composant WHERE category_id = :category "
         "ORDER BY category_id, id LIMIT 50",
         "ix_composant_category_id_id",
-        mode="candidat",
-        create=(
-            "CREATE INDEX ix_composant_category_id_id ON composant (category_id, id)",
-            "ANALYZE composant",
-        ),
     ),
     Case(
         "recherche_dans_le_nom",
@@ -78,6 +66,23 @@ CASES: tuple[Case, ...] = (
         create=(
             "CREATE EXTENSION IF NOT EXISTS pg_trgm",
             "CREATE INDEX ix_composant_name_trgm ON composant USING gin (name gin_trgm_ops)",
+            "ANALYZE composant",
+        ),
+    ),
+    Case(
+        "recherche_route_complete",
+        "GET /v1/components?q=… telle quelle (nom, identifiant ou description)",
+        "SELECT id, name FROM composant "
+        "WHERE name ILIKE :motif OR id ILIKE :motif OR description ILIKE :motif "
+        "ORDER BY category_id, id LIMIT 50",
+        "ix_composant_*_trgm (nom, id, description)",
+        mode="candidat",
+        create=(
+            "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+            "CREATE INDEX ix_composant_name_trgm ON composant USING gin (name gin_trgm_ops)",
+            "CREATE INDEX ix_composant_id_trgm ON composant USING gin (id gin_trgm_ops)",
+            "CREATE INDEX ix_composant_description_trgm ON composant "
+            "USING gin (description gin_trgm_ops)",
             "ANALYZE composant",
         ),
     ),
