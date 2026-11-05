@@ -73,7 +73,19 @@ recherche 5,308 ms ; après `gin_clean_pending_list` : 0 page, 0,094 ms. Correct
 (`load/importer.py`, `refresh_after_load`) intègre les listes en attente des index GIN puis lance
 `ANALYZE` ; un test sur PostgreSQL vérifie les statistiques et l'absence de pages en attente.
 
-Durée de l'étape « collecte, agrégation, import » : 95 s aux runs 6 et 7, 118 s au run 8 (avec les
-trois index GIN tenus à jour pendant le chargement). L'écart comprend aussi le téléchargement des
-sources : il n'isole pas le coût des index.
+### État final après import (run `collecte` n° 10)
+Avec ce correctif, tous les index sont en place dès l'import (aucun n'est plus « candidat ») et la base
+répond vite sans intervention :
+
+| Requête | Index | Sans index | Avec index | Gain |
+|---|---|---|---|---:|
+| offres d'un composant | `ix_offre_component_id` | 5,255 ms | 0,020 ms | ×263 |
+| composant par référence fabricant | `ix_composant_mpn` | 8,387 ms | 0,012 ms | ×699 |
+| liste d'une catégorie (50 lignes, triées) | `ix_composant_category_id_id` | 1,537 ms | 0,031 ms | ×50 |
+| recherche « contient » dans le nom | `ix_composant_name_trgm` | 95,210 ms | 0,023 ms | ×4 140 |
+| recherche de l'API (nom, identifiant ou description) | trois index trigrammes | 104,602 ms | 0,043 ms | ×2 433 |
+
+Durée de l'étape « collecte, agrégation, import » : 95 s aux runs 6 et 7, 118 s au run 8, 100 s au
+run 10 (index GIN tenus à jour puis listes en attente intégrées). L'écart comprend aussi le
+téléchargement des sources : il n'isole pas le coût des index.
 
