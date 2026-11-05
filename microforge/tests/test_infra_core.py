@@ -7,6 +7,7 @@ une copie temporaire du compose : le vrai .env de l'utilisateur n'est jamais lu 
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -19,6 +20,7 @@ DOCKER = shutil.which("docker")
 
 
 def _config(root: Path) -> dict:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("MF_")}
     proc = subprocess.run(
         [
             DOCKER,
@@ -33,6 +35,7 @@ def _config(root: Path) -> dict:
         text=True,
         timeout=60,
         check=False,
+        env=env,
     )
     assert proc.returncode == 0, proc.stderr
     return yaml.safe_load(proc.stdout)["services"]
@@ -68,3 +71,36 @@ def test_le_fichier_env_remplace_les_valeurs_par_defaut(copie):
     env = _config(copie)["api_data"]["environment"]
     assert env["MF_ENV"] == "prod" and env["LLM_CHAIN"] == "gemini"
     assert env["MF_DATABASE_URL"].endswith("@postgres:5432/microforge")  # le reste garde le défaut
+
+
+def _published(service: dict) -> list[str]:
+    return [str(p["published"]) for p in service.get("ports", [])]
+
+
+def test_ports_par_defaut(copie):
+    services = _config(copie)
+    assert _published(services["api_data"]) == ["8000"]
+    assert _published(services["api_ia"]) == ["8001"]
+    assert _published(services["pwa"]) == ["5173"]
+    assert _published(services["streamlit"]) == ["8501"]
+    cors = services["api_data"]["environment"]["MF_CORS_ORIGINS"].split(",")
+    assert {"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8501"} <= set(cors)
+
+
+def test_port_deja_pris_sur_le_poste_se_change_dans_infra_env(copie):
+    """Port 8000 occupé par un autre programme : MF_API_DATA_PORT=8010 dans infra/.env suffit, la PWA
+    vise alors http://localhost:8010 et les origines CORS suivent le port de la PWA."""
+    (copie / "infra" / ".env").write_text(
+        "MF_API_DATA_PORT=8010\nMF_API_IA_PORT=8011\nMF_PWA_PORT=5180\n", encoding="utf-8"
+    )
+    services = _config(copie)
+    assert _published(services["api_data"]) == ["8010"]
+    assert _published(services["api_ia"]) == ["8011"]
+    assert _published(services["pwa"]) == ["5180"]
+    assert services["pwa"]["environment"] == {
+        "MF_PUBLIC_API_DATA_URL": "http://localhost:8010",
+        "MF_PUBLIC_API_IA_URL": "http://localhost:8011",
+    }
+    for api in ("api_data", "api_ia"):
+        cors = services[api]["environment"]["MF_CORS_ORIGINS"].split(",")
+        assert "http://localhost:5180" in cors and "http://localhost:5173" not in cors

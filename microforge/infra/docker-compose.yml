@@ -5,6 +5,9 @@
 #   docker compose --profile monitoring up -d           # Prometheus, Grafana, Loki, Alloy, Uptime Kuma
 #   docker compose --profile veille up -d               # FreshRSS
 # Images officielles uniquement (pas de Bitnami), versions épinglées.
+# Ports publiés modifiables (un port déjà pris sur le poste empêche le service de démarrer) : dans
+# microforge/infra/.env, par exemple MF_API_DATA_PORT=8010 ; défauts : API données 8000, API IA 8001,
+# PWA 5173, Streamlit 8501. Les adresses vues par la PWA et les origines CORS suivent ces ports.
 name: microforge
 
 x-app: &app
@@ -36,7 +39,10 @@ services:
     image: ghcr.io/gprodi/microforge-api_data:${MF_IMAGE_TAG:-main}
     build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_data }
     depends_on: { postgres: { condition: service_healthy } }
-    ports: ["8000:8000"]
+    environment:
+      # Pages autorisées à appeler l'API depuis le navigateur : la PWA et Streamlit, sur leurs ports publiés.
+      MF_CORS_ORIGINS: ${MF_CORS_ORIGINS:-http://localhost:${MF_PWA_PORT:-5173},http://127.0.0.1:${MF_PWA_PORT:-5173},http://localhost:${MF_STREAMLIT_PORT:-8501},http://127.0.0.1:${MF_STREAMLIT_PORT:-8501}}
+    ports: ["${MF_API_DATA_PORT:-8000}:8000"]
     mem_limit: 512m
 
   api_ia:
@@ -47,8 +53,9 @@ services:
     environment:
       # Copilote RAG : passages du catalogue dans PostgreSQL + pgvector (table mf_copilot, HNSW)
       MF_COPILOT_VECTOR_URL: postgresql+psycopg://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/microforge
+      MF_CORS_ORIGINS: ${MF_CORS_ORIGINS:-http://localhost:${MF_PWA_PORT:-5173},http://127.0.0.1:${MF_PWA_PORT:-5173},http://localhost:${MF_STREAMLIT_PORT:-8501},http://127.0.0.1:${MF_STREAMLIT_PORT:-8501}}
     depends_on: [api_data]
-    ports: ["8001:8001"]
+    ports: ["${MF_API_IA_PORT:-8001}:8001"]
     mem_limit: 2g
 
   streamlit:
@@ -60,7 +67,7 @@ services:
       MF_API_DATA_URL: http://api_data:8000
       MF_API_IA_URL: http://api_ia:8001
     depends_on: [api_data, api_ia]
-    ports: ["8501:8501"]
+    ports: ["${MF_STREAMLIT_PORT:-8501}:8501"]
     networks: [backend, frontend]
 
   pwa:
@@ -71,10 +78,10 @@ services:
     build: { context: ../pwa }
     restart: unless-stopped
     environment:
-      MF_PUBLIC_API_DATA_URL: ${MF_PUBLIC_API_DATA_URL:-http://localhost:8000}
-      MF_PUBLIC_API_IA_URL: ${MF_PUBLIC_API_IA_URL:-http://localhost:8001}
+      MF_PUBLIC_API_DATA_URL: ${MF_PUBLIC_API_DATA_URL:-http://localhost:${MF_API_DATA_PORT:-8000}}
+      MF_PUBLIC_API_IA_URL: ${MF_PUBLIC_API_IA_URL:-http://localhost:${MF_API_IA_PORT:-8001}}
     depends_on: [api_data, api_ia]
-    ports: ["5173:8080"]
+    ports: ["${MF_PWA_PORT:-5173}:8080"]
     networks: [frontend]
     mem_limit: 64m
 

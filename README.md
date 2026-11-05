@@ -178,9 +178,21 @@ docker compose -f microforge/infra/docker-compose.yml --profile core down
 
 Aucun fichier `.env` n'est nécessaire : les valeurs de développement de `microforge/.env.example`
 servent par défaut. Pour en changer (clé Gemini, mot de passe PostgreSQL…), copier ce fichier en
-`microforge/.env` et le modifier : ses valeurs l'emportent. Si un port est déjà pris (message
-« port is already allocated »), arrêter le programme qui l'occupe ou changer le port publié dans
-`microforge/infra/docker-compose.yml`. Sans Ollama (ni clé Gemini), la génération des projets
+`microforge/.env` et le modifier : ses valeurs l'emportent.
+
+**Port déjà pris** (un autre projet sur 8000, par exemple ; message « port is already allocated »,
+ou la PWA affiche « Impossible de joindre l'API ») : créer le fichier `microforge/infra/.env` avec
+les ports voulus, puis relancer la commande `up`. La PWA et les origines autorisées suivent :
+
+```
+MF_API_DATA_PORT=8010
+MF_API_IA_PORT=8011
+```
+
+Variables disponibles : `MF_API_DATA_PORT` (8000), `MF_API_IA_PORT` (8001), `MF_PWA_PORT` (5173),
+`MF_STREAMLIT_PORT` (8501). Pour savoir quel programme occupe un port sous Windows (PowerShell) :
+`Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess` ; sous Mac ou
+Linux : `lsof -i :8000`. Sans Ollama (ni clé Gemini), la génération des projets
 fonctionne (moteur déterministe) et le copilote répond par extraits de ses sources ; la reconnaissance
 des composants sur photo, elle, a besoin d'Ollama ou d'un modèle entraîné. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès
 au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
