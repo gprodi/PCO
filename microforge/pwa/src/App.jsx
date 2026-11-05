@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, createClient } from './api.js';
+import { ApiError, NetworkError, createClient } from './api.js';
 
 // Adresses des API : config.js (au lancement), sinon variables de construction, sinon le poste local.
 const CONFIG = globalThis.MF_CONFIG ?? {};
@@ -14,7 +14,11 @@ const VIEWS = [
 ];
 
 const message = (err) => {
-  if (!(err instanceof ApiError)) return navigator.onLine ? `Erreur : ${err.message}` : 'Hors ligne : réessaie une fois connecté.';
+  if (!navigator.onLine) return 'Hors ligne : réessaie une fois connecté.';
+  if (err instanceof NetworkError) {
+    return `Impossible de joindre l'API ${err.url} depuis ${location.origin}. Vérifie qu'elle tourne (docker compose --profile core ps) et que l'adresse de cette page est autorisée par l'API (MF_CORS_ORIGINS).`;
+  }
+  if (!(err instanceof ApiError)) return `Erreur : ${err.message}`;
   if (Array.isArray(err.detail)) return err.detail.map((d) => d.msg).join(' ; ');
   return typeof err.detail === 'string' ? err.detail : `Erreur ${err.status}`;
 };

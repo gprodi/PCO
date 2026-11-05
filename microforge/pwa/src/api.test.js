@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, createClient, safeStorage } from './api.js';
+import { ApiError, NetworkError, createClient, safeStorage } from './api.js';
 
 const DATA = 'http://data';
 const IA = 'http://ia';
@@ -88,6 +88,18 @@ describe('client MicroForge', () => {
       `${DATA}/v1/components?limit=200&offset=0`,
       `${DATA}/v1/components?limit=200&offset=200`,
     ]);
+  });
+
+  it('API injoignable (« Failed to fetch ») : erreur qui nomme l\'adresse visée', async () => {
+    const fetchImpl = async () => { throw new TypeError('Failed to fetch'); };
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    const err = await c.register({ username: 'a', email: 'b', password: 'c' }).catch((e) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(err.url).toBe(DATA);
+    const err2 = await c.login('a', 'b').catch((e) => e);
+    expect(err2.url).toBe(DATA);
+    const err3 = await c.ask('?').catch((e) => e);
+    expect(err3.url).toBe(IA);
   });
 
   it('stockage indisponible : aucune exception', () => {

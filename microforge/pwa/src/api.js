@@ -10,6 +10,14 @@ export class ApiError extends Error {
   }
 }
 
+/** L'API n'a pas répondu du tout : service arrêté, mauvaise adresse ou origine refusée (CORS). */
+export class NetworkError extends Error {
+  constructor(url) {
+    super(`API injoignable : ${url}`);
+    this.url = url;
+  }
+}
+
 const REFRESH_KEY = 'mf-refresh';
 
 /** Accès au stockage de session qui ne lève jamais (navigation privée, stockage bloqué). */
@@ -57,12 +65,21 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
       payload = new URLSearchParams(form).toString();
     }
-    return fetchImpl(`${base}${path}`, { method, headers, body: payload });
+    return reach(base, `${base}${path}`, { method, headers, body: payload });
+  }
+
+  // Le navigateur ne dit rien de plus que « Failed to fetch » : on garde au moins l'adresse visée.
+  async function reach(base, url, init) {
+    try {
+      return await fetchImpl(url, init);
+    } catch {
+      throw new NetworkError(base);
+    }
   }
 
   async function renew() {
     if (!refresh) return false;
-    const res = await fetchImpl(`${dataUrl}/v1/auth/refresh`, {
+    const res = await reach(dataUrl, `${dataUrl}/v1/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refresh }),

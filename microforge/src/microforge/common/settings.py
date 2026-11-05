@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     blind_index_salt: str = Field(default="change-me", alias="MF_BLIND_INDEX_SALT")
 
     cors_origins: str = Field(
-        default="http://localhost:8501,http://localhost:5173", alias="MF_CORS_ORIGINS"
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:8501,http://127.0.0.1:8501",
+        alias="MF_CORS_ORIGINS",
     )
     api_data_url: str = Field(default="http://localhost:8000", alias="MF_API_DATA_URL")
     api_ia_url: str = Field(default="http://localhost:8001", alias="MF_API_IA_URL")
