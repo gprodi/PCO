@@ -78,6 +78,26 @@ describe('client MicroForge', () => {
     expect((await c.ask('I2C ?')).answer).toBe('D21/D22');
   });
 
+  it('projet en .zip : réponse binaire lue comme un Blob, jeton renouvelé si besoin', async () => {
+    const zip = new Uint8Array([0x50, 0x4b, 3, 4]);
+    const calls = [];
+    const answers = [
+      () => new Response(null, { status: 401 }),
+      () => new Response(JSON.stringify(tokens(2)), { status: 200 }),
+      () => new Response(zip, { status: 200, headers: { 'Content-Type': 'application/zip' } }),
+    ];
+    const fetchImpl = async (url, init = {}) => { calls.push({ url, ...init }); return answers.shift()(); };
+    const storage = memoryStorage();
+    storage.set('mf-refresh', 'r1');
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage });
+    const blob = await c.bundle('veilleuse-auto', 'arduino-uno');
+    expect(blob).toBeInstanceOf(Blob);
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(zip);
+    expect(calls[2].url).toBe(`${IA}/v1/builds/bundle`);
+    expect(JSON.parse(calls[2].body)).toEqual({ template_id: 'veilleuse-auto', board: 'arduino-uno' });
+    expect(calls[2].headers.Authorization).toBe('Bearer a2');
+  });
+
   it('catalogue : toutes les pages de composants sont lues', async () => {
     const page = (n, from) => Array.from({ length: n }, (_, i) => ({ id: `c${from + i}` }));
     const fetchImpl = fakeFetch([{ body: page(200, 0) }, { body: page(37, 200) }]);

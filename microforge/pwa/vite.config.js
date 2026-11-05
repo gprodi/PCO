@@ -25,10 +25,30 @@ function precache() {
   };
 }
 
+/** Dessins Wokwi de l'atelier virtuel (public/atelier) : le paquet npm complet (licence MIT) est copié
+ *  à la construction et servi tel quel en développement, sans être versionné dans le dépôt. */
+const WOKWI_BUNDLE = 'node_modules/@wokwi/elements/dist/wokwi-elements.bundle.min.js';
+function wokwiBundle() {
+  let outDir = 'dist';
+  return {
+    name: 'microforge-wokwi-atelier',
+    configResolved(config) { outDir = config.build.outDir; },
+    configureServer(server) {
+      server.middlewares.use('/atelier/wokwi-elements.bundle.min.js', (_req, res) => {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end(fs.readFileSync(path.resolve(WOKWI_BUNDLE)));
+      });
+    },
+    closeBundle() {
+      fs.copyFileSync(path.resolve(WOKWI_BUNDLE), path.resolve(outDir, 'atelier', 'wokwi-elements.bundle.min.js'));
+    },
+  };
+}
+
 // base relative : la PWA se sert depuis n'importe quel chemin (Traefik, serveur statique, aperçu).
 export default defineConfig({
   base: './',
-  plugins: [react(), precache()],
+  plugins: [react(), precache(), wokwiBundle()],
   build: { target: 'es2022', sourcemap: true },
   test: { environment: 'node', include: ['src/**/*.test.js'] },
 });

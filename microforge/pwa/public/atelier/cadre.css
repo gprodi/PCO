@@ -1,0 +1,21 @@
+/* Thème de l'atelier dans le cadre isolé : mêmes couleurs que l'application. */
+:root {
+  --bg: #f4f7f5; --surface: #ffffff; --ink: #12201a; --muted: #4f5f57; --line: #d3ddd8;
+  --accent: #17694f; --accent-ink: #ffffff; --accent-soft: #e2f1ea; --ok: #186a30; --err: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1411; --surface: #131f1a; --ink: #e4eee8; --muted: #9db0a6; --line: #26382f;
+    --accent: #4fc79c; --accent-ink: #05130d; --accent-soft: #173328; --ok: #6fd08c; --err: #f2786c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1411; --surface: #131f1a; --ink: #e4eee8; --muted: #9db0a6; --line: #26382f;
+  --accent: #4fc79c; --accent-ink: #05130d; --accent-soft: #173328; --ok: #6fd08c; --err: #f2786c;
+  color-scheme: dark;
+}
+html, body { margin: 0; background: var(--surface); color: var(--ink); }
+body { padding: 4px 2px 12px; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; }
+.cadre-attente { color: var(--muted); margin: 8px 0; }
+.cadre-erreur { color: var(--err); border: 1px solid var(--err); border-radius: 8px; padding: 10px 12px; }

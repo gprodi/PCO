@@ -187,6 +187,30 @@ def test_generate_bundle_and_errors(ia_client):
     assert ia_client.post("/v1/builds/generate", json=bad, headers=h).status_code == 422
 
 
+def test_generate_returns_atelier_and_template(ia_client):
+    """La page Projet (PWA) a tout ce qu'il faut : atelier virtuel, notions, références, cartes."""
+    r = ia_client.post(
+        "/v1/builds/generate",
+        json={"template_id": "station-meteo-oled", "board": "esp32-devkit-v1"},
+        headers=token_header(),
+    )
+    body = r.json()
+    atelier = body["atelier"]
+    assert atelier["template"] == "station-meteo-oled" and atelier["code"]
+    assert atelier["wiring"]["pins"] and atelier["wiring"]["board"]["labels"]
+    assert {p["name"] for p in atelier["parts"]} == {p["name"] for p in body["spec"]["parts"]}
+    tpl = body["template"]
+    assert tpl["id"] == "station-meteo-oled" and tpl["learning"] and tpl["references"]
+    assert all(set(ref) >= {"site", "title", "url"} for ref in tpl["references"])
+    assert tpl["theme"] and tpl["theme"]["titre"]
+    from microforge.core.catalog import get_catalog
+
+    catalog = get_catalog()
+    ids = [b["id"] for b in tpl["boards"]]
+    assert "esp32-devkit-v1" in ids
+    assert all(catalog.template_fits("station-meteo-oled", catalog.boards[b]) for b in ids)
+
+
 def test_from_goal_and_ideas(ia_client):
     idea = {
         "title": "Veilleuse",
@@ -207,6 +231,8 @@ def test_from_goal_and_ideas(ia_client):
         "/v1/builds/from-goal", json={"goal": "une veilleuse automatique"}, headers=h
     )
     assert r.status_code == 200 and r.json()["spec"]["title"] == "Veilleuse"
+    assert r.json()["template"] is None  # projet libre : pas de modèle du catalogue
+    assert r.json()["atelier"]["code"]  # mais la logique simple se simule
     ideas = ia_client.post(
         "/v1/builds/ideas",
         json={"inventory": {"arduino-uno": 1, "led": 2, "ldr-module": 1}},

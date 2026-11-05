@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier virtuel MicroForge</title>
+<!--
+  Atelier virtuel, chargé par la page Projet dans un cadre isolé (<iframe sandbox="allow-scripts">) :
+  origine opaque, donc aucun accès aux jetons, au stockage ni aux API de l'application.
+  Le simulateur (mfsim.js) exécute la logique du projet avec new Function : la CSP propre à ce
+  dossier (nginx/atelier.inc.template) l'autorise ici seulement, et interdit toute requête réseau.
+  Copies de microforge/src/microforge/sim/static (test : tests/test_pwa_image.py).
+-->
+<link rel="stylesheet" href="cadre.css">
+<link rel="stylesheet" href="atelier.css">
+<script src="wokwi-elements.bundle.min.js" defer></script>
+<script src="mfsim.js" defer></script>
+<script src="atelier.js" defer></script>
+<script src="cadre.js" defer></script>
+</head>
+<body>
+<p class="cadre-attente" id="attente">Préparation de l'atelier…</p>
+<div id="atelier"></div>
+</body>
+</html>

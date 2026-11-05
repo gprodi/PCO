@@ -92,11 +92,13 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
     return true;
   }
 
-  async function call(base, path, options = {}) {
+  const readJson = (res) => (res.status === 204 ? null : res.json());
+
+  async function call(base, path, options = {}, read = readJson) {
     let res = await send(base, path, options);
     if (res.status === 401 && (await renew())) res = await send(base, path, options);
     if (!res.ok) throw await readError(res);
-    return res.status === 204 ? null : res.json();
+    return read(res);
   }
 
   return {
@@ -142,6 +144,9 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
     suggest: (inventory, limit = 12) => call(iaUrl, '/v1/builds/suggest', { method: 'POST', json: { inventory, limit } }),
     generate: (templateId, board) =>
       call(iaUrl, '/v1/builds/generate', { method: 'POST', json: { template_id: templateId, board } }),
+    /** Projet complet en .zip (sketch, câblage, Wokwi, KiCad, nomenclature, PlatformIO). */
+    bundle: (templateId, board) =>
+      call(iaUrl, '/v1/builds/bundle', { method: 'POST', json: { template_id: templateId, board } }, (res) => res.blob()),
     ask: (question, inventory = null) => call(iaUrl, '/v1/copilot/ask', { method: 'POST', json: { question, inventory } }),
     /** Thèmes et idées (145), annotés avec le stock : pièces manquantes, réalisable ou non. */
     explore: (inventory) => call(iaUrl, '/v1/ideas/explore', { method: 'POST', json: { inventory } }),

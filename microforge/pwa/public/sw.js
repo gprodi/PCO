@@ -20,6 +20,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   // Autre origine (api_data, api_ia) ou écriture : réseau uniquement.
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Atelier virtuel (cadre isolé, sa propre CSP) : toujours le réseau, jamais la page de l'application.
+  if (url.pathname.includes('/atelier/')) return;
   // config.js : réseau d'abord (une nouvelle configuration ne reste pas coincée en cache).
   if (url.pathname.endsWith('/config.js')) {
     event.respondWith(

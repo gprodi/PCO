@@ -51,6 +51,12 @@ class BuildOut(BaseModel):
     bom: list[dict[str, Any]]
     libraries: list[str]
     files: dict[str, str]
+    #: Charge de l'atelier virtuel (programme transpilé, composants, broches attendues) ; ``None``
+    #: si la logique du projet ne se traduit pas en JavaScript.
+    atelier: dict[str, Any] | None = None
+    #: Métadonnées du modèle de projet (notions, difficulté, références, cartes compatibles) ;
+    #: ``None`` pour un projet libre (``/v1/builds/from-goal``).
+    template: dict[str, Any] | None = None
 
 
 class CopilotIn(BaseModel):

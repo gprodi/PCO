@@ -28,9 +28,10 @@ from microforge.api_ia.schemas import (
 from microforge.common.settings import get_settings, setup_logging
 from microforge.copilot import CopilotAnswer
 from microforge.core.allocator import AllocationError
-from microforge.core.ideas import explore, inspiration
+from microforge.core.ideas import explore, inspiration, load_themes
 from microforge.core.models import BuildResult, ProjectSpec
 from microforge.core.suggest import suggest_projects
+from microforge.sim import TranspileError, atelier_payload
 from microforge.vision import ScanResult
 from microforge.vision.preprocess import InvalidImageError
 
@@ -51,6 +52,41 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _atelier(result: BuildResult) -> dict | None:
+    """Charge de l'atelier virtuel, ou ``None`` si la logique ne se traduit pas (projet libre)."""
+    try:
+        return atelier_payload(services().builder.catalog, result)
+    except TranspileError as exc:
+        logger.warning("atelier indisponible pour « {} » : {}", result.spec.title, exc)
+        return None
+
+
+def _template_meta(result: BuildResult) -> dict | None:
+    """Ce que la page Projet affiche au-dessus des onglets et dans « Fiabilité & sources »."""
+    catalog = services().builder.catalog
+    tid = result.spec.template_id
+    if not tid or tid not in catalog.templates:
+        return None
+    tpl = catalog.templates[tid]
+    theme = next(
+        (t for t in load_themes() if any(i.template == tid for i in t.idees)),
+        None,
+    )
+    return {
+        "id": tid,
+        "difficulty": tpl.difficulty,
+        "learning": tpl.learning,
+        "tags": tpl.tags,
+        "requires_wifi": tpl.requires_wifi,
+        "references": [r.model_dump(mode="json") for r in tpl.references],
+        "hardware_tested": [
+            catalog.boards[b].name if b in catalog.boards else b for b in tpl.hardware_tested
+        ],
+        "theme": {"id": theme.id, "titre": theme.titre, "icone": theme.icone} if theme else None,
+        "boards": [{"id": b.id, "name": b.name} for b in catalog.boards_for_template(tid)],
+    }
+
+
 def _build_out(result: BuildResult) -> BuildOut:
     svc = services()
     return BuildOut(
@@ -62,6 +98,8 @@ def _build_out(result: BuildResult) -> BuildOut:
         bom=[b.model_dump(mode="json") for b in result.bom],
         libraries=result.libraries,
         files=svc.builder.files(result),
+        atelier=_atelier(result),
+        template=_template_meta(result),
     )
 
 
