@@ -60,9 +60,18 @@ Au run 8, les index (composite et trigrammes) existaient déjà avant l'import :
 table. Mesurés juste après le chargement, sans statistiques à jour, ils donnaient de moins bons plans :
 liste d'une catégorie 3,810 ms (lecture bitmap puis tri, au lieu de 0,040 ms), recherche de la route
 2,635 ms (au lieu de 0,044 ms). Cause : après un chargement massif, PostgreSQL garde les statistiques
-de tables vides jusqu'au passage de l'autovacuum. Correctif : `ANALYZE` des tables chargées à la fin de
-chaque import (`load/importer.py`, `analyze_after_load`), vérifié par un test sur PostgreSQL. Le
-prochain run de `collecte` mesure l'état réel de la base après import.
+de tables vides jusqu'au passage de l'autovacuum. Premier correctif : `ANALYZE` des tables chargées à la
+fin de chaque import.
+
+Run `collecte` n° 9 (avec cet `ANALYZE`) : la liste d'une catégorie revient à 0,064 ms (×36), mais la
+recherche reste à 5,258 ms (route complète) et 1,955 ms (nom seul), loin des 0,04 ms mesurés quand les
+mêmes index étaient construits après les données. Cause, vérifiée sur une base PostgreSQL : les lignes
+insérées dans un index GIN vont d'abord dans une **liste en attente**, lue séquentiellement à chaque
+recherche ; seuls `VACUUM`, l'autovacuum ou `gin_clean_pending_list` l'intègrent à l'index, pas un
+`ANALYZE` manuel. Après un import par lots de 99 000 lignes : 233, 154 et 233 pages en attente,
+recherche 5,308 ms ; après `gin_clean_pending_list` : 0 page, 0,094 ms. Correctif : la fin de l'import
+(`load/importer.py`, `refresh_after_load`) intègre les listes en attente des index GIN puis lance
+`ANALYZE` ; un test sur PostgreSQL vérifie les statistiques et l'absence de pages en attente.
 
 Durée de l'étape « collecte, agrégation, import » : 95 s aux runs 6 et 7, 118 s au run 8 (avec les
 trois index GIN tenus à jour pendant le chargement). L'écart comprend aussi le téléchargement des

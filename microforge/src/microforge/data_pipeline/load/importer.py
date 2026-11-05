@@ -150,7 +150,7 @@ def import_clean(
     run.finished_at = datetime.now(UTC)
     session.add(run)
     session.commit()
-    analyze_after_load(session)
+    refresh_after_load(session)
     logger.info("Import : {} lignes écrites", written)
     return run
 
@@ -158,16 +158,30 @@ def import_clean(
 #: Tables remplies en masse par l'import.
 LOADED_TABLES = ("composant", "offre", "fabricant", "bibliotheque")
 
+#: Index GIN des tables chargées (trigrammes de recherche), lus dans le catalogue PostgreSQL.
+_GIN_INDEXES = """
+SELECT c.relname FROM pg_index i
+JOIN pg_class c ON c.oid = i.indexrelid
+JOIN pg_am a ON a.oid = c.relam
+WHERE a.amname = 'gin' AND i.indrelid = ANY (CAST(:tables AS regclass[]))
+"""
 
-def analyze_after_load(session: Session) -> None:
-    """Statistiques du planificateur à jour juste après un chargement massif (PostgreSQL).
 
-    Sans ANALYZE, PostgreSQL garde des statistiques de tables vides jusqu'au passage de
-    l'autovacuum et choisit de mauvais plans : mesuré sur la base réelle, la liste par catégorie
-    passait de 0,040 ms à 3,8 ms et la recherche de 0,044 ms à 2,6 ms (docs/E1/requetes.md).
+def refresh_after_load(session: Session) -> None:
+    """Remet la base en état de lecture rapide juste après un chargement massif (PostgreSQL).
+
+    1. Index GIN : les lignes insérées vont d'abord dans une « liste en attente » lue
+       séquentiellement à chaque recherche, que seuls VACUUM, l'autovacuum ou
+       gin_clean_pending_list intègrent à l'index. Mesuré : recherche 5,3 ms avec 233 pages en
+       attente, 0,094 ms une fois la liste intégrée.
+    2. ANALYZE : sans statistiques à jour, PostgreSQL garde celles de tables vides et choisit de
+       mauvais plans (liste par catégorie 3,8 ms au lieu de 0,04 ms au run collecte 8).
     """
     if session.get_bind().dialect.name != "postgresql":
         return
+    tables = list(LOADED_TABLES)
+    for (name,) in session.execute(text(_GIN_INDEXES), {"tables": tables}).all():
+        session.execute(text("SELECT gin_clean_pending_list(CAST(:i AS regclass))"), {"i": name})
     for table in LOADED_TABLES:  # noms constants, aucune donnée extérieure
         session.execute(text(f"ANALYZE {table}"))
     session.commit()

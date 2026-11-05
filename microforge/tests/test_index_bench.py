@@ -190,9 +190,9 @@ def test_bench_on_postgresql_leaves_database_untouched():
 
 @pytest.mark.pgvector
 @pytest.mark.skipif(not PG_URL, reason="PGVECTOR_TEST_URL non défini (base PostgreSQL)")
-def test_import_leaves_fresh_planner_statistics():
-    """Après l'import, les tables chargées ont des statistiques (ANALYZE), sans attendre l'autovacuum."""
-    from microforge.api_data.db import init_db
+def test_import_leaves_database_ready_for_fast_reads():
+    """Après l'import : statistiques à jour (ANALYZE) et index GIN sans liste en attente."""
+    from microforge.api_data.db import TRGM_INDEXES, init_db
     from microforge.data_pipeline.load.importer import LOADED_TABLES, import_clean
     from sqlmodel import Session
 
@@ -223,13 +223,22 @@ def test_import_leaves_fresh_planner_statistics():
         ]
         with Session(engine) as session:
             import_clean(session, components, offers)
-        with engine.connect() as c:
+        with engine.begin() as c:
             analyzed = dict(
                 c.execute(
                     text("SELECT relname, last_analyze IS NOT NULL FROM pg_stat_user_tables")
                 ).all()
             )
+            # Index GIN : plus aucune page en attente (lue séquentiellement à chaque recherche).
+            c.execute(text("CREATE EXTENSION IF NOT EXISTS pgstattuple"))
+            pending = {
+                ix: c.execute(
+                    text("SELECT (pgstatginindex(CAST(:i AS regclass))).pending_pages"), {"i": ix}
+                ).scalar_one()
+                for ix in TRGM_INDEXES
+            }
         assert all(analyzed[t] for t in LOADED_TABLES), analyzed
+        assert pending == dict.fromkeys(TRGM_INDEXES, 0), pending
     finally:
         engine.dispose()
         with admin.connect() as conn:
