@@ -1,0 +1,32 @@
+% MCD MicroForge (Merise) au format Mocodo 4 : source des images img/mcd.png et img/mld.png.
+% Régénérer : voir docs/E1/merise.md (section « Régénérer les diagrammes »).
+
+JETON_RAFRAICHISSEMENT: jti, famille, expire le, utilisé le, révoqué
+DÉTIENT, 0N UTILISATEUR, 11 JETON_RAFRAICHISSEMENT
+UTILISATEUR: id utilisateur, pseudo, e-mail chiffré, index e-mail, mot de passe haché, ville, rôle, consentement entraînement, actif, créé le, dernière connexion
+CONÇOIT, 0N UTILISATEUR, 11 PROJET
+PROJET: id projet, titre, modèle, spécification JSON, créé le
+
+PHOTO: id photo, empreinte SHA-256, largeur, hauteur, version modèle, créé le, supprimer après
+ENVOIE, 0N UTILISATEUR, 11 PHOTO
+POSSÈDE, 0N UTILISATEUR, 11 ARTICLE_INVENTAIRE
+ARTICLE_INVENTAIRE: id article, valeur, quantité, emplacement, note, mis à jour le
+CARTE DE, 0N COMPOSANT, 11 PROJET
+
+PORTE SUR, 01 RETOUR_DETECTION, 0N PHOTO
+RETOUR_DETECTION: id retour, composant prédit, composant corrigé, nature, confiance, source, version modèle, créé le
+DONNE, 0N UTILISATEUR, 11 RETOUR_DETECTION
+CONCERNE, 0N COMPOSANT, 11 ARTICLE_INVENTAIRE
+COMPOSANT: id composant, nom, référence fabricant, description, tension min, tension max, interfaces, boîtier, fiche technique, prix de référence, source, mis à jour le
+UTILISE, 0N COMPOSANT, 0N BIBLIOTHÈQUE
+BIBLIOTHÈQUE: nom bibliothèque, dernière version, architectures, includes, dépôt, étoiles
+
+EXECUTION_COLLECTE: id exécution, flux, source, statut, lignes entrées, lignes sorties, lignes rejetées, message, début, fin
+FOURNISSEUR: id fournisseur, nom, url, pays, méthode de collecte
+PROPOSE, 0N FOURNISSEUR, 11 OFFRE
+OFFRE: id offre, sku, prix unitaire EUR, prix d'origine, devise d'origine, stock, url, collecté le
+EST VENDU VIA, 0N COMPOSANT, 11 OFFRE
+CLASSE, 0N CATÉGORIE, 11 COMPOSANT
+CATÉGORIE: id catégorie, libellé
+FABRIQUE, 0N FABRICANT, 01 COMPOSANT
+FABRICANT: id fabricant, nom

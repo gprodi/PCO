@@ -90,14 +90,17 @@ sections:
   Modèle Conceptuel des Données > Définition:
     - "Le MCD (méthode Merise) décrit les entités, leurs propriétés et les associations avec leurs cardinalités, indépendamment de tout SGBD."
   MCD:
-    - "[À COMPLÉTER : insérer l'image du MCD générée avec Mocodo à partir de docs/E1/merise.md]"
+    - "MCD tracé avec Mocodo 4.3.3 à partir de docs/E1/merise.mcd (13 entités, 14 associations). Un test (tests/test_merise.py) vérifie à chaque commit que le MCD et le schéma de l'application restent alignés : mêmes tables, mêmes clés étrangères, mêmes clés facultatives (0,1)."
+    - "![MCD MicroForge (Merise, Mocodo)](E1/img/mcd.png)"
     - "Exemples de cardinalités : un UTILISATEUR possède 0,n ARTICLE_INVENTAIRE ; un ARTICLE_INVENTAIRE concerne 1,1 COMPOSANT ; un COMPOSANT est proposé dans 0,n OFFRE par un FOURNISSEUR ; un COMPOSANT UTILISE 0,n BIBLIOTHEQUE."
   Modèle Logique des Données > Définition:
     - "Le MLD traduit le MCD en relations : chaque entité devient une table, les associations 1,n deviennent des clés étrangères et les associations n,n des tables de jointure (UTILISE)."
   Optimisation de la mémoire:
     - "Types au plus juste (SMALLINT pour les quantités, NUMERIC(10,4) pour les prix, VARCHAR bornés), énumérations pour les rôles et statuts, index uniquement sur les colonnes de recherche et de jointure, données volumineuses (photos) hors base dans le stockage objet."
   MLD:
-    - "[À COMPLÉTER : insérer le MLD (Mocodo / Looping)]"
+    - "MLD dérivé du MCD par Mocodo : 14 relations, exactement les 14 tables de la migration Alembic initiale. Clé primaire soulignée, clés étrangères préfixées par #."
+    - "![MLD MicroForge (Mocodo)](E1/img/mld.png)"
+    - "Contraintes ajoutées au MLD : unicité (utilisateur, composant, valeur, emplacement) d'un article d'inventaire, unicité du pseudo, de l'index d'e-mail, du nom de fabricant et de fournisseur."
   Modèle Physique des Données > Définition:
     - "Le MPD est l'implémentation dans le SGBD choisi : types PostgreSQL, contraintes, index, script DDL. Il est produit par les modèles SQLModel (api_data/db.py) et versionné par migrations Alembic."
   MPD:

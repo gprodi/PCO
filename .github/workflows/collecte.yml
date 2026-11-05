@@ -79,6 +79,10 @@ jobs:
           print(f"- Bibliothèques citées : {libs['citees']}, absentes de l'index : {len(libs['manquantes'])}")
           print(f"- Cartes vérifiées : {cards['verifiees']}, conformes : {cards['ok']}, écarts : {len(cards['ecarts'])}")
           EOF
+      - name: Index — temps des requêtes de l'application avant / après (base réelle)
+        run: |
+          # EXPLAIN ANALYZE, médiane de 7 passages ; index retiré ou créé dans une transaction annulée.
+          uv run mf-pipeline bench-index --runs 7 --out data/index_bench.json | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Artefacts (jeu nettoyé, rapport, manifestes)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -89,6 +93,7 @@ jobs:
             data/clean/
             data/raw/*/*/manifest.json
             data/controle_*.json
+            data/index_bench.json
           retention-days: 30
       - name: Échec si une source sans clé a échoué
         run: |

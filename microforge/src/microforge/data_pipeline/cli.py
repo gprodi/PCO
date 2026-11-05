@@ -137,5 +137,21 @@ def check_libs(clean_dir: Path = typer.Option(Path("data/clean"))) -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("bench-index")
+def bench_index(
+    runs: int = typer.Option(7, min=1, max=50, help="passages mesurés par requête (médiane)"),
+    out: Path = typer.Option(None, help="écrire aussi le résultat JSON dans ce fichier"),
+) -> None:
+    """Temps des requêtes de l'application avec et sans leurs index (PostgreSQL, base intacte)."""
+    from microforge.api_data.db import get_engine
+    from microforge.data_pipeline.index_bench import bench, to_markdown
+
+    report = bench(get_engine(), runs=runs)
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    typer.echo(to_markdown(report))
+
+
 if __name__ == "__main__":
     app()
