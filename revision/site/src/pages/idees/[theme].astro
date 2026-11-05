@@ -24,9 +24,9 @@ const ideas = [...t.idees].sort((a, b) => a.difficulte - b.difficulte || a.titre
         <details>
           <summary>Le construire</summary>
           {i.template ? (
-            <pre><code>uv run microforge build {i.template} --board {i.wifi ? 'esp32-devkit-v1' : 'arduino-uno'}</code></pre>
+            <pre tabindex="0" role="region" aria-label="Exemple de code"><code>uv run microforge build {i.template} --board {i.wifi ? 'esp32-devkit-v1' : 'arduino-uno'}</code></pre>
           ) : (
-            <pre><code>uv run microforge goal "{i.titre} : {i.description}"</code></pre>
+            <pre tabindex="0" role="region" aria-label="Exemple de code"><code>uv run microforge goal "{i.titre} : {i.description}"</code></pre>
           )}
           <p><small>Ou dans l’application MicroForge : page « Explorer par thème ».</small></p>
         </details>

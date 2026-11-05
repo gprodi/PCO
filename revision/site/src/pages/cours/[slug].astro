@@ -36,7 +36,7 @@ const headings = c
       {c.fiche.code.map((ex) => (
         <>
           <h3>{ex.titre}</h3>
-          <pre><code class={`language-${ex.lang}`}>{ex.code}</code></pre>
+          <pre tabindex="0" role="region" aria-label="Exemple de code"><code class={`language-${ex.lang}`}>{ex.code}</code></pre>
           {ex.explication && <p>{ex.explication}</p>}
         </>
       ))}

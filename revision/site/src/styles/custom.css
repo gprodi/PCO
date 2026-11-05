@@ -1,27 +1,159 @@
-/* Couleurs d'accent (contraste AA vérifié en clair et en sombre) */
+/* Révisions DevIA — identité « cahier de fiches ».
+   Mise en page : celle de Starlight (barre latérale, sommaire) ; l'identité tient dans la typographie
+   (serif de lecture pour les titres, police à haute lisibilité pour le texte), un papier vert-de-gris
+   et un seul accent fort : le surligneur, réservé au titre d'accueil et aux notions surlignées.
+   Starlight est « sombre d'abord » : :root = sombre, :root[data-theme='light'] = clair (son script pose
+   toujours l'attribut). Contrastes vérifiés : texte ≥ 10:1, texte secondaire ≥ 6:1, liens ≥ 6:1,
+   boutons ≥ 6,7:1, texte sur surligneur ≥ 6:1, dans les deux thèmes. Polices auto-hébergées (OFL). */
+
+@font-face { font-family: "Literata"; src: url("/fonts/literata-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/fonts/atkinson-hyperlegible-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("/fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
 :root {
-  --sl-color-accent-low: #0b3b36;
-  --sl-color-accent: #0f766e;
-  --sl-color-accent-high: #b8f2e6;
+  /* Polices */
+  --sl-font: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --sl-font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --rv-display: "Literata", Georgia, "Times New Roman", serif;
+
+  /* Sombre : ardoise vert-de-gris */
+  --sl-color-white: #f1f5f3;
+  --sl-color-gray-1: #e4ece8;
+  --sl-color-gray-2: #bccac3;
+  --sl-color-gray-3: #8a9b93;
+  --sl-color-gray-4: #5a6a63;
+  --sl-color-gray-5: #34413b;
+  --sl-color-gray-6: #18211d;
+  --sl-color-black: #101614;
+  --sl-color-accent-low: #12352d;
+  --sl-color-accent: #3fb59d;
+  --sl-color-accent-high: #7fd9c4;
+
+  /* Fiches */
+  --rv-mark: #6e5a12; /* surligneur (texte clair par-dessus) */
+  --rv-card: #18211d;
+  --rv-rule: #23303a; /* lignes d'une fiche bristol */
+  --rv-margin: #7a3b3b; /* filet rouge de la fiche */
+  --rv-ok: #6fd08c;
+  --rv-ko: #f2786c;
+  --rv-on-accent: #06201a;
 }
+
 :root[data-theme='light'] {
-  --sl-color-accent-low: #ccfbf1;
-  --sl-color-accent: #0f766e;
-  --sl-color-accent-high: #134e4a;
+  /* Clair : papier légèrement vert, encre sarcelle */
+  --sl-color-white: #16211c;
+  --sl-color-gray-1: #1f2b26;
+  --sl-color-gray-2: #2f3d37;
+  --sl-color-gray-3: #4a5852;
+  --sl-color-gray-4: #7d8b84;
+  --sl-color-gray-5: #c9d3ce;
+  --sl-color-gray-6: #e9eeeb;
+  --sl-color-gray-7: #f1f4f2;
+  --sl-color-black: #f9faf8;
+  --sl-color-accent-low: #d3eee6;
+  --sl-color-accent: #0d6656;
+  --sl-color-accent-high: #0b4a3f;
+
+  --rv-mark: #f9e27d;
+  --rv-card: #ffffff;
+  --rv-rule: #dbe5ef;
+  --rv-margin: #e6a1a1;
+  --rv-ok: #1f7a3a;
+  --rv-ko: #b42318;
+  --rv-on-accent: #ffffff;
 }
-.mf-card { border: 1px solid var(--sl-color-gray-5); border-radius: 0.6rem; padding: 1rem 1.2rem; margin-block: 0.8rem; background: var(--sl-color-gray-7, transparent); }
-.mf-tabs [role='tablist'] { display: flex; flex-wrap: wrap; gap: 0.4rem; border-bottom: 1px solid var(--sl-color-gray-5); margin-bottom: 1rem; }
-.mf-tabs [role='tab'] { border: 1px solid transparent; border-bottom: none; background: none; padding: 0.45rem 0.8rem; border-radius: 0.4rem 0.4rem 0 0; cursor: pointer; color: var(--sl-color-gray-2); font: inherit; }
-.mf-tabs [role='tab'][aria-selected='true'] { border-color: var(--sl-color-gray-5); color: var(--sl-color-white); font-weight: 600; background: var(--sl-color-gray-6); }
-.mf-tabs [role='tab']:focus-visible, .mf-btn:focus-visible { outline: 3px solid var(--sl-color-accent); outline-offset: 2px; }
-.mf-btn { display: inline-block; border: 1px solid var(--sl-color-accent); background: var(--sl-color-accent); color: #fff; padding: 0.4rem 0.9rem; border-radius: 0.4rem; cursor: pointer; font: inherit; margin: 0.2rem 0.3rem 0.2rem 0; }
+
+/* ------------------------------------------------------------------ typographie */
+:is(.sl-markdown-content, .hero) :is(h1, h2, h3, h4),
+h1#_top,
+.card .title,
+.site-title {
+  font-family: var(--rv-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+.sl-markdown-content :is(p, li) { max-width: 68ch; }
+.sl-markdown-content code:not(pre code) { font-size: 0.88em; }
+
+/* Le surligneur : titre d'accueil et notions marquées (<mark>). Soulignement épais placé sous le texte :
+   il suit chaque ligne quand le titre passe à la ligne, sans changer la mise en page. */
+.hero h1#_top,
+.sl-markdown-content mark {
+  background: none;
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-color: var(--rv-mark);
+  text-decoration-thickness: 0.42em;
+  text-underline-offset: -0.28em;
+  text-decoration-skip-ink: none;
+}
+.hero .tagline { max-width: 52ch; }
+
+/* ------------------------------------------------------------------ cartes de l'accueil */
+.card-grid .card {
+  border-radius: 4px;
+  border-color: var(--sl-color-gray-5);
+  background: var(--rv-card);
+}
+.card-grid .card .title { font-size: var(--sl-text-lg); }
+
+/* ------------------------------------------------------------------ composants de révision */
+.mf-card {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin-block: 0.8rem;
+  background: var(--rv-card);
+  min-width: 0;
+}
+.mf-tabs [role='tablist'] { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid var(--sl-color-gray-5); margin-bottom: 1rem; }
+.mf-tabs [role='tab'] {
+  border: 0; border-bottom: 3px solid transparent; background: none; padding: 0.5rem 0.8rem;
+  cursor: pointer; color: var(--sl-color-gray-3); font: inherit; font-weight: 700;
+}
+.mf-tabs [role='tab'][aria-selected='true'] { color: var(--sl-color-white); border-bottom-color: var(--sl-color-accent); }
+.mf-tabs [role='tab']:focus-visible, .mf-btn:focus-visible, .mf-choice:focus-visible { outline: 3px solid var(--sl-color-accent); outline-offset: 2px; }
+
+.mf-btn {
+  display: inline-block; border: 1px solid var(--sl-color-accent); background: var(--sl-color-accent);
+  color: var(--rv-on-accent); padding: 0.45rem 0.95rem; border-radius: 4px; cursor: pointer;
+  font: inherit; font-weight: 700; margin: 0.2rem 0.3rem 0.2rem 0;
+}
 .mf-btn.secondary { background: transparent; color: var(--sl-color-white); border-color: var(--sl-color-gray-4); }
-.mf-choice { display: block; width: 100%; text-align: left; margin: 0.35rem 0; padding: 0.55rem 0.8rem; border-radius: 0.4rem; border: 1px solid var(--sl-color-gray-5); background: var(--sl-color-gray-6); color: var(--sl-color-white); cursor: pointer; font: inherit; }
-.mf-choice[data-state='ok'] { border-color: #16a34a; }
-.mf-choice[data-state='ko'] { border-color: #dc2626; }
-.mf-flash { min-height: 9rem; display: grid; place-items: center; text-align: center; font-size: 1.15rem; }
-.mf-badge { display: inline-block; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--sl-color-gray-4); margin-right: 0.3rem; }
-.mf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.8rem; }
+
+/* QCM : la lettre, le texte, puis le verdict écrit (jamais la couleur seule). */
+.mf-choice {
+  display: block; width: 100%; text-align: left; margin: 0.35rem 0; padding: 0.6rem 0.85rem;
+  border-radius: 4px; border: 1px solid var(--sl-color-gray-5); background: var(--sl-color-gray-6);
+  color: var(--sl-color-white); cursor: pointer; font: inherit;
+}
+.mf-choice:hover:not(:disabled) { border-color: var(--sl-color-accent); }
+.mf-choice:disabled { cursor: default; }
+.mf-choice[data-state='ok'] { border: 2px solid var(--rv-ok); }
+.mf-choice[data-state='ko'] { border: 2px solid var(--rv-ko); }
+.mf-verdict { font-weight: 700; white-space: nowrap; }
+.mf-verdict.ok { color: var(--rv-ok); }
+.mf-verdict.ko { color: var(--rv-ko); }
+
+/* Flashcard : une fiche bristol (filet rouge en tête, lignes bleues), recto ou verso. */
+.mf-flash {
+  min-height: 11rem; display: grid; place-items: center; text-align: center; font-size: 1.15rem;
+  border-top: 3px solid var(--rv-margin);
+  background-color: var(--rv-card);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 1.85rem, var(--rv-rule) 1.85rem calc(1.85rem + 1px));
+  background-position: 0 0.6rem;
+}
+.mf-flash p { max-width: 52ch; }
+
+.mf-badge {
+  display: inline-block; font: 0.75rem/1.4 var(--sl-font-mono); padding: 0.1rem 0.5rem;
+  border-radius: 999px; border: 1px solid var(--sl-color-gray-4); margin-right: 0.3rem; color: var(--sl-color-gray-2);
+}
+.mf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0.8rem; }
+.mf-grid > * { min-width: 0; }
 .mf-mindmap svg { width: 100%; height: 30rem; }
 .mf-podcast p { margin: 0.4rem 0; }
 .mf-podcast .voix { font-weight: 700; margin-right: 0.4rem; }
@@ -31,4 +163,8 @@
 main pre {
   overflow-x: auto;
   max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
 }

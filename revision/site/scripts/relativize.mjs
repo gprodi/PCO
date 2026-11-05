@@ -60,6 +60,18 @@ for (const file of files.filter((f) => f.endsWith('.html'))) {
   writeFileSync(file, html);
 }
 
+// Feuilles de style et styles en ligne : url(/PCO/x) -> chemin relatif au fichier (polices, images).
+for (const file of files.filter((f) => /\.(css|html)$/.test(f))) {
+  const here = rel(file);
+  const prefix = posix.relative(posix.dirname(here), '.') || '.';
+  const text = readFileSync(file, 'utf-8');
+  const next = text.replace(new RegExp(`url\\((["']?)${base}`, 'g'), (m, q) => {
+    rewritten += 1;
+    return `url(${q}${prefix === '.' ? './' : `${prefix}/`}`;
+  });
+  if (next !== text) writeFileSync(file, next);
+}
+
 // Imports dynamiques de Vite : "/PCO/"+chemin -> URL calculée depuis le module (_astro/ est à la racine).
 for (const file of files.filter((f) => f.endsWith('.js'))) {
   let js = readFileSync(file, 'utf-8');

@@ -33,19 +33,21 @@ export default function Quiz({ slug, questions }: { slug: string; questions: Que
             const state = !answered ? undefined : ci === q.bonne ? 'ok' : ci === answers[qi] ? 'ko' : undefined;
             return (
               <button key={ci} type="button" className="mf-choice" data-state={state} aria-pressed={answers[qi] === ci} disabled={answered} onClick={() => choose(qi, ci)}>
-                {String.fromCharCode(65 + ci)}. {c} {state === 'ok' ? ' ✅ bonne réponse' : state === 'ko' ? ' ❌ ta réponse' : ''}
+                {String.fromCharCode(65 + ci)}. {c}{' '}
+                {state === 'ok' && <span className="mf-verdict ok">· bonne réponse</span>}
+                {state === 'ko' && <span className="mf-verdict ko">· ta réponse</span>}
               </button>
             );
           })}
           {answers[qi] !== undefined && (
             <p role="status">
-              {answers[qi] === q.bonne ? '✅ Bravo !' : '❌ Pas tout à fait.'} {q.explication}
+              <span className={`mf-verdict ${answers[qi] === q.bonne ? 'ok' : 'ko'}`}>{answers[qi] === q.bonne ? 'Juste.' : 'Pas tout à fait.'}</span> {q.explication}
             </p>
           )}
         </fieldset>
       ))}
       <p role="status" aria-live="polite">
-        Score : <strong>{score} / {questions.length}</strong> {done && (score === questions.length ? '🎉 Parfait !' : '— recommence pour progresser.')}
+        Score : <strong>{score} / {questions.length}</strong> {done && (score === questions.length ? 'Sans faute.' : 'Recommence pour ancrer les notions manquées.')}
       </p>
       {done && <button type="button" className="mf-btn secondary" onClick={() => setAnswers({})}>Recommencer</button>}
     </div>

@@ -23,7 +23,13 @@ export const courses: Course[] = coursesData.courses;
 export const ref = referentiel as any;
 export const bps = boilerplates as any[];
 export const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-export const md = (s: string) => marked.parse(s ?? '', { async: false }) as string;
+// Blocs de code : ils défilent horizontalement sur téléphone, donc ils doivent être atteignables au
+// clavier (WCAG 2.1.1, règle axe scrollable-region-focusable) : tabindex et nom accessible.
+export const md = (s: string) =>
+  (marked.parse(s ?? '', { async: false }) as string).replaceAll(
+    '<pre>',
+    '<pre tabindex="0" role="region" aria-label="Exemple de code">',
+  );
 export const competence = (id: string) => ref.competences.find((c: any) => c.id === id);
 import idees from '../data/idees.json';
 export type Idea = { titre: string; description: string; difficulte: number; composants: string[]; composants_noms: string[]; template?: string; wifi?: boolean };

@@ -42,7 +42,7 @@ export default function Flashcards({ slug, cards }: { slug: string; cards: Flash
   if (queue.length === 0)
     return (
       <div className="mf-card">
-        <p>✅ Aucune carte à revoir pour aujourd’hui sur ce cours.</p>
+        <p>Aucune carte à revoir aujourd’hui sur ce cours.</p>
         <button type="button" className="mf-btn secondary" onClick={() => setMode('all')}>Revoir toutes les cartes</button>
       </div>
     );
