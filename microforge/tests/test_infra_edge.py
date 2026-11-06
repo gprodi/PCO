@@ -68,7 +68,7 @@ def test_routes_are_https_with_security_headers(merged):
     for name, sub in expected.items():
         labels = services[name]["labels"]
         assert labels["traefik.enable"] == "true"
-        router = next(k.split(".")[3] for k in labels if k.endswith(".rule"))
+        router = sub  # routeur nommé comme le sous-domaine
         assert (
             labels[f"traefik.http.routers.{router}.rule"] == f"Host(`{sub}.microforge.example.org`)"
         )
@@ -79,6 +79,35 @@ def test_routes_are_https_with_security_headers(merged):
     for api in ("api_data", "api_ia"):
         cors = services[api]["environment"]["MF_CORS_ORIGINS"]
         assert cors == "https://app.microforge.example.org"
+
+
+def test_atelier_frame_is_the_only_framable_path(merged):
+    """Le cadre de l'atelier (app./atelier/) est affichable par l'application ; le reste reste DENY."""
+    labels = merged["services"]["pwa"]["labels"]
+    rule = labels["traefik.http.routers.app-atelier.rule"]
+    assert rule == "Host(`app.microforge.example.org`) && PathPrefix(`/atelier/`)"
+    assert labels["traefik.http.routers.app-atelier.middlewares"] == "securite-cadre@docker"
+    assert labels["traefik.http.routers.app-atelier.service"] == "app"
+    assert labels["traefik.http.routers.app-atelier.entrypoints"] == "websecure"
+    traefik = merged["services"]["traefik"]["labels"]
+    cadre = "traefik.http.middlewares.securite-cadre.headers."
+    assert traefik[cadre + "customFrameOptionsValue"] == "SAMEORIGIN"
+    assert traefik[cadre + "stsSeconds"] == "31536000"
+    assert traefik[cadre + "contentTypeNosniff"] == "true"
+    assert cadre + "frameDeny" not in traefik
+    routers = {
+        k.split(".")[3]
+        for svc in merged["services"].values()
+        for k in svc.get("labels", {})
+        if k.startswith("traefik.http.routers.") and k.endswith(".middlewares")
+    }
+    for router in routers - {"app-atelier"}:
+        owner = next(
+            s
+            for s in merged["services"].values()
+            if f"traefik.http.routers.{router}.middlewares" in s.get("labels", {})
+        )
+        assert owner["labels"][f"traefik.http.routers.{router}.middlewares"] == "securite@docker"
 
 
 def test_pwa_targets_public_https_apis(merged):

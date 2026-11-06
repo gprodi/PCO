@@ -1,6 +1,7 @@
 // Parcours de bout en bout de la PWA (version construite, servie par « vite preview ») :
-// inscription → stock → idées → projet (5 onglets) → copilote, audit axe (WCAG 2.2 A/AA) de chaque
-// vue, puis hors ligne : la page se recharge depuis le service worker.
+// inscription → stock → idées → projet (9 onglets, atelier virtuel dans son cadre isolé, changement
+// de carte, archive .zip) → copilote, audit axe (WCAG 2.2 A/AA) de chaque vue et du cadre de
+// l'atelier, puis hors ligne : la page se recharge depuis le service worker.
 // Usage : node e2e/parcours-pwa.cjs <url de la PWA> <dossier des captures>
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -9,6 +10,7 @@ const path = require('path');
 const [base, shots] = process.argv.slice(2);
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const user = `pwa${Date.now().toString().slice(-6)}`;
+const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`); };
 
 (async () => {
   const browser = await chromium.launch();
@@ -24,12 +26,15 @@ const user = `pwa${Date.now().toString().slice(-6)}`;
   page.on('console', (m) => {
     if (online && /Content Security Policy/i.test(m.text())) errors.push(`CSP : ${m.text()}`);
   });
-  const audit = async (view) => {
-    await page.evaluate(AXE); // hors CSP (un script en ligne serait bloqué, à raison)
-    const v = await page.evaluate(async () => (await axe.run(document, {
+  // preload : axe relit les feuilles de style par le réseau ; le cadre de l'atelier l'interdit
+  // (connect-src 'none'), on l'audite donc sans ce préchargement.
+  const audit = async (view, target = page, preload = true) => {
+    await target.evaluate(AXE); // hors CSP (un script en ligne serait bloqué, à raison)
+    const v = await target.evaluate(async (pre) => (await axe.run(document, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
       resultTypes: ['violations'],
-    })).violations.map((x) => `${x.id}:${x.impact}:${x.nodes.length}:${x.nodes[0].target.join(' ')}`));
+      preload: pre,
+    })).violations.map((x) => `${x.id}:${x.impact}:${x.nodes.length}:${x.nodes[0].target.join(' ')}`), preload);
     a11y[view] = v;
   };
   const step = async (name, fn) => {
@@ -79,11 +84,49 @@ const user = `pwa${Date.now().toString().slice(-6)}`;
     await step('projet', async () => {
       await page.getByRole('button', { name: 'Générer ce projet' }).first().click();
       await page.getByRole('tab', { name: 'Câblage' }).waitFor({ timeout: 60000 });
-      for (const tab of ['Schéma', 'Code', 'Nomenclature', 'Contrôle électrique', 'Câblage']) {
-        await page.getByRole('tab', { name: tab }).click();
+      const tabs = ['Atelier virtuel', 'Schéma', 'Code', 'Guide de soudure', 'Simulation Wokwi', 'Nomenclature', 'KiCad', 'Fiabilité & sources', 'Câblage'];
+      for (const tab of tabs) {
+        await page.getByRole('tab', { name: tab, exact: true }).click();
         await page.getByRole('tabpanel').waitFor();
       }
+      expect(await page.getByRole('tab').count() === 9, 'neuf onglets');
       await page.screenshot({ path: path.join(shots, 'pwa-projet.png') });
+      // Guide rendu (titres Markdown) et sources (niveaux de vérification).
+      await page.getByRole('tab', { name: 'Guide de soudure' }).click();
+      await page.getByRole('tabpanel').getByRole('heading', { name: /Outillage/ }).waitFor();
+      await page.getByRole('tab', { name: 'Fiabilité & sources' }).click();
+      await page.getByRole('heading', { name: 'Niveau de vérification' }).waitFor();
+      // Atelier virtuel : cadre isolé, tout brancher, la simulation avance.
+      await page.getByRole('tab', { name: 'Atelier virtuel' }).click();
+      const frame = page.frameLocator('iframe[title^="Atelier virtuel"]');
+      await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 30000 });
+      await frame.locator('.mfa-time').filter({ hasNotText: '00:00.0' }).waitFor({ timeout: 15000 });
+      await page.screenshot({ path: path.join(shots, 'pwa-atelier.png') });
+      const atelier = page.frames().find((f) => f.url().includes('/atelier/'));
+      expect(atelier, 'cadre de l\'atelier chargé');
+      await audit('atelier (cadre)', atelier, false);
+      // Archive .zip du projet.
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: 30000 }),
+        page.getByRole('button', { name: 'Télécharger le projet (.zip)' }).click(),
+      ]);
+      expect(download.suggestedFilename().endsWith('.zip'), 'archive .zip');
+      // Changement de carte : le projet est régénéré pour la carte choisie.
+      const pick = page.getByLabel('Carte');
+      const options = await pick.locator('option').evaluateAll((os) => os.map((o) => o.value));
+      const current = await pick.inputValue();
+      const other = options.find((v) => v !== current);
+      expect(other, 'au moins deux cartes compatibles');
+      await pick.selectOption(other);
+      await page.waitForFunction((v) => document.querySelector('.board-pick select')?.value === v, other, { timeout: 60000 });
+      // Atelier au format bureau (documentation) : dessins Wokwi de la carte choisie.
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.getByRole('tab', { name: 'Atelier virtuel' }).click();
+      await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 30000 });
+      await frame.locator('.mfa-time').filter({ hasNotText: '00:00.0' }).waitFor({ timeout: 15000 });
+      await page.waitForTimeout(3500); // premier rafraîchissement de l'écran (toutes les 2 s)
+      await page.screenshot({ path: path.join(shots, 'pwa-atelier-bureau.png'), fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
     });
     await step('copilote', async () => {
       await page.getByRole('link', { name: 'Copilote', exact: true }).click();

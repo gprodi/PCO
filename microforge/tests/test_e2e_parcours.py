@@ -173,8 +173,9 @@ def test_parcours_complet_dans_un_navigateur(stack, tmp_path):
 # --------------------------------------------------------------------------------------- PWA
 
 
-def _serve_static(root: Path, port: int, headers: dict[str, str]) -> ThreadingHTTPServer:
-    """Serveur statique qui ajoute les en-têtes de l'image nginx (CSP comprise)."""
+def _serve_static(root: Path, port: int, headers) -> ThreadingHTTPServer:
+    """Serveur statique qui ajoute les en-têtes de l'image nginx (CSP comprise) ; ``headers(path)``
+    donne ceux du chemin demandé (le cadre /atelier/ a sa propre CSP)."""
 
     class Handler(SimpleHTTPRequestHandler):
         extensions_map: ClassVar[dict[str, str]] = {
@@ -185,7 +186,7 @@ def _serve_static(root: Path, port: int, headers: dict[str, str]) -> ThreadingHT
         }
 
         def end_headers(self):
-            for name, value in headers.items():
+            for name, value in headers(self.path.split("?", 1)[0]).items():
                 self.send_header(name, value)
             self.send_header("Cache-Control", "no-cache")
             super().end_headers()
@@ -213,7 +214,7 @@ def pwa(tmp_path):
         root = tmp_path / "pwa"
         shutil.copytree(PWA / "dist", root)
         (root / "config.js").write_text(nginx_config_js(data_url, ia_url), encoding="utf-8")
-        server = _serve_static(root, pwa_port, nginx_headers(data_url, ia_url))
+        server = _serve_static(root, pwa_port, lambda path: nginx_headers(data_url, ia_url, path))
         yield f"http://127.0.0.1:{pwa_port}/"
     finally:
         if server is not None:

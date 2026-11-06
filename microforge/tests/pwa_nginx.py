@@ -15,9 +15,15 @@ def _substitute(text: str, api_data: str, api_ia: str) -> str:
     )
 
 
-def nginx_headers(api_data: str, api_ia: str) -> dict[str, str]:
-    """En-têtes ``add_header`` de securite.inc.template, variables MF_PUBLIC_* substituées."""
-    text = (PWA / "nginx" / "securite.inc.template").read_text(encoding="utf-8")
+#: Dossier servi avec sa propre CSP (location /atelier/ de default.conf.template).
+ATELIER_PREFIX = "/atelier/"
+
+
+def nginx_headers(api_data: str, api_ia: str, path: str = "/") -> dict[str, str]:
+    """En-têtes ``add_header`` envoyés pour ``path`` : atelier.inc.template sous /atelier/,
+    securite.inc.template ailleurs ; variables MF_PUBLIC_* substituées."""
+    name = "atelier.inc.template" if path.startswith(ATELIER_PREFIX) else "securite.inc.template"
+    text = (PWA / "nginx" / name).read_text(encoding="utf-8")
     pairs = re.findall(r'^add_header (\S+) "([^"]*)" always;$', text, flags=re.M)
     return {name: _substitute(value, api_data, api_ia) for name, value in pairs}
 

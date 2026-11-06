@@ -63,6 +63,7 @@ const PATHS = {
   sortie: 'M10 5H5v14h5M14 8l4 4-4 4M18 12H9',
   copier: 'M8 8h11v12H8zM5 16V4h11',
   lien: 'M10 14 20 4M14 4h6v6M18 14v6H4V6h6',
+  telecharger: 'M12 4v11M7 10l5 5 5-5M5 19h14',
 };
 
 export function Icon({ name, size = 20 }) {

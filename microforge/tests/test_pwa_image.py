@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 import pytest
-from pwa_nginx import PWA, nginx_config_js, nginx_headers
+from pwa_nginx import ATELIER_PREFIX, PWA, nginx_config_js, nginx_headers
 
 API, IA = "https://api.exemple.org", "https://ia.exemple.org"
 
@@ -26,6 +26,47 @@ def test_csp_n_ouvre_que_les_deux_api():
     assert [d for d, v in directives.items() if "unsafe-inline" in v] == ["style-src-attr"]
     # Schéma de câblage en data: et aperçu de la photo en blob:
     assert directives["img-src"] == "'self' data: blob:"
+
+
+def _csp(path: str) -> dict[str, str]:
+    csp = nginx_headers(API, IA, path)["Content-Security-Policy"]
+    return dict(d.strip().split(" ", 1) for d in csp.split(";"))
+
+
+def test_csp_du_cadre_de_l_atelier():
+    """new Function (simulateur) permis dans le cadre isolé seulement, sans aucun accès réseau."""
+    d = _csp("/atelier/index.html")
+    assert d["script-src"] == "'self' 'unsafe-eval'"
+    assert d["default-src"] == "'none'" and d["connect-src"] == "'none'"
+    assert d["frame-ancestors"] == "'self'"  # affichable par l'application seulement
+    assert d["form-action"] == "'none'" and d["base-uri"] == "'none'"
+    assert [k for k, v in d.items() if "unsafe-inline" in v] == ["style-src-attr"]
+    assert "unsafe-eval" not in nginx_headers(API, IA, "/")["Content-Security-Policy"]
+
+
+def test_location_atelier_dans_nginx():
+    conf = (PWA / "nginx" / "default.conf.template").read_text(encoding="utf-8")
+    block = re.search(r"location /atelier/ \{(.*?)\}", conf, flags=re.S).group(1)
+    assert "include /etc/nginx/conf.d/atelier.inc;" in block
+    assert "securite.inc" not in block  # sinon deux CSP : la plus stricte bloquerait le simulateur
+    assert ATELIER_PREFIX == "/atelier/"
+
+
+@pytest.mark.parametrize("name", ["mfsim.js", "atelier.js", "atelier.css"])
+def test_atelier_copies_identiques_au_simulateur(name):
+    """public/atelier/ reprend les fichiers de microforge/src/microforge/sim/static (source unique)."""
+    source = PWA.parent / "src" / "microforge" / "sim" / "static" / name
+    copy = PWA / "public" / "atelier" / name
+    assert copy.read_bytes() == source.read_bytes(), f"recopier {source} vers {copy}"
+
+
+def test_cadre_sans_script_en_ligne():
+    html = (PWA / "public" / "atelier" / "index.html").read_text(encoding="utf-8")
+    assert "<script>" not in html and "style=" not in html
+    for src in re.findall(r'<script src="([^"]+)"', html):
+        assert not src.startswith(("http:", "https:", "//")), src  # tout est servi par le site
+    frame = (PWA / "src" / "atelier-frame.jsx").read_text(encoding="utf-8")
+    assert re.findall(r'sandbox="([^"]*)"', frame) == ["allow-scripts"]  # origine opaque
 
 
 def test_entetes_de_securite():

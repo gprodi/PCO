@@ -23,6 +23,13 @@ server {
         try_files $uri =404;
     }
 
+    # Atelier virtuel : cadre isolé avec sa propre CSP (voir atelier.inc.template).
+    location /atelier/ {
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/conf.d/atelier.inc;
+        try_files $uri =404;
+    }
+
     location = /manifest.webmanifest {
         default_type application/manifest+json;
         include /etc/nginx/conf.d/securite.inc;

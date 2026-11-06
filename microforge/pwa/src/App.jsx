@@ -148,7 +148,10 @@ export default function App() {
         {logged && route === 'explorer' && <Explorer client={client} workshop={workshop} onGenerate={generate} />}
         {logged && route === 'stock' && <Stock client={client} workshop={workshop} onChange={workshop.refresh} />}
         {logged && route === 'photo' && <Photo client={client} onChange={workshop.refresh} />}
-        {logged && route === 'projet' && <Projet build={build} />}
+        {logged && route === 'projet' && (
+          <Projet key={build?.spec.template_id ?? 'vide'} build={build} client={client}
+            onBoard={(board) => generate(build.spec.template_id, build.spec.uses_wifi, build.spec.title, board)} />
+        )}
         {logged && route === 'copilote' && <Copilote client={client} workshop={workshop} />}
       </main>
     </>

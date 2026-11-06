@@ -11,7 +11,7 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 | Explorer | 145 idées en 17 thèmes, chaque idée annotée avec le stock (pièces possédées ou manquantes, réalisable ou non), projets les plus proches du stock | `api_ia` `/v1/ideas/explore`, `/v1/builds/suggest` |
 | Mon stock | pièces rangées par catégorie, ajout, retrait | `api_data` `/v1/inventory*` |
 | Photo | photo prise par l'appareil (`capture="environment"`), pièces reconnues ajoutées en un geste | `api_ia` `/v1/vision/scan` |
-| Projet | câblage avec la couleur de chaque fil Dupont, schéma, code, nomenclature, contrôle électrique | `api_ia` `/v1/builds/generate` |
+| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` |
 | Copilote | conversation : questions sur les composants et les cartes, réponses avec leurs sources | `api_ia` `/v1/copilot/ask` |
 
 Navigation : barre en haut sur ordinateur, barre d'onglets en bas sur téléphone (Accueil, Explorer,
@@ -35,6 +35,18 @@ Mon stock, Projet, Copilote) ; la photo s'ouvre depuis le stock et l'accueil.
   script en ligne, `connect-src` limité aux deux API, `frame-ancestors 'none'`. Seuls les attributs
   `style` sont permis en ligne (`style-src-attr`), pour les dessins Wokwi de l'établi. Le parcours E2E
   tourne avec ces en-têtes : une ressource bloquée fait échouer le test.
+- **Atelier virtuel isolé** : le simulateur (`mfsim.js`) exécute la logique du projet avec
+  `new Function`, interdit par la CSP de l'application. Il tourne donc dans un cadre à part,
+  `public/atelier/`, chargé avec `<iframe sandbox="allow-scripts">` : origine opaque, donc ni jetons,
+  ni stockage, ni API de l'application. La page lui envoie le projet par `postMessage` (messages
+  filtrés sur la fenêtre d'origine des deux côtés) ; le cadre renvoie sa hauteur. Sa propre CSP
+  (`nginx/atelier.inc.template`) autorise `unsafe-eval` **dans ce cadre seulement**, interdit toute
+  requête réseau (`connect-src 'none'`) et ne se laisse afficher que par l'application
+  (`frame-ancestors 'self'` ; Traefik : `SAMEORIGIN` sur `/atelier/` seulement). Les scripts sont des
+  copies de `src/microforge/sim/static` (un test vérifie qu'elles sont identiques) ; les dessins
+  Wokwi sont copiés depuis `node_modules` à la construction.
+- **Guide de soudure** : Markdown rendu par `marked` 15.0.12 (`src/markdown.js`), HTML brut échappé,
+  liens limités à http(s).
 - **Accessibilité** : lien d'évitement, navigation au clavier, onglets ARIA, zones défilantes
   focalisables, libellés sur chaque champ. Chaque vue est auditée par axe-core (WCAG 2.2 A/AA)
   pendant le parcours E2E.
@@ -68,8 +80,9 @@ dans ses dépendances pairs.
 npm test
 ```
 
-Tests unitaires du client d'API (Vitest) : connexion, renouvellement du jeton, erreurs FastAPI,
-envoi de la photo, pagination du catalogue, stockage indisponible.
+Tests unitaires (Vitest) : client d'API (connexion, renouvellement du jeton, erreurs FastAPI,
+envoi de la photo, pagination du catalogue, archive .zip, stockage indisponible) et rendu Markdown
+du guide (HTML échappé, liens non http neutralisés).
 
 Parcours de bout en bout (depuis la racine du dépôt, après `npm run build`) :
 
@@ -79,8 +92,9 @@ uv run pytest -m e2e microforge/tests/test_e2e_parcours.py -k pwa
 
 Le test démarre `api_data` et `api_ia` (SQLite, clés JWT éphémères, modèle de langage simulé), sert
 `dist/` avec les en-têtes de l'image nginx, puis `e2e/parcours-pwa.cjs` enchaîne au format
-téléphone : inscription → stock → idées → projet (5 onglets) → copilote → photo, audit axe de
-chaque vue, puis rechargement hors ligne depuis le service worker.
+téléphone : inscription → stock → idées → projet (9 onglets ; dans l'atelier, « Tout brancher » puis
+la simulation avance ; archive .zip téléchargée ; changement de carte) → copilote → photo, audit axe
+de chaque vue et du cadre de l'atelier, puis rechargement hors ligne depuis le service worker.
 
 ## Image Docker
 

@@ -38,13 +38,20 @@ services:
     mem_limit: 128m
     labels:
       - traefik.enable=true
-      # En-têtes de sécurité, partagés par les quatre routes
+      # En-têtes de sécurité, partagés par les quatre routes (sauf le cadre de l'atelier, plus bas)
       - traefik.http.middlewares.securite.headers.stsSeconds=31536000
       - traefik.http.middlewares.securite.headers.stsIncludeSubdomains=true
       - traefik.http.middlewares.securite.headers.contentTypeNosniff=true
       - traefik.http.middlewares.securite.headers.frameDeny=true
       - traefik.http.middlewares.securite.headers.referrerPolicy=strict-origin-when-cross-origin
       - traefik.http.middlewares.securite.headers.permissionsPolicy=camera=(self), geolocation=()
+      # Variante pour le cadre de l'atelier virtuel (app./atelier/) : affichable par l'application
+      # elle-même (SAMEORIGIN) ; sa CSP nginx limite déjà frame-ancestors à 'self'.
+      - traefik.http.middlewares.securite-cadre.headers.stsSeconds=31536000
+      - traefik.http.middlewares.securite-cadre.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.securite-cadre.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.securite-cadre.headers.customFrameOptionsValue=SAMEORIGIN
+      - traefik.http.middlewares.securite-cadre.headers.referrerPolicy=no-referrer
 
   pwa:
     ports: !reset []
@@ -56,7 +63,13 @@ services:
       - traefik.http.routers.app.rule=Host(`app.${MF_DOMAIN}`)
       - traefik.http.routers.app.entrypoints=websecure
       - traefik.http.routers.app.middlewares=securite@docker
+      - traefik.http.routers.app.service=app
       - traefik.http.services.app.loadbalancer.server.port=8080
+      # Règle plus longue, donc prioritaire : seul /atelier/ quitte frameDeny.
+      - traefik.http.routers.app-atelier.rule=Host(`app.${MF_DOMAIN}`) && PathPrefix(`/atelier/`)
+      - traefik.http.routers.app-atelier.entrypoints=websecure
+      - traefik.http.routers.app-atelier.middlewares=securite-cadre@docker
+      - traefik.http.routers.app-atelier.service=app
 
   streamlit:
     ports: !reset []
