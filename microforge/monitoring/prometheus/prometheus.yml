@@ -5,6 +5,11 @@ global:
 
 rule_files: [/etc/prometheus/alerts.yml]
 
+# Les alertes déclenchées partent vers Alertmanager (regroupement, inhibition, Discord si configuré).
+alerting:
+  alertmanagers:
+    - static_configs: [{ targets: ["alertmanager:9093"] }]
+
 scrape_configs:
   - job_name: api_data
     static_configs: [{ targets: ["api_data:8000"] }]
@@ -15,3 +20,5 @@ scrape_configs:
     static_configs: [{ targets: ["litellm:4000"] }]
   - job_name: prometheus
     static_configs: [{ targets: ["localhost:9090"] }]
+  - job_name: alertmanager
+    static_configs: [{ targets: ["alertmanager:9093"] }]

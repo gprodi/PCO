@@ -36,6 +36,16 @@ UNKNOWN = Counter(
 )
 SCAN_LATENCY = Histogram("mf_scan_seconds", "Durée d'analyse d'une photo", ["mode"])
 
+#: Sources et modes connus : leurs séries existent dès le démarrage (à 0). Sinon Prometheus ne voit
+#: pas la première hausse d'un compteur créé à la volée, et rate() reste nul (ou NaN) sur un faible
+#: trafic : les alertes de confiance et d'objets inconnus ne se déclenchaient pas.
+SOURCES = ("yolo", "vlm")
+for _source in SOURCES:
+    CONFIDENCE.labels(source=_source)
+    UNKNOWN.labels(source=_source)
+for _mode in ("yolo", "yolo+vlm", "vlm"):
+    SCAN_LATENCY.labels(mode=_mode)
+
 REFINE_BELOW = 0.55  # en dessous : on demande confirmation au VLM
 MAX_REFINE = 6
 

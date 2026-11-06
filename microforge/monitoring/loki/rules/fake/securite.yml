@@ -1,0 +1,10 @@
+# Alertes calculées sur les journaux (C20). api_data écrit « Échec de connexion » à chaque mot de
+# passe ou identifiant refusé (routers/auth.py), sans e-mail ni identifiant en clair.
+groups:
+  - name: securite
+    rules:
+      - alert: EchecsConnexionNombreux
+        expr: sum(count_over_time({service="api_data"} |= "Échec de connexion" [1m])) > 20
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "Plus de 20 échecs de connexion par minute sur api_data : force brute ?" }

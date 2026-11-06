@@ -27,10 +27,40 @@
    },
    "fieldConfig": {
     "defaults": {
-     "unit": "bool_on_off",
      "color": {
-      "mode": "palette-classic-by-name"
-     }
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "Hors service",
+         "color": "red",
+         "index": 0
+        },
+        "1": {
+         "text": "En service",
+         "color": "green",
+         "index": 1
+        }
+       }
+      }
+     ],
+     "custom": {}
     },
     "overrides": []
    },
@@ -72,7 +102,8 @@
      "unit": "reqps",
      "color": {
       "mode": "palette-classic-by-name"
-     }
+     },
+     "custom": {}
     },
     "overrides": []
    },
@@ -114,6 +145,25 @@
      "unit": "s",
      "color": {
       "mode": "palette-classic-by-name"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 2
+       }
+      ]
+     },
+     "custom": {
+      "thresholdsStyle": {
+       "mode": "dashed"
+      },
+      "axisSoftMax": 2.5
      }
     },
     "overrides": []
@@ -121,7 +171,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_seconds_bucket[5m])))",
+     "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_highr_seconds_bucket[5m])))",
      "legendFormat": "{{job}}"
     }
    ],
@@ -156,6 +206,26 @@
      "unit": "percentunit",
      "color": {
       "mode": "palette-classic-by-name"
+     },
+     "min": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 0.02
+       }
+      ]
+     },
+     "custom": {
+      "thresholdsStyle": {
+       "mode": "dashed"
+      },
+      "axisSoftMax": 0.05
      }
     },
     "overrides": []
@@ -163,7 +233,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "sum by (job) (rate(http_requests_total{status=~\"5..\"}[5m])) / sum by (job) (rate(http_requests_total[5m]))",
+     "expr": "(sum by (job) (rate(http_requests_total{status=~\"5..\"}[5m])) or sum by (job) (rate(http_requests_total[5m])) * 0) / sum by (job) (rate(http_requests_total[5m]))",
      "legendFormat": "{{job}}"
     }
    ],
@@ -198,7 +268,8 @@
      "unit": "short",
      "color": {
       "mode": "palette-classic-by-name"
-     }
+     },
+     "custom": {}
     },
     "overrides": []
    },

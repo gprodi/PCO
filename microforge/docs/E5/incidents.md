@@ -61,3 +61,21 @@ absent), page « Explorer » en erreur (méthodes absentes du client, SVG passé
 | Solution | hors ligne, 0002 utilise le nom que PostgreSQL donne à une contrainte sans nom (`article_inventaire_user_id_component_id_location_key`, relevé sur une base réelle après `alembic upgrade 0001`) ; `migrations/env.py` lit l'URL de la configuration aussi hors ligne |
 | Prévention | test `test_offline_sql_for_postgresql_needs_no_database` : DDL PostgreSQL complet sans base (15 `CREATE TABLE`, la suppression de l'ancienne contrainte, les index composites et trigrammes) |
 
+
+## Incident n°10 — La supervision ne démarrait pas et ses alertes ne partaient nulle part (06/11/2026)
+| Étape | Contenu |
+|---|---|
+| Message d'erreur / logs | premier lancement réel du profil `monitoring` : Grafana s'arrête au démarrage, `failure to map file contact-points.yml: failure parsing contact points: discord-microforge: could not find webhook url property in settings` ; `curl localhost:3000/api/health` ne répond pas |
+| Analyse | le point de contact Discord était provisionné dans Grafana avec `${DISCORD_WEBHOOK_URL}`, vide par défaut : Grafana refuse un point de contact sans adresse. En lisant la chaîne, deuxième défaut : les règles d'alerte vivent dans Prometheus, mais aucun Alertmanager n'existait, donc aucune alerte n'était envoyée. L'essai avec du trafic réel en a révélé trois autres : latence p95 lue sur un histogramme plafonné à 1 s (seuil de 2 s inatteignable), compteurs de détection créés à la première photo (confiance moyenne `NaN`), part d'objets inconnus divisée par les seules détections reconnues (alerte muette quand tout est inconnu) |
+| Reproduction | `docker compose --profile monitoring up -d` sans `DISCORD_WEBHOOK_URL` ; `traffic_generator.py --drift` ; requêtes PromQL des règles sur `/api/v1/query` |
+| Solution | service `alertmanager` (Discord seulement si l'adresse est fournie, `start.sh`) relié à Prometheus et à Loki ; point de contact retiré de Grafana ; histogramme fin pour la latence ; séries de détection créées à 0 au démarrage ; dénominateur = toutes les détections ; règle Loki pour les échecs de connexion, jusque-là documentée sans exister |
+| Prévention | `promtool test rules` sur `alerts.test.yml` (les tests échouent sur les anciennes règles), `tests/test_monitoring.py`, job CI « Supervision » qui démarre la pile et vérifie Grafana, Alertmanager et Loki |
+
+## Incident n°11 — Analyse de photo refusée (401) après un redémarrage d'api_data (06/11/2026)
+| Étape | Contenu |
+|---|---|
+| Message d'erreur / logs | pendant l'essai de supervision, `traffic_generator.py` affiche `scan 401` pour chaque photo ; api_data accepte la connexion (`POST /v1/auth/token -> 200`), api_ia refuse le jeton (`Jeton invalide`) |
+| Analyse | sans clés JWT configurées (cas par défaut de `.env.example`, `MF_ENV=dev`), api_data génère une paire de clés éphémère à chaque démarrage. api_ia lit la clé publique une fois et la garde en cache : après `docker compose restart api_data`, tous les jetons neufs étaient refusés jusqu'au redémarrage d'api_ia. Chez un utilisateur : photo, génération et copilote en échec, sans cause visible |
+| Reproduction | lancer les deux API, redémarrer api_data seule, se reconnecter puis analyser une photo |
+| Solution | `api_ia/deps.py` : sur une signature invalide, la clé publique d'api_data est relue une fois (au plus toutes les 30 s), seulement quand elle ne vient pas de l'environnement ; un jeton signé par une autre clé reste refusé |
+| Prévention | `test_cle_publique_relue_apres_redemarrage_d_api_data` (clé changée : accepté après relecture ; jeton étranger : refusé, sans relecture en boucle) ; vérifié sur les API réelles (journal « relecture de la clé publique », photos acceptées) |

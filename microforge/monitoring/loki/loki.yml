@@ -1,0 +1,43 @@
+# Loki (journaux des conteneurs, collectés par Grafana Alloy). Configuration de l'image officielle,
+# plus : statistiques anonymes coupées (aucun appel vers grafana.com) et règles d'alerte sur les
+# journaux (ruler) envoyées au même Alertmanager que celles de Prometheus.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# Règles : rules/<locataire>/*.yml ; sans authentification, le locataire s'appelle « fake ».
+ruler:
+  alertmanager_url: http://alertmanager:9093
+  enable_api: true
+  evaluation_interval: 1m
+  rule_path: /loki/rules-temp
+  storage:
+    type: local
+    local:
+      directory: /etc/loki/rules
+
+analytics:
+  reporting_enabled: false

@@ -159,17 +159,33 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
       GF_USERS_DEFAULT_LANGUAGE: fr-FR
-      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
     volumes:
       - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
     networks: [backend]
 
+  alertmanager:
+    # Reçoit les alertes de Prometheus ; Discord seulement si DISCORD_WEBHOOK_URL est fourni (start.sh).
+    profiles: [monitoring]
+    image: prom/alertmanager:v0.34.2
+    entrypoint: ["/bin/sh", "/etc/alertmanager/start.sh"]
+    environment:
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - ../monitoring/alertmanager:/etc/alertmanager:ro
+    ports: ["127.0.0.1:9093:9093"]
+    networks: [backend]
+
   loki:
+    # Journaux (Alloy) et alertes sur les journaux (échecs de connexion) envoyées à Alertmanager.
     profiles: [monitoring]
     image: grafana/loki:3.7.9
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ../monitoring/loki/loki.yml:/etc/loki/loki.yml:ro
+      - ../monitoring/loki/rules:/etc/loki/rules:ro
+    ports: ["127.0.0.1:3100:3100"]
     networks: [backend]
 
   alloy:

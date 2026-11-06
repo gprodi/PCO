@@ -1,0 +1,21 @@
+# Routage des alertes de Prometheus (prometheus/alerts.yml), sans notification : utilisé quand
+# DISCORD_WEBHOOK_URL est vide. Les alertes restent visibles dans Alertmanager (:9093) et Grafana.
+# alertmanager-discord.yml : même routage, notifications envoyées sur Discord.
+route:
+  receiver: aucun
+  group_by: [alertname, job]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity="critical"']
+      repeat_interval: 1h
+
+# Une API arrêtée fait aussi grimper latence et erreurs : seule la panne est signalée.
+inhibit_rules:
+  - source_matchers: ['alertname="APIIndisponible"']
+    target_matchers: ['alertname=~"LatenceP95Elevee|TauxErreurs5xx"']
+    equal: [job]
+
+receivers:
+  - name: aucun

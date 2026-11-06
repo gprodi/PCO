@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -43,9 +44,35 @@ def public_key() -> str:
     return resp.text
 
 
+#: Relecture de la clé publique d'api_data au plus une fois par période (secondes).
+KEY_REFRESH_SECONDS = 30.0
+_last_key_refresh = 0.0
+
+
+def _decode_access(token: str) -> dict:
+    """Vérifie un jeton d'accès.
+
+    Sans clé publique dans l'environnement, la clé vient d'api_data. En développement, api_data
+    génère des clés éphémères à chaque démarrage : après un redémarrage (``docker compose restart
+    api_data``), l'ancienne clé gardée en cache rejetait tous les jetons (401) jusqu'au redémarrage
+    d'api_ia. Sur une signature invalide, la clé est donc relue une fois (au plus toutes les 30 s).
+    """
+    global _last_key_refresh
+    try:
+        return decode_token(token, public_key(), "access")
+    except jwt.InvalidSignatureError:
+        now = time.monotonic()
+        if get_settings().jwt_public_key or now - _last_key_refresh < KEY_REFRESH_SECONDS:
+            raise
+        _last_key_refresh = now
+        logger.info("Signature inconnue : relecture de la clé publique d'api_data")
+        public_key.cache_clear()
+        return decode_token(token, public_key(), "access")
+
+
 def current_principal(token: str = Depends(oauth2_scheme)) -> Principal:
     try:
-        claims = decode_token(token, public_key(), "access")
+        claims = _decode_access(token)
     except (jwt.PyJWTError, httpx.HTTPError) as exc:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "Jeton invalide", headers={"WWW-Authenticate": "Bearer"}
@@ -58,7 +85,7 @@ def user_key(request: Request) -> str:
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer "):
         with contextlib.suppress(jwt.PyJWTError, httpx.HTTPError, KeyError):
-            return "user:" + decode_token(auth[7:], public_key(), "access")["sub"]
+            return "user:" + _decode_access(auth[7:])["sub"]
     return "ip:" + (request.client.host if request.client else "inconnu")
 
 

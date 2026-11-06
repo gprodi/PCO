@@ -55,16 +55,18 @@ sections:
   Lister les métriques du modèle à monitorer:
     - "| Métrique | Signification | Seuil |\n|---|---|---|\n| mf_detection_correction_rate | part des détections corrigées par les utilisateurs (7 jours) | > 25 % → alerte et réentraînement |\n| mf_detection_confidence | confiance des prédictions | moyenne < 0,5 sur 24 h |\n| mf_detections_unknown_total | objets hors catalogue | > 20 % sur 6 h |\n| mf_scan_seconds | durée d'analyse | p95 > 5 s |\n| mAP50 sur les retours étiquetés | performance réelle | baisse > 5 points |"
   Choisir une solution ou un outil pour le monitorage:
-    - "Prometheus (métriques exposées par les deux API) et rapports de dérive Evidently."
+    - "Prometheus (métriques exposées par les deux API, collectées toutes les 15 s) et Alertmanager pour le routage des alertes. Pas d'outil de rapport de dérive séparé (Evidently n'est pas intégré) : la dérive est suivie par trois indicateurs calculés en continu, taux de corrections, confiance moyenne et part d'objets hors catalogue."
   Intégrer la solution ou l'outil de monitorage:
-    - "Instrumentation dans api_ia (histogrammes, compteurs) et calcul du taux de corrections dans api_data à partir de la table retour_detection."
+    - "Instrumentation dans api_ia (histogrammes, compteurs, séries créées à 0 au démarrage pour que la première photo compte) et calcul du taux de corrections dans api_data à partir de la table retour_detection."
   Sélectionner un outil de restitution des métriques:
     - "Grafana : tableau « Modèle » provisionné (monitoring/grafana/)."
   Intégrer l'outil de restitution et les alertes:
-    - "Règles d'alerte Prometheus (monitoring/prometheus/alerts.yml) ; l'alerte « taux de corrections » déclenche le workflow de réentraînement (repository_dispatch)."
+    - "Règles d'alerte Prometheus (monitoring/prometheus/alerts.yml), envoyées à Alertmanager (Discord si l'adresse du webhook est fournie). L'alerte « taux de corrections » porte l'étiquette action=retrain ; le workflow de réentraînement model-cd.yml se lance par repository_dispatch (type retrain), envoyé aujourd'hui à la main (gh api …/dispatches) : l'envoi automatique depuis Alertmanager demande un relais muni d'un jeton, pas encore fait."
   Tester et valider le bon fonctionnement de la chaîne de monitorage:
     - "Bac à sable : un générateur de trafic injecte volontairement une dérive (images sombres, classes inconnues) pour vérifier que l'alerte se déclenche."
-    - "[À COMPLÉTER : capture de l'alerte déclenchée dans Grafana]"
+    - "Tests unitaires des règles avec promtool (monitoring/prometheus/alerts.test.yml) : pour chaque alerte, des séries synthétiques au-dessus et en dessous du seuil ; l'alerte doit se déclencher après sa durée et rester muette en dessous. Lancés par le job CI « Supervision ». Rejoués sur les anciennes règles, ils échouent sur deux alertes : ce sont deux défauts réels trouvés par l'essai ci-dessous."
+    - "Essai réel du 06/11/2026 (pile lancée sur le poste de développement, modèle de langage simulé, donc détections fictives) : trafic en dérive -> taux de corrections mesuré 60 % ; les trois alertes du modèle passent à l'état pending (elles déclenchent après 1 h ou 2 h de dépassement, par construction). L'essai a révélé trois défauts, corrigés et couverts par des tests : la latence p95 lisait un histogramme plafonné à 1 s (alerte à 2 s impossible), les compteurs créés à la première photo rendaient la confiance moyenne incalculable sur faible trafic, et la part d'objets inconnus était divisée par les seules détections reconnues (alerte muette si tout est inconnu)."
+    - "![Grafana, tableau « Modèle de vision » pendant l'essai de dérive du 06/11/2026 : taux de corrections, confiance moyenne, objets hors catalogue, durée d'analyse](E3/img/grafana-modele.png)"
   C11. Monitorage d'un Modèle d'IA > Versionner les sources avec Git:
     - "Tableaux Grafana et règles d'alerte versionnés en fichiers (provisioning)."
   Rédiger la documentation technique et utilisateur:
@@ -115,7 +117,7 @@ sections:
       # .github/workflows/model-cd.yml (extrait) : tests des données -> entraînement GPU -> porte -> PR
       on:
         push: { branches: [main], paths: ["microforge/ml/**", "**/*.dvc"] }
-        repository_dispatch: { types: [retrain] }   # alerte Grafana « taux de corrections > 25 % »
+        repository_dispatch: { types: [retrain] }   # alerte TauxCorrectionsEleve (action=retrain)
         schedule: [{ cron: "17 3 1 * *" }]          # réentraînement mensuel
       jobs:
         data-tests:        # pytest microforge/tests/test_ml_data.py (C12)

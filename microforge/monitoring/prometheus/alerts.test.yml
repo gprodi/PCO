@@ -1,0 +1,167 @@
+# Tests unitaires des règles d'alerte (alerts.yml) avec promtool : séries synthétiques, chaque alerte
+# doit se déclencher au-delà de son seuil et après sa durée « for », et rester muette en dessous.
+#   docker run --rm -v "$PWD:/p" -w /p --entrypoint promtool prom/prometheus:v3.15.1 test rules alerts.test.yml
+# (depuis microforge/monitoring/prometheus ; lancé par le job CI « monitoring »)
+rule_files: [alerts.yml]
+evaluation_interval: 30s
+
+tests:
+  # ------------------------------------------------------------ application (C20)
+  - name: API indisponible plus d'une minute
+    interval: 30s
+    input_series:
+      - series: 'up{job="api_data", instance="api_data:8000"}'
+        values: '1 1 1 1 0 0 0 0 0 0'
+      - series: 'up{job="api_ia", instance="api_ia:8001"}'
+        values: '1x9'
+    alert_rule_test:
+      - eval_time: 2m30s   # panne depuis 30 s : en attente
+        alertname: APIIndisponible
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: APIIndisponible
+        exp_alerts:
+          - exp_labels: { severity: critical, job: api_data, instance: "api_data:8000" }
+            exp_annotations: { summary: "api_data ne répond plus depuis 1 min" }
+
+  - name: Latence p95 au-dessus de 2 s pendant 5 min
+    interval: 1m
+    input_series:   # 60 requêtes par minute, toutes entre 2 et 3 s : p95 ≈ 2,95 s
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="1.0"}'
+        values: '0+0x20'
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="2.0"}'
+        values: '0+0x20'
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="3.0"}'
+        values: '0+60x20'
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="+Inf"}'
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: LatenceP95Elevee
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: LatenceP95Elevee
+        exp_alerts:
+          - exp_labels: { severity: warning, job: api_ia }
+            exp_annotations: { summary: "Latence p95 de api_ia > 2 s" }
+
+  - name: Latence normale, pas d'alerte
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="1.0"}'
+        values: '0+60x20'
+      - series: 'http_request_duration_highr_seconds_bucket{job="api_ia", le="+Inf"}'
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: LatenceP95Elevee
+        exp_alerts: []
+
+  - name: Erreurs 5xx au-dessus de 2 %
+    interval: 1m
+    input_series:   # 5 erreurs pour 100 succès par minute : 4,8 %
+      - series: 'http_requests_total{job="api_data", handler="/v1/inventory", method="GET", status="2xx"}'
+        values: '0+100x20'
+      - series: 'http_requests_total{job="api_data", handler="/v1/inventory", method="GET", status="5xx"}'
+        values: '0+5x20'
+      - series: 'http_requests_total{job="api_ia", handler="/v1/builds/generate", method="POST", status="2xx"}'
+        values: '0+100x20'
+      - series: 'http_requests_total{job="api_ia", handler="/v1/builds/generate", method="POST", status="5xx"}'
+        values: '0+1x20'   # 1 % : sous le seuil
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TauxErreurs5xx
+        exp_alerts:
+          - exp_labels: { severity: critical, job: api_data }
+            exp_annotations: { summary: "Plus de 2 % d'erreurs 5xx sur api_data" }
+
+  - name: Replis du LLM local fréquents
+    interval: 1m
+    input_series:   # un repli par minute : 15 en 15 min
+      - series: 'mf_llm_calls{job="api_ia", instance="api_ia:8001", kind="fallback"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 10m   # pas encore 15 min d'historique
+        alertname: FallbackLLMFrequent
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: FallbackLLMFrequent
+        exp_alerts:
+          - exp_labels: { severity: warning, job: api_ia, instance: "api_ia:8001", kind: fallback }
+            exp_annotations: { summary: "Le LLM local échoue souvent : repli vers Gemini (offre gratuite)" }
+
+  # ------------------------------------------------------------ modèle de vision (C11)
+  - name: Taux de corrections au-dessus de 25 % pendant 1 h
+    interval: 1m
+    input_series:   # 10 % pendant 10 min, puis 60 % (scénario --drift du générateur de trafic)
+      - series: 'mf_detection_correction_rate{job="api_data", instance="api_data:8000", source="vlm"}'
+        values: '0.1x10 0.6x120'
+    alert_rule_test:
+      - eval_time: 1h   # au-dessus du seuil depuis 49 min
+        alertname: TauxCorrectionsEleve
+        exp_alerts: []
+      - eval_time: 1h15m
+        alertname: TauxCorrectionsEleve
+        exp_alerts:
+          - exp_labels: { severity: warning, action: retrain, job: api_data, instance: "api_data:8000", source: vlm }
+            exp_annotations: { summary: "Plus de 25 % des détections vlm corrigées : réentraînement à déclencher" }
+
+  - name: Confiance moyenne sous 0,5 pendant 2 h
+    interval: 1m
+    input_series:   # 10 détections par minute, confiance moyenne 0,3
+      - series: 'mf_detection_confidence_sum{job="api_ia", source="vlm"}'
+        values: '0+3x300'
+      - series: 'mf_detection_confidence_count{job="api_ia", source="vlm"}'
+        values: '0+10x300'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: ConfianceMoyenneBasse
+        exp_alerts: []
+      - eval_time: 2h30m
+        alertname: ConfianceMoyenneBasse
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations: { summary: "Confiance moyenne des détections < 0,5 sur 24 h (dérive des photos ?)" }
+
+  - name: Confiance correcte, pas d'alerte
+    interval: 1m
+    input_series:
+      - series: 'mf_detection_confidence_sum{job="api_ia", source="yolo"}'
+        values: '0+8x300'
+      - series: 'mf_detection_confidence_count{job="api_ia", source="yolo"}'
+        values: '0+10x300'
+    alert_rule_test:
+      - eval_time: 4h
+        alertname: ConfianceMoyenneBasse
+        exp_alerts: []
+
+  - name: Tous les objets hors catalogue (aucune détection reconnue)
+    interval: 1m
+    input_series:   # le cas que l'ancienne formule (division par les seules reconnues) ne voyait pas
+      - series: 'mf_detections_unknown_total{job="api_ia", source="vlm"}'
+        values: '0+10x200'
+      - series: 'mf_detection_confidence_count{job="api_ia", source="vlm"}'
+        values: '0+10x200'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ObjetsInconnusEnHausse
+        exp_alerts: []
+      - eval_time: 1h30m
+        alertname: ObjetsInconnusEnHausse
+        exp_alerts:
+          - exp_labels: { severity: info }
+            exp_annotations: { summary: "Plus de 20 % d'objets hors catalogue : enrichir le catalogue/dataset" }
+
+  - name: Objets inconnus sous 20 %, pas d'alerte
+    interval: 1m
+    input_series:
+      - series: 'mf_detections_unknown_total{job="api_ia", source="yolo"}'
+        values: '0+1x200'
+      - series: 'mf_detection_confidence_count{job="api_ia", source="yolo"}'
+        values: '0+10x200'
+      - series: 'mf_detections_total{job="api_ia", source="yolo", component="arduino-uno"}'
+        values: '0+9x200'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: ObjetsInconnusEnHausse
+        exp_alerts: []

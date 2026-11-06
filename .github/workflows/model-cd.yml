@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths: ["microforge/ml/**", "**/*.dvc"]
   repository_dispatch:
-    types: [retrain]          # envoyé par l'alerte Grafana « taux de corrections > 25 % »
+    types: [retrain]          # alerte TauxCorrectionsEleve (action=retrain) ; envoi : gh api …/dispatches -f event_type=retrain
   workflow_dispatch:
     inputs:
       epochs: { description: "Nombre d'epochs", default: "80" }

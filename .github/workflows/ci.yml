@@ -147,6 +147,58 @@ jobs:
           cat pgvector.txt
           ! grep -q "SKIPPED" pgvector.txt && exit $status
 
+  monitoring:
+    # Supervision (C11, C20) : configurations Prometheus et Alertmanager validées, règles d'alerte
+    # testées sur des séries synthétiques (promtool : chaque alerte au-delà de son seuil et après
+    # sa durée, aucune en dessous), puis pile lancée : Grafana démarre et charge ses tableaux de
+    # bord, Prometheus est relié à Alertmanager. Images identiques au compose (test Python).
+    name: Supervision — Prometheus, Alertmanager, Grafana
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: microforge/monitoring
+    env:
+      PROMETHEUS: prom/prometheus:v3.15.1
+      ALERTMANAGER: prom/alertmanager:v0.34.2
+      GRAFANA: grafana/grafana:13.3.0
+      LOKI: grafana/loki:3.7.9
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Configuration de Prometheus (promtool check config)
+        run: docker run --rm -v "$PWD/prometheus:/etc/prometheus:ro" --entrypoint promtool "$PROMETHEUS" check config /etc/prometheus/prometheus.yml
+      - name: Tests unitaires des règles d'alerte (promtool test rules)
+        run: docker run --rm -v "$PWD/prometheus:/p:ro" -w /p --entrypoint promtool "$PROMETHEUS" test rules alerts.test.yml
+      - name: Configurations d'Alertmanager (amtool check-config)
+        run: |
+          for f in alertmanager.yml alertmanager-discord.yml; do
+            docker run --rm -v "$PWD/alertmanager:/etc/alertmanager:ro" --entrypoint amtool "$ALERTMANAGER" check-config "/etc/alertmanager/$f"
+          done
+      - name: Pile lancée (sans webhook Discord)
+        working-directory: microforge/infra
+        run: |
+          docker compose --profile monitoring up -d prometheus alertmanager loki grafana
+          for i in $(seq 1 60); do curl -sf localhost:3000/api/health && break; sleep 2; done
+          curl -sf localhost:3000/api/health
+          dashboards=$(curl -sf -u admin:change-me "localhost:3000/api/search?type=dash-db" | jq length)
+          sources=$(curl -sf -u admin:change-me localhost:3000/api/datasources | jq length)
+          for i in $(seq 1 30); do
+            managers=$(curl -sf localhost:9090/api/v1/alertmanagers | jq '.data.activeAlertmanagers | length')
+            [ "$managers" = "1" ] && break; sleep 2
+          done
+          for i in $(seq 1 30); do curl -sf localhost:3100/ready && break; sleep 2; done
+          loki_rules=$(curl -sf localhost:3100/loki/api/v1/rules | grep -c "alert: ")
+          {
+            echo "### Supervision"
+            echo "- Loki : $loki_rules règle(s) d'alerte sur les journaux"
+            echo "- Grafana : $dashboards tableaux de bord, $sources sources de données"
+            echo "- Prometheus relié à $managers Alertmanager"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$dashboards" = "2" ] && [ "$sources" = "3" ] && [ "$managers" = "1" ] && [ "$loki_rules" -ge 1 ]
+      - name: Journaux en cas d'échec
+        if: failure()
+        working-directory: microforge/infra
+        run: docker compose --profile monitoring logs --tail 80 prometheus alertmanager loki grafana
+
   firmware-matrix:
     # La matrice vient du catalogue : une entrée par famille de cartes (+ variantes de puce).
     name: Matrice des cartes (catalogue)

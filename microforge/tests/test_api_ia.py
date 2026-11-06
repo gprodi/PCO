@@ -288,3 +288,36 @@ def test_streamlit_client_routes_exist_in_apis(data_client, ia_client):
     missing = {u for u in used if re.sub(r"\{[^}]+\}", "{}", u) not in routes}
     assert not missing, f"routes inconnues des API : {missing}"
     assert "/v1/ideas/explore" in used and "/v1/ideas/inspiration" in used
+
+
+def test_cle_publique_relue_apres_redemarrage_d_api_data(ia_client, monkeypatch, mf_env):
+    """Clés éphémères (dev) : api_data redémarrée signe avec une nouvelle clé ; api_ia la relit."""
+    import httpx
+    from microforge.api_ia import deps
+    from microforge.common.security import create_access_token, generate_keypair
+    from microforge.common.settings import get_settings
+
+    monkeypatch.delenv("MF_JWT_PUBLIC_KEY")
+    get_settings.cache_clear()
+    old, new = mf_env, generate_keypair()
+    served = {"pem": old.public_pem}
+    calls = []
+
+    def fake_get(url, timeout):
+        calls.append(url)
+        return httpx.Response(200, text=served["pem"], request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(deps.httpx, "get", fake_get)
+    monkeypatch.setattr(deps, "_last_key_refresh", -1e9)
+    deps.public_key.cache_clear()
+    old_token = {"Authorization": f"Bearer {create_access_token(1, 'user', old)}"}
+    assert ia_client.get("/v1/models/current", headers=old_token).status_code == 200
+    served["pem"] = new.public_pem  # api_data redémarrée : nouvelles clés
+    new_token = {"Authorization": f"Bearer {create_access_token(1, 'user', new)}"}
+    assert ia_client.get("/v1/models/current", headers=new_token).status_code == 200
+    assert len(calls) == 2  # clé lue au premier jeton, relue une fois après le changement
+    # Un jeton signé par une clé inconnue reste refusé, sans relecture en boucle.
+    rogue = {"Authorization": f"Bearer {create_access_token(1, 'user', generate_keypair())}"}
+    assert ia_client.get("/v1/models/current", headers=rogue).status_code == 401
+    assert ia_client.get("/v1/models/current", headers=rogue).status_code == 401
+    assert len(calls) == 2
