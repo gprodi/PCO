@@ -176,6 +176,13 @@ Arrêt :
 docker compose -f microforge/infra/docker-compose.yml --profile core down
 ```
 
+Vérifier que tout fonctionne (avec la supervision : ajouter `--profile monitoring` à la commande
+`up`) ; une ligne OK ou ÉCHEC par contrôle :
+
+```bash
+python3 microforge/infra/verifier_pile.py
+```
+
 Aucun fichier `.env` n'est nécessaire : les valeurs de développement de `microforge/.env.example`
 servent par défaut. Pour en changer (clé Gemini, mot de passe PostgreSQL…), copier ce fichier en
 `microforge/.env` et le modifier : ses valeurs l'emportent.
@@ -193,7 +200,8 @@ Variables disponibles : `MF_API_DATA_PORT` (8000), `MF_API_IA_PORT` (8001), `MF_
 `MF_STREAMLIT_PORT` (8501). Pour savoir quel programme occupe un port sous Windows (PowerShell) :
 `Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -State Listen).OwningProcess` ; sous Mac ou
 Linux : `lsof -i :8000`. Sans Ollama (ni clé Gemini), la génération des projets
-fonctionne (moteur déterministe) et le copilote répond par extraits de ses sources ; la reconnaissance
+fonctionne (moteur déterministe) et le copilote cherche par mots-clés et cite les lignes du catalogue
+qui répondent (vérifié sur la pile Docker le 06/11/2026) ; la reconnaissance
 des composants sur photo, elle, a besoin d'Ollama ou d'un modèle entraîné. Sur le Mac M4, lancer Ollama en application native (Docker n'a pas accès
 au GPU Apple). Détails par machine : [`microforge/README.md`](microforge/README.md).
 

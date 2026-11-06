@@ -23,7 +23,7 @@ visibles dans Alertmanager et dans Grafana (`alertmanager/start.sh` choisit la c
 | `LatenceP95Elevee` | p95 > 2 s (histogramme fin, seaux jusqu'à 60 s) | 5 min | avertissement | profil matériel, modèle, base |
 | `TauxErreurs5xx` | 5xx > 2 % des requêtes | 5 min | critique | journaux Loki par `request_id` |
 | `FallbackLLMFrequent` | plus de 10 replis vers Gemini en 15 min | — | avertissement | Ollama arrêté ou saturé |
-| `EchecsConnexionNombreux` (Loki) | plus de 20 « Échec de connexion » par minute | 1 min | avertissement | force brute : bloquer l'adresse, vérifier le limiteur |
+| `EchecsConnexionNombreux` (Loki) | plus de 20 « Échec de connexion » sur la dernière minute | aucune (une rafale suffit) | avertissement | attaque répartie sur plusieurs adresses (le limiteur d'api_data bloque déjà une adresse seule à 10 essais/min) : bloquer les adresses, vérifier le limiteur |
 | `TauxCorrectionsEleve` | corrections utilisateurs > 25 % (7 jours) | 1 h | avertissement, `action=retrain` | réentraîner (voir plus bas) |
 | `ConfianceMoyenneBasse` | confiance moyenne < 0,5 sur 24 h | 2 h | avertissement | dérive des photos : échantillonner, étiqueter |
 | `ObjetsInconnusEnHausse` | objets hors catalogue > 20 % de toutes les détections (6 h) | 1 h | info | enrichir le catalogue ou le jeu de données |
@@ -58,6 +58,11 @@ GitHub et demanderait un relais muni d'un jeton.
 - **CI** (job « Supervision ») : `promtool check config`, `promtool test rules`, `amtool
   check-config`, puis la pile est lancée : Grafana doit démarrer avec ses 2 tableaux et 3 sources,
   Prometheus doit être relié à Alertmanager, Loki doit avoir chargé sa règle.
+- **Pile complète** (`infra/verifier_pile.py`, job CI « Pile complète ») : les profils `core` et
+  `monitoring` construits depuis les Dockerfiles ; 20 contrôles (santé, CSP réelles de nginx,
+  Prometheus par nom de service, Grafana, journaux JSON des API dans Loki avec leur niveau) et, avec
+  `--force-brute`, 25 vrais échecs de connexion jusqu'à l'alerte dans Alertmanager ; puis le parcours
+  PWA contre la pile. Le même script sert de test de fumée en préproduction.
 
 ## Bac à sable (C11 : tester la chaîne avant la production)
 
@@ -101,6 +106,18 @@ Défauts trouvés par cet essai, corrigés et couverts par un test :
 Captures : `docs/E5/img/grafana-application.png`, `docs/E3/img/grafana-modele.png`,
 `docs/E5/img/alertmanager.png`.
 
-Reste à faire : envoi réel sur Discord (adresse du webhook à fournir), sondes d'Uptime Kuma, essai
-avec Alloy sur les conteneurs (ici les API tournaient hors Docker et les journaux ont été poussés
-directement dans Loki), relais automatique vers `repository_dispatch`.
+## Essai sur la pile complète (06/11/2026, après-midi)
+
+Profils `core` + `monitoring`, images construites depuis les Dockerfiles, sans modèle d'IA
+(ni Ollama ni clé Gemini) : `verifier_pile.py --force-brute` passe ses 20 contrôles, et le parcours
+PWA passe contre la pile (nginx réel, PostgreSQL, réseau compose). Défauts trouvés et corrigés :
+
+| Défaut | Effet | Correctif |
+|---|---|---|
+| copilote sans modèle d'embeddings | **503 « Copilote indisponible »** dans la PWA | recherche par mots-clés (BM25) en repli, lignes qui répondent citées |
+| journaux texte dans les conteneurs | niveau absent dans Loki | `MF_LOG_JSON=true` pour les API dans le compose |
+| règle Loki avec `for: 1m` | une rafale de 25 vrais échecs ne déclenchait rien | évaluation sans délai ; alerte dans Alertmanager en 25 à 57 s |
+
+Reste à faire : envoi réel sur Discord (adresse du webhook à fournir), sondes d'Uptime Kuma (à
+créer dans son interface : pas de configuration par fichier), relais automatique vers
+`repository_dispatch`.

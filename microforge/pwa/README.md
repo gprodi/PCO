@@ -96,6 +96,10 @@ téléphone : inscription → stock → idées → projet (9 onglets ; dans l'at
 la simulation avance ; archive .zip téléchargée ; changement de carte) → copilote → photo, audit axe
 de chaque vue et du cadre de l'atelier, puis rechargement hors ligne depuis le service worker.
 
+La même PWA est aussi testée dans sa **vraie image nginx** : le job CI « Pile complète » construit
+la pile Docker (profils `core` et `monitoring`) et lance ce parcours contre http://localhost:5173
+(CSP réelles, PostgreSQL, réseau compose, copilote sans modèle d'IA).
+
 ## Image Docker
 
 ```bash

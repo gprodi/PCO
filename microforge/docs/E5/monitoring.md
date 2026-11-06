@@ -19,7 +19,14 @@ API arrêtée → alerte dans Alertmanager en 80 s ; 45 échecs de connexion par
 
 **Vérifications automatiques** : `promtool test rules` (chaque alerte sur des séries synthétiques),
 `amtool check-config`, démarrage de la pile dans le job CI « Supervision », cohérence métriques ↔
-alertes ↔ tableaux dans `tests/test_monitoring.py`.
+alertes ↔ tableaux dans `tests/test_monitoring.py`. Job CI « Pile complète » : profils `core` +
+`monitoring` construits depuis les Dockerfiles, `infra/verifier_pile.py --force-brute` (20 contrôles :
+santé, CSP réelles, Prometheus par nom de service, journaux JSON des API dans Loki via Alloy, alerte
+« échecs de connexion » jusqu'à Alertmanager sur de vrais échecs, en 25 à 57 s), puis parcours PWA.
+
+**Limiteur et alerte** : api_data refuse plus de 10 essais de connexion par minute et par adresse ;
+l'alerte Loki (plus de 20 échecs sur la dernière minute, sans délai de confirmation) signale donc
+une attaque répartie sur plusieurs adresses.
 
 **Journalisation** : loguru (JSON en production), identifiant de requête propagé (`X-Request-ID`),
 **aucune donnée personnelle** (pas d'e-mail ni de jeton dans les logs), conservation 6 mois.
