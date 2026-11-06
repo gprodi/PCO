@@ -4,7 +4,10 @@ groups:
   - name: securite
     rules:
       - alert: EchecsConnexionNombreux
+        # Évaluée chaque minute sur la dernière minute, sans délai de confirmation : une rafale
+        # (25 essais en quelques secondes) ne se répète pas d'une évaluation à l'autre, un « for »
+        # la laissait passer (essai sur la pile Docker du 06/11). Le limiteur d'api_data arrête déjà
+        # une adresse seule (10 essais/min) : au-delà de 20, l'attaque vient de plusieurs adresses.
         expr: sum(count_over_time({service="api_data"} |= "Échec de connexion" [1m])) > 20
-        for: 1m
         labels: { severity: warning }
         annotations: { summary: "Plus de 20 échecs de connexion par minute sur api_data : force brute ?" }

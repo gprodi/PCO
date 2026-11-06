@@ -64,6 +64,9 @@ def test_sans_env_les_services_se_trouvent(copie):
     assert services["streamlit"]["environment"]["MF_API_IA_URL"] == "http://api_ia:8001"
     # La PWA tourne dans le navigateur : elle appelle les API par les ports publiés.
     assert services["pwa"]["environment"]["MF_PUBLIC_API_DATA_URL"] == "http://localhost:8000"
+    # Journaux JSON dans les conteneurs des API (Alloy en extrait le niveau pour Loki).
+    for api in ("api_data", "api_ia"):
+        assert services[api]["environment"]["MF_LOG_JSON"] == "true"
 
 
 def test_le_fichier_env_remplace_les_valeurs_par_defaut(copie):

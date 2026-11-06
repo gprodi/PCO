@@ -77,6 +77,57 @@ def test_extractive_fallback_when_no_llm():
     assert any("ds18b20" in s.id for s in ans.sources)  # composant ou projet : passages cités
 
 
+def _no_embeddings(gw: Gateway) -> list[int]:
+    """Gateway dont les embeddings échouent (ni Ollama ni clé Gemini) ; renvoie le compteur d'essais."""
+    tries = []
+
+    def embed(_texts):
+        tries.append(1)
+        raise LLMError("aucun fournisseur d'embeddings joignable")
+
+    gw.embed = embed
+    return tries
+
+
+def test_keyword_search_when_no_embeddings():
+    """Installation Docker sans profil « ai » : le copilote répond par mots-clés au lieu de 503."""
+    gw, _ = gateway(fail=True)  # ni embeddings ni modèle de langage
+    tries = _no_embeddings(gw)
+    copilot = Copilot(gw, CAT, min_score=0.3)
+    ans = copilot.ask("sonde de température étanche DS18B20 1-Wire")
+    assert ans.index == "mots-clés" and ans.mode == "extractif"
+    assert "mots-clés" in ans.answer and "[1]" in ans.answer
+    assert "ds18b20" in ans.sources[0].id and ans.sources[0].score == 1.0
+    # Les vecteurs ne sont pas retentés à chaque question (au plus une fois par minute).
+    copilot.ask("broches I2C de l'ESP32 DevKit V1")
+    assert len(tries) == 1
+
+
+def test_extractive_answer_quotes_the_answering_line():
+    """Sans aucun modèle : la ligne qui répond (SDA/SCL), pas le début de la fiche de la carte."""
+    gw, _ = gateway(fail=True)
+    _no_embeddings(gw)
+    ans = Copilot(gw, CAT).ask("Broches I2C par défaut de l'ESP32 DevKit V1 ?")
+    first = ans.answer.splitlines()[1]
+    assert first.startswith("[1] ESP32 DevKit V1") and "SDA=D21, SCL=D22" in first
+
+
+def test_keyword_search_with_a_language_model():
+    """Embeddings absents mais modèle de langage joignable : réponse rédigée et citée."""
+    gw, _ = gateway(responder=cites_first)
+    _no_embeddings(gw)
+    ans = Copilot(gw, CAT).ask("broches I2C par défaut de l'ESP32 DevKit V1")
+    assert ans.index == "mots-clés" and ans.mode == "llm"
+    assert any("esp32-devkit-v1" in s.id for s in ans.sources)
+
+
+def test_keyword_search_unknown_words():
+    gw, _ = gateway()
+    _no_embeddings(gw)
+    ans = Copilot(gw, CAT).ask("zxqv plorbix wug frumious")
+    assert ans.mode == "inconnu" and ans.answer == UNKNOWN and ans.index == "mots-clés"
+
+
 def test_stock_adds_feasible_projects_as_a_source():
     gw, _ = gateway(responder=lambda r: "Avec ton stock : station météo OLED [1].")
     stock = {"dht22": 1, "ssd1306-i2c": 1, "esp32-devkit-v1": 1}

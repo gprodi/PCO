@@ -179,13 +179,13 @@ def create_app() -> FastAPI:
     ) -> CopilotAnswer:
         """Question libre sur le matériel : réponse citée [n] à partir du catalogue (RAG).
 
-        « Je ne sais pas » sous le seuil de similarité ; passages bruts si aucun modèle de langage
-        n'est joignable. La question n'est pas journalisée (seulement le mode et le nombre de sources).
+        « Je ne sais pas » sous le seuil de similarité ; recherche par mots-clés sans modèle
+        d'embeddings ; passages bruts si aucun modèle de langage n'est joignable. La question n'est pas journalisée (seulement le mode et le nombre de sources).
         """
         try:
             answer = services().copilot.ask(body.question, body.inventory)
-        except LLMError as exc:  # pas de modèle d'embeddings : recherche impossible
-            raise HTTPException(503, "Copilote indisponible : aucun modèle d'embeddings") from exc
+        except LLMError as exc:  # garde-fou : sans embeddings, le copilote cherche par mots-clés
+            raise HTTPException(503, "Copilote indisponible") from exc
         logger.info(
             "Copilote user={} mode={} sources={}", p.user_id, answer.mode, len(answer.sources)
         )

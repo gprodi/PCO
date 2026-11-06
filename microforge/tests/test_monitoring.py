@@ -182,3 +182,20 @@ def test_loki_alerte_sur_les_echecs_de_connexion():
     assert rule["expr"].endswith("> 20")
     services = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]
     assert services["loki"]["command"] == "-config.file=/etc/loki/loki.yml"
+
+
+def test_verifier_pile_utilisable_et_lance_par_la_ci():
+    """Le script de vérification de la pile (CI « Pile complète », fumée en préproduction)."""
+    import subprocess
+    import sys
+
+    script = ROOT / "infra" / "verifier_pile.py"
+    out = subprocess.run(
+        [sys.executable, str(script), "--help"], capture_output=True, text=True, check=True
+    ).stdout
+    assert "--force-brute" in out and "--grafana-password" in out
+    job = yaml.safe_load(CI.read_text(encoding="utf-8"))["jobs"]["pile"]
+    runs = "\n".join(step.get("run", "") for step in job["steps"])
+    assert "verifier_pile.py --force-brute" in runs and "set -o pipefail" in runs
+    assert "e2e/parcours-pwa.cjs http://localhost:5173/" in runs
+    assert "--profile core --profile monitoring" in runs

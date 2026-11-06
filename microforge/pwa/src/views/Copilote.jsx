@@ -46,7 +46,10 @@ export default function Copilote({ client, workshop }) {
             <p className="bubble me">{q}</p>
             {a && (
               <article className="bubble bot">
-                <p>{a.answer}</p>
+                <p className="answer">{a.answer}</p>
+                {a.index === 'mots-clés' && (
+                  <p className="small muted">Recherche par mots-clés : aucun modèle d'IA n'est joignable (lance Ollama, ou renseigne une clé Gemini, pour des réponses rédigées et une recherche par le sens).</p>
+                )}
                 {a.notice && <p className="small muted">{a.notice}</p>}
                 <h2 className="sources-title">Sources ({a.sources.length})</h2>
                 <ol className="sources">

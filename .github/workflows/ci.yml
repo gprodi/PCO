@@ -76,7 +76,7 @@ jobs:
           npm ci
           npm run build
       # Streamlit : inscription → stock → idées → projet (8 onglets) → explorer → copilote.
-      # PWA : inscription → stock → idées → projet (5 onglets) → copilote → photo → hors ligne,
+      # PWA : inscription → stock → idées → projet (9 onglets, atelier virtuel) → copilote → photo → hors ligne,
       # servie avec les en-têtes de son image nginx (CSP) et auditée par axe à chaque vue.
       - name: Parcours Streamlit et PWA
         env:
@@ -202,6 +202,59 @@ jobs:
         if: failure()
         working-directory: microforge/infra
         run: docker compose --profile monitoring logs --tail 80 prometheus alertmanager loki grafana
+
+  pile:
+    # La pile telle que Gaël la lance (profils core + monitoring), construite depuis les Dockerfiles.
+    # Parcours PWA contre la vraie image nginx (CSP réelles), PostgreSQL et le réseau compose, sans
+    # modèle d'IA (copilote par mots-clés) ; puis infra/verifier_pile.py : collecte Prometheus par
+    # nom de service, Grafana, journaux des conteneurs dans Loki (Alloy), alerte « échecs de
+    # connexion » jusqu'à Alertmanager. Même script que pour un test de fumée en préproduction.
+    name: Pile complète (docker compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      MF_IMAGE_TAG: ci
+      GRAFANA_ADMIN_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Construire et lancer core + monitoring
+        working-directory: microforge/infra
+        run: |
+          # Limiteur de connexion relevé pour l'essai de force brute seulement (10/min par défaut).
+          printf 'MF_RATE_LIMIT_TOKEN=200/minute\n' > ../.env
+          docker compose --profile core --profile monitoring build
+          docker compose --profile core --profile monitoring up -d
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: microforge/pwa/package-lock.json
+      - name: Playwright et Chromium
+        working-directory: microforge/pwa
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Supervision de bout en bout
+        working-directory: microforge/infra
+        run: |
+          set -o pipefail  # sans lui, « | tee » masquerait un échec (incident 5)
+          python3 verifier_pile.py --force-brute | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Parcours PWA contre la pile
+        working-directory: microforge/pwa
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/pile-sortie"
+          node e2e/parcours-pwa.cjs http://localhost:5173/ "$GITHUB_WORKSPACE/pile-sortie"
+      - name: Journaux en cas d'échec
+        if: failure()
+        working-directory: microforge/infra
+        run: docker compose --profile core --profile monitoring logs --tail 60
+      - name: Captures du parcours
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pile-complete
+          path: pile-sortie/**
+          if-no-files-found: ignore
 
   firmware-matrix:
     # La matrice vient du catalogue : une entrée par famille de cartes (+ variantes de puce).

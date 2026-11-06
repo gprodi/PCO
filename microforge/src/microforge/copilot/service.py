@@ -8,6 +8,8 @@ Garde-fous :
 * les passages et le stock sont des **données** : l'invite système interdit d'exécuter des consignes
   qu'ils contiendraient (injection indirecte) ;
 * aucun modèle de langage joignable → **repli extractif** : les passages eux-mêmes, avec leurs sources ;
+* aucun modèle d'embeddings joignable → **recherche par mots-clés** (BM25, ``lexical.py``) au lieu des
+  vecteurs : le copilote répond même sans Ollama ni clé Gemini ;
 * sécurité électrique : rappel systématique pour le secteur 230 V.
 """
 
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 from typing import Literal
 
 from llm_gateway import Gateway, LLMError
@@ -30,6 +33,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from microforge.copilot.corpus import build_corpus, fingerprint
+from microforge.copilot.lexical import LexicalIndex, best_lines
 from microforge.core.catalog import Catalog, get_catalog
 from microforge.core.suggest import suggest_projects
 
@@ -73,7 +77,7 @@ class CopilotAnswer(BaseModel):
     answer: str
     mode: Literal["llm", "extractif", "inconnu"]
     sources: list[Source]
-    index: str  # « mémoire » ou « pgvector »
+    index: str  # « mémoire » ou « pgvector » ; « mots-clés » sans modèle d'embeddings
     notice: str = AI_NOTICE  # information obligatoire de l'utilisateur (art. 50(1))
 
 
@@ -95,6 +99,12 @@ class Copilot:
         self.k = k
         self._ready = False
         self._lock = threading.Lock()
+        self._lexical: LexicalIndex | None = None
+        #: Après un échec des embeddings, les vecteurs ne sont pas retentés avant cette échéance.
+        self._vectors_down_until = 0.0
+
+    #: Délai avant de retenter les embeddings après un échec (secondes).
+    RETRY_VECTORS_AFTER = 60.0
 
     @property
     def backend(self) -> str:
@@ -126,6 +136,25 @@ class Copilot:
             self._ready = True
             return len(self.store)
 
+    def lexical(self) -> LexicalIndex:
+        """Index par mots-clés du même corpus (construit à la première utilisation)."""
+        if self._lexical is None:
+            self._lexical = LexicalIndex(build_corpus(self.catalog))
+        return self._lexical
+
+    def _retrieve(self, question: str) -> tuple[list[tuple[float, Record]], str]:
+        """Passages proches de la question : par vecteurs, sinon par mots-clés."""
+        if time.monotonic() >= self._vectors_down_until:
+            try:
+                self.ensure_index()
+                return self._search(question), self.backend
+            except LLMError as exc:
+                self._vectors_down_until = time.monotonic() + self.RETRY_VECTORS_AFTER
+                logger.warning(
+                    "Copilote : pas de modèle d'embeddings ({}), recherche par mots-clés", exc
+                )
+        return self.lexical().search(question, k=self.k), "mots-clés"
+
     def _search(self, question: str) -> list[tuple[float, Record]]:
         qv = self.gateway.embed([question])[0]
         if isinstance(self.store, PgVectorStore) and self.store.dimension() not in (None, len(qv)):
@@ -151,14 +180,13 @@ class Copilot:
         )
 
     def ask(self, question: str, inventory: dict[str, int] | None = None) -> CopilotAnswer:
-        self.ensure_index()
-        hits = self._search(question)
+        hits, index = self._retrieve(question)
         if inventory:
             stock = self._stock_passage(inventory)
             if stock is not None:
                 hits.append((1.0, stock))
         if not hits:
-            return CopilotAnswer(answer=UNKNOWN, mode="inconnu", sources=[], index=self.backend)
+            return CopilotAnswer(answer=UNKNOWN, mode="inconnu", sources=[], index=index)
         sources = [
             Source(
                 n=i,
@@ -182,15 +210,19 @@ class Copilot:
             mode: Literal["llm", "extractif", "inconnu"] = "llm"
         except LLMError as exc:
             logger.warning("Copilote : pas de modèle de langage ({}), repli extractif", exc)
+            found = "trouvés par mots-clés" if index == "mots-clés" else "les plus proches"
             answer = (
-                "Aucun modèle de langage n'est joignable ; voici les passages les plus proches :\n"
-                + "\n".join(f"[{s.n}] {s.title} — {s.excerpt[:220]}" for s in sources[:3])
+                f"Aucun modèle de langage n'est joignable ; voici les passages {found} :\n"
+                + "\n".join(
+                    f"[{s.n}] {s.title} — {best_lines(r.title, r.text, question)}"
+                    for s, (_, r) in list(zip(sources, hits, strict=True))[:3]
+                )
             )
             mode = "extractif"
         cited = {int(n) for n in _CITE.findall(answer)}
         for s in sources:
             s.cited = s.n in cited
-        return CopilotAnswer(answer=answer, mode=mode, sources=sources, index=self.backend)
+        return CopilotAnswer(answer=answer, mode=mode, sources=sources, index=index)
 
 
 def make_copilot(

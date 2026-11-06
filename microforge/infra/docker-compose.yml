@@ -40,6 +40,9 @@ services:
     build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_data }
     depends_on: { postgres: { condition: service_healthy } }
     environment:
+      # Journaux JSON dans les conteneurs : Alloy en extrait le niveau et l'identifiant de requête
+      # (Loki). Le développement hors Docker garde le format lisible (MF_LOG_JSON=false par défaut).
+      MF_LOG_JSON: ${MF_LOG_JSON:-true}
       # Pages autorisées à appeler l'API depuis le navigateur : la PWA et Streamlit, sur leurs ports publiés.
       MF_CORS_ORIGINS: ${MF_CORS_ORIGINS:-http://localhost:${MF_PWA_PORT:-5173},http://127.0.0.1:${MF_PWA_PORT:-5173},http://localhost:${MF_STREAMLIT_PORT:-8501},http://127.0.0.1:${MF_STREAMLIT_PORT:-8501}}
     ports: ["${MF_API_DATA_PORT:-8000}:8000"]
@@ -51,6 +54,7 @@ services:
     image: ghcr.io/gprodi/microforge-api_ia:${MF_IMAGE_TAG:-main}
     build: { context: ../.., dockerfile: microforge/Dockerfile, target: api_ia }
     environment:
+      MF_LOG_JSON: ${MF_LOG_JSON:-true}
       # Copilote RAG : passages du catalogue dans PostgreSQL + pgvector (table mf_copilot, HNSW)
       MF_COPILOT_VECTOR_URL: postgresql+psycopg://microforge:${POSTGRES_PASSWORD:-microforge}@postgres:5432/microforge
       MF_CORS_ORIGINS: ${MF_CORS_ORIGINS:-http://localhost:${MF_PWA_PORT:-5173},http://127.0.0.1:${MF_PWA_PORT:-5173},http://localhost:${MF_STREAMLIT_PORT:-8501},http://127.0.0.1:${MF_STREAMLIT_PORT:-8501}}
