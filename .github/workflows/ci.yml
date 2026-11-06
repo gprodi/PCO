@@ -162,6 +162,9 @@ jobs:
       ALERTMANAGER: prom/alertmanager:v0.34.2
       GRAFANA: grafana/grafana:13.3.0
       LOKI: grafana/loki:3.7.9
+      # Mot de passe propre à chaque exécution (lu par le compose) : ni valeur par défaut ni
+      # identifiant écrit en clair dans le workflow.
+      GRAFANA_ADMIN_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configuration de Prometheus (promtool check config)
@@ -179,8 +182,9 @@ jobs:
           docker compose --profile monitoring up -d prometheus alertmanager loki grafana
           for i in $(seq 1 60); do curl -sf localhost:3000/api/health && break; sleep 2; done
           curl -sf localhost:3000/api/health
-          dashboards=$(curl -sf -u admin:change-me "localhost:3000/api/search?type=dash-db" | jq length)
-          sources=$(curl -sf -u admin:change-me localhost:3000/api/datasources | jq length)
+          auth="Authorization: Basic $(printf 'admin:%s' "$GRAFANA_ADMIN_PASSWORD" | base64 -w0)"
+          dashboards=$(curl -sf -H "$auth" "localhost:3000/api/search?type=dash-db" | jq length)
+          sources=$(curl -sf -H "$auth" localhost:3000/api/datasources | jq length)
           for i in $(seq 1 30); do
             managers=$(curl -sf localhost:9090/api/v1/alertmanagers | jq '.data.activeAlertmanagers | length')
             [ "$managers" = "1" ] && break; sleep 2
