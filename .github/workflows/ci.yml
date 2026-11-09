@@ -293,10 +293,6 @@ jobs:
           CORE: ${{ matrix.core }}
           FQBN: ${{ matrix.fqbn }}
         run: |
-          mkdir -p "$HOME/.local/bin"  # install.sh exige que le dossier existe
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.local/bin:$PATH"
           # Serveurs des cœurs (Espressif, Arduino, rp2040…) parfois en 504 : 6 essais espacés
           # (30 s à 4 min, ~10 min au plus) au lieu d'un échec au premier téléchargement (CI 117 et
           # 118, 09/11). arduino-cli garde les archives déjà reçues : chaque essai avance (CI 119).
@@ -308,6 +304,19 @@ jobs:
               sleep "$attente"
             done
           }
+          # arduino-cli épinglé (release GitHub du 05/06/2026) et vérifié par son empreinte publiée
+          # dans 1.5.1-checksums.txt, au lieu du script install.sh de la branche master exécuté tel
+          # quel, sans reprise (CI 120 : « Failed to install arduino-cli »).
+          ARDUINO_CLI=1.5.1
+          ARDUINO_CLI_SHA256=28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b
+          archive="$RUNNER_TEMP/arduino-cli.tar.gz"
+          retry curl -fsSL -o "$archive" "https://github.com/arduino/arduino-cli/releases/download/v${ARDUINO_CLI}/arduino-cli_${ARDUINO_CLI}_Linux_64bit.tar.gz"
+          echo "${ARDUINO_CLI_SHA256}  $archive" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$archive" -C "$HOME/.local/bin" arduino-cli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          arduino-cli version
           arduino-cli config init --overwrite
           if [ -n "$INDEX" ]; then arduino-cli config add board_manager.additional_urls "$INDEX"; fi
           retry arduino-cli core update-index

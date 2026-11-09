@@ -59,3 +59,27 @@ def test_installation_des_coeurs_arduino_avec_reprise():
     for cmd in ("arduino-cli core update-index", 'arduino-cli core install "$CORE"', "lib install"):
         line = next(ln for ln in install.splitlines() if cmd in ln)
         assert "retry " in line, f"sans reprise : {line.strip()}"
+
+
+@pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.yml")), ids=lambda p: p.name)
+def test_aucun_script_distant_execute_tel_quel(path):
+    """« curl … | sh » exécute ce que le serveur renvoie au moment du job (branche master)."""
+    text = path.read_text(encoding="utf-8")
+    assert not re.search(r"\|\s*(BINDIR=\S+\s+)?(ba)?sh\b", text), f"{path.name} : script distant"
+    assert "install.sh" not in text
+
+
+def test_arduino_cli_epingle_et_verifie():
+    import yaml
+
+    ci = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    install = next(
+        s["run"]
+        for s in ci["jobs"]["firmware"]["steps"]
+        if s.get("name", "").startswith("Installer arduino-cli")
+    )
+    assert re.search(r"^ARDUINO_CLI=\d+\.\d+\.\d+$", install, flags=re.M)
+    assert re.search(r"^ARDUINO_CLI_SHA256=[0-9a-f]{64}$", install, flags=re.M)
+    assert "sha256sum -c" in install
+    download = next(ln for ln in install.splitlines() if "releases/download" in ln)
+    assert download.startswith("retry curl -fsSL")
