@@ -297,10 +297,11 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           export PATH="$HOME/.local/bin:$PATH"
-          # Serveurs des cœurs (Espressif, Arduino, rp2040…) parfois en 504 : 4 essais espacés
-          # (30, 60, 120 s) au lieu d'un échec au premier téléchargement (CI 117 et 118, 09/11).
+          # Serveurs des cœurs (Espressif, Arduino, rp2040…) parfois en 504 : 6 essais espacés
+          # (30 s à 4 min, ~10 min au plus) au lieu d'un échec au premier téléchargement (CI 117 et
+          # 118, 09/11). arduino-cli garde les archives déjà reçues : chaque essai avance (CI 119).
           retry() {
-            for attente in 30 60 120 0; do
+            for attente in 30 60 120 180 240 0; do
               "$@" && return 0
               [ "$attente" -eq 0 ] && return 1
               echo "::warning::échec de « $* », nouvel essai dans $attente s"
