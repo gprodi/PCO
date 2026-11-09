@@ -42,8 +42,8 @@ jobs:
       DIGIKEY_CLIENT_SECRET: ${{ secrets.DIGIKEY_CLIENT_SECRET }}
       MOUSER_API_KEY: ${{ secrets.MOUSER_API_KEY }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (Node 24)
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2 (Node 24)
         with:
           enable-cache: true
           python-version: "3.13"
@@ -85,7 +85,7 @@ jobs:
           uv run mf-pipeline bench-index --runs 7 --out data/index_bench.json | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Artefacts (jeu nettoyé, rapport, manifestes)
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24)
         with:
           name: collecte-${{ github.run_number }}
           path: |
