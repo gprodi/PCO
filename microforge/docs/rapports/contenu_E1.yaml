@@ -133,8 +133,8 @@ sections:
   Mettre en place un système d'authentification et d'autorisation pour sécuriser l'accès à l'API:
     - "JWT RS256 : jeton d'accès 15 min, jeton de rafraîchissement 7 jours avec rotation et détection de réutilisation (toute la famille est révoquée). La clé publique est publiée (/v1/auth/public-key) pour que l'API IA vérifie les jetons sans pouvoir en émettre. Rôles user/admin, limitation de débit (slowapi) sur /token, en-têtes de sécurité, CORS restreint ; Top 10 OWASP API traité point par point dans docs/E1/api.md."
   Conteneurisation et monitoring de l’API:
-    - "Image Docker multi-étapes (uv), compose par profils ; métriques Prometheus (/metrics), tableaux Grafana, journaux JSON loguru vers Loki, sonde Uptime Kuma sur /health."
-    - "[À COMPLÉTER : capture du tableau Grafana « API données »]"
+    - "Image Docker multi-étapes (uv), compose par profils ; métriques Prometheus (/metrics), tableaux Grafana, journaux JSON loguru vers Loki (collectés par Grafana Alloy) ; Uptime Kuma est déployé, ses sondes sur /health restent à créer dans son interface. La pile complète est vérifiée à chaque push par infra/verifier_pile.py (job CI « Pile complète »)."
+    - "![Grafana, tableau « Application » du 06/11/2026 : disponibilité de l'API de données (arrêtée volontairement pour l'essai) et de l'API IA, requêtes par seconde, latence p95, appels au modèle de langage](E5/img/grafana-application.png)"
   Documenter l'API et les méthodes d'accès aux données:
     - "Documentation OpenAPI générée (/docs et /redoc) complétée par docs/E1/api.md : règles d'authentification, exemples curl, codes d'erreur, accès direct à la base pour les analystes."
 
