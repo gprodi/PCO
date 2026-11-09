@@ -64,7 +64,13 @@ def test_installation_des_coeurs_arduino_avec_reprise():
 @pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.yml")), ids=lambda p: p.name)
 def test_aucun_script_distant_execute_tel_quel(path):
     """« curl … | sh » exécute ce que le serveur renvoie au moment du job (branche master)."""
-    text = path.read_text(encoding="utf-8")
+    # Lignes exécutées seulement : les commentaires peuvent citer l'ancienne pratique.
+    lines = [
+        ln
+        for ln in path.read_text(encoding="utf-8").splitlines()
+        if not ln.lstrip().startswith("#")
+    ]
+    text = "\n".join(lines)
     assert not re.search(r"\|\s*(BINDIR=\S+\s+)?(ba)?sh\b", text), f"{path.name} : script distant"
     assert "install.sh" not in text
 
