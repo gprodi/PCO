@@ -60,6 +60,8 @@ docker compose -f microforge/infra/docker-compose.yml --profile core up -d --bui
 ```
 
 (depuis la racine du dépôt ; ou `cd microforge/infra` puis la même commande sans `-f …`).
+Docker Desktop doit être démarré et Compose en v2.24 ou plus ; erreurs fréquentes et remèdes :
+README racine, « Si la commande `up` échoue ».
 
 La PWA est sur http://localhost:5173.
 

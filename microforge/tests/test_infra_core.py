@@ -107,3 +107,18 @@ def test_port_deja_pris_sur_le_poste_se_change_dans_infra_env(copie):
     for api in ("api_data", "api_ia"):
         cors = services[api]["environment"]["MF_CORS_ORIGINS"].split(",")
         assert "http://localhost:5180" in cors and "http://localhost:5173" not in cors
+
+
+def test_readme_donne_la_version_de_compose_et_les_erreurs_frequentes():
+    """``env_file`` avec ``required:`` demande Compose 2.24 : le README le dit, avec les remèdes
+    aux deux erreurs relevées chez un utilisateur Windows (09/11/2026)."""
+    compose = yaml.safe_load((MF / "infra" / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert any(isinstance(e, dict) and "required" in e for e in compose["x-app"]["env_file"]), (
+        "plus d'env_file facultatif : revoir la version minimale citée dans le README"
+    )
+    readme = (MF.parent / "README.md").read_text(encoding="utf-8")
+    assert "Docker Compose v2.24 ou plus" in readme
+    assert "dockerDesktopLinuxEngine" in readme and "unknown flag: --profile" in readme
+    # python3 n'existe pas sous Windows : le script de vérification passe par uv.
+    assert "uv run python microforge/infra/verifier_pile.py" in readme
+    assert "python3 microforge/infra/verifier_pile.py" not in readme

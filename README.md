@@ -134,7 +134,8 @@ La PWA est sur http://localhost:5173, la preuve de concept Streamlit sur http://
 
 #### Avec Docker (Windows, Mac ou Linux)
 
-Prérequis : Docker Desktop démarré. Toutes les commandes se tapent depuis la racine du dépôt (le
+Prérequis : Docker Desktop démarré (« Engine running ») et Docker Compose v2.24 ou plus
+(`docker compose version`). Toutes les commandes se tapent depuis la racine du dépôt (le
 dossier `PCO`). Tant que la PR n'est pas fusionnée dans `main`, le travail récent est sur la branche
 `claude/amazing-bohr-o38ndx` :
 
@@ -180,8 +181,15 @@ Vérifier que tout fonctionne (avec la supervision : ajouter `--profile monitori
 `up`) ; une ligne OK ou ÉCHEC par contrôle :
 
 ```bash
-python3 microforge/infra/verifier_pile.py
+uv run python microforge/infra/verifier_pile.py
 ```
+
+**Si la commande `up` échoue** (messages relevés sous Windows, Git Bash) :
+
+| Message | Cause | Remède |
+|---|---|---|
+| `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine` | Docker Desktop n'est pas lancé | lancer Docker Desktop, attendre « Engine running », vérifier avec `docker info` |
+| `unknown flag: --profile` (suivi de l'aide de `docker`) | `docker` ne transmet pas l'option à Compose (vu sous Git Bash avec Docker Desktop et Compose v5.6.1, alors que `docker compose version` répondait) | **taper `docker-compose` (avec un tiret) au lieu de `docker compose`**, mêmes options : `docker-compose --profile core up -d --build` (c'est ce qui a marché). Sinon : `docker compose version` doit afficher v2.24 ou plus, et `which -a docker` (Git Bash) ou `where docker` (PowerShell) montrer celui de Docker Desktop en premier |
 
 Aucun fichier `.env` n'est nécessaire : les valeurs de développement de `microforge/.env.example`
 servent par défaut. Pour en changer (clé Gemini, mot de passe PostgreSQL…), copier ce fichier en
