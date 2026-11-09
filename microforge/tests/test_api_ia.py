@@ -232,6 +232,7 @@ def test_from_goal_and_ideas(ia_client):
     )
     assert r.status_code == 200 and r.json()["spec"]["title"] == "Veilleuse"
     assert r.json()["template"] is None  # projet libre : pas de modèle du catalogue
+    assert r.json()["origin"] == "ia" and "ni compilé" in r.json()["notice"]
     assert r.json()["atelier"]["code"]  # mais la logique simple se simule
     ideas = ia_client.post(
         "/v1/builds/ideas",
@@ -240,6 +241,35 @@ def test_from_goal_and_ideas(ia_client):
     ).json()
     assert ideas and ideas[0]["ok"]
     assert ia_client.post("/v1/builds/from-goal", json={"goal": "x"}, headers=h).status_code == 422
+
+
+def test_from_goal_sans_ia_le_dit(ia_client):
+    """IA injoignable : le modèle le plus proche est renvoyé, et la réponse le dit."""
+    _services_with(FakeProvider(fail=True))
+    r = ia_client.post(
+        "/v1/builds/from-goal",
+        json={
+            "goal": "Alarme de cave : un buzzer sonne si l'eau monte",
+            "components": ["water-level-sensor", "buzzer"],
+        },
+        headers=token_header(),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["origin"] == "repli" and body["spec"]["template_id"]
+    assert body["notice"].startswith("Aucune IA n'a répondu")
+    assert "modèle du catalogue le plus proche" in body["notice"]
+    assert body["spec"]["title"] in body["notice"]
+    assert body["template"] is not None  # modèle du catalogue : choix de carte, zip
+
+
+def test_generation_par_modele_sans_provenance(ia_client):
+    r = ia_client.post(
+        "/v1/builds/generate",
+        json={"template_id": "veilleuse-auto", "board": "arduino-uno"},
+        headers=token_header(),
+    )
+    assert r.status_code == 200 and r.json()["origin"] is None and r.json()["notice"] is None
 
 
 def test_metrics_expose_model_and_llm(ia_client):

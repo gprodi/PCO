@@ -74,7 +74,7 @@ header.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
   .brand { font-size: 24px; }
   .logout { margin-left: auto; padding: 8px; }
   .logout span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .nav { position: fixed; inset: auto 0 0 0; z-index: 6; margin: 0; gap: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  .nav { position: fixed; inset: auto 0 0 0; z-index: 6; margin: 0; gap: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
     background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgb(0 0 0 / .06);
     padding: 4px max(4px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px)); }
   .nav a { flex-direction: column; gap: 3px; padding: 7px 2px; font-size: 12.5px; letter-spacing: .03em; justify-content: center; text-align: center; min-width: 0; }
@@ -93,6 +93,8 @@ section > .lede { margin-bottom: 14px; }
 .status { min-height: 1.5em; margin: 0; color: var(--muted); }
 .status.err { color: var(--err); }
 .notice { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; max-width: 72ch; }
+.notice.warn { border-left-color: var(--warn); }
+.project-head .notice { margin: 4px 0 0; }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; }
@@ -205,6 +207,24 @@ wokwi-arduino-uno:not(:defined) { display: block; width: 274px; height: 202px; m
 .items { list-style: none; padding: 0; margin: 0; display: grid; }
 .items li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
 .items li:first-child { border-top: 0; }
+.projects { list-style: none; padding: 0; margin: 0; display: grid; }
+.projects li { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line); }
+.projects li:first-child { border-top: 0; }
+.projects .actions { display: flex; gap: 6px; flex: none; }
+.seg { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.seg legend { font-weight: 600; font-size: 14px; padding: 0; margin: 6px 0 6px; }
+.form .seg label { display: inline-flex; align-items: center; gap: 6px; margin: 0; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.seg label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.seg input { width: auto; margin: 0; accent-color: var(--accent); }
+.sim-code { margin-top: 14px; }
+.sim-code summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+.two-wide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.two-wide > div { display: grid; gap: 6px; }
+.atelier-pick { margin-bottom: 14px; }
+.achats { margin: 0 0 16px; }
+.achats h2 { font-size: 20px; margin-top: 0; }
+@media (max-width: 600px) { .two-wide { grid-template-columns: minmax(0, 1fr); } }
+.sim-code pre { max-height: 360px; overflow: auto; }
 .qty { font: 700 20px/1 var(--display); color: var(--copper); background: var(--copper-soft); border-radius: 8px; padding: 8px 0; text-align: center; font-variant-numeric: tabular-nums; }
 .item-name { display: grid; gap: 1px; min-width: 0; overflow-wrap: anywhere; }
 .item-name small { color: var(--muted); font-size: 13px; }

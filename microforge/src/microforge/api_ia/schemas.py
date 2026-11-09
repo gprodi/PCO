@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -57,6 +57,11 @@ class BuildOut(BaseModel):
     #: Métadonnées du modèle de projet (notions, difficulté, références, cartes compatibles) ;
     #: ``None`` pour un projet libre (``/v1/builds/from-goal``).
     template: dict[str, Any] | None = None
+    #: ``/v1/builds/from-goal`` seulement : « ia » (conçu par le modèle de langage puis validé par
+    #: le moteur) ou « repli » (modèle du catalogue le plus proche, faute de proposition valide).
+    origin: Literal["ia", "repli"] | None = None
+    #: Phrase à montrer à l'utilisateur : d'où vient le projet, ce qui n'a pas été vérifié.
+    notice: str | None = None
 
 
 class CopilotIn(BaseModel):

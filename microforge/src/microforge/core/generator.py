@@ -12,6 +12,7 @@ le modèle de projet du catalogue le plus proche.
 from __future__ import annotations
 
 import re
+from typing import Literal, NamedTuple
 
 from llm_gateway import Gateway, LLMError, StructuredOutputError
 from loguru import logger
@@ -21,6 +22,18 @@ from microforge.core.catalog import Catalog, get_catalog, normalize
 from microforge.core.models import PartInstance, ProjectSpec
 
 _FUNC = re.compile(r"^\s*(?:inline\s+)?([\w:<>]+[\s&*]+)\$\{name\}_(\w+)\(([^)]*)\)", re.M)
+
+
+class GoalOutcome(NamedTuple):
+    """Projet obtenu à partir d'un objectif, et sa provenance."""
+
+    spec: ProjectSpec
+    #: « ia » : conçu par le modèle de langage puis validé par le moteur ; « repli » : modèle du
+    #: catalogue le plus proche, faute de proposition valide.
+    origin: Literal["ia", "repli"]
+    #: Pour un repli : « indisponible » (aucun modèle de langage n'a répondu) ou « invalide ».
+    reason: str | None = None
+    errors: tuple[str, ...] = ()
 
 
 class IdeaPart(BaseModel):
@@ -129,16 +142,29 @@ class ProjectGenerator:
             [],
         )
 
-    def closest_template(self, goal: str) -> str:
-        """Modèle du catalogue le plus proche (recherche lexicale), en secours."""
+    def closest_template(
+        self, goal: str, components: list[str] | None = None, board: str | None = None
+    ) -> str:
+        """Modèle du catalogue le plus proche, en secours : mots communs avec le titre, la
+        description et les étiquettes, plus les composants suggérés en commun (comptés double).
+        Avec une carte imposée, seuls les modèles qui s'y montent sont candidats."""
         words = set(normalize(goal).split())
+        wanted = {self.catalog.resolve(c) or c for c in components or []}
+        candidates = list(self.catalog.templates)
+        if board in self.catalog.boards:
+            fitting = [
+                tid
+                for tid in candidates
+                if self.catalog.template_fits(tid, self.catalog.boards[board])
+            ]
+            candidates = fitting or candidates
 
         def score(tid: str) -> int:
             t = self.catalog.templates[tid]
             text = set(normalize(" ".join([t.title, t.description, *t.tags])).split())
-            return len(words & text)
+            return len(words & text) + 2 * len(wanted & {p.component for p in t.parts})
 
-        return max(self.catalog.templates, key=score)
+        return max(candidates, key=score)
 
     # ------------------------------------------------------------------ LLM
     def from_goal(
@@ -149,6 +175,17 @@ class ProjectGenerator:
         components: list[str] | None = None,
     ) -> ProjectSpec:
         """« Je veux construire… » -> ProjectSpec (avec repli sur un modèle du catalogue)."""
+        return self.design(goal, inventory, board, components).spec
+
+    def design(
+        self,
+        goal: str,
+        inventory: dict[str, int] | None = None,
+        board: str | None = None,
+        components: list[str] | None = None,
+    ) -> GoalOutcome:
+        """Comme :meth:`from_goal`, en disant d'où vient le projet : conçu par l'IA puis validé,
+        ou modèle du catalogue pris en repli (IA injoignable, ou propositions invalides)."""
         stock = ""
         if inventory:
             stock = "Stock disponible (à privilégier) : " + ", ".join(
@@ -162,6 +199,7 @@ class ProjectGenerator:
             "Propose UN projet complet."
         )
         errors: list[str] = []
+        reason = "invalide"
         for _attempt in range(2):
             try:
                 idea = self.gateway.structured(
@@ -171,23 +209,29 @@ class ProjectGenerator:
                     role="code",
                     max_tokens=4096,
                 )
-            except (LLMError, StructuredOutputError) as exc:
+            except StructuredOutputError as exc:
+                logger.warning("Réponse du LLM hors format : {}", exc)
+                errors = ["réponse hors du format demandé"]
+                break
+            except LLMError as exc:
                 logger.warning("LLM indisponible pour la génération : {}", exc)
+                reason = "indisponible"
                 break
             if board:
                 idea.board = board
             spec, errors = self.validate_idea(idea)
             if spec is not None:
-                return spec
+                return GoalOutcome(spec, "ia")
             logger.info("Idée invalide, nouvelle tentative : {}", errors)
-        tid = self.closest_template(goal)
-        logger.info("Repli sur le modèle « {} »", tid)
+        tid = self.closest_template(goal, components, board)
+        logger.info("Repli sur le modèle « {} » ({})", tid, reason)
         from microforge.core.builder import ProjectBuilder
 
         target = board or (
             "esp32-devkit-v1" if self.catalog.templates[tid].requires_wifi else "arduino-uno"
         )
-        return ProjectBuilder(self.catalog).spec_from_template(tid, target)
+        spec = ProjectBuilder(self.catalog).spec_from_template(tid, target)
+        return GoalOutcome(spec, "repli", reason, tuple(errors))
 
     def ideas_from_inventory(self, inventory: dict[str, int], n: int = 3) -> list[ProjectSpec]:
         """Idées créatives (hors modèles) contraintes au stock, validées une à une."""

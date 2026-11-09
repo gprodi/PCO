@@ -43,6 +43,9 @@ def show_issues(issues: list[dict]) -> None:
 def show_build(build: dict, key: str) -> None:
     """Onglets : câblage, schéma, code, guide, Wokwi, KiCad, nomenclature."""
     files = build["files"]
+    # Projet demandé à l'IA : d'où il vient (conçu par l'IA, ou modèle le plus proche en repli).
+    if build.get("notice"):
+        (st.warning if build.get("origin") == "repli" else st.info)(build["notice"])
     show_issues(build["issues"])
     tabs = st.tabs(
         [

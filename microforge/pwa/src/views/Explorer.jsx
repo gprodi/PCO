@@ -11,7 +11,7 @@ function Meter({ value, label }) {
   );
 }
 
-function IdeaCard({ idea, names, onGenerate }) {
+function IdeaCard({ idea, names, onGenerate, onDesign }) {
   const missing = new Set(idea.manquants);
   const state = idea.realisable
     ? <span className="pill ok">réalisable avec ton stock</span>
@@ -39,12 +39,17 @@ function IdeaCard({ idea, names, onGenerate }) {
         ? <button className="btn" type="button" onClick={() => onGenerate(idea.template, idea.wifi, idea.titre)}>
             Générer ce projet <Icon name="fleche" size={16} />
           </button>
-        : <p className="muted small">Idée à monter soi-même : pas encore de modèle générable.</p>}
+        : <>
+            <button className="btn ghost" type="button" onClick={() => onDesign(idea)}>
+              Concevoir avec l'IA <Icon name="fleche" size={16} />
+            </button>
+            <p className="muted small">Pas encore de modèle vérifié : l'IA propose un montage que le moteur contrôle ; sans IA disponible, tu obtiens le modèle le plus proche (et c'est indiqué).</p>
+          </>}
     </article>
   );
 }
 
-export default function Explorer({ client, workshop, onGenerate }) {
+export default function Explorer({ client, workshop, onGenerate, onDesign }) {
   const [themes, setThemes] = useState(null);
   const [ideas, setIdeas] = useState(null);
   const [theme, setTheme] = useState(null);
@@ -133,7 +138,7 @@ export default function Explorer({ client, workshop, onGenerate }) {
           <div className="grid">
             {[...current.idees]
               .sort((a, b) => Number(b.realisable) - Number(a.realisable) || a.manquants.length - b.manquants.length)
-              .map((i) => <IdeaCard key={i.titre} idea={i} names={workshop.names} onGenerate={onGenerate} />)}
+              .map((i) => <IdeaCard key={i.titre} idea={i} names={workshop.names} onGenerate={onGenerate} onDesign={onDesign} />)}
           </div>
         </section>
       )}

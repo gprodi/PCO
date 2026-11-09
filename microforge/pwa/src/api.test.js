@@ -132,6 +132,52 @@ describe('client MicroForge', () => {
     expect(fetchImpl.calls[1].url).toBe(`${IA}/v1/ideas/inspiration`);
   });
 
+  it('projets : modèles, enregistrement, liste d\'achat, projet libre reconstruit et zippé', async () => {
+    const spec = { title: 'Serre connectée', board: 'esp32-devkit-v1', template_id: null, parts: [] };
+    const fetchImpl = fakeFetch([
+      { body: [{ id: 'veilleuse-auto', title: 'Veilleuse' }] },
+      { body: { id: 7 }, status: 201 },
+      { body: { to_buy: [], total_eur: 0 } },
+      { body: { spec } },
+      { body: { spec } },
+      { status: 204 },
+    ]);
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    expect(await c.templates()).toHaveLength(1);
+    expect(fetchImpl.calls[0].url).toBe(`${DATA}/v1/templates`);
+    expect((await c.saveProject(spec)).id).toBe(7);
+    expect(JSON.parse(fetchImpl.calls[1].body)).toEqual({ title: 'Serre connectée', board_id: 'esp32-devkit-v1', template_id: null, spec });
+    expect((await c.shoppingList(7)).total_eur).toBe(0);
+    expect(JSON.parse(fetchImpl.calls[2].body)).toEqual({ project_id: 7 });
+    expect((await c.project(7)).spec.title).toBe('Serre connectée');
+    expect(fetchImpl.calls[3].url).toBe(`${DATA}/v1/projects/7`);
+    await c.buildSpec(spec);
+    expect(fetchImpl.calls[4].url).toBe(`${IA}/v1/builds/generate`);
+    expect(JSON.parse(fetchImpl.calls[4].body)).toEqual({ spec });
+    expect(await c.deleteProject(7)).toBeNull();
+    expect(fetchImpl.calls[5].method).toBe('DELETE');
+  });
+
+  it('zip d\'un projet libre : la spécification part à la place du modèle', async () => {
+    const fetchImpl = async (url, init) => { fetchImpl.body = init.body; return new Response(new Blob(['PK']), { status: 200 }); };
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    await c.bundle(null, 'arduino-uno', { title: 'Libre' });
+    expect(JSON.parse(fetchImpl.body)).toEqual({ spec: { title: 'Libre' } });
+    await c.bundle('veilleuse-auto', 'arduino-uno');
+    expect(JSON.parse(fetchImpl.body)).toEqual({ template_id: 'veilleuse-auto', board: 'arduino-uno' });
+  });
+
+  it('idée sans modèle : objectif, stock et composants envoyés ; provenance rendue', async () => {
+    const fetchImpl = fakeFetch([{ body: { spec: { title: 'Alarme de cave' }, origin: 'repli', notice: 'Pas de conception sur mesure…' } }]);
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    const b = await c.fromGoal('Alarme de cave : buzzer si l\'eau monte', { inventory: { buzzer: 1 }, components: ['buzzer'] });
+    expect(b.origin).toBe('repli');
+    expect(fetchImpl.calls[0].url).toBe(`${IA}/v1/builds/from-goal`);
+    expect(JSON.parse(fetchImpl.calls[0].body)).toEqual({
+      goal: 'Alarme de cave : buzzer si l\'eau monte', board: null, inventory: { buzzer: 1 }, components: ['buzzer'],
+    });
+  });
+
   it('stockage indisponible : aucune exception', () => {
     const broken = { getItem() { throw new Error('bloqué'); }, setItem() { throw new Error('bloqué'); }, removeItem() { throw new Error('bloqué'); } };
     const s = safeStorage(broken);

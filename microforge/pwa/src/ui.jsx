@@ -57,6 +57,8 @@ const PATHS = {
   stock: 'M3.5 8 12 4l8.5 4v8L12 20l-8.5-4zM3.5 8 12 12l8.5-4M12 12v8',
   projet: 'M7 3h10v18H7zM10 7h4M10 11h4M4 8h3M4 12h3M4 16h3M17 8h3M17 12h3M17 16h3',
   copilote: 'M4 5h16v11H9l-5 4zM8 9.5h8M8 12.5h5',
+  creer: 'M4 20l1-4L16 5l3 3L8 19zM14 7l3 3',
+  atelier: 'M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5',
   photo: 'M4 8h3.5L9 5.5h6L16.5 8H20v11H4zM12 16.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   fleche: 'M5 12h13M13 7l5 5-5 5',
   plus: 'M12 5v14M5 12h14',

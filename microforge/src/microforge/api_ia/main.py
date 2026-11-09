@@ -103,6 +103,21 @@ def _build_out(result: BuildResult) -> BuildOut:
     )
 
 
+def _goal_notice(origin: str, reason: str | None, title: str) -> str:
+    if origin == "ia":
+        return (
+            "Montage proposé par l'IA, puis vérifié par le moteur (composants du catalogue, "
+            "broches, contrôle électrique). Le code n'a été ni compilé en CI ni essayé sur du "
+            "vrai matériel : relis-le avant de téléverser."
+        )
+    why = (
+        "Aucune IA n'a répondu (Ollama arrêté ou injoignable, pas de clé Gemini)"
+        if reason == "indisponible"
+        else "L'IA n'a pas proposé de montage valide"
+    )
+    return f"{why} : voici le modèle du catalogue le plus proche, « {title} »."
+
+
 def _spec(body: BuildIn) -> ProjectSpec:
     svc = services()
     if body.spec is not None:
@@ -246,10 +261,19 @@ def create_app() -> FastAPI:
     def from_goal(
         request: Request, body: GoalIn, _p: Principal = Depends(current_principal)
     ) -> BuildOut:
-        """« Je veux construire… » : le LLM choisit les composants, le cœur déterministe câble."""
+        """« Je veux construire… » : le LLM choisit les composants, le cœur déterministe câble.
+
+        Sans proposition valide du LLM (injoignable, ou deux réponses refusées par le moteur), le
+        modèle du catalogue le plus proche est renvoyé, et ``origin``/``notice`` le disent."""
         svc = services()
-        spec = svc.generator.from_goal(body.goal, body.inventory, body.board, body.components)
-        return _build_out(svc.builder.build(spec))
+        outcome = svc.generator.design(body.goal, body.inventory, body.board, body.components)
+        try:
+            out = _build_out(svc.builder.build(outcome.spec))
+        except (AllocationError, KeyError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+        out.origin = outcome.origin
+        out.notice = _goal_notice(outcome.origin, outcome.reason, outcome.spec.title)
+        return out
 
     @app.post("/v1/ideas/explore", tags=["projets"])
     def explore_ideas(body: ExploreIn, _p: Principal = Depends(current_principal)) -> list[dict]:

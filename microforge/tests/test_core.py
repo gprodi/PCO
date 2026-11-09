@@ -455,6 +455,25 @@ def test_generator_falls_back_to_template_when_llm_invalid():
     gen = ProjectGenerator(Gateway.fake(FakeProvider({"radar": bad})), CAT)
     s = gen.from_goal("un radar de recul pour mon garage")
     assert s.template_id == "radar-de-recul"
+    out = gen.design("un radar de recul pour mon garage")
+    assert (out.origin, out.reason) == ("repli", "invalide") and out.errors
+
+
+def test_generator_dit_quand_l_ia_est_injoignable():
+    gen = ProjectGenerator(Gateway.fake(FakeProvider(fail=True)), CAT)
+    out = gen.design("un radar de recul pour mon garage")
+    assert (out.origin, out.reason) == ("repli", "indisponible")
+    assert out.spec.template_id == "radar-de-recul"
+
+
+def test_modele_le_plus_proche_tient_compte_des_composants_et_de_la_carte():
+    gen = ProjectGenerator(Gateway.fake(FakeProvider(fail=True)), CAT)
+    # Aucun mot en commun : les composants suggérés départagent.
+    tid = gen.closest_template("zzz", ["hc-sr04"])
+    assert "hc-sr04" in {p.component for p in CAT.templates[tid].parts}
+    # Carte imposée sans Wi-Fi : jamais un modèle qui exige le Wi-Fi.
+    tid = gen.closest_template("station météo web wifi", None, "arduino-uno")
+    assert CAT.template_fits(tid, CAT.boards["arduino-uno"])
 
 
 def test_generator_ideas_from_inventory():

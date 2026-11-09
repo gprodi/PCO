@@ -26,7 +26,7 @@ function CopyButton({ text, label = 'Copier' }) {
   );
 }
 
-function CodeBlock({ name, text, caption }) {
+export function CodeBlock({ name, text, caption }) {
   return (
     <div className="codeblock">
       <div className="codebar">
@@ -44,9 +44,32 @@ function Check({ ok, label, children }) {
   );
 }
 
+/** Liste d'achat d'un projet enregistré : ce qui manque au stock, chiffré avec les offres collectées. */
+function Achats({ list }) {
+  if (!list.to_buy.length) return <p>Rien à acheter : tout est dans ton stock.</p>;
+  return (
+    <>
+      <div className="scroll" tabIndex={0} role="region" aria-label="Liste d'achat (défile horizontalement)">
+        <table>
+          <thead><tr><th scope="col">Composant</th><th scope="col" className="num">Il faut</th><th scope="col" className="num">En stock</th><th scope="col" className="num">À acheter</th><th scope="col">Fournisseur</th><th scope="col" className="num">Sous-total</th></tr></thead>
+          <tbody>{list.to_buy.map((l) => (
+            <tr key={l.component}>
+              <td>{l.name}</td><td className="num">{l.needed}</td><td className="num">{l.owned}</td><td className="num"><strong>{l.to_buy}</strong></td>
+              <td>{l.url ? <a href={l.url} target="_blank" rel="noopener noreferrer">{l.supplier}</a> : l.supplier}</td>
+              <td className="num">{l.unit_price_eur == null ? '—' : euros(l.subtotal)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <p><strong>Total : {euros(list.total_eur)}</strong> <span className="small muted">(prix des offres collectées, sinon prix indicatif du catalogue)</span></p>
+    </>
+  );
+}
+
 export default function Projet({ build, client, onBoard }) {
   const [tab, setTab] = useState('cablage');
   const [zip, setZip] = useState(null);
+  const [saved, setSaved] = useState(null);
   if (!build) {
     return (
       <div className="card empty">
@@ -80,11 +103,12 @@ export default function Projet({ build, client, onBoard }) {
     const board = spec.board;
     setZip({ board, text: 'Préparation de l\'archive…' });
     try {
-      const blob = await client.bundle(spec.template_id, spec.board);
+      // Projet libre (conçu par l'IA) : la spécification complète part avec la demande.
+      const blob = await client.bundle(spec.template_id, spec.board, spec.template_id ? null : spec);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${spec.template_id}-${spec.board}.zip`;
+      a.download = `${spec.template_id ?? 'projet-libre'}-${spec.board}.zip`;
       document.body.append(a);
       a.click();
       a.remove();
@@ -92,6 +116,24 @@ export default function Projet({ build, client, onBoard }) {
       setZip({ board, text: `Archive téléchargée : ${a.download}.` });
     } catch (err) {
       setZip({ board, text: message(err), error: true });
+    }
+  }
+
+  async function save() {
+    setSaved({ text: 'Enregistrement…' });
+    let id;
+    try {
+      id = (await client.saveProject(spec)).id;
+    } catch (err) {
+      setSaved({ text: message(err), error: true });
+      return;
+    }
+    const done = 'Enregistré dans tes projets (page Créer).';
+    setSaved({ text: done, id });
+    try {
+      setSaved({ text: done, id, list: await client.shoppingList(id) });
+    } catch (err) {
+      setSaved({ text: `${done} Liste d'achat indisponible : ${message(err)}`, id, error: true });
     }
   }
 
@@ -121,12 +163,26 @@ export default function Projet({ build, client, onBoard }) {
           ) : (
             <span className="pill">{boards[0]?.name ?? spec.board}</span>
           )}
-          {spec.template_id && (
-            <button className="btn" type="button" onClick={download}><Icon name="telecharger" size={18} /> Télécharger le projet (.zip)</button>
-          )}
+          <button className="btn" type="button" onClick={download}><Icon name="telecharger" size={18} /> Télécharger le projet (.zip)</button>
+          <button className="btn ghost" type="button" onClick={save} disabled={saved?.id != null}>
+            <Icon name="plus" size={18} /> {saved?.id != null ? 'Enregistré' : 'Enregistrer dans mes projets'}
+          </button>
         </div>
+        {saved && <p className={`status${saved.error ? ' err' : ''}`} role="status">{saved.text}</p>}
         {zip?.board === spec.board && <p className={`status${zip.error ? ' err' : ''}`} role="status">{zip.text}</p>}
+        {build.notice && (
+          <p className={`notice${build.origin === 'repli' ? ' warn' : ''}`} role="note">
+            <strong>{build.origin === 'repli' ? 'Pas de conception sur mesure.' : "Conçu par l'IA."}</strong> {build.notice}
+          </p>
+        )}
       </header>
+
+      {saved?.list && (
+        <section className="card achats" aria-labelledby="t-achats">
+          <h2 id="t-achats">Liste d'achat</h2>
+          <Achats list={saved.list} />
+        </section>
+      )}
 
       {build.issues.length > 0 && (
         <ul className="issues" aria-label="Contrôle électrique">

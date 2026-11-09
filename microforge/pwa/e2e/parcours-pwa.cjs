@@ -111,6 +111,9 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
         page.getByRole('button', { name: 'Télécharger le projet (.zip)' }).click(),
       ]);
       expect(download.suggestedFilename().endsWith('.zip'), 'archive .zip');
+      // Enregistrement : le projet rejoint « Mes projets », la liste d'achat compare au stock.
+      await page.getByRole('button', { name: 'Enregistrer dans mes projets' }).click();
+      await page.getByRole('heading', { name: "Liste d'achat" }).waitFor({ timeout: 30000 });
       // Changement de carte : le projet est régénéré pour la carte choisie.
       const pick = page.getByLabel('Carte');
       const options = await pick.locator('option').evaluateAll((os) => os.map((o) => o.value));
@@ -127,6 +130,59 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.waitForTimeout(3500); // premier rafraîchissement de l'écran (toutes les 2 s)
       await page.screenshot({ path: path.join(shots, 'pwa-atelier-bureau.png'), fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
+    });
+    await step('idée sans modèle', async () => {
+      // Thème sans modèle vérifié : « Concevoir avec l'IA ». Sans vraie IA (modèle simulé en test,
+      // pas d'Ollama dans la pile de la CI), le modèle le plus proche est renvoyé, et c'est écrit.
+      await page.getByRole('link', { name: 'Explorer', exact: true }).click();
+      await page.getByRole('button', { name: /Animaux/ }).click({ timeout: 30000 });
+      await page.getByRole('heading', { name: 'Animaux', level: 2 }).waitFor();
+      await page.getByRole('button', { name: "Concevoir avec l'IA" }).first().click();
+      const note = page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' });
+      await note.waitFor({ timeout: 120000 });
+      expect(/Aucune IA n'a répondu|pas proposé de montage valide/.test(await note.innerText()), 'raison du repli');
+      await page.getByRole('tab', { name: 'Câblage' }).waitFor();
+      await page.screenshot({ path: path.join(shots, 'pwa-idee-ia.png') });
+    });
+    await step('créer', async () => {
+      // Comme la page Streamlit « Je veux construire… » : modèle du catalogue, puis idée libre.
+      await page.getByRole('link', { name: 'Créer', exact: true }).click();
+      await page.getByRole('heading', { name: 'Je veux construire…', level: 1 }).waitFor();
+      const saved = page.getByRole('region', { name: /Mes projets enregistrés/ }).or(page.locator('section[aria-labelledby="t-mes-projets"]'));
+      await saved.getByRole('button', { name: 'Ouvrir' }).first().waitFor({ timeout: 30000 });
+      await page.getByLabel('Choisir un modèle').check();
+      const options = await page.getByLabel(/^Modèle/).locator('option:not([disabled])').evaluateAll((os) => os.map((o) => o.value));
+      expect(options.length >= 50, 'modèles du catalogue proposés');
+      await page.getByLabel(/^Modèle/).selectOption(options[0]);
+      await page.getByRole('button', { name: 'Générer' }).click();
+      await page.getByRole('tab', { name: 'Câblage' }).waitFor({ timeout: 60000 });
+      await page.getByRole('link', { name: 'Créer', exact: true }).click();
+      await page.getByLabel('Décrire mon idée').check();
+      await page.getByLabel('Décris ce que tu veux construire').fill('Une veilleuse qui s\'allume quand il fait noir dans le couloir');
+      await page.getByRole('button', { name: 'Concevoir le projet' }).click();
+      await page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' }).waitFor({ timeout: 120000 });
+      await page.getByRole('link', { name: 'Créer', exact: true }).click();
+      await page.screenshot({ path: path.join(shots, 'pwa-creer.png') });
+      // Projet enregistré rouvert : reconstruit à partir de sa spécification.
+      await saved.getByRole('button', { name: 'Ouvrir' }).first().click();
+      await page.getByRole('tab', { name: 'Câblage' }).waitFor({ timeout: 60000 });
+    });
+    await step('atelier', async () => {
+      // Comme la page Streamlit « Atelier virtuel » : un projet, une carte, brancher, simuler.
+      await page.getByRole('link', { name: 'Atelier', exact: true }).click();
+      await page.getByRole('heading', { name: 'Brancher, puis voir fonctionner', level: 1 }).waitFor();
+      const frame = page.frameLocator('iframe[title^="Atelier virtuel"]');
+      await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 60000 });
+      await frame.locator('.mfa-time').filter({ hasNotText: '00:00.0' }).waitFor({ timeout: 15000 });
+      await page.screenshot({ path: path.join(shots, 'pwa-atelier-vue.png') });
+      // Autre projet : le cadre est rechargé avec le nouveau montage.
+      const projets = await page.getByLabel('Projet').locator('option').evaluateAll((os) => os.map((o) => o.value));
+      const now = await page.getByLabel('Projet').inputValue();
+      await page.getByLabel('Projet').selectOption(projets.find((v) => v !== now));
+      await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 60000 });
+      await frame.locator('.mfa-time').filter({ hasNotText: '00:00.0' }).waitFor({ timeout: 15000 });
+      await page.getByText('Code JavaScript exécuté par la simulation').click();
+      await page.getByRole('region', { name: 'Fichier simulation.js' }).or(page.getByLabel('Fichier simulation.js')).waitFor();
     });
     await step('copilote', async () => {
       await page.getByRole('link', { name: 'Copilote', exact: true }).click();

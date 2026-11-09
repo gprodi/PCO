@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from './api.js';
 import { Icon, Status, message } from './ui.jsx';
 import Accueil from './views/Accueil.jsx';
+import Atelier from './views/Atelier.jsx';
 import Connexion from './views/Connexion.jsx';
 import Copilote from './views/Copilote.jsx';
+import Creer from './views/Creer.jsx';
 import Explorer from './views/Explorer.jsx';
 import Photo from './views/Photo.jsx';
 import Projet from './views/Projet.jsx';
@@ -18,11 +20,14 @@ const IA_URL = CONFIG.apiIaUrl || import.meta.env.VITE_API_IA_URL || 'http://loc
 const NAV = [
   ['accueil', 'Accueil'],
   ['explorer', 'Explorer'],
+  ['creer', 'Créer'],
+  ['atelier', 'Atelier'],
   ['stock', 'Mon stock'],
-  ['projet', 'Projet'],
   ['copilote', 'Copilote'],
 ];
-const ROUTES = new Set([...NAV.map(([id]) => id), 'photo']);
+const ROUTES = new Set([...NAV.map(([id]) => id), 'photo', 'projet']);
+/** Vue ouverte depuis une autre : l'entrée de navigation qui reste en surbrillance. */
+const PARENT = { photo: 'stock', projet: 'creer' };
 
 function useRoute() {
   const read = () => {
@@ -112,6 +117,35 @@ export default function App() {
     setBusy({ text: message(last), error: true });
   }
 
+  /** Projet obtenu autrement qu'en générant un modèle : affiché, puis page du projet. */
+  async function open(text, load) {
+    setBusy({ text });
+    try {
+      setBuild(await load());
+      setBusy(null);
+      location.hash = 'projet';
+    } catch (err) {
+      setBusy({ text: message(err), error: true });
+    }
+  }
+
+  /** Objectif libre : conception par l'IA (vérifiée par le moteur), ou modèle le plus proche. */
+  function conceive(goal, title, { board = null, useStock = true, components = null } = {}) {
+    return open(`Conception de « ${title} » avec l'IA… (jusqu'à une minute avec un modèle local)`,
+      () => client.fromGoal(goal, { board, inventory: useStock ? workshop.summary : null, components }));
+  }
+
+  /** Idée d'Explorer sans modèle : ses composants guident l'IA, et le repli éventuel. */
+  function design(idea) {
+    const wifiBoard = workshop.ownedBoards.find((b) => /esp|pico-w|wifi|nano-33-iot|mkr/i.test(b)) ?? 'esp32-devkit-v1';
+    return conceive(`${idea.titre} : ${idea.description}`, idea.titre, { board: idea.wifi ? wifiBoard : null, components: idea.composants });
+  }
+
+  /** Projet enregistré : sa spécification est reconstruite (câblage, code, contrôle à jour). */
+  function reopen(id) {
+    return open('Ouverture du projet enregistré…', async () => client.buildSpec((await client.project(id)).spec));
+  }
+
   return (
     <>
       <a className="skip" href="#contenu">Aller au contenu</a>
@@ -129,7 +163,7 @@ export default function App() {
           {logged && (
             <nav className="nav" aria-label="Sections">
               {NAV.map(([id, label]) => (
-                <a key={id} href={`#${id}`} aria-current={route === id || (route === 'photo' && id === 'stock') ? 'page' : undefined}>
+                <a key={id} href={`#${id}`} aria-current={route === id || PARENT[route] === id ? 'page' : undefined}>
                   <Icon name={id} size={22} />
                   <span>{label}</span>
                 </a>
@@ -145,11 +179,18 @@ export default function App() {
         {busy && <Status state={busy} />}
         {!logged && <Connexion client={client} onLogged={() => { setLogged(true); location.hash = 'accueil'; }} />}
         {logged && route === 'accueil' && <Accueil client={client} workshop={workshop} onGenerate={generate} />}
-        {logged && route === 'explorer' && <Explorer client={client} workshop={workshop} onGenerate={generate} />}
+        {logged && route === 'explorer' && <Explorer client={client} workshop={workshop} onGenerate={generate} onDesign={design} />}
+        {logged && route === 'creer' && (
+          <Creer client={client} workshop={workshop} build={build} onGenerate={generate}
+            onGoal={(goal, opts) => conceive(goal, goal.length > 60 ? `${goal.slice(0, 57)}…` : goal, opts)} onOpen={reopen} />
+        )}
+        {logged && route === 'atelier' && (
+          <Atelier client={client} build={build} onOpenBuild={(r) => { setBuild(r); location.hash = 'projet'; }} />
+        )}
         {logged && route === 'stock' && <Stock client={client} workshop={workshop} onChange={workshop.refresh} />}
         {logged && route === 'photo' && <Photo client={client} onChange={workshop.refresh} />}
         {logged && route === 'projet' && (
-          <Projet key={build?.spec.template_id ?? 'vide'} build={build} client={client}
+          <Projet key={build?.spec.template_id ?? build?.spec.title ?? 'vide'} build={build} client={client}
             onBoard={(board) => generate(build.spec.template_id, build.spec.uses_wifi, build.spec.title, board)} />
         )}
         {logged && route === 'copilote' && <Copilote client={client} workshop={workshop} />}

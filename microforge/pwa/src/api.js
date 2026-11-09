@@ -144,9 +144,26 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
     suggest: (inventory, limit = 12) => call(iaUrl, '/v1/builds/suggest', { method: 'POST', json: { inventory, limit } }),
     generate: (templateId, board) =>
       call(iaUrl, '/v1/builds/generate', { method: 'POST', json: { template_id: templateId, board } }),
-    /** Projet complet en .zip (sketch, câblage, Wokwi, KiCad, nomenclature, PlatformIO). */
-    bundle: (templateId, board) =>
-      call(iaUrl, '/v1/builds/bundle', { method: 'POST', json: { template_id: templateId, board } }, (res) => res.blob()),
+    /** Idée sans modèle : l'IA propose un montage que le moteur vérifie ; sans IA, modèle le plus
+     * proche. La réponse le dit (`origin` : « ia » ou « repli », `notice` : phrase à afficher). */
+    fromGoal: (goal, { board = null, inventory = null, components = null } = {}) =>
+      call(iaUrl, '/v1/builds/from-goal', { method: 'POST', json: { goal, board, inventory, components } }),
+    /** Projet décrit par sa spécification (projet libre, ou projet enregistré rouvert). */
+    buildSpec: (spec) => call(iaUrl, '/v1/builds/generate', { method: 'POST', json: { spec } }),
+    /** Projet complet en .zip (sketch, câblage, Wokwi, KiCad, nomenclature, PlatformIO) : modèle +
+     * carte, ou spécification complète pour un projet libre. */
+    bundle: (templateId, board, spec = null) =>
+      call(iaUrl, '/v1/builds/bundle', { method: 'POST', json: spec ? { spec } : { template_id: templateId, board } }, (res) => res.blob()),
+    /** Modèles de projets du catalogue (identifiant, titre, difficulté, Wi-Fi requis…). */
+    templates: () => call(dataUrl, '/v1/templates'),
+    projects: () => call(dataUrl, '/v1/projects'),
+    project: (id) => call(dataUrl, `/v1/projects/${id}`),
+    saveProject: (spec) => call(dataUrl, '/v1/projects', {
+      method: 'POST', json: { title: spec.title.slice(0, 120), board_id: spec.board, template_id: spec.template_id ?? null, spec },
+    }),
+    deleteProject: (id) => call(dataUrl, `/v1/projects/${id}`, { method: 'DELETE' }),
+    /** Ce qu'il manque pour un projet enregistré, comparé au stock, chiffré avec les offres collectées. */
+    shoppingList: (projectId) => call(dataUrl, '/v1/shopping-list', { method: 'POST', json: { project_id: projectId } }),
     ask: (question, inventory = null) => call(iaUrl, '/v1/copilot/ask', { method: 'POST', json: { question, inventory } }),
     /** Thèmes et idées (145), annotés avec le stock : pièces manquantes, réalisable ou non. */
     explore: (inventory) => call(iaUrl, '/v1/ideas/explore', { method: 'POST', json: { inventory } }),

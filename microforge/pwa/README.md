@@ -8,14 +8,17 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 |---|---|---|
 | Connexion | création de compte, connexion, à côté de l'établi animé | `api_data` `/v1/auth/*` |
 | Accueil | établi animé (Arduino Uno et chenillard de 3 LED, dessins Wokwi), état de l'atelier (pièces, projets réalisables), parcours en 7 étapes, vitrine de vrais projets | `api_ia` `/v1/ideas/inspiration`, `/v1/builds/suggest` |
-| Explorer | 145 idées en 17 thèmes, chaque idée annotée avec le stock (pièces possédées ou manquantes, réalisable ou non), projets les plus proches du stock | `api_ia` `/v1/ideas/explore`, `/v1/builds/suggest` |
+| Explorer | 145 idées en 17 thèmes, chaque idée annotée avec le stock (pièces possédées ou manquantes, réalisable ou non), projets les plus proches du stock ; les 59 idées qui ont un modèle vérifié se génèrent directement, les 86 autres se conçoivent avec l'IA (montage contrôlé par le moteur ; sans IA disponible, modèle le plus proche, signalé sur la page du projet) | `api_ia` `/v1/ideas/explore`, `/v1/builds/suggest`, `/v1/builds/from-goal` |
+| Créer | comme la page Streamlit « Je veux construire… » : décrire son idée (l'IA choisit les composants, le moteur câble et contrôle ; sans IA, modèle le plus proche, signalé) ou choisir l'un des 59 modèles ; carte imposée ou choisie par MicroForge ; projets enregistrés (rouvrir, supprimer) | `api_ia` `/v1/builds/from-goal`, `/v1/builds/generate` ; `api_data` `/v1/templates`, `/v1/projects*` |
+| Atelier | comme la page Streamlit « Atelier virtuel » : un projet, une carte compatible, brancher chaque composant puis simuler ; code JavaScript de la simulation consultable | `api_ia` `/v1/builds/generate` |
 | Mon stock | pièces rangées par catégorie, ajout, retrait | `api_data` `/v1/inventory*` |
 | Photo | photo prise par l'appareil (`capture="environment"`), pièces reconnues ajoutées en un geste | `api_ia` `/v1/vision/scan` |
-| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` |
+| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet (y compris conçu par l'IA), enregistrement dans « Mes projets » et liste d'achat (ce qui manque au stock, chiffré avec les offres collectées) ; provenance affichée pour un projet demandé à l'IA | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` ; `api_data` `/v1/projects`, `/v1/shopping-list` |
 | Copilote | conversation : questions sur les composants et les cartes, réponses avec leurs sources | `api_ia` `/v1/copilot/ask` |
 
 Navigation : barre en haut sur ordinateur, barre d'onglets en bas sur téléphone (Accueil, Explorer,
-Mon stock, Projet, Copilote) ; la photo s'ouvre depuis le stock et l'accueil.
+Créer, Atelier, Mon stock, Copilote) ; la photo s'ouvre depuis le stock et l'accueil, la page d'un
+projet depuis Explorer, Créer ou l'Atelier.
 
 ## Choix techniques
 
