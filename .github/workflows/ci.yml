@@ -297,12 +297,22 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           export PATH="$HOME/.local/bin:$PATH"
+          # Serveurs des cœurs (Espressif, Arduino, rp2040…) parfois en 504 : 4 essais espacés
+          # (30, 60, 120 s) au lieu d'un échec au premier téléchargement (CI 117 et 118, 09/11).
+          retry() {
+            for attente in 30 60 120 0; do
+              "$@" && return 0
+              [ "$attente" -eq 0 ] && return 1
+              echo "::warning::échec de « $* », nouvel essai dans $attente s"
+              sleep "$attente"
+            done
+          }
           arduino-cli config init --overwrite
           if [ -n "$INDEX" ]; then arduino-cli config add board_manager.additional_urls "$INDEX"; fi
-          arduino-cli core update-index
-          arduino-cli core install "$CORE"
+          retry arduino-cli core update-index
+          retry arduino-cli core install "$CORE"
           uv run python -m microforge.core.cli libs --fqbn "$FQBN" | tee libs.txt
-          if [ -s libs.txt ]; then xargs -d '\n' -a libs.txt arduino-cli lib install; fi
+          if [ -s libs.txt ]; then retry xargs -d '\n' -a libs.txt arduino-cli lib install; fi
       - name: Générer et compiler TOUS les modèles compatibles
         run: uv run python -m microforge.core.cli compile-demo --all --fqbn "${{ matrix.fqbn }}" --out build/firmware
       - name: Croquis de fumée sur chaque carte de la famille

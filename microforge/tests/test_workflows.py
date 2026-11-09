@@ -46,3 +46,16 @@ def test_actions_epinglees_par_empreinte_avec_version(path):
 def test_plus_d_action_node20_dans_les_workflows_migres(name):
     refs = {ref for _, ref, _ in _uses(name)}
     assert not refs & NODE20, f"{name} utilise encore une action Node 20"
+
+
+def test_installation_des_coeurs_arduino_avec_reprise():
+    """Les serveurs des cœurs répondent parfois 504 : chaque téléchargement est repris."""
+    import yaml
+
+    ci = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    steps = ci["jobs"]["firmware"]["steps"]
+    install = next(s["run"] for s in steps if s.get("name", "").startswith("Installer arduino-cli"))
+    assert "retry() {" in install
+    for cmd in ("arduino-cli core update-index", 'arduino-cli core install "$CORE"', "lib install"):
+        line = next(ln for ln in install.splitlines() if cmd in ln)
+        assert "retry " in line, f"sans reprise : {line.strip()}"
