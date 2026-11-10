@@ -333,6 +333,80 @@ def test_water_bowl_blinks_when_empty(tmp_path):
     assert out["parts"]["voyant"]["state"]["on"] is False
 
 
+# ---------------------------------------------------------------- thème « Musique & son »
+@needs_node
+def test_piano_plays_the_held_key(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("piano-boutons")),
+        tmp_path,
+        until=2_000,
+        events=[
+            [500, "touche_mi", "press", "pressed"],
+            [700, None, "mark", "mi"],
+            [900, "touche_mi", "release", "pressed"],
+        ],
+    )
+    assert out["marks"]["mi"]["parts"]["hp"]["state"]["freq"] == 330
+
+
+@needs_node
+def test_theremin_pitch_rises_as_the_hand_gets_closer(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("theremine-ultrasons")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [200, "main", "set", "distance", 40],
+            [800, None, "mark", "loin"],
+            [1_000, "main", "set", "distance", 10],
+            [1_600, None, "mark", "pres"],
+        ],
+    )
+    loin = out["marks"]["loin"]["parts"]["hp"]["state"]["freq"]
+    pres = out["marks"]["pres"]["parts"]["hp"]["state"]["freq"]
+    assert 200 <= loin < pres <= 1500
+
+
+@needs_node
+def test_metronome_tempo_follows_the_potentiometer(tmp_path):
+    lent = run(
+        simulation_payload(CAT, _spec("metronome")),
+        tmp_path,
+        until=6_000,
+        events=[[0, "tempo", "set", "position", 0]],
+    )
+    rapide = run(
+        simulation_payload(CAT, _spec("metronome")),
+        tmp_path,
+        until=6_000,
+        events=[[0, "tempo", "set", "position", 100]],
+    )
+    assert 3 <= lent["sounds"] <= 5  # 40 BPM : un temps toutes les 1,5 s
+    assert 20 <= rapide["sounds"] <= 22  # 208 BPM : un temps toutes les 0,29 s
+
+
+@needs_node
+def test_music_box_plays_a_whole_tune_per_badge(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("boite-musique-badge")),
+        tmp_path,
+        until=8_000,
+        events=[[300, "lecteur", "fire", "badge", "DE AD BE EF"]],
+    )
+    assert out["sounds"] == 11  # Au clair de la lune : 11 notes
+
+
+@needs_node
+def test_sound_meter_bars_follow_the_level(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("sonometre-classe")),
+        tmp_path,
+        until=2_000,
+        events=[[100, "micro", "set", "level", 50]],
+    )
+    assert out["parts"]["matrice"]["state"]["rows"][0] == 0xF8  # 5 colonnes sur 8
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

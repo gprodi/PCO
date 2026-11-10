@@ -1,0 +1,170 @@
+# Modèles du thème « Musique & son » (10/11/2026). Mélodies traditionnelles (domaine public).
+
+- id: piano-boutons
+  title: Piano à boutons
+  description: Quatre touches jouent do, ré, mi, fa tant qu'on les tient enfoncées ; de quoi jouer « Au clair de la lune ».
+  difficulty: 2
+  tags: [musique, son, boutons]
+  learning: [fréquence d'une note, plusieurs entrées, priorité entre touches]
+  parts:
+    - { name: touche_do, component: pushbutton }
+    - { name: touche_re, component: pushbutton }
+    - { name: touche_mi, component: pushbutton }
+    - { name: touche_fa, component: pushbutton }
+    - { name: hp, component: buzzer }
+  logic: |
+    // Fréquences de la gamme tempérée (octave 4), en hertz.
+    if (touche_do_pressed()) {
+      hp_beep(262, 60);
+    } else if (touche_re_pressed()) {
+      hp_beep(294, 60);
+    } else if (touche_mi_pressed()) {
+      hp_beep(330, 60);
+    } else if (touche_fa_pressed()) {
+      hp_beep(349, 60);
+    } else {
+      hp_stop();
+    }
+    delay(40);
+
+- id: theremine-ultrasons
+  title: Thérémine à ultrasons
+  description: On joue sans toucher — la main approchée du capteur rend le son plus aigu, éloignée plus grave ; au-delà de 50 cm, silence.
+  difficulty: 2
+  tags: [musique, son, distance]
+  learning: [mesure de distance, correspondance distance → fréquence avec map()]
+  parts:
+    - { name: main, component: hc-sr04 }
+    - { name: hp, component: buzzer }
+  logic: |
+    float d = main_distance_cm();
+    if (d > 5 && d < 50) {
+      int f = map((int)d, 5, 50, 1500, 200);  // main proche : aigu
+      hp_beep(f, 80);
+    } else {
+      hp_stop();
+    }
+    delay(60);
+
+- id: metronome
+  title: Métronome visuel et sonore
+  description: Le potentiomètre règle le tempo de 40 à 208 battements par minute ; la LED clignote et le buzzer marque chaque temps, plus aigu au premier temps de la mesure.
+  difficulty: 1
+  tags: [musique, son, temps]
+  learning: [tempo et période, millis() sans blocage, mesure à 4 temps]
+  parts:
+    - { name: tempo, component: potentiometer-10k }
+    - { name: hp, component: buzzer }
+    - { name: battement, component: led, attrs: { color: green } }
+  globals_extra: |
+    unsigned long prochain = 0;  // instant du prochain temps
+    int temps = 0;               // 0 à 3 : position dans la mesure
+  logic: |
+    int bpm = map(tempo_percent(), 0, 100, 40, 208);
+    unsigned long periode = 60000UL / bpm;
+    if (millis() >= prochain) {
+      prochain = millis() + periode;
+      battement_on();
+      hp_beep(temps == 0 ? 1500 : 1000, 40);
+      temps = (temps + 1) % 4;
+      Serial.print(bpm);
+      Serial.println(" BPM");
+    }
+    if (millis() + periode >= prochain + 80) {
+      battement_off();  // éclair de 80 ms
+    }
+    delay(5);
+
+- id: boite-musique-badge
+  title: Boîte à musique à badge
+  description: Chaque badge posé sur le lecteur joue sa comptine au buzzer — « Au clair de la lune » pour le premier, « Frère Jacques » pour les autres.
+  difficulty: 2
+  tags: [musique, rfid, son]
+  learning: [tableaux de notes et de durées, identifiant RFID]
+  parts:
+    - { name: lecteur, component: rc522-rfid }
+    - { name: hp, component: buzzer }
+  globals_extra: |
+    const String BADGE_1 = "DE AD BE EF";  // remplacer par l'UID lu dans le moniteur série
+    // Au clair de la lune : do do do ré mi ré do mi ré ré do
+    const int LUNE[] = {262, 262, 262, 294, 330, 294, 262, 330, 294, 294, 262};
+    const int LUNE_MS[] = {400, 400, 400, 400, 800, 800, 400, 400, 400, 400, 800};
+    const int NB_LUNE = 11;
+    // Frère Jacques : do ré mi do, do ré mi do, mi fa sol, mi fa sol
+    const int FRERE[] = {262, 294, 330, 262, 262, 294, 330, 262, 330, 349, 392, 330, 349, 392};
+    const int FRERE_MS[] = {400, 400, 400, 400, 400, 400, 400, 400, 400, 400, 800, 400, 400, 800};
+    const int NB_FRERE = 14;
+  logic: |
+    String uid = lecteur_read_uid();
+    if (uid.length() > 0) {
+      Serial.println("Badge : " + uid);
+      if (uid == BADGE_1) {
+        for (int i = 0; i < NB_LUNE; i++) {
+          hp_beep(LUNE[i], LUNE_MS[i] - 30);
+          delay(LUNE_MS[i]);
+        }
+      } else {
+        for (int i = 0; i < NB_FRERE; i++) {
+          hp_beep(FRERE[i], FRERE_MS[i] - 30);
+          delay(FRERE_MS[i]);
+        }
+      }
+    }
+    delay(100);
+
+- id: pad-batterie-tactile
+  title: Pad de batterie tactile
+  description: Deux pastilles tactiles font grosse caisse (grave) et caisse claire (aigu) ; chaque frappe allume sa LED.
+  difficulty: 2
+  tags: [musique, tactile, son]
+  learning: [capteur capacitif, front de contact, son percussif court]
+  parts:
+    - { name: grosse_caisse, component: ttp223-touch }
+    - { name: caisse_claire, component: ttp223-touch }
+    - { name: hp, component: buzzer }
+    - { name: voyant_gc, component: led, attrs: { color: red } }
+    - { name: voyant_cc, component: led, attrs: { color: yellow } }
+  logic: |
+    if (grosse_caisse_tapped()) {
+      voyant_gc_on();
+      hp_beep(110, 70);
+      delay(70);
+      voyant_gc_off();
+    }
+    if (caisse_claire_tapped()) {
+      voyant_cc_on();
+      hp_beep(800, 40);
+      delay(40);
+      voyant_cc_off();
+    }
+    delay(5);
+
+- id: sonometre-classe
+  title: Sonomètre de classe
+  description: La matrice montre le niveau sonore en barres ; si le bruit reste trop fort plus de deux secondes, une tête triste s'affiche. Indicateur relatif, pas une mesure en décibels.
+  difficulty: 2
+  tags: [son, matrice, école]
+  learning: [amplitude d'un signal, mise à l'échelle, durée de dépassement]
+  parts:
+    - { name: micro, component: ky038-sound }
+    - { name: matrice, component: max7219-matrix }
+  globals_extra: |
+    const byte TRISTE[8] = {0x3C, 0x42, 0xA5, 0x81, 0x99, 0xA5, 0x42, 0x3C};
+    const int SEUIL = 80;           // % du niveau maximal
+    unsigned long debut_fort = 0;   // 0 : pas de bruit fort en cours
+  logic: |
+    int niveau = micro_level();  // 0 à 100 %
+    if (niveau > SEUIL) {
+      if (debut_fort == 0) { debut_fort = millis() + 1; }
+      if (millis() - debut_fort > 2000) {
+        matrice_show(TRISTE);
+        Serial.println("Trop de bruit !");
+        delay(1000);
+      } else {
+        matrice_bars(8);
+      }
+    } else {
+      debut_fort = 0;
+      matrice_bars((niveau + 11) / 12);  // 0 à 8 colonnes
+    }
+    delay(100);

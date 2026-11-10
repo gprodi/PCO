@@ -185,3 +185,24 @@ gamelle-eau:
 jouet-lumineux-chat:
   - { site: Arduino Project Hub, title: "Arduino Cat laser toy DIY", url: "https://projecthub.arduino.cc/Seafox_C/arduino-cat-laser-toy-diy-eeca51", proche: true }
   - { site: Instructables, title: "Arduino Laser Cat Toy", url: "https://www.instructables.com/Arduino-Laser-Cat-Toy", proche: true }
+
+# Thème « Musique & son » (10/11/2026) : repérés par recherche web (sites non joignables depuis
+# l'environnement de préparation ; titres et adresses tels que renvoyés par la recherche).
+piano-boutons:
+  - { site: Instructables, title: "Arduino Piano With Push Button Switches", url: "https://www.instructables.com/Arduino-Piano-With-Push-Button-Switches" }
+  - { site: SunFounder, title: "Mini Piano", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/mini_piano.html" }
+theremine-ultrasons:
+  - { site: Hackster, title: "Arduino Theremin with a minor pentatonic (Pollux Labs)", url: "https://www.hackster.io/pollux-labs/arduino-theremin-with-a-minor-pentatonic-b56de4", proche: true }
+  - { site: ShillehTek, title: "Arduino Nano HC-SR04 theremin (gesture pitch)", url: "https://shillehtek.com/blogs/news/arduino-nano-hc-sr04-theremin-gesture-pitch" }
+metronome:
+  - { site: Instructables, title: "Practise Metronome", url: "https://www.instructables.com/Practise-Metronome" }
+  - { site: Hackster, title: "DIY Simple Arduino Metronome (Mirko Pavleski)", url: "https://www.hackster.io/mircemk/diy-simple-arduino-metronome-2cc2bc", proche: true }
+boite-musique-badge:
+  - { site: SunFounder, title: "RFID Jukebox", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/rfid_Jukebox.html", proche: true }
+  - { site: Canada Robotix, title: "Project 3: Music Box", url: "https://canadarobotix.com/blogs/how-to/project-3-music-box", proche: true }
+pad-batterie-tactile:
+  - { site: DFRobot, title: "Arduino Tutorial 18 - Drum Pad", url: "https://learn.dfrobot.com/makelog-314896.html", proche: true }
+  - { site: How2Electronics, title: "Arduino TTP223 Capacitive Touch Sensor Switch", url: "https://how2electronics.com/arduino-ttp223-capacitive-touch-sensor-switch/", proche: true }
+sonometre-classe:
+  - { site: Instructables, title: "8x8 Dot Matrix Sound Level Meter", url: "https://www.instructables.com/8x8-Dot-Matrix-Sound-Level-Meter" }
+  - { site: Hackster, title: "Arduino Sound Meter", url: "https://www.hackster.io/rayan-kiwan/arduino-sound-meter-bb2f71", proche: true }

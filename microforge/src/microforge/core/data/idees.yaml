@@ -123,12 +123,12 @@ themes:
     description: "Jouer, écouter, faire réagir la lumière au son."
     idees:
       - { titre: "VU-mètre lumineux", template: vu-metre-lumineux, difficulte: 2, composants: [ky038-sound, ws2812-ring-12], description: "L'anneau danse au rythme de la musique." }
-      - { titre: "Piano à boutons", difficulte: 2, composants: [pushbutton, buzzer], description: "Chaque bouton joue une note différente." }
-      - { titre: "Thérémine à ultrasons", difficulte: 2, composants: [hc-sr04, buzzer], description: "La hauteur de la note dépend de la distance de ta main." }
-      - { titre: "Métronome visuel et sonore", difficulte: 1, composants: [potentiometer-10k, buzzer, led], description: "Le bouton règle le tempo de 40 à 208 battements/minute." }
-      - { titre: "Boîte à musique à badge", difficulte: 2, composants: [rc522-rfid, buzzer], description: "Chaque badge posé joue une mélodie différente (comme une boîte à histoires)." }
-      - { titre: "Pad de batterie tactile", difficulte: 2, composants: [ttp223-touch, buzzer, led], description: "Tape sur les zones tactiles pour faire du rythme." }
-      - { titre: "Sonomètre de classe", difficulte: 2, composants: [ky038-sound, max7219-matrix], description: "Une jauge de bruit visible de toute la salle." }
+      - { titre: "Piano à boutons", template: piano-boutons, difficulte: 2, composants: [pushbutton, buzzer], description: "Chaque bouton joue une note différente." }
+      - { titre: "Thérémine à ultrasons", template: theremine-ultrasons, difficulte: 2, composants: [hc-sr04, buzzer], description: "La hauteur de la note dépend de la distance de ta main." }
+      - { titre: "Métronome visuel et sonore", template: metronome, difficulte: 1, composants: [potentiometer-10k, buzzer, led], description: "Le bouton règle le tempo de 40 à 208 battements/minute." }
+      - { titre: "Boîte à musique à badge", template: boite-musique-badge, difficulte: 2, composants: [rc522-rfid, buzzer], description: "Chaque badge posé joue une mélodie différente (comme une boîte à histoires)." }
+      - { titre: "Pad de batterie tactile", template: pad-batterie-tactile, difficulte: 2, composants: [ttp223-touch, buzzer, led], description: "Tape sur les zones tactiles pour faire du rythme." }
+      - { titre: "Sonomètre de classe", template: sonometre-classe, difficulte: 2, composants: [ky038-sound, max7219-matrix], description: "Une jauge de bruit visible de toute la salle." }
 
   - id: lumiere
     titre: Lumière & art
