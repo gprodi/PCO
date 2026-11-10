@@ -501,6 +501,66 @@ def test_surprise_box_plays_a_fanfare_when_opened(tmp_path):
     assert _lit(out["parts"]["anneau"]) == 0
 
 
+# ---------------------------------------------------------------- thème « Cuisine »
+@needs_node
+def test_kitchen_timer_counts_down_and_rings(tmp_path):
+    turns = [[200 + 50 * i, "molette", "fire", "turn", "-1"] for i in range(4)]  # 5 → 1 min
+    out = run(
+        simulation_payload(CAT, _spec("minuteur-cuisine")),
+        tmp_path,
+        until=64_000,
+        events=[
+            *turns,
+            [600, None, "mark", "regle"],
+            [1_000, "molette", "press", "sw"],
+            [1_100, "molette", "release", "sw"],
+            [31_500, None, "mark", "moitie"],
+        ],
+    )
+    assert out["marks"]["regle"]["parts"]["afficheur"]["state"]["text"] == "0100"
+    assert out["marks"]["moitie"]["parts"]["afficheur"]["state"]["text"] in {"0029", "0030", "0031"}
+    assert "C'est prêt !" in out["serial"] and out["sounds"] > 0
+
+
+@needs_node
+def test_cooking_thermometer_rings_at_the_target(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("thermometre-cuisson")),
+        tmp_path,
+        until=6_000,
+        events=[
+            [100, "sonde", "set", "temperature", 40],
+            [1_500, None, "mark", "froid"],
+            [2_000, "sonde", "set", "temperature", 65],
+        ],
+    )
+    assert out["marks"]["froid"]["parts"]["afficheur"]["state"]["text"] == "  40"
+    assert out["marks"]["froid"]["parts"]["alarme"]["state"]["freq"] == 0
+    assert out["parts"]["afficheur"]["state"]["text"] == "  65" and out["sounds"] > 0
+
+
+@needs_node
+def test_dough_rise_is_measured_from_the_start(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("pate-qui-leve")),
+        tmp_path,
+        until=12_000,
+        events=[[2_000, "capteur", "set", "distance", 46]],  # départ à 50 cm : +4 cm
+    )
+    assert "100 %" in json.dumps(out["parts"]["ecran"]["state"], ensure_ascii=False)
+
+
+@needs_node
+def test_pan_overflow_alarm(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("alerte-casserole")),
+        tmp_path,
+        until=2_000,
+        events=[[500, "niveau", "set", "level", 60]],
+    )
+    assert out["sounds"] > 0 and "déborde" in out["serial"]
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

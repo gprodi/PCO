@@ -26,7 +26,7 @@ Application (PWA) : http://localhost:5173 · preuve de concept Streamlit : http:
 | Dossier | Contenu | Épreuves |
 |---|---|---|
 | `pwa/` | application web installable (React 19 + Vite 8) : stock, photo, idées, projet, copilote ; service worker hors ligne, image nginx avec CSP, tests Vitest et parcours Playwright ([README](pwa/README.md)) | E3, E4 |
-| `src/microforge/core` | catalogue (40 cartes, 103 composants, 59 projets), allocateur, ERC, firmware, sorties | E4 |
+| `src/microforge/core` | catalogue (40 cartes, 103 composants, 80 projets), allocateur, ERC, firmware, sorties | E4 |
 | `src/microforge/copilot` | copilote RAG : catalogue → 379 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
 | `src/microforge/sim` | atelier virtuel : transpileur C++ → JavaScript (sous-ensemble des projets, temps virtuel), moteur `mfsim.js` et 55 modèles de composants, mode « Je branche » (`atelier.js`), page Streamlit « Atelier virtuel » | E4 |
 | `src/microforge/data_pipeline` | collecte 5 types de sources, SQL, agrégation, import, purge RGPD | E1 |

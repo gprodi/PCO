@@ -224,3 +224,17 @@ gateau-anniversaire:
 boite-surprise:
   - { site: SparkFun, title: "MP3 Player Shield Music Box", url: "https://learn.sparkfun.com/tutorials/mp3-player-shield-music-box/all", proche: true }
   - { site: circuit.rocks, title: "Greet your visitors with a Christmas song", url: "https://learn.circuit.rocks/greet-your-visitors-with-a-christmas-song", proche: true }
+
+# Thème « Cuisine » (10/11/2026) : repérés par recherche web (sites non joignables depuis
+# l'environnement de préparation ; titres et adresses tels que renvoyés par la recherche).
+minuteur-cuisine:
+  - { site: Arduino Project Hub, title: "Kitchen Timer with Clock (encodeur rotatif, TM1637, buzzer)", url: "https://projecthub.arduino.cc/Juraj/kitchen-timer-with-clock-60f013", proche: true }
+  - { site: Hackster, title: "Kitchen Timer", url: "https://www.hackster.io/yvcabrerago/kitchen-timer-3f9c61", proche: true }
+thermometre-cuisson:
+  - { site: Core Electronics, title: "Arduino Cooking Alarm with DS18b20 Sensor", url: "https://core-electronics.com.au/projects/arduino-cooking-alarm-with-ds18b20-sensor/", proche: true }
+  - { site: Instructables, title: "Arduino+DS18B20 Temperature Sensor (buzzer Alarm)", url: "https://www.instructables.com/ArduinoDS18B20-Temperature-Sensor-buzzer-Alarm", proche: true }
+pate-qui-leve:
+  - { site: Grafana Labs, title: "How to monitor a sourdough starter with Grafana (HC-SR04)", url: "https://grafana.com/blog/2020/06/17/how-to-monitor-a-sourdough-starter-with-grafana/", proche: true }
+alerte-casserole:
+  - { site: Hackster, title: "Water Level Sensor Interfacing with Arduino (LED et buzzer)", url: "https://www.hackster.io/rachnajain/water-level-sensor-interfacing-with-arduino-ae6f98", proche: true }
+  - { site: ArduinoGetStarted, title: "Arduino - Water Sensor", url: "https://arduinogetstarted.com/tutorials/arduino-water-sensor", proche: true }

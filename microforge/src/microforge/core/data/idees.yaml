@@ -207,10 +207,10 @@ themes:
     description: Peser, minuter, surveiller la cuisson.
     idees:
       - { titre: "Balance de cuisine", template: balance-cuisine, difficulte: 2, composants: [hx711-load-cell, ssd1306-i2c, pushbutton], description: "Pèse jusqu'à 5 kg, bouton de tare." }
-      - { titre: "Minuteur de cuisine", difficulte: 2, composants: [rotary-encoder-ky040, tm1637-display, buzzer], description: "Règle la durée à la molette, sonnerie à la fin." }
-      - { titre: "Thermomètre de cuisson", difficulte: 1, composants: [ds18b20, tm1637-display, buzzer], description: "Sonde dans le rôti : bip à la température à cœur visée." }
-      - { titre: "Surveillance de la pâte qui lève", difficulte: 2, composants: [hc-sr04, ssd1306-i2c], description: "Mesure la hauteur de la pâte à pain au fil du temps." }
-      - { titre: "Alerte casserole qui déborde", difficulte: 1, composants: [water-level-sensor, buzzer], description: "Un capteur au bord de la plaque sonne avant la catastrophe." }
+      - { titre: "Minuteur de cuisine", template: minuteur-cuisine, difficulte: 2, composants: [rotary-encoder-ky040, tm1637-display, buzzer], description: "Règle la durée à la molette, sonnerie à la fin." }
+      - { titre: "Thermomètre de cuisson", template: thermometre-cuisson, difficulte: 1, composants: [ds18b20, tm1637-display, buzzer], description: "Sonde dans le rôti : bip à la température à cœur visée." }
+      - { titre: "Surveillance de la pâte qui lève", template: pate-qui-leve, difficulte: 2, composants: [hc-sr04, ssd1306-i2c], description: "Mesure la hauteur de la pâte à pain au fil du temps." }
+      - { titre: "Alerte casserole qui déborde", template: alerte-casserole, difficulte: 1, composants: [water-level-sensor, buzzer], description: "Un capteur au bord de la plaque sonne avant la catastrophe." }
 
   - id: temps
     titre: Temps & mesure

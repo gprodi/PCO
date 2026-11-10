@@ -1,0 +1,124 @@
+# Modèles du thème « Cuisine » (10/11/2026).
+
+- id: minuteur-cuisine
+  title: Minuteur de cuisine
+  description: La molette règle de 1 à 99 minutes, un appui lance le décompte en minutes:secondes ; à zéro, le buzzer sonne jusqu'au prochain appui.
+  difficulty: 2
+  tags: [cuisine, temps, afficheur, son]
+  learning: [machine à états, décompte avec millis(), encodeur rotatif]
+  parts:
+    - { name: molette, component: rotary-encoder-ky040 }
+    - { name: afficheur, component: tm1637-display }
+    - { name: alarme, component: buzzer }
+  globals_extra: |
+    int minutes = 5;            // durée réglée
+    int restant_s = 0;          // secondes restantes
+    bool en_cours = false;
+    bool sonne = false;
+    unsigned long seconde = 0;  // instant de la dernière seconde décomptée
+  logic: |
+    int d = molette_delta();
+    if (molette_pressed()) {
+      if (sonne) {
+        sonne = false;  // arrêter la sonnerie
+      } else if (en_cours) {
+        en_cours = false;  // annuler
+      } else {
+        en_cours = true;
+        restant_s = minutes * 60;
+        seconde = millis();
+      }
+      delay(250);  // un appui = une action
+    }
+    if (!en_cours && !sonne && d != 0) {
+      minutes = constrain(minutes + d, 1, 99);
+    }
+    if (en_cours && millis() - seconde >= 1000) {
+      seconde += 1000;
+      restant_s--;
+      if (restant_s <= 0) {
+        en_cours = false;
+        sonne = true;
+        Serial.println("C'est prêt !");
+      }
+    }
+    if (sonne) {
+      afficheur_time(0, 0);
+      alarme_beep(2000, 200);
+      delay(400);
+    } else if (en_cours) {
+      afficheur_time(restant_s / 60, restant_s % 60);
+    } else {
+      afficheur_time(minutes, 0);
+    }
+    delay(10);
+
+- id: thermometre-cuisson
+  title: Thermomètre de cuisson
+  description: La sonde inox piquée au cœur de la viande affiche la température ; le buzzer prévient dès que la cuisson voulue est atteinte.
+  difficulty: 1
+  tags: [cuisine, température, afficheur, son]
+  learning: [sonde 1-Wire, seuil d'alarme, arrondi]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: afficheur, component: tm1637-display }
+    - { name: alarme, component: buzzer }
+  globals_extra: |
+    const float CIBLE = 63.0;  // °C à cœur, à adapter (55 bœuf saignant, 74 volaille)
+  logic: |
+    float t = sonde_temperature();
+    if (isnan(t) || t < -50) {
+      afficheur_number(0);
+      Serial.println("Sonde absente");
+    } else {
+      afficheur_number((int)(t + 0.5));
+      if (t >= CIBLE) {
+        alarme_beep(2500, 150);
+        Serial.println("Cuisson atteinte");
+      }
+    }
+    delay(1000);
+
+- id: pate-qui-leve
+  title: Surveillance de la pâte qui lève
+  description: Le capteur, posé au-dessus du saladier, mesure de combien la pâte a monté depuis le départ ; l'écran annonce quand elle a doublé de volume.
+  difficulty: 2
+  tags: [cuisine, distance, écran]
+  learning: [mesure de référence au démarrage, pourcentage, mesure lente]
+  parts:
+    - { name: capteur, component: hc-sr04 }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    const float HAUTEUR_PATE_CM = 4.0;  // hauteur de la pâte au départ, mesurée à la règle
+    float depart = 0;                   // distance capteur → pâte au démarrage
+  setup_extra: |
+    depart = capteur_distance_cm();
+  logic: |
+    float d = capteur_distance_cm();
+    if (d < 0 || depart < 0) {
+      ecran_print("Capteur muet", "Verifier la pose");
+    } else {
+      float montee = depart - d;
+      if (montee < 0) { montee = 0; }
+      int pourcent = (int)(montee * 100 / HAUTEUR_PATE_CM);
+      ecran_print("Levee : +" + String(montee, 1) + " cm", String(pourcent) + " %", pourcent >= 100 ? "Pate prete !" : "Patience...");
+    }
+    delay(5000);
+
+- id: alerte-casserole
+  title: Alerte casserole qui déborde
+  description: Le capteur de niveau fixé juste sous le bord, côté poignée (il ne supporte pas l'eau bouillante en continu), sonne dès que l'eau ou le lait monte jusqu'à lui.
+  difficulty: 1
+  tags: [cuisine, eau, son, débutant]
+  learning: [capteur de niveau, alarme sonore]
+  parts:
+    - { name: niveau, component: water-level-sensor }
+    - { name: sirene, component: buzzer }
+  logic: |
+    if (niveau_wet()) {
+      Serial.println("Ça déborde !");
+      sirene_beep(2200, 300);
+      delay(400);
+    } else {
+      delay(200);
+    }
