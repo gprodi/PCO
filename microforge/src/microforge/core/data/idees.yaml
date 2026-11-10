@@ -151,11 +151,11 @@ themes:
     description: "Noël, Halloween, anniversaires : des montages qui font de l'effet."
     idees:
       - { titre: "Guirlande animée", template: guirlande-animee, difficulte: 1, composants: [ws2812-ring-12, pushbutton], description: "Arc-en-ciel, Noël rouge/vert ou blanc chaud." }
-      - { titre: "Citrouille d'Halloween qui crie", difficulte: 1, composants: [pir-hc-sr501, buzzer, led], description: "Les yeux s'allument et un cri retentit quand on passe." }
-      - { titre: "Calendrier de l'Avent lumineux", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Une LED de plus chaque jour de décembre." }
-      - { titre: "Compte à rebours du Nouvel An", difficulte: 2, composants: [ds3231-rtc, tm1637-display, buzzer], description: "Affiche le temps restant et sonne à minuit." }
-      - { titre: "Gâteau d'anniversaire à souffler", difficulte: 2, composants: [ky038-sound, ws2812-ring-12], description: "Des bougies LED qui s'éteignent quand on souffle dessus." }
-      - { titre: "Boîte à surprise", difficulte: 2, composants: [reed-switch, buzzer, ws2812-ring-12], description: "À l'ouverture : musique et lumières." }
+      - { titre: "Citrouille d'Halloween qui crie", template: citrouille-halloween, difficulte: 1, composants: [pir-hc-sr501, buzzer, led], description: "Les yeux s'allument et un cri retentit quand on passe." }
+      - { titre: "Calendrier de l'Avent lumineux", template: calendrier-avent, difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Une LED de plus chaque jour de décembre." }
+      - { titre: "Compte à rebours du Nouvel An", template: compte-a-rebours-nouvel-an, difficulte: 2, composants: [ds3231-rtc, tm1637-display, buzzer], description: "Affiche le temps restant et sonne à minuit." }
+      - { titre: "Gâteau d'anniversaire à souffler", template: gateau-anniversaire, difficulte: 2, composants: [ky038-sound, ws2812-ring-12], description: "Des bougies LED qui s'éteignent quand on souffle dessus." }
+      - { titre: "Boîte à surprise", template: boite-surprise, difficulte: 2, composants: [reed-switch, buzzer, ws2812-ring-12], description: "À l'ouverture : musique et lumières." }
 
   - id: sante
     titre: Sport & bien-être

@@ -206,3 +206,21 @@ pad-batterie-tactile:
 sonometre-classe:
   - { site: Instructables, title: "8x8 Dot Matrix Sound Level Meter", url: "https://www.instructables.com/8x8-Dot-Matrix-Sound-Level-Meter" }
   - { site: Hackster, title: "Arduino Sound Meter", url: "https://www.hackster.io/rayan-kiwan/arduino-sound-meter-bb2f71", proche: true }
+
+# Thème « Fêtes & déco » (10/11/2026) : repérés par recherche web (sites non joignables depuis
+# l'environnement de préparation ; titres et adresses tels que renvoyés par la recherche).
+citrouille-halloween:
+  - { site: Instructables, title: "Arduino Powered Halloween Pumpkin With Motion Detection", url: "https://www.instructables.com/Arduino-powered-halloween-pumpkin-with-motion-dete" }
+  - { site: Hackster, title: "Spooky Motion-Activated Halloween Pumpkin Using Arduino Nano", url: "https://www.hackster.io/rachnajain/spooky-motion-activated-halloween-pumpkin-using-arduino-nano-73e35f", proche: true }
+calendrier-avent:
+  - { site: Instructables, title: "DIY LED Advent Calendar", url: "https://www.instructables.com/DIY-LED-Advent-Calendar", proche: true }
+  - { site: GitHub, title: "Christmastree (WS2812 et DS3231, ESP8266)", url: "https://github.com/msommerx/Christmastree", proche: true }
+compte-a-rebours-nouvel-an:
+  - { site: Instructables, title: "Arduino New Year Countdown Clock", url: "https://www.instructables.com/Arduino-New-Year-Countdown-Clock", proche: true }
+  - { site: Hackster, title: "4 Digit Countdown Timer (Minutes and Seconds) - Arduino", url: "https://www.hackster.io/ronfrtek/4-digit-countdown-timer-minutes-and-seconds-arduino-86ef83", proche: true }
+gateau-anniversaire:
+  - { site: Instructables, title: "LED Birthday Cake Candle That You Can Blow Out", url: "https://www.instructables.com/LED-Birthday-Cake-Candle-That-You-Can-Blow-Out", proche: true }
+  - { site: DFRobot, title: "Electronic Candle (MindPlus Coding Kit for Arduino, E11)", url: "https://learn.dfrobot.com/makelog-308614.html", proche: true }
+boite-surprise:
+  - { site: SparkFun, title: "MP3 Player Shield Music Box", url: "https://learn.sparkfun.com/tutorials/mp3-player-shield-music-box/all", proche: true }
+  - { site: circuit.rocks, title: "Greet your visitors with a Christmas song", url: "https://learn.circuit.rocks/greet-your-visitors-with-a-christmas-song", proche: true }

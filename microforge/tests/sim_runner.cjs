@@ -4,7 +4,7 @@ const fs = require("fs");
 const { Simulation } = require(process.argv[2]);
 const payload = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const scenario = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
-const sim = new Simulation({ ...payload, startDate: "2026-11-03T08:00:00" });
+const sim = new Simulation({ ...payload, startDate: scenario.startDate || "2026-11-03T08:00:00" });
 const marks = {};
 for (const [ms, part, action, key, value] of scenario.events || []) {
   sim.at(ms, (s) => {

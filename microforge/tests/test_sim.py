@@ -29,9 +29,17 @@ def _spec(tid: str) -> ProjectSpec:
     return BUILDER.spec_from_template(tid, board)
 
 
-def run(payload: dict, tmp_path: Path, until: int = 60_000, events: list | None = None) -> dict:
+def run(
+    payload: dict,
+    tmp_path: Path,
+    until: int = 60_000,
+    events: list | None = None,
+    start: str | None = None,
+) -> dict:
+    """Simulation dans Node ; ``start`` : date et heure de départ de l'horloge (8 h le 03/11/2026)."""
     (tmp_path / "payload.json").write_text(json.dumps(payload), encoding="utf-8")
-    (tmp_path / "scenario.json").write_text(json.dumps({"until": until, "events": events or []}))
+    scenario = {"until": until, "events": events or []} | ({"startDate": start} if start else {})
+    (tmp_path / "scenario.json").write_text(json.dumps(scenario))
     proc = subprocess.run(
         [
             "node",
@@ -405,6 +413,92 @@ def test_sound_meter_bars_follow_the_level(tmp_path):
         events=[[100, "micro", "set", "level", 50]],
     )
     assert out["parts"]["matrice"]["state"]["rows"][0] == 0xF8  # 5 colonnes sur 8
+
+
+# ---------------------------------------------------------------- thème « Fêtes & déco »
+def _lit(part: dict) -> int:
+    return sum(1 for px in part["state"]["pixels"] if any(px))
+
+
+@needs_node
+def test_pumpkin_screams_when_someone_passes(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("citrouille-halloween")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [200, None, "mark", "calme"],
+            [500, "detecteur", "press", "pass"],
+            [700, None, "mark", "cri"],
+            [800, "detecteur", "release", "pass"],
+        ],
+    )
+    assert not out["marks"]["calme"]["parts"]["oeil_g"]["state"]["on"]
+    assert 300 <= out["marks"]["cri"]["parts"]["cri"]["state"]["freq"] <= 1500
+    assert out["sounds"] >= 10
+
+
+@needs_node
+@pytest.mark.parametrize(("start", "lit"), [("2026-11-03T08:00:00", 0), ("2026-12-12T08:00:00", 6)])
+def test_advent_wreath_fills_up_in_december(tmp_path, start, lit):
+    payload = simulation_payload(CAT, _spec("calendrier-avent"))
+    out = run(payload, tmp_path, until=2_000, start=start)
+    assert _lit(out["parts"]["couronne"]) == lit
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("start", "text"),
+    [
+        ("2026-11-03T08:00:00", "  59"),
+        ("2026-12-30T08:00:00", "   2"),
+        ("2026-12-31T22:30:00", "0129"),
+    ],
+)
+def test_new_year_countdown(tmp_path, start, text):
+    out = run(
+        simulation_payload(CAT, _spec("compte-a-rebours-nouvel-an")), tmp_path, 2_000, start=start
+    )
+    assert out["parts"]["afficheur"]["state"]["text"] == text
+
+
+@needs_node
+def test_new_year_fireworks_at_midnight(tmp_path):
+    payload = simulation_payload(CAT, _spec("compte-a-rebours-nouvel-an"))
+    out = run(payload, tmp_path, until=3_000, start="2027-01-01T00:00:00")
+    assert out["sounds"] >= 10
+
+
+@needs_node
+def test_birthday_candles_go_out_three_at_a_time(tmp_path):
+    claps = []
+    for t0 in (500, 1_500):
+        claps += [[t0, "micro", "press", "clap"], [t0 + 50, "micro", "release", "clap"]]
+    out = run(
+        simulation_payload(CAT, _spec("gateau-anniversaire")),
+        tmp_path,
+        until=3_000,
+        events=claps,
+    )
+    assert _lit(out["parts"]["bougies_led"]) == 6
+    assert "Bougies allumées : 6" in out["serial"]
+
+
+@needs_node
+def test_surprise_box_plays_a_fanfare_when_opened(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("boite-surprise")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [500, "couvercle", "set", "open", True],
+            [1_500, None, "mark", "ouverte"],
+            [2_000, "couvercle", "set", "open", False],
+        ],
+    )
+    assert out["sounds"] == 4  # do mi sol do, une seule fois
+    assert _lit(out["marks"]["ouverte"]["parts"]["anneau"]) == 12
+    assert _lit(out["parts"]["anneau"]) == 0
 
 
 @needs_node

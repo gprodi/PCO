@@ -1,0 +1,165 @@
+# Modèles du thème « Fêtes & déco » (10/11/2026).
+
+- id: citrouille-halloween
+  title: Citrouille d'Halloween qui crie
+  description: Quand quelqu'un passe devant, les yeux de la citrouille clignotent et elle pousse un cri qui descend dans les graves.
+  difficulty: 1
+  tags: [fêtes, mouvement, son, lumière]
+  learning: [détection de présence, balayage de fréquence]
+  parts:
+    - { name: detecteur, component: pir-hc-sr501 }
+    - { name: cri, component: buzzer }
+    - { name: oeil_g, component: led, attrs: { color: orange } }
+    - { name: oeil_d, component: led, attrs: { color: orange } }
+  logic: |
+    if (detecteur_motion()) {
+      Serial.println("Bouh !");
+      for (int f = 1500; f > 300; f -= 100) {
+        oeil_g_set(f % 200 == 0);  // les yeux clignotent en alternance
+        oeil_d_set(f % 200 != 0);
+        cri_beep(f, 40);
+        delay(45);
+      }
+      oeil_g_on();
+      oeil_d_on();
+      delay(3000);
+    } else {
+      oeil_g_off();
+      oeil_d_off();
+      delay(100);
+    }
+
+- id: calendrier-avent
+  title: Calendrier de l'Avent lumineux
+  description: Du 1er au 24 décembre, la couronne lumineuse se remplit un peu plus chaque jour ; à Noël, elle passe en arc-en-ciel. Le reste de l'année elle reste éteinte.
+  difficulty: 2
+  tags: [fêtes, horloge, lumière]
+  learning: [date de l'horloge temps réel, proportion, arc-en-ciel]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: couronne, component: ws2812-ring-12 }
+  globals_extra: |
+    uint8_t teinte = 0;
+    int dernier_jour = 0;  // pour n'écrire la date qu'une fois par jour
+  logic: |
+    int m = horloge_month();
+    int j = horloge_day();
+    if (j != dernier_jour) {
+      Serial.println("Nous sommes le " + horloge_date());
+      dernier_jour = j;
+    }
+    if (m == 12 && j <= 24) {
+      couronne_gauge(j * 100 / 24);  // 24 jours sur 12 LED : une LED de plus tous les 2 jours
+      delay(1000);
+    } else if (m == 12 && j <= 26) {
+      couronne_wheel(teinte);  // Noël : arc-en-ciel
+      teinte += 3;
+      delay(30);
+    } else {
+      couronne_fill(0, 0, 0);
+      delay(1000);
+    }
+
+- id: compte-a-rebours-nouvel-an
+  title: Compte à rebours du Nouvel An
+  description: L'afficheur montre le nombre de jours avant le 1er janvier, puis les heures et minutes restantes le 31 décembre ; à minuit, le buzzer lance un feu d'artifice sonore pendant une minute.
+  difficulty: 2
+  tags: [fêtes, horloge, afficheur, son]
+  learning: [calcul de dates, tableau du nombre de jours par mois, affichage hh:mm]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: afficheur, component: tm1637-display }
+    - { name: fete, component: buzzer }
+  globals_extra: |
+    // Jours par mois ; février compté à 28 jours (une journée d'écart en janvier-février des années bissextiles).
+    const int JOURS[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  logic: |
+    int m = horloge_month();
+    int j = horloge_day();
+    int h = horloge_hour();
+    int mn = horloge_minute();
+    if (m == 1 && j == 1 && h == 0 && mn == 0) {
+      afficheur_number(0);
+      fete_beep(800 + random(1500), 120);  // feu d'artifice sonore
+      delay(200);
+    } else if (m == 12 && j == 31) {
+      afficheur_time(23 - h, 59 - mn);  // heures:minutes restantes
+      delay(1000);
+    } else {
+      int restants = JOURS[m - 1] - j;  // jours restants dans le mois après aujourd'hui
+      for (int k = m; k < 12; k++) {
+        restants += JOURS[k];
+      }
+      afficheur_number(restants + 1);  // jours avant le 1er janvier
+      delay(1000);
+    }
+
+- id: gateau-anniversaire
+  title: Gâteau d'anniversaire à souffler
+  description: Douze bougies lumineuses ; chaque souffle (ou bruit fort) en éteint trois. Toutes éteintes, la couronne fête l'anniversaire en arc-en-ciel, puis se rallume pour le suivant.
+  difficulty: 2
+  tags: [fêtes, son, lumière]
+  learning: [seuil sonore, compteur qui décroît, états du programme]
+  parts:
+    - { name: micro, component: ky038-sound }
+    - { name: bougies_led, component: ws2812-ring-12 }
+  globals_extra: |
+    int bougies = 12;
+    unsigned long eteint_depuis = 0;
+    uint8_t teinte = 0;
+  logic: |
+    if (bougies > 0) {
+      if (micro_loud()) {
+        bougies -= 3;
+        if (bougies < 0) { bougies = 0; }
+        Serial.print("Souffle ! Bougies allumées : ");
+        Serial.println(bougies);
+        if (bougies == 0) {
+          eteint_depuis = millis();
+          Serial.println("Joyeux anniversaire !");
+        }
+        delay(300);  // un souffle compte une fois
+      }
+      bougies_led_gauge(bougies * 100 / 12);
+      delay(50);
+    } else {
+      bougies_led_wheel(teinte);
+      teinte += 4;
+      delay(20);
+      if (millis() - eteint_depuis > 10000) {
+        bougies = 12;  // prêt pour le gâteau suivant
+      }
+    }
+
+- id: boite-surprise
+  title: Boîte à surprise
+  description: À l'ouverture du couvercle, une petite fanfare retentit et l'intérieur s'illumine en arc-en-ciel ; refermée, tout s'éteint.
+  difficulty: 2
+  tags: [fêtes, aimant, son, lumière]
+  learning: [contact magnétique, front d'ouverture, mélodie en tableau]
+  parts:
+    - { name: couvercle, component: reed-switch }
+    - { name: hp, component: buzzer }
+    - { name: anneau, component: ws2812-ring-12 }
+  globals_extra: |
+    const int FANFARE[] = {523, 659, 784, 1047};  // do mi sol do
+    const int FANFARE_MS[] = {150, 150, 150, 400};
+    bool ouverte_avant = false;
+    uint8_t teinte = 0;
+  logic: |
+    bool ouverte = couvercle_open();
+    if (ouverte && !ouverte_avant) {
+      Serial.println("Surprise !");
+      for (int i = 0; i < 4; i++) {
+        hp_beep(FANFARE[i], FANFARE_MS[i]);
+        delay(FANFARE_MS[i] + 30);
+      }
+    }
+    if (ouverte) {
+      anneau_wheel(teinte);
+      teinte += 5;
+    } else {
+      anneau_fill(0, 0, 0);
+    }
+    ouverte_avant = ouverte;
+    delay(30);
