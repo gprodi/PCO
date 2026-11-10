@@ -164,3 +164,24 @@ lumiere-couloir-radar:
 qualite-air-mq135:
   - { site: Makerguides, title: "Air Pollution Monitoring and Alert System Using Arduino and MQ135", url: "https://www.makerguides.com/air-pollution-monitoring-and-alert-system-using-arduino-and-mq135/" }
   - { site: RadioLocman, title: "Air Pollution Monitoring and Alert System Using Arduino", url: "https://radiolocman.com/review/article.html?di=643721" }
+
+# Thème « Animaux » (09/11/2026) : repérés par recherche web ; les sites n'étaient pas joignables
+# depuis l'environnement de préparation (titres et adresses tels que renvoyés par la recherche).
+distributeur-croquettes:
+  - { site: Vilros, title: "Who's Going to Feed Fido When You're on Vacation? (Arduino, DS3231, servo)", url: "https://vilros.com/a/learn/projects/who-s-going-to-feed-fido-when-you-re-on-vacation-arduino" }
+  - { site: Circuit Digest, title: "Automatic Pet Feeder using Arduino", url: "https://circuitdigest.com/microcontroller-projects/automatic-pet-feeder-using-arduino", proche: true }
+surveillance-aquarium:
+  - { site: ShillehTek, title: "Arduino Nano DS18B20 aquarium controller", url: "https://shillehtek.com/blogs/news/arduino-nano-ds18b20-aquarium-controller" }
+  - { site: ArduinoGetStarted, title: "Arduino - Heating System", url: "https://arduinogetstarted.com/tutorials/arduino-heating-system", proche: true }
+chatiere-badge:
+  - { site: ShillehTek, title: "Arduino Nano RC522 RFID unlock cat door", url: "https://shillehtek.com/blogs/news/arduino-nano-rc522-rfid-unlock-cat-door" }
+  - { site: Arduino, title: "Automated cat flap (cas d'usage Arduino Cloud)", url: "https://cloud.arduino.cc/use-cases-home-automation-automated-cat-flap/", proche: true }
+compteur-hamster:
+  - { site: Instructables, title: "Arduino Counter Using TM1637 LED Display & Obstacle Avoidance Sensor", url: "https://www.instructables.com/Arduino-Counter-Using-TM1637-LED-Display-Obstacle-", proche: true }
+  - { site: SunFounder, title: "Basketball Game 1.0 (capteur infrarouge et compteur TM1637)", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/basketball_game1.0.html", proche: true }
+gamelle-eau:
+  - { site: Arduino Project Hub, title: "Doggo Water Bowl Refill Monitor/Indicator - Part 1", url: "https://projecthub.arduino.cc/Heathen_Hacks-v2/doggo-water-bowl-refill-monitorindicator-part-1-c19e3e", proche: true }
+  - { site: Instructables, title: "Notifying Water Bowl", url: "https://www.instructables.com/Notifying-Water-Bowl", proche: true }
+jouet-lumineux-chat:
+  - { site: Arduino Project Hub, title: "Arduino Cat laser toy DIY", url: "https://projecthub.arduino.cc/Seafox_C/arduino-cat-laser-toy-diy-eeca51", proche: true }
+  - { site: Instructables, title: "Arduino Laser Cat Toy", url: "https://www.instructables.com/Arduino-Laser-Cat-Toy", proche: true }

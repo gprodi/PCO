@@ -135,8 +135,8 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       // Thème sans modèle vérifié : « Concevoir avec l'IA ». Sans vraie IA (modèle simulé en test,
       // pas d'Ollama dans la pile de la CI), le modèle le plus proche est renvoyé, et c'est écrit.
       await page.getByRole('link', { name: 'Explorer', exact: true }).click();
-      await page.getByRole('button', { name: /Animaux/ }).click({ timeout: 30000 });
-      await page.getByRole('heading', { name: 'Animaux', level: 2 }).waitFor();
+      await page.getByRole('button', { name: /Jeux & apprentissage/ }).click({ timeout: 30000 });
+      await page.getByRole('heading', { name: 'Jeux & apprentissage', level: 2 }).waitFor();
       await page.getByRole('button', { name: "Concevoir avec l'IA" }).first().click();
       const note = page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' });
       await note.waitFor({ timeout: 120000 });

@@ -1,0 +1,169 @@
+# Modèles du thème « Animaux » (09/11/2026) : chaque idée du thème a désormais son modèle.
+
+- id: distributeur-croquettes
+  title: Distributeur de croquettes programmé
+  description: Une trappe actionnée par un servo libère une portion de croquettes à 8 h et à 18 h, même après une coupure de courant (l'horloge a sa pile).
+  difficulty: 2
+  tags: [animaux, horloge, servo]
+  learning: [horloge temps réel, tableau d'horaires, action unique par créneau]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: trappe, component: sg90-servo }
+  globals_extra: |
+    const int REPAS[] = {8, 18};  // heures des repas, à adapter
+    const int NB_REPAS = 2;
+    int dernier_repas = -1;        // heure du dernier repas servi (une seule portion par créneau)
+  setup_extra: |
+    trappe_angle(0);
+  logic: |
+    int h = horloge_hour();
+    for (int i = 0; i < NB_REPAS; i++) {
+      if (h == REPAS[i] && horloge_minute() == 0 && dernier_repas != h) {
+        Serial.println("Repas servi à " + horloge_time());
+        trappe_angle(90);
+        delay(1500);
+        trappe_angle(0);
+        dernier_repas = h;
+      }
+    }
+    delay(1000);
+
+- id: surveillance-aquarium
+  title: Surveillance d'aquarium
+  description: La sonde étanche mesure l'eau, le relais commande le chauffage autour de la consigne et l'écran affiche température et état. Sonde débranchée, le chauffage est coupé.
+  difficulty: 2
+  tags: [animaux, température, relais, écran]
+  learning: [régulation tout ou rien, hystérésis, sécurité en cas de panne de capteur]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: chauffage, component: relay-module-1ch }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    const float CONSIGNE = 25.0;  // °C, à adapter aux poissons
+    const float ECART = 0.5;      // hystérésis : chauffe sous 24,5 °C, s'arrête au-dessus de 25,5 °C
+    bool chauffe = false;
+  logic: |
+    float t = sonde_temperature();
+    if (isnan(t) || t < -50) {
+      chauffe = false;
+      chauffage_off();
+      ecran_print("Sonde absente", "Chauffage coupe");
+    } else {
+      if (t < CONSIGNE - ECART) { chauffe = true; }
+      if (t > CONSIGNE + ECART) { chauffe = false; }
+      if (chauffe) { chauffage_on(); } else { chauffage_off(); }
+      ecran_print(String(t, 1) + " C", chauffe ? "Chauffage : oui" : "Chauffage : non", "Consigne " + String(CONSIGNE, 1) + " C");
+    }
+    delay(1000);
+
+- id: chatiere-badge
+  title: Chatière à badge
+  description: Le médaillon RFID du chat déverrouille la chatière cinq secondes ; un autre badge (ou le chat du voisin) la laisse fermée.
+  difficulty: 3
+  tags: [animaux, rfid, servo]
+  learning: [identifiant RFID, liste autorisée, verrou temporisé]
+  parts:
+    - { name: lecteur, component: rc522-rfid }
+    - { name: verrou, component: sg90-servo }
+  globals_extra: |
+    const String BADGE_CHAT = "DE AD BE EF";  // remplacer par l'UID du médaillon, lu dans le moniteur série
+    const int OUVERT = 90;
+    const int FERME = 0;
+  setup_extra: |
+    verrou_angle(FERME);
+  logic: |
+    String uid = lecteur_read_uid();
+    if (uid.length() > 0) {
+      if (uid == BADGE_CHAT) {
+        Serial.println("Chat reconnu : chatière ouverte 5 s");
+        verrou_angle(OUVERT);
+        delay(5000);
+        verrou_angle(FERME);
+      } else {
+        Serial.println("Badge inconnu (" + uid + ") : chatière fermée");
+      }
+    }
+    delay(100);
+
+- id: compteur-hamster
+  title: Compteur de passages du hamster
+  description: Le détecteur de mouvement compte chaque sortie du hamster de sa cabane ; l'afficheur montre le total de la nuit.
+  difficulty: 1
+  tags: [animaux, mouvement, afficheur]
+  learning: [front montant, anti-rebond par délai, compteur]
+  parts:
+    - { name: detecteur, component: pir-hc-sr501 }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    int passages = 0;
+    bool avant = false;
+    unsigned long dernier = 0;  // un passage compte une fois : 3 s d'attente avant le suivant
+  setup_extra: |
+    afficheur_number(0);
+  logic: |
+    bool mouvement = detecteur_motion();
+    if (mouvement && !avant && (passages == 0 || millis() - dernier > 3000)) {
+      passages++;
+      dernier = millis();
+      afficheur_number(passages);
+      Serial.print("Passage n° ");
+      Serial.println(passages);
+    }
+    avant = mouvement;
+    delay(50);
+
+- id: gamelle-eau
+  title: Gamelle d'eau qui prévient
+  description: Quand la gamelle est presque vide, la LED rouge clignote pour qu'on pense à la remplir.
+  difficulty: 1
+  tags: [animaux, eau, débutant]
+  learning: [capteur de niveau, clignotement]
+  parts:
+    - { name: niveau, component: water-level-sensor }
+    - { name: voyant, component: led, attrs: { color: red } }
+  logic: |
+    if (niveau_wet()) {
+      voyant_off();
+      delay(1000);
+    } else {
+      Serial.println("Gamelle vide : à remplir");
+      voyant_toggle();
+      delay(300);
+    }
+
+- id: jouet-lumineux-chat
+  title: Jouet lumineux pour chat
+  description: Deux servos promènent au sol un point lumineux au hasard pendant une minute à chaque appui sur le bouton. Une LED rouge très lumineuse dans un tube suffit (pas de laser, sans danger pour les yeux).
+  difficulty: 2
+  tags: [animaux, servo, jeu]
+  learning: [hasard, tourelle deux axes, durée de séance]
+  parts:
+    - { name: horizontal, component: sg90-servo }
+    - { name: vertical, component: sg90-servo }
+    - { name: point, component: led, attrs: { color: red } }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    const unsigned long SEANCE_MS = 60000;  // une minute de jeu par appui
+    unsigned long debut = 0;
+    bool en_jeu = false;
+  setup_extra: |
+    randomSeed(micros());
+  logic: |
+    if (bouton_clicked()) {
+      en_jeu = !en_jeu;
+      debut = millis();
+      Serial.println(en_jeu ? "Séance de jeu : 60 s" : "Séance arrêtée");
+    }
+    if (en_jeu && millis() - debut > SEANCE_MS) {
+      en_jeu = false;
+      Serial.println("Fin de la séance");
+    }
+    if (en_jeu) {
+      point_on();
+      horizontal_angle(random(30, 150));
+      vertical_angle(random(20, 60));  // vers le sol seulement
+      delay(random(300, 1200));
+    } else {
+      point_off();
+      delay(20);
+    }

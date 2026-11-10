@@ -354,10 +354,14 @@
   }));
   model("ds3231-rtc", (p) => ({
     view: "sensor",
-    absent: { time: "--:--:--", date: "--/--/----" },
+    absent: { time: "--:--:--", date: "--/--/----", hour: 0, minute: 0, day: 1, month: 1 },
     api: {
       time: () => { const d = p.sim.clock(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; },
       date: () => { const d = p.sim.clock(); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`; },
+      hour: () => p.sim.clock().getHours(),
+      minute: () => p.sim.clock().getMinutes(),
+      day: () => p.sim.clock().getDate(),
+      month: () => p.sim.clock().getMonth() + 1,
     },
   }));
   model("shift-register-74hc165", (p) => ({
@@ -644,12 +648,15 @@
     async _wait(ms, forceYield) {
       if (this.stopped || this.now >= this.stopAt) throw STOP;
       if (this.now + ms > this.stopAt) ms = this.stopAt - this.now;
-      while (this.events.length && this.events[0].ms <= this.now + ms) {
+      // Fin de l'attente fixée au départ : les évènements qui tombent pendant l'attente sont
+      // appliqués à leur heure, sans la prolonger (avant : chaque évènement repoussait la fin).
+      const end = this.now + ms;
+      while (this.events.length && this.events[0].ms <= end) {
         const ev = this.events.shift();
         this.now = Math.max(this.now, ev.ms);
         ev.fn(this);
       }
-      this.now += ms;
+      this.now = end;
       if (this.realtime) {
         this._debt += ms / this.speed;
         while (this.paused && !this.stopped) await sleep(50);

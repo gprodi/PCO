@@ -251,6 +251,88 @@ def test_hourglass_ring_empties_over_time(tmp_path):
     assert 5 <= lit <= 7  # 30 s de sablier, 15 s écoulées : la moitié des 12 LED
 
 
+# ---------------------------------------------------------------- thème « Animaux »
+@needs_node
+def test_feeder_opens_once_at_meal_time(tmp_path):
+    """La simulation démarre à 8 h 00 : une portion, une seule, pour ce repas."""
+    out = run(
+        simulation_payload(CAT, _spec("distributeur-croquettes")),
+        tmp_path,
+        until=8_000,
+        events=[[500, None, "mark", "repas"], [3_000, None, "mark", "apres"]],
+    )
+    assert out["marks"]["repas"]["parts"]["trappe"]["state"]["angle"] == 90
+    assert out["marks"]["apres"]["parts"]["trappe"]["state"]["angle"] == 0
+    assert out["parts"]["trappe"]["state"]["angle"] == 0
+    assert out["serial"].count("Repas servi") == 1
+
+
+@needs_node
+def test_aquarium_heats_below_the_setpoint_and_stops_without_probe(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("surveillance-aquarium")),
+        tmp_path,
+        until=6_000,
+        events=[
+            [200, "sonde", "set", "temperature", 22],
+            [2_000, None, "mark", "froid"],
+            [2_500, "sonde", "set", "temperature", 27],
+            [4_500, None, "mark", "chaud"],
+        ],
+    )
+    assert out["marks"]["froid"]["parts"]["chauffage"]["state"]["on"] is True
+    assert out["marks"]["chaud"]["parts"]["chauffage"]["state"]["on"] is False
+
+
+@needs_node
+def test_cat_flap_opens_only_for_the_cat_tag(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("chatiere-badge")),
+        tmp_path,
+        until=12_000,
+        events=[
+            [500, "lecteur", "fire", "badge", "12 34 56 78"],
+            [1_500, None, "mark", "voisin"],
+            [2_000, "lecteur", "fire", "badge", "DE AD BE EF"],
+            [3_500, None, "mark", "chat"],
+        ],
+    )
+    assert out["marks"]["voisin"]["parts"]["verrou"]["state"]["angle"] == 0
+    assert out["marks"]["chat"]["parts"]["verrou"]["state"]["angle"] == 90
+    assert out["parts"]["verrou"]["state"]["angle"] == 0  # refermée après 5 s
+
+
+@needs_node
+def test_hamster_passages_are_counted_once_each(tmp_path):
+    events = []
+    for t0 in (1_000, 5_000, 9_000):
+        events += [[t0, "detecteur", "press", "pass"], [t0 + 1_500, "detecteur", "release", "pass"]]
+    out = run(simulation_payload(CAT, _spec("compteur-hamster")), tmp_path, 12_000, events)
+    assert out["parts"]["afficheur"]["state"]["text"] == "   3"
+
+
+@needs_node
+def test_water_bowl_blinks_when_empty(tmp_path):
+    marks = [[1_000 + 150 * i, None, "mark", f"m{i}"] for i in range(6)]
+    out = run(
+        simulation_payload(CAT, _spec("gamelle-eau")),
+        tmp_path,
+        until=3_000,
+        events=[[100, "niveau", "set", "level", 0], *marks],
+    )
+    states = {out["marks"][f"m{i}"]["parts"]["voyant"]["state"]["on"] for i in range(6)}
+    # Elle clignote. Ce test a révélé un défaut du simulateur : un évènement pendant delay()
+    # en repoussait la fin, et des relevés rapprochés étaient tous pris dans la même attente.
+    assert states == {True, False}
+    out = run(
+        simulation_payload(CAT, _spec("gamelle-eau")),
+        tmp_path,
+        until=3_000,
+        events=[[100, "niveau", "set", "level", 80]],
+    )
+    assert out["parts"]["voyant"]["state"]["on"] is False
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

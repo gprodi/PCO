@@ -230,12 +230,12 @@ themes:
     icone: "🐾"
     description: Prendre soin des animaux de la maison.
     idees:
-      - { titre: "Distributeur de croquettes programmé", difficulte: 2, composants: [ds3231-rtc, sg90-servo], description: "Le servo ouvre la trappe aux heures des repas." }
-      - { titre: "Surveillance d'aquarium", difficulte: 2, composants: [ds18b20, relay-module-1ch, ssd1306-i2c], description: "Température affichée et chauffage commandé." }
-      - { titre: "Chatière à badge", difficulte: 3, composants: [rc522-rfid, sg90-servo], description: "Seul le badge du collier débloque la chatière." }
-      - { titre: "Détecteur de passage du hamster", difficulte: 1, composants: [pir-hc-sr501, tm1637-display], description: "Compte les sorties nocturnes du petit animal." }
-      - { titre: "Gamelle d'eau qui prévient", difficulte: 1, composants: [water-level-sensor, led], description: "La LED clignote quand l'eau est trop basse." }
-      - { titre: "Jouet laser pour chat", difficulte: 2, composants: [sg90-servo, led, pushbutton], description: "Deux servos promènent un point lumineux au hasard (jamais vers les yeux)." }
+      - { titre: "Distributeur de croquettes programmé", template: distributeur-croquettes, difficulte: 2, composants: [ds3231-rtc, sg90-servo], description: "Le servo ouvre la trappe aux heures des repas." }
+      - { titre: "Surveillance d'aquarium", template: surveillance-aquarium, difficulte: 2, composants: [ds18b20, relay-module-1ch, ssd1306-i2c], description: "Température affichée et chauffage commandé." }
+      - { titre: "Chatière à badge", template: chatiere-badge, difficulte: 3, composants: [rc522-rfid, sg90-servo], description: "Seul le badge du collier débloque la chatière." }
+      - { titre: "Détecteur de passage du hamster", template: compteur-hamster, difficulte: 1, composants: [pir-hc-sr501, tm1637-display], description: "Compte les sorties nocturnes du petit animal." }
+      - { titre: "Gamelle d'eau qui prévient", template: gamelle-eau, difficulte: 1, composants: [water-level-sensor, led], description: "La LED clignote quand l'eau est trop basse." }
+      - { titre: "Jouet lumineux pour chat", template: jouet-lumineux-chat, difficulte: 2, composants: [sg90-servo, led, pushbutton], description: "Deux servos promènent un point lumineux au sol, au hasard (une LED : pas de laser)." }
 
   - id: jeux
     titre: Jeux & apprentissage
