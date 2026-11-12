@@ -1060,6 +1060,128 @@ def test_protractor_rounds_angles(tmp_path, tilt, text):
     assert out["parts"]["afficheur"]["state"]["text"] == text
 
 
+# ---------------------------------------------------------------- « Lumière » et « Sport & bien-être »
+@needs_node
+def test_breathing_lamp_brightens_then_dims(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("lampe-respire")),
+        tmp_path,
+        until=4_000,
+        events=[[1_000, None, "mark", "a"], [2_000, None, "mark", "b"], [3_000, None, "mark", "c"]],
+    )
+    red = [out["marks"][k]["parts"]["anneau"]["state"]["pixels"][0][0] for k in "abc"]
+    assert red[0] < red[1] and red[2] < red[1]
+
+
+@needs_node
+def test_touch_panel_cycles_modes(tmp_path):
+    taps = []
+    for t0 in (300, 700):
+        taps += [[t0, "pastille", "press", "touch"], [t0 + 100, "pastille", "release", "touch"]]
+    out = run(simulation_payload(CAT, _spec("tableau-tactile")), tmp_path, 1_500, taps)
+    assert "Mode 2" in out["serial"]
+    assert len({tuple(px) for px in out["parts"]["anneau"]["state"]["pixels"]}) > 1  # arc-en-ciel
+
+
+@needs_node
+def test_scrolling_text_bitmap(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("texte-defilant")),
+        tmp_path,
+        until=300,
+        events=[[50, None, "mark", "f0"], [150, None, "mark", "f1"]],
+    )
+    f0 = out["marks"]["f0"]["parts"]["matrice"]["state"]["rows"]
+    f1 = out["marks"]["f1"]["parts"]["matrice"]["state"]["rows"]
+    assert f0[0] == 0xF1 and f0[1] == 0x8A  # « B », un blanc, début du « O »
+    assert f1[0] == 0xE3  # une colonne plus loin
+
+
+@needs_node
+@pytest.mark.parametrize(("light", "rgb"), [(100, [180, 200, 255]), (0, [90, 30, 0])])
+def test_sky_colour_lamp(tmp_path, light, rgb):
+    out = run(
+        simulation_payload(CAT, _spec("couleur-du-ciel")),
+        tmp_path,
+        until=1_000,
+        events=[[0, "ciel", "set", "light", light]],
+    )
+    assert out["parts"]["lampe"]["state"]["pixels"][0] == rgb
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("distance", "rgb", "angle"), [(10, [255, 90, 160], 90), (150, [0, 0, 0], 0)]
+)
+def test_sculpture_wakes_up_as_visitors_approach(tmp_path, distance, rgb, angle):
+    out = run(
+        simulation_payload(CAT, _spec("sculpture-eveil")),
+        tmp_path,
+        until=500,
+        events=[[0, "sonar", "set", "distance", distance]],
+    )
+    assert out["parts"]["lumiere"]["state"]["pixels"][0] == rgb
+    assert out["parts"]["petales"]["state"]["angle"] == angle
+
+
+@needs_node
+def test_push_up_counter(tmp_path):
+    seq = [30, 5, 30, 5, 30, 12]  # 12 cm : ni en bas ni en haut
+    events = [[200 + 400 * i, "sonar", "set", "distance", d] for i, d in enumerate(seq)]
+    out = run(simulation_payload(CAT, _spec("compteur-pompes")), tmp_path, 3_000, events)
+    assert out["parts"]["afficheur"]["state"]["text"] == "   2"
+
+
+@needs_node
+def test_posture_reminder_vibrates_after_ten_seconds(tmp_path):
+    payload = simulation_payload(CAT, _spec("rappel-posture"))
+    court = run(payload, tmp_path, 8_000, [[0, "sonar", "set", "distance", 30]])
+    long_ = run(payload, tmp_path, 12_000, [[0, "sonar", "set", "distance", 30]])
+    assert court["parts"]["vibreur"]["state"].get("count", 0) == 0
+    assert long_["parts"]["vibreur"]["state"]["count"] == 2 and "Redresse-toi" in long_["serial"]
+
+
+@needs_node
+def test_hydration_reminder(tmp_path):
+    payload = simulation_payload(CAT, _spec("rappel-hydratation"))
+    oubli = run(payload, tmp_path, 2_800_000, [[0, "balance", "set", "mass", 600]])
+    assert oubli["parts"]["voyant"]["state"]["on"] is True and oubli["sounds"] >= 1
+    gorgee = run(
+        payload,
+        tmp_path,
+        3_000_000,
+        [
+            [0, "balance", "set", "mass", 600],
+            [600_000, "balance", "set", "mass", 0],  # on prend la gourde…
+            [605_000, "balance", "set", "mass", 520],  # … et on la repose plus légère
+        ],
+    )
+    assert (
+        "Bravo, une gorgée" in gorgee["serial"]
+        and gorgee["parts"]["voyant"]["state"]["on"] is False
+    )
+
+
+@needs_node
+def test_cardiac_coherence_breathing_guide(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("coherence-cardiaque")),
+        tmp_path,
+        until=302_000,
+        events=[[2_500, None, "mark", "inspire"], [5_000, None, "mark", "plein"]],
+    )
+    assert 5 <= _lit(out["marks"]["inspire"]["parts"]["guide"]) <= 6  # mi-inspiration
+    assert _lit(out["marks"]["plein"]["parts"]["guide"]) >= 11
+    assert _lit(out["parts"]["guide"]) == 0  # séance de 5 minutes terminée
+
+
+@needs_node
+def test_jump_rope_counts_turns(tmp_path):
+    events = [[200 + 300 * i, "poignee", "set", "tx", 60 if i % 2 == 0 else -60] for i in range(6)]
+    out = run(simulation_payload(CAT, _spec("corde-a-sauter")), tmp_path, 2_500, events)
+    assert out["parts"]["afficheur"]["state"]["text"] == "   3"
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

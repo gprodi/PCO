@@ -1,0 +1,152 @@
+# Modèles du thème « Sport & bien-être » (12/11/2026). Aides à la motivation, pas des dispositifs médicaux.
+
+- id: compteur-pompes
+  title: Compteur de pompes
+  description: Posé au sol sous la poitrine, le capteur compte une pompe chaque fois qu'on descend à moins de 10 cm puis qu'on remonte au-delà de 25 cm.
+  difficulty: 1
+  tags: [sport, distance, afficheur, débutant]
+  learning: [deux seuils (hystérésis), compteur]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    int pompes = 0;
+    bool en_bas = false;
+  setup_extra: |
+    afficheur_number(0);
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < 10) {
+      en_bas = true;
+    }
+    if (en_bas && d > 25) {
+      en_bas = false;
+      pompes++;
+      afficheur_number(pompes);
+    }
+    delay(50);
+
+- id: rappel-posture
+  title: Rappel de posture au bureau
+  description: Fixé sur l'écran, le capteur mesure la distance du visage ; penché à moins de 40 cm pendant plus de 10 secondes, le boîtier vibre doucement.
+  difficulty: 2
+  tags: [bien-être, distance, vibreur]
+  learning: [durée d'un dépassement, rappel discret]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: vibreur, component: vibration-motor }
+  globals_extra: |
+    const int TROP_PRES_CM = 40;
+    bool trop_pres = false;
+    unsigned long depuis = 0;
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < TROP_PRES_CM) {
+      if (!trop_pres) {
+        trop_pres = true;
+        depuis = millis();
+      }
+      if (millis() - depuis > 10000) {
+        Serial.println("Redresse-toi !");
+        vibreur_buzz(300);
+        delay(200);
+        vibreur_buzz(300);
+        depuis = millis();  // prochain rappel dans 10 s
+      }
+    } else {
+      trop_pres = false;
+    }
+    delay(200);
+
+- id: rappel-hydratation
+  title: Rappel d'hydratation
+  description: La gourde posée sur la balance ; si son poids n'a pas baissé d'au moins 50 g (une gorgée) depuis 45 minutes, la LED s'allume et un bip rappelle de boire toutes les 5 minutes.
+  difficulty: 2
+  tags: [bien-être, balance, son]
+  learning: [pesée, différence de masse, minuteries]
+  parts:
+    - { name: balance, component: hx711-load-cell }
+    - { name: bip, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: blue } }
+  globals_extra: |
+    const unsigned long DELAI_MS = 2700000UL;  // 45 minutes
+    const float GORGEE_G = 50;
+    float reference = -1;  // poids de la gourde à la dernière gorgée
+    unsigned long dernier_verre = 0;
+    unsigned long dernier_bip = 0;
+  logic: |
+    float g = balance_grams();
+    if (g > 30) {  // gourde posée
+      if (reference < 0 || g > reference) {
+        reference = g;  // départ ou gourde remplie
+      } else if (reference - g >= GORGEE_G) {
+        Serial.println("Bravo, une gorgée !");
+        reference = g;
+        dernier_verre = millis();
+        voyant_off();
+      }
+    }
+    if (millis() - dernier_verre > DELAI_MS) {
+      voyant_on();
+      if (millis() - dernier_bip > 300000UL || dernier_bip < dernier_verre) {
+        dernier_bip = millis();
+        bip_beep(1200, 200);
+        Serial.println("Pense à boire");
+      }
+    }
+    delay(1000);
+
+- id: coherence-cardiaque
+  title: Guide de respiration (cohérence cardiaque)
+  description: La couronne se remplit pendant 5 secondes (inspirer) puis se vide pendant 5 secondes (expirer) — six respirations par minute, pendant 5 minutes, puis elle s'éteint.
+  difficulty: 1
+  tags: [bien-être, lumière, débutant]
+  learning: [cycle temporisé, jauge, fin de séance]
+  parts:
+    - { name: guide, component: ws2812-ring-12 }
+  globals_extra: |
+    const unsigned long SEANCE_MS = 300000UL;  // 5 minutes
+  logic: |
+    unsigned long t = millis();
+    if (t > SEANCE_MS) {
+      guide_fill(0, 0, 0);
+      delay(1000);
+    } else {
+      int phase = (t % 10000) / 50;  // 0 à 199 sur 10 s
+      int p = phase < 100 ? phase : 199 - phase;
+      guide_gauge(p);
+      delay(50);
+    }
+
+- id: corde-a-sauter
+  title: Chronomètre de corde à sauter
+  description: Le capteur, glissé dans une poignée, compte les tours de corde (la poignée bascule d'un côté puis de l'autre à chaque tour) et les affiche ; le moniteur série donne la cadence par minute.
+  difficulty: 2
+  tags: [sport, accéléromètre, afficheur]
+  learning: [détection d'un mouvement alterné, cadence]
+  parts:
+    - { name: poignee, component: mpu6050 }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    int tours = 0;
+    int cote = 0;  // -1 ou 1 : dernier côté franchi
+    unsigned long debut = 0;
+  setup_extra: |
+    afficheur_number(0);
+  logic: |
+    float a = poignee_tilt_x();
+    if (a > 45 && cote != 1) {
+      cote = 1;
+    }
+    if (a < -45 && cote == 1) {
+      cote = -1;
+      if (tours == 0) { debut = millis(); }
+      tours++;
+      afficheur_number(tours);
+      if (millis() - debut > 0) {
+        Serial.print("Cadence : ");
+        Serial.print(tours * 60000UL / (millis() - debut + 1));
+        Serial.println(" tours/min");
+      }
+    }
+    delay(10);

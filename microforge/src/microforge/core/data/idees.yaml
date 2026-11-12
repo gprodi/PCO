@@ -137,11 +137,11 @@ themes:
     idees:
       - { titre: "Matrice d'émotions", template: matrice-emotions, difficulte: 1, composants: [max7219-matrix, pushbutton], description: "Sourire, cœur, tête triste : un bouton change l'humeur." }
       - { titre: "Veilleuse RGB à modes", template: veilleuse-rgb, difficulte: 1, composants: [rgb-led, pushbutton], description: "Chaque appui change la couleur." }
-      - { titre: "Lampe qui respire", difficulte: 1, composants: [ws2812-ring-12], description: "Une lueur qui monte et descend doucement, pour se détendre." }
-      - { titre: "Tableau lumineux interactif", difficulte: 2, composants: [ws2812-ring-12, ttp223-touch], description: "Un cadre décoratif qui change d'ambiance quand on le touche." }
-      - { titre: "Texte défilant sur matrice", difficulte: 2, composants: [max7219-matrix], description: "Un message qui défile (prénom, citation du jour)." }
-      - { titre: "Lampe qui suit la couleur du ciel", difficulte: 2, composants: [ldr-module, ws2812-ring-12], description: "Plus chaude le soir, plus froide en journée." }
-      - { titre: "Sculpture qui s'éveille quand on approche", difficulte: 2, composants: [hc-sr04, ws2812-ring-12, sg90-servo], description: "Lumière et mouvement quand un visiteur s'approche." }
+      - { titre: "Lampe qui respire", template: lampe-respire, difficulte: 1, composants: [ws2812-ring-12], description: "Une lueur qui monte et descend doucement, pour se détendre." }
+      - { titre: "Tableau lumineux interactif", template: tableau-tactile, difficulte: 2, composants: [ws2812-ring-12, ttp223-touch], description: "Un cadre décoratif qui change d'ambiance quand on le touche." }
+      - { titre: "Texte défilant sur matrice", template: texte-defilant, difficulte: 2, composants: [max7219-matrix], description: "Un message qui défile (prénom, citation du jour)." }
+      - { titre: "Lampe qui suit la couleur du ciel", template: couleur-du-ciel, difficulte: 2, composants: [ldr-module, ws2812-ring-12], description: "Plus chaude le soir, plus froide en journée." }
+      - { titre: "Sculpture qui s'éveille quand on approche", template: sculpture-eveil, difficulte: 2, composants: [hc-sr04, ws2812-ring-12, sg90-servo], description: "Lumière et mouvement quand un visiteur s'approche." }
       - { titre: "Chenillard 8 LED (74HC595)", template: chenillard-74hc595, difficulte: 2, composants: [shift-register-74hc595, led], description: "Effet K2000 sur 8 LED avec seulement 3 broches de la carte." }
       - { titre: "Bargraphe au potentiomètre", template: bargraphe-potentiometre, difficulte: 2, composants: [potentiometer-10k, shift-register-74hc595, led], description: "Une jauge lumineuse qui suit le bouton rotatif." }
 
@@ -164,11 +164,11 @@ themes:
     idees:
       - { titre: "Minuteur Pomodoro vibrant", template: pomodoro-vibrant, difficulte: 2, composants: [pushbutton, vibration-motor, tm1637-display], description: "25 min de concentration, signal discret pour la pause." }
       - { titre: "Sablier lumineux", template: sablier-lumineux, difficulte: 1, composants: [ws2812-ring-12, potentiometer-10k, pushbutton], description: "Brossage des dents, gainage, jeux de société." }
-      - { titre: "Compteur de pompes", difficulte: 1, composants: [hc-sr04, tm1637-display], description: "Le sonar compte chaque descente sous le seuil." }
-      - { titre: "Rappel de posture au bureau", difficulte: 2, composants: [hc-sr04, vibration-motor], description: "Vibre si tu te penches trop près de l'écran." }
-      - { titre: "Rappel d'hydratation", difficulte: 2, composants: [hx711-load-cell, buzzer, led], description: "La gourde posée sur la balance : alerte si elle ne baisse pas." }
-      - { titre: "Guide de respiration (cohérence cardiaque)", difficulte: 1, composants: [ws2812-ring-12], description: "Inspire quand l'anneau s'allume, expire quand il s'éteint (6 cycles/min)." }
-      - { titre: "Chronomètre de corde à sauter", difficulte: 2, composants: [mpu6050, tm1637-display], description: "Compte les sauts grâce à l'accéléromètre." }
+      - { titre: "Compteur de pompes", template: compteur-pompes, difficulte: 1, composants: [hc-sr04, tm1637-display], description: "Le sonar compte chaque descente sous le seuil." }
+      - { titre: "Rappel de posture au bureau", template: rappel-posture, difficulte: 2, composants: [hc-sr04, vibration-motor], description: "Vibre si tu te penches trop près de l'écran." }
+      - { titre: "Rappel d'hydratation", template: rappel-hydratation, difficulte: 2, composants: [hx711-load-cell, buzzer, led], description: "La gourde posée sur la balance : alerte si elle ne baisse pas." }
+      - { titre: "Guide de respiration (cohérence cardiaque)", template: coherence-cardiaque, difficulte: 1, composants: [ws2812-ring-12], description: "Inspire quand l'anneau s'allume, expire quand il s'éteint (6 cycles/min)." }
+      - { titre: "Chronomètre de corde à sauter", template: corde-a-sauter, difficulte: 2, composants: [mpu6050, tm1637-display], description: "Compte les sauts grâce à l'accéléromètre." }
       - { titre: "Voyant de qualité de l'air", template: qualite-air-mq135, difficulte: 2, composants: [mq135-air, rgb-led, buzzer], description: "Vert, orange, rouge : le signal pour ouvrir la fenêtre." }
 
   - id: sciences

@@ -355,3 +355,36 @@ metre-ruban:
 rapporteur-angle:
   - { site: Circuit Digest, title: "DIY Arduino Digital Protractor using MPU6050 Gyroscope", url: "https://circuitdigest.com/microcontroller-projects/arduino-based-digital-protractor-using-mpu6050-gyroscope", proche: true }
   - { site: Hackaday, title: "Digital protractor makes angular measurements a snap", url: "https://hackaday.com/2019/03/03/digital-protractor-makes-angular-measurements-a-snap/", proche: true }
+
+# Thèmes « Lumière & art » et « Sport & bien-être » (12/11/2026) : repérés par recherche web
+# (sites non joignables depuis l'environnement de préparation).
+lampe-respire:
+  - { site: Controllerstech, title: "WS2812 Arduino tutorial (NeoPixel ring, respiration)", url: "https://controllerstech.com/ws2812-arduino-tutorial-neopixel-ring/" }
+  - { site: SunFounder, title: "Breath LED", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/breath_led.html", proche: true }
+tableau-tactile:
+  - { site: Circuit Digest, title: "Design and Build a Touch Capacitive Based PCB Light Panel to Control NeoPixel LED Strip", url: "https://circuitdigest.com/microcontroller-projects/design-and-build-a-touch-capacitive-based-pcb-light-panel-to-control-neopixel-led-strip", proche: true }
+  - { site: Hackster, title: "All About TTP223 Capacitive Touch Sensor", url: "https://www.hackster.io/tarantula3/all-about-ttp223-capacitive-touch-sensor-848887", proche: true }
+texte-defilant:
+  - { site: Arduino Forum, title: "Text Scrolling with Dot Matrix 8x8 and MAX7219", url: "https://forum.arduino.cc/t/text-scrolling-with-dot-matrix-8x8-and-max7219/166144" }
+  - { site: Zbotic, title: "LED Matrix Display: MAX7219 8×8 with Arduino Scrolling Text", url: "https://zbotic.in/led-matrix-display-max7219-8x8-with-arduino-scrolling-text/" }
+couleur-du-ciel:
+  - { site: Instructables, title: "Color-Changing Mood Light", url: "https://www.instructables.com/Color-Changing-Mood-Light", proche: true }
+  - { site: Adafruit, title: "City Skyline with MakeCode for CPX (lumière selon l'ambiance)", url: "https://learn.adafruit.com/city-skyline-with-makecode-for-cpx", proche: true }
+sculpture-eveil:
+  - { site: Instructables, title: "Interactive Blooming Flowers", url: "https://www.instructables.com/Interactive-Blooming-Flowers" }
+  - { site: Fab Academy, title: "GlowSense (fleur qui s'éclaire et s'ouvre à l'approche)", url: "https://fabacademy.org/2025/labs/kochi/students/ancy-roshan/final-project.html", proche: true }
+compteur-pompes:
+  - { site: Hackster, title: "Push-up Counter using Arduino and Ultrasonic Sensor", url: "https://www.hackster.io/herolivechannel/push-up-counter-using-arduino-and-ultrasonic-sensor-ea879f" }
+  - { site: Instructables, title: "Push Up Counter Using Arduino", url: "https://www.instructables.com/Push-Up-Counter-Using-Arduino" }
+rappel-posture:
+  - { site: Instructables, title: "Posture Sensor", url: "https://www.instructables.com/Posture-Sensor", proche: true }
+  - { site: Instructables, title: "Arduino Back to Work Reminder", url: "https://www.instructables.com/Arduino-Back-to-Work-Reminder", proche: true }
+rappel-hydratation:
+  - { site: Hackster, title: "Smart Coaster", url: "https://www.hackster.io/tkaraqi0/smart-coaster-fd68ef", proche: true }
+  - { site: GitHub, title: "Arduino Water Tracker", url: "https://github.com/Effywolf/Arduino-Water-Tracker", proche: true }
+coherence-cardiaque:
+  - { site: Adafruit, title: "Heart Rate Variability Sensor (Meditation Trainer, guide de respiration NeoPixel)", url: "https://learn.adafruit.com/heart-rate-variability-sensor", proche: true }
+  - { site: Little Bird Electronics, title: "Breath Pacer with EagLED", url: "https://littlebirdelectronics.com.au/projects/breath-pacer-with-eagled", proche: true }
+corde-a-sauter:
+  - { site: Random Nerd Tutorials, title: "Arduino Guide for MPU-6050 Accelerometer and Gyroscope Sensor", url: "https://randomnerdtutorials.com/arduino-mpu-6050-accelerometer-gyroscope/", proche: true }
+  - { site: Arduino Forum, title: "Using ADXL345 accelerometer to count bounces of a pogo stick", url: "https://forum.arduino.cc/t/using-adxl345-3-axis-accelerometer-arduino-nano-to-count-bounces-of-a-pogo-stick/221615", proche: true }

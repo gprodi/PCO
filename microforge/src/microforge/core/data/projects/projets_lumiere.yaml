@@ -1,0 +1,121 @@
+# Modèles du thème « Lumière & art » (12/11/2026).
+
+- id: lampe-respire
+  title: Lampe qui respire
+  description: La couronne s'allume et s'éteint doucement en violet, au rythme d'une respiration lente (4 secondes par cycle) — une veilleuse apaisante.
+  difficulty: 1
+  tags: [lumière, débutant, veilleuse]
+  learning: [onde triangulaire, millis(), modulo]
+  parts:
+    - { name: anneau, component: ws2812-ring-12 }
+  logic: |
+    int k = (millis() / 8) % 512;      // 0 à 511 en 4 s
+    int v = k < 256 ? k : 511 - k;     // monte puis descend
+    anneau_fill(v, v / 4, v);
+    delay(16);
+
+- id: tableau-tactile
+  title: Tableau lumineux interactif
+  description: Une pastille tactile cachée derrière le tableau fait passer la lumière d'un mode à l'autre — éteint, blanc chaud, arc-en-ciel qui tourne, bleu nuit.
+  difficulty: 2
+  tags: [lumière, tactile, art]
+  learning: [machine à états, appui unique (front), animation]
+  parts:
+    - { name: pastille, component: ttp223-touch }
+    - { name: anneau, component: ws2812-ring-12 }
+  globals_extra: |
+    int mode = 0;  // 0 éteint, 1 blanc chaud, 2 arc-en-ciel, 3 bleu nuit
+    uint8_t teinte = 0;
+  logic: |
+    if (pastille_tapped()) {
+      mode = (mode + 1) % 4;
+      Serial.print("Mode ");
+      Serial.println(mode);
+    }
+    if (mode == 0) {
+      anneau_fill(0, 0, 0);
+    } else if (mode == 1) {
+      anneau_fill(255, 160, 60);
+    } else if (mode == 2) {
+      anneau_wheel(teinte);
+      teinte += 2;
+    } else {
+      anneau_fill(0, 10, 60);
+    }
+    delay(20);
+
+- id: texte-defilant
+  title: Texte défilant sur matrice
+  description: « BONJOUR » défile de droite à gauche sur la matrice, lettre par lettre, avec une police de 5 × 7 points écrite dans le programme (le message se change dans le tableau MESSAGE).
+  difficulty: 2
+  tags: [lumière, matrice, texte]
+  learning: [police bitmap, colonnes et lignes, opérations bit à bit]
+  parts:
+    - { name: matrice, component: max7219-matrix }
+  globals_extra: |
+    // Police 5 × 7 : 5 colonnes par lettre, bit 0 = ligne du haut. A à Z, puis l'espace (26).
+    const byte POLICE[135] = {
+      0x7E, 0x11, 0x11, 0x11, 0x7E,  0x7F, 0x49, 0x49, 0x49, 0x36,  0x3E, 0x41, 0x41, 0x41, 0x22,
+      0x7F, 0x41, 0x41, 0x22, 0x1C,  0x7F, 0x49, 0x49, 0x49, 0x41,  0x7F, 0x09, 0x09, 0x09, 0x01,
+      0x3E, 0x41, 0x49, 0x49, 0x7A,  0x7F, 0x08, 0x08, 0x08, 0x7F,  0x00, 0x41, 0x7F, 0x41, 0x00,
+      0x20, 0x40, 0x41, 0x3F, 0x01,  0x7F, 0x08, 0x14, 0x22, 0x41,  0x7F, 0x40, 0x40, 0x40, 0x40,
+      0x7F, 0x02, 0x0C, 0x02, 0x7F,  0x7F, 0x04, 0x08, 0x10, 0x7F,  0x3E, 0x41, 0x41, 0x41, 0x3E,
+      0x7F, 0x09, 0x09, 0x09, 0x06,  0x3E, 0x41, 0x51, 0x21, 0x5E,  0x7F, 0x09, 0x19, 0x29, 0x46,
+      0x46, 0x49, 0x49, 0x49, 0x31,  0x01, 0x01, 0x7F, 0x01, 0x01,  0x3F, 0x40, 0x40, 0x40, 0x3F,
+      0x1F, 0x20, 0x40, 0x20, 0x1F,  0x3F, 0x40, 0x38, 0x40, 0x3F,  0x63, 0x14, 0x08, 0x14, 0x63,
+      0x07, 0x08, 0x70, 0x08, 0x07,  0x61, 0x51, 0x49, 0x45, 0x43,  0x00, 0x00, 0x00, 0x00, 0x00};
+    // Message : numéros des lettres (A = 0, B = 1… Z = 25, espace = 26). Ici « BONJOUR ».
+    const byte MESSAGE[] = {1, 14, 13, 9, 14, 20, 17, 26};
+    const int NB_LETTRES = 8;
+    byte image[8];
+    int decalage = 0;
+  logic: |
+    int total = NB_LETTRES * 6;  // 5 colonnes + 1 d'espace par lettre
+    for (int r = 0; r < 8; r++) { image[r] = 0; }
+    for (int c = 0; c < 8; c++) {
+      int col = (decalage + c) % total;
+      int dans = col % 6;
+      if (dans < 5) {
+        byte bits = POLICE[MESSAGE[col / 6] * 5 + dans];
+        for (int r = 0; r < 7; r++) {
+          if ((bits >> r) & 1) { image[r] = image[r] | (0x80 >> c); }
+        }
+      }
+    }
+    matrice_show(image);
+    decalage = (decalage + 1) % total;
+    delay(100);
+
+- id: couleur-du-ciel
+  title: Lampe qui suit la couleur du ciel
+  description: Près d'une fenêtre, la photorésistance mesure le jour et la couronne en suit l'ambiance — blanc bleuté en plein jour, blanc chaud en fin de journée, orangé discret le soir. Une évocation, pas une mesure de couleur.
+  difficulty: 2
+  tags: [lumière, ambiance]
+  learning: [correspondances linéaires avec map(), mélange RVB]
+  parts:
+    - { name: ciel, component: ldr-module }
+    - { name: lampe, component: ws2812-ring-12 }
+  logic: |
+    int l = ciel_light_percent();
+    lampe_fill(map(l, 0, 100, 90, 180), map(l, 0, 100, 30, 200), map(l, 0, 100, 0, 255));
+    delay(500);
+
+- id: sculpture-eveil
+  title: Sculpture qui s'éveille quand on approche
+  description: À l'approche d'un visiteur (moins d'un mètre), la sculpture s'illumine et s'ouvre (servo) d'autant plus qu'il est proche ; elle se rendort quand il s'éloigne. Servo sur une alimentation 5 V séparée.
+  difficulty: 2
+  tags: [lumière, art, distance, servo]
+  learning: [interaction par la distance, deux sorties pilotées par la même mesure]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: lumiere, component: ws2812-ring-12 }
+    - { name: petales, component: sg90-servo }
+  logic: |
+    float d = sonar_distance_cm();
+    int eveil = 0;  // 0 à 100
+    if (d > 0 && d < 100) {
+      eveil = map(constrain((int)d, 10, 100), 100, 10, 0, 100);
+    }
+    lumiere_fill(255 * eveil / 100, 90 * eveil / 100, 160 * eveil / 100);
+    petales_angle(eveil * 9 / 10);  // 0 à 90°
+    delay(80);
