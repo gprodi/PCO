@@ -1,0 +1,115 @@
+# Glossaire de l'onglet « Apprendre » : définitions courtes, pour débutants.
+# « aussi » : autres formes du terme cherchées dans les notions des projets (sans accents ni casse).
+
+- terme: GPIO
+  definition: "Broche d'entrée-sortie à usage général du microcontrôleur : elle lit un signal (entrée) ou en produit un (sortie)."
+- terme: Sortie numérique
+  aussi: [sortie numerique]
+  definition: "Broche réglée à l'état haut (3,3 V ou 5 V) ou bas (0 V) par le programme : allumer une LED, commander un relais."
+- terme: Entrée numérique
+  aussi: [entree numerique, entree]
+  definition: "Broche qui lit un état haut ou bas : un bouton, un contact, un capteur tout-ou-rien."
+- terme: Résistance série
+  aussi: [resistance serie, resistance de led]
+  definition: "Résistance placée avant une LED pour limiter le courant (environ 10 mA) : sans elle, la LED et la broche peuvent griller."
+- terme: Pull-up
+  aussi: [pull up, entree avec pull up, tirage, resistance de tirage]
+  definition: "Résistance qui maintient une entrée à l'état haut quand rien n'est branché ; le bouton, en reliant à la masse, la fait passer à l'état bas. Évite une entrée « flottante »."
+- terme: Anti-rebond
+  aussi: [anti rebond, rebond, front]
+  definition: "Un bouton mécanique rebondit quelques millisecondes en se fermant ; le programme ne compte qu'un appui (front montant, temps mort)."
+- terme: Front montant
+  aussi: [front d'ouverture, front de detection]
+  definition: "Instant où un signal passe de bas à haut : on réagit une fois au changement, pas tant que l'état dure."
+- terme: Lecture analogique
+  aussi: [lecture analogique, analogique, adc]
+  definition: "Mesure d'une tension variable convertie en nombre par le convertisseur (ADC) : 0 à 1023 sur 10 bits (Uno), 0 à 4095 sur 12 bits (ESP32)."
+- terme: ADC
+  definition: "Convertisseur analogique-numérique : transforme une tension en nombre. Sur l'ESP32, seules les broches de l'ADC1 restent utilisables quand le Wi-Fi est actif."
+- terme: Seuil
+  aussi: [seuil, seuils relatifs]
+  definition: "Valeur à partir de laquelle le programme change de comportement (allumer sous 30 % de lumière, alerter au-dessus de 10 % d'eau)."
+- terme: Hystérésis
+  aussi: [hysteresis, seuil et hysteresis]
+  definition: "Deux seuils au lieu d'un (allumer sous 30 %, éteindre au-dessus de 40 %) : la sortie ne clignote pas quand la mesure hésite autour d'une valeur."
+- terme: Bus 1-Wire
+  aussi: [1 wire, onewire, bus 1 wire]
+  definition: "Liaison sur un seul fil de données (plus la masse) ; chaque capteur DS18B20 a une adresse unique, on peut en chaîner plusieurs."
+- terme: Bus I2C
+  aussi: [i2c, bus i2c et adresses]
+  definition: "Liaison à deux fils (SDA données, SCL horloge) partagée par plusieurs modules ; chacun répond à son adresse (0x3C pour un écran OLED, 0x76 pour un BME280)."
+- terme: Bus SPI
+  aussi: [spi]
+  definition: "Liaison rapide à quatre fils (MOSI, MISO, SCK, et une broche CS par module) : carte microSD, lecteur RFID, matrice de LED."
+- terme: Adresse I2C
+  aussi: [adresse i2c, adresses i2c]
+  definition: "Numéro d'un module sur le bus I2C, souvent fixé par le fabricant ; deux modules identiques ont besoin d'adresses différentes."
+- terme: PWM
+  aussi: [modulation, pwm]
+  definition: "Modulation de largeur d'impulsion : la broche alterne très vite haut et bas ; la proportion de temps à l'état haut règle une luminosité, une vitesse, ou la position d'un servo."
+- terme: Servomoteur
+  aussi: [servo, servomoteur]
+  definition: "Moteur qui se place à un angle précis (0 à 180°) commandé par une impulsion PWM de 1 à 2 ms toutes les 20 ms."
+- terme: Moteur pas à pas
+  aussi: [pas a pas, moteur pas a pas]
+  definition: "Moteur qui tourne par petits pas réguliers (2 048 pas par tour pour le 28BYJ-48) : position connue sans capteur."
+- terme: Alimentation séparée
+  aussi: [alimentation separee, alimentation des servos]
+  definition: "Les moteurs et servos consomment plus que ce que fournit la carte : on les alimente à part, en reliant les masses."
+- terme: Masse commune
+  aussi: [masse, gnd]
+  definition: "Toutes les masses (GND) du montage sont reliées : c'est la référence 0 V commune aux signaux."
+- terme: Relais
+  aussi: [relais et securite, relais]
+  definition: "Interrupteur commandé électriquement : un petit courant de la carte ferme un contact qui alimente un appareil. Le 230 V reste réservé aux montages certifiés."
+- terme: MOSFET
+  aussi: [mosfet, mosfet de puissance]
+  definition: "Transistor qui commute une charge (ruban LED, ventilateur, pompe) bien plus gourmande que la broche ; « logique » s'il conduit pleinement dès 3,3 ou 5 V."
+- terme: Diode de roue libre
+  aussi: [roue libre]
+  definition: "Diode placée en parallèle d'un moteur ou d'une bobine : elle absorbe la surtension créée à la coupure et protège le transistor."
+- terme: Pont en H
+  aussi: [pont en h]
+  definition: "Circuit à quatre interrupteurs qui fait tourner un moteur à courant continu dans les deux sens (L298N, TB6612FNG)."
+- terme: Régulation
+  aussi: [regulation, boucle de regulation, asservissement]
+  definition: "Le programme mesure, compare à une consigne et corrige (chauffer si trop froid) : une boucle qui se répète."
+- terme: Machine à états
+  aussi: [machine a etats, etats]
+  definition: "Le programme est toujours dans un état (attente, alarme, armé…) et passe à un autre sur un évènement : clair, sans blocage."
+- terme: NeoPixel
+  aussi: [neopixel, led adressables, ws2812]
+  definition: "LED de couleur commandées une à une sur un seul fil de données (WS2812) ; un condensateur et une résistance protègent la première."
+- terme: Afficheur 7 segments
+  aussi: [7 segments, afficheurs 7 segments, tm1637]
+  definition: "Chiffres faits de 7 barres lumineuses ; le module TM1637 en pilote 4 avec deux fils."
+- terme: Matrice de LED
+  aussi: [matrice, matrices, max7219]
+  definition: "Grille de 8 × 8 LED pilotée par un MAX7219 ; une image tient en 8 octets, un par ligne."
+- terme: Serveur web embarqué
+  aussi: [serveur web, serveur http, web]
+  definition: "La carte Wi-Fi répond aux pages demandées par un navigateur du même réseau : on consulte ses capteurs depuis le téléphone."
+- terme: NTP
+  aussi: [ntp]
+  definition: "Protocole qui donne l'heure exacte par Internet : la carte la récupère au démarrage, sans module d'horloge."
+- terme: CSV
+  aussi: [carte sd et csv, csv, journal csv]
+  definition: "Fichier texte d'une ligne par mesure, valeurs séparées par des points-virgules : il s'ouvre dans un tableur."
+- terme: Moniteur série
+  aussi: [moniteur serie, serial]
+  definition: "Fenêtre de l'ordinateur qui affiche ce que le programme écrit avec Serial.print : indispensable pour comprendre et déboguer."
+- terme: Évitement d'obstacle
+  aussi: [evitement]
+  definition: "Le robot mesure la distance devant lui et, trop près, recule puis tourne avant de repartir."
+- terme: Suivi de ligne
+  aussi: [suivi de ligne, capteur de ligne]
+  definition: "Deux capteurs infrarouges regardent le sol : selon celui qui voit la ligne noire, le robot corrige sa direction."
+- terme: Temps de vol
+  aussi: [temps de vol]
+  definition: "Distance calculée à partir du temps que met un son ou une lumière à revenir après avoir rebondi sur l'obstacle."
+- terme: millis()
+  aussi: [millis, sans bloquer, minuterie]
+  definition: "Compteur de millisecondes depuis le démarrage : on compare deux instants pour mesurer une durée sans bloquer le programme avec delay()."
+- terme: Interruption
+  aussi: [interruption]
+  definition: "Le microcontrôleur suspend le programme pour réagir immédiatement à un évènement matériel, puis reprend."

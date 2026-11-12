@@ -360,3 +360,7 @@ main > .status:empty { position: absolute; min-height: 0; }
 .quiz label.bonne { background: var(--accent-soft); font-weight: 600; }
 .quiz label.fausse { text-decoration: line-through; }
 .quiz-msg { min-height: 1.2em; font-weight: 600; color: var(--accent); margin: 0; }
+.apprendre { grid-template-columns: minmax(0, 1fr); }
+.apprendre > * { min-width: 0; }
+.montage input[type="checkbox"], .quiz input[type="radio"] { width: auto; min-height: 0; margin: 0; flex: none; }
+.montage label > span { min-width: 0; overflow-wrap: anywhere; }

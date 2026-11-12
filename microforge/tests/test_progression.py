@@ -61,8 +61,18 @@ def test_niveaux_et_regles_de_badges():
         "xp_prochain": None,
     }
     regles = {k for b in badges() for k in b["regle"]}
-    assert regles <= {"missions", "mission", "projets", "etape", "themes", "xp"}
+    assert regles <= {"missions", "mission", "projets", "etape", "themes", "xp", "quiz"}
     assert {b["id"] for b in badges()} >= {f"etape-{s.etape}" for s in load_path()}
+
+
+def test_quiz_sans_faute_compte_comme_mission():
+    b = bilan([("quiz", "etape-2"), ("quiz", "etape-99")], CAT)
+    assert b["xp"] == 20 and len(b["missions"]) == 1  # étape inconnue ignorée
+    assert next(e for e in b["etapes"] if e["etape"] == 2)["quiz"] is True
+    obtenus = {x["id"] for x in b["badges"] if x["obtenu"]}
+    assert {"curieux", "premier-pas"} <= obtenus and "savant" not in obtenus
+    tous = bilan([("quiz", f"etape-{s.etape}") for s in load_path()], CAT)
+    assert "savant" in {x["id"] for x in tous["badges"] if x["obtenu"]}
 
 
 def test_api_enregistre_une_fois_et_refuse_l_inconnu(data_client):

@@ -1,6 +1,6 @@
 # Badges de la progression. Règles : missions (nombre total), mission + projets (une mission
 # automatique réussie sur N projets différents), etape (toutes les missions écrites d'une étape
-# du parcours), themes (missions réussies dans N thèmes), xp (points).
+# du parcours), themes (missions réussies dans N thèmes), xp (points), quiz (quiz sans faute).
 
 - { id: premier-pas, titre: Premier pas, description: Réussir une première mission., regle: { missions: 1 } }
 - { id: cableur, titre: Câbleur, description: Câbler 3 projets sans l'aide « Tout brancher »., regle: { mission: brancher-sans-aide, projets: 3 } }
@@ -14,4 +14,6 @@
 - { id: etape-6, titre: Connecté, description: "Toutes les missions de l'étape 6 : Wi-Fi et données.", regle: { etape: 6 } }
 - { id: etape-7, titre: Roboticien, description: "Toutes les missions de l'étape 7 : robots autonomes.", regle: { etape: 7 } }
 - { id: explorateur, titre: Explorateur, description: Réussir des missions dans 5 thèmes différents., regle: { themes: 5 } }
+- { id: curieux, titre: Curieux, description: Réussir un quiz du parcours sans faute., regle: { quiz: 1 } }
+- { id: savant, titre: Savant, description: Réussir sans faute les 7 quiz du parcours., regle: { quiz: 7 } }
 - { id: centurion, titre: Centurion, description: Atteindre 500 points d'expérience., regle: { xp: 500 } }

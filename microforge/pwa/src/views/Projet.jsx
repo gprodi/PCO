@@ -3,11 +3,12 @@
 // Au-dessus des onglets : notions, difficulté, contrôle électrique, choix de la carte, archive .zip.
 import { useEffect, useState } from 'react';
 import AtelierFrame from '../atelier-frame.jsx';
+import Apprendre from './Apprendre.jsx';
 import { renderMarkdown } from '../markdown.js';
 import { Dots, Icon, euros, message, plural, wireColor } from '../ui.jsx';
 
 const TABS = [
-  ['cablage', 'Câblage'], ['atelier', 'Atelier virtuel'], ['schema', 'Schéma'], ['code', 'Code'],
+  ['cablage', 'Câblage'], ['apprendre', 'Apprendre'], ['atelier', 'Atelier virtuel'], ['schema', 'Schéma'], ['code', 'Code'],
   ['guide', 'Guide de soudure'], ['wokwi', 'Simulation Wokwi'], ['bom', 'Nomenclature'],
   ['kicad', 'KiCad'], ['sources', 'Fiabilité & sources'],
 ];
@@ -269,6 +270,8 @@ export default function Projet({ build, client, onBoard, initialTab }) {
             )}
           </>
         )}
+
+        {tab === 'apprendre' && <Apprendre build={build} client={client} />}
 
         {tab === 'atelier' && (build.atelier ? (
           <>

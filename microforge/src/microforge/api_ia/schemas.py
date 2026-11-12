@@ -57,6 +57,9 @@ class BuildOut(BaseModel):
     #: Métadonnées du modèle de projet (notions, difficulté, références, cartes compatibles) ;
     #: ``None`` pour un projet libre (``/v1/builds/from-goal``).
     template: dict[str, Any] | None = None
+    #: Onglet « Apprendre » : montage pas à pas (avec le pourquoi de chaque fil), programme
+    #: expliqué, notions du projet, quiz de son étape du parcours (``None`` hors parcours).
+    apprendre: dict[str, Any] | None = None
     #: ``/v1/builds/from-goal`` seulement : « ia » (conçu par le modèle de langage puis validé par
     #: le moteur) ou « repli » (modèle du catalogue le plus proche, faute de proposition valide).
     origin: Literal["ia", "repli"] | None = None

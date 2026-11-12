@@ -29,6 +29,7 @@ Application (PWA) : http://localhost:5173 · preuve de concept Streamlit : http:
 | `src/microforge/core` | catalogue (40 cartes, 103 composants, 145 projets), allocateur, ERC, firmware, sorties | E4 |
 | `src/microforge/copilot` | copilote RAG : catalogue → 379 passages, index mémoire ou PostgreSQL + pgvector (HNSW cosinus), réponses citées, « je ne sais pas » sous le seuil, repli extractif sans LLM ; `POST /v1/copilot/ask`, page Streamlit « Copilote » | E3, E4 |
 | `src/microforge/sim` | atelier virtuel : transpileur C++ → JavaScript (sous-ensemble des projets, temps virtuel), moteur `mfsim.js` et 55 modèles de composants, mode « Je branche » (`atelier.js`), missions validées par le simulateur (`missions.js`), page Streamlit « Atelier virtuel » | E4 |
+| `core/pedagogie.py` | onglet « Apprendre » : montage pas à pas (le pourquoi de chaque fil, tiré du rôle et des capacités de la broche), programme expliqué (`data/api_doc.yaml`, chaque fonction utilisée a son explication, test), 38 notions (`data/glossaire.yaml`), 42 questions de quiz pour les 7 étapes (`data/quiz.yaml`) | E4 |
 | `core/missions.py`, `core/progression.py` | missions de l'atelier (50 écrites pour les 27 modèles du parcours qui ont des entrées à régler, 2 automatiques par projet), points, niveaux, 13 badges, avancement du parcours ; table `mission_reussie` (migration 0005) | E4 |
 | `src/microforge/data_pipeline` | collecte 5 types de sources, SQL, agrégation, import, purge RGPD | E1 |
 | `src/microforge/api_data` | API données (JWT RS256, RGPD, OWASP) | E1, E4 |

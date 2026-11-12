@@ -30,6 +30,7 @@ from microforge.copilot import CopilotAnswer
 from microforge.core.allocator import AllocationError
 from microforge.core.ideas import explore, inspiration, load_themes
 from microforge.core.models import BuildResult, ProjectSpec
+from microforge.core.pedagogie import apprendre
 from microforge.core.suggest import suggest_projects
 from microforge.sim import TranspileError, atelier_payload
 from microforge.vision import ScanResult
@@ -100,6 +101,7 @@ def _build_out(result: BuildResult) -> BuildOut:
         files=svc.builder.files(result),
         atelier=_atelier(result),
         template=_template_meta(result),
+        apprendre=apprendre(result, svc.builder.catalog),
     )
 
 

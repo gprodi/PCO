@@ -17,6 +17,11 @@ import yaml
 from microforge.core.catalog import Catalog
 from microforge.core.ideas import load_path, load_themes
 from microforge.core.missions import missions_du_modele, missions_ecrites
+from microforge.core.pedagogie import quiz
+
+#: un quiz du parcours réussi sans faute est enregistré comme la mission (QUIZ, "etape-<n>")
+QUIZ = "quiz"
+XP_QUIZ = 20
 
 NIVEAUX = (
     (0, "Apprenti"),
@@ -46,6 +51,8 @@ def _themes_des_modeles() -> dict[str, set[str]]:
 
 
 def mission_existe(template_id: str, mission_id: str, catalog: Catalog) -> bool:
+    if template_id == QUIZ:
+        return mission_id in {f"etape-{n}" for n in quiz()}
     return template_id in catalog.templates and any(
         m.id == mission_id for m in missions_du_modele(template_id)
     )
@@ -65,8 +72,11 @@ def niveau(xp: int) -> dict[str, Any]:
 def bilan(faites: Iterable[tuple[str, str]], catalog: Catalog) -> dict[str, Any]:
     """Points, niveau, badges (obtenus ou non) et avancement de chaque étape du parcours."""
     faites = {(t, m) for t, m in faites if mission_existe(t, m, catalog)}
-    index = {(t, m.id): m for t in {t for t, _ in faites} for m in missions_du_modele(t)}
-    xp = sum(index[f].xp(catalog.templates[f[0]].difficulty) for f in faites)
+    index = {(t, m.id): m for t in {t for t, _ in faites} - {QUIZ} for m in missions_du_modele(t)}
+    xp = sum(
+        XP_QUIZ if f[0] == QUIZ else index[f].xp(catalog.templates[f[0]].difficulty) for f in faites
+    )
+    quiz_reussis = {m for t, m in faites if t == QUIZ}
 
     etapes = []
     for etape in load_path():
@@ -81,6 +91,7 @@ def bilan(faites: Iterable[tuple[str, str]], catalog: Catalog) -> dict[str, Any]
                     ({"template_id": t, "mission_id": m} for t, m in dues if (t, m) not in faites),
                     None,
                 ),
+                "quiz": f"etape-{etape.etape}" in quiz_reussis,
             }
         )
     themes = {th for t, _ in faites for th in _themes_des_modeles().get(t, ())}
@@ -97,6 +108,8 @@ def bilan(faites: Iterable[tuple[str, str]], catalog: Catalog) -> dict[str, Any]
             return len(themes) >= regle["themes"]
         if "xp" in regle:
             return xp >= regle["xp"]
+        if "quiz" in regle:
+            return len(quiz_reussis) >= regle["quiz"]
         raise ValueError(f"règle de badge inconnue : {regle}")
 
     return {

@@ -1,5 +1,5 @@
 // Parcours de bout en bout de la PWA (version construite, servie par « vite preview ») :
-// inscription → stock → idées → projet (9 onglets, atelier virtuel dans son cadre isolé, changement
+// inscription → stock → idées → projet (10 onglets, atelier virtuel dans son cadre isolé, changement
 // de carte, archive .zip) → copilote, audit axe (WCAG 2.2 A/AA) de chaque vue et du cadre de
 // l'atelier, puis hors ligne : la page se recharge depuis le service worker.
 // Usage : node e2e/parcours-pwa.cjs <url de la PWA> <dossier des captures>
@@ -84,12 +84,12 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
     await step('projet', async () => {
       await page.getByRole('button', { name: 'Générer ce projet' }).first().click();
       await page.getByRole('tab', { name: 'Câblage' }).waitFor({ timeout: 60000 });
-      const tabs = ['Atelier virtuel', 'Schéma', 'Code', 'Guide de soudure', 'Simulation Wokwi', 'Nomenclature', 'KiCad', 'Fiabilité & sources', 'Câblage'];
+      const tabs = ['Apprendre', 'Atelier virtuel', 'Schéma', 'Code', 'Guide de soudure', 'Simulation Wokwi', 'Nomenclature', 'KiCad', 'Fiabilité & sources', 'Câblage'];
       for (const tab of tabs) {
         await page.getByRole('tab', { name: tab, exact: true }).click();
         await page.getByRole('tabpanel').waitFor();
       }
-      expect(await page.getByRole('tab').count() === 9, 'neuf onglets');
+      expect(await page.getByRole('tab').count() === 10, 'dix onglets');
       await page.screenshot({ path: path.join(shots, 'pwa-projet.png') });
       // Guide rendu (titres Markdown) et sources (niveaux de vérification).
       await page.getByRole('tab', { name: 'Guide de soudure' }).click();
@@ -136,6 +136,18 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.goto(`${base}#accueil`, { waitUntil: 'networkidle' });
       await page.getByRole('heading', { name: 'Ta progression' }).waitFor({ timeout: 30000 });
       await page.getByRole('button', { name: /Alarme d'ouverture de porte/ }).click();
+      // Onglet Apprendre : montage pas à pas (case cochée), programme expliqué, quiz sans faute.
+      await page.getByRole('tab', { name: 'Apprendre' }).click();
+      await page.getByRole('heading', { name: /Monter pas à pas/ }).waitFor({ timeout: 30000 });
+      await page.locator('.montage input[type=checkbox]').first().check();
+      await page.getByRole('heading', { name: /Monter pas à pas \(1\// }).waitFor();
+      await page.getByText(/porte_open\(\) : vrai si le contact/).waitFor();
+      const bonnes = ["0 à 4095", "Pour éviter qu'elle clignote quand la lumière hésite autour d'une valeur", "Un seul, partagé", "-127 °C, une valeur impossible", "Savoir si une porte est ouverte ou fermée", "Un seuil de décision"];
+      const questions = page.locator('.quiz fieldset');
+      for (let i = 0; i < bonnes.length; i += 1) await questions.nth(i).getByLabel(bonnes[i], { exact: true }).check();
+      await page.getByRole('button', { name: 'Vérifier mes réponses' }).click();
+      await page.getByText(/Sans faute ! Quiz enregistré/).waitFor({ timeout: 20000 });
+      await page.screenshot({ path: path.join(shots, 'pwa-apprendre.png'), fullPage: true });
       await page.getByRole('tab', { name: 'Atelier virtuel' }).click();
       const frame = page.frameLocator('iframe[title^="Atelier virtuel"]');
       await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 30000 });
@@ -149,7 +161,8 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.goto(`${base}#accueil`, { waitUntil: 'networkidle' });
       await page.locator('.badge.on', { hasText: 'Premier pas' }).waitFor({ timeout: 30000 });
       const resume = await page.locator('.progression .lede').innerText();
-      expect(/[1-9][0-9]* XP/.test(resume) && /2 missions réussies/.test(resume), `progression affichée (${resume})`);
+      expect(/[1-9][0-9]* XP/.test(resume) && /3 missions réussies/.test(resume), `progression affichée (${resume})`);
+      await page.locator('.badge.on', { hasText: 'Curieux' }).waitFor();
       await page.locator('.progression').screenshot({ path: path.join(shots, 'pwa-progression.png') });
     });
     await step('thème complet', async () => {

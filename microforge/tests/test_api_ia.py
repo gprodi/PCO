@@ -209,6 +209,13 @@ def test_generate_returns_atelier_and_template(ia_client):
     ids = [b["id"] for b in tpl["boards"]]
     assert "esp32-devkit-v1" in ids
     assert all(catalog.template_fits("station-meteo-oled", catalog.boards[b]) for b in ids)
+    # Onglet « Apprendre » et missions de l'atelier, dans la même réponse.
+    apprendre = body["apprendre"]
+    assert len(apprendre["montage"]) == len(body["assignments"])
+    assert apprendre["montage"][0]["role"] == "ground" and apprendre["montage"][0]["pourquoi"]
+    assert apprendre["quiz"]["etape"] == 3 and len(apprendre["quiz"]["questions"]) == 6
+    assert any(n["terme"] == "Bus I2C" for n in apprendre["notions"])
+    assert [m["id"] for m in atelier["missions"]][:2] == ["brancher-sans-aide", "simulation-60s"]
 
 
 def test_from_goal_and_ideas(ia_client):

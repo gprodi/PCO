@@ -13,7 +13,7 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 | Atelier | comme la page Streamlit « Atelier virtuel » : un projet, une carte compatible, brancher chaque composant puis simuler ; code JavaScript de la simulation consultable | `api_ia` `/v1/builds/generate` |
 | Mon stock | pièces rangées par catégorie, ajout, retrait | `api_data` `/v1/inventory*` |
 | Photo | photo prise par l'appareil (`capture="environment"`), pièces reconnues ajoutées en un geste | `api_ia` `/v1/vision/scan` |
-| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler ; **missions** validées par le simulateur, enregistrées dans le compte), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet (y compris conçu par l'IA), enregistrement dans « Mes projets » et liste d'achat (ce qui manque au stock, chiffré avec les offres collectées) ; provenance affichée pour un projet demandé à l'IA | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` ; `api_data` `/v1/projects`, `/v1/shopping-list` |
+| Projet | 10 onglets : câblage (couleur de chaque fil Dupont), **apprendre** (montage pas à pas avec le pourquoi de chaque fil et des cases à cocher gardées sur l'appareil, notions du projet, programme expliqué ligne par ligne, quiz de l'étape du parcours enregistré dans la progression), **atelier virtuel** (brancher puis simuler ; **missions** validées par le simulateur, enregistrées dans le compte), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet (y compris conçu par l'IA), enregistrement dans « Mes projets » et liste d'achat (ce qui manque au stock, chiffré avec les offres collectées) ; provenance affichée pour un projet demandé à l'IA | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` ; `api_data` `/v1/projects`, `/v1/shopping-list` |
 | Copilote | conversation : questions sur les composants et les cartes, réponses avec leurs sources | `api_ia` `/v1/copilot/ask` |
 
 Navigation : barre en haut sur ordinateur, barre d'onglets en bas sur téléphone (Accueil, Explorer,
@@ -101,9 +101,9 @@ uv run pytest -m e2e microforge/tests/test_e2e_parcours.py -k pwa
 
 Le test démarre `api_data` et `api_ia` (SQLite, clés JWT éphémères, modèle de langage simulé), sert
 `dist/` avec les en-têtes de l'image nginx, puis `e2e/parcours-pwa.cjs` enchaîne au format
-téléphone : inscription → stock → idées → projet (9 onglets ; dans l'atelier, « Tout brancher » puis
+téléphone : inscription → stock → idées → projet (10 onglets ; dans l'atelier, « Tout brancher » puis
 la simulation avance ; archive .zip téléchargée ; changement de carte) → missions (alarme de porte :
-porte ouverte dans l'atelier, mission « Intrusion ! » enregistrée, une minute de simulation en
+onglet Apprendre, un fil coché, quiz de l'étape 2 sans faute et enregistré ; porte ouverte dans l'atelier, mission « Intrusion ! » enregistrée, une minute de simulation en
 accéléré, badge « Premier pas » et points à l'accueil) → copilote → photo, audit axe
 de chaque vue et du cadre de l'atelier, puis rechargement hors ligne depuis le service worker.
 

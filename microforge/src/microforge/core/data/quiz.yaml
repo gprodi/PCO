@@ -1,0 +1,191 @@
+# Quiz du parcours : 6 questions par étape, une seule bonne réponse (index « bonne », à partir de 0),
+# et une explication affichée après la réponse. Réussir le quiz sans faute compte comme une mission.
+
+- etape: 1
+  questions:
+    - question: "Pourquoi place-t-on une résistance avant une LED ?"
+      choix: ["Pour qu'elle éclaire plus fort", "Pour limiter le courant qui la traverse", "Pour inverser son sens", "Pour la faire clignoter"]
+      bonne: 1
+      explication: "Sans résistance, le courant n'est limité que par la broche : la LED et la broche peuvent griller. Environ 10 mA suffisent."
+    - question: "Un bouton est relié entre une entrée et la masse, avec une résistance de tirage (pull-up). Que lit le programme quand on appuie ?"
+      choix: ["État haut", "État bas", "Une valeur entre 0 et 1023", "Rien, l'entrée flotte"]
+      bonne: 1
+      explication: "Le pull-up maintient l'entrée haute ; l'appui la relie à la masse : état bas."
+    - question: "Que fait delay(500) ?"
+      choix: ["Il attend 500 secondes", "Il met le programme en pause une demi-seconde", "Il répète 500 fois la boucle", "Il règle la LED à 500 mA"]
+      bonne: 1
+      explication: "delay() compte en millisecondes, et rien d'autre ne s'exécute pendant l'attente."
+    - question: "Pourquoi le programme ne compte-t-il qu'un appui même si le contact rebondit ?"
+      choix: ["Le bouton est neuf", "Il réagit au front montant et ignore les rebonds", "La carte est trop lente", "Les rebonds n'existent pas"]
+      bonne: 1
+      explication: "Un contact mécanique rebondit quelques millisecondes : l'anti-rebond ne retient qu'un changement d'état."
+    - question: "Dans le feu tricolore, pourquoi surveiller le bouton dans une boucle while plutôt qu'avec un seul delay(5000) ?"
+      choix: ["Pour économiser la pile", "Pour réagir à l'appel sans attendre la fin des 5 secondes", "Parce que delay ne marche pas", "Pour allumer les trois feux"]
+      bonne: 1
+      explication: "Pendant un delay(5000), le programme est aveugle ; la boucle vérifie le bouton toutes les 10 ms."
+    - question: "Une sortie numérique de l'ESP32 à l'état haut vaut…"
+      choix: ["5 V", "3,3 V", "12 V", "1 V"]
+      bonne: 1
+      explication: "La logique de l'ESP32 est en 3,3 V ; celle de l'Arduino Uno en 5 V."
+
+- etape: 2
+  questions:
+    - question: "Un capteur de lumière branché sur une entrée analogique de l'ESP32 renvoie des nombres de…"
+      choix: ["0 à 1", "0 à 100", "0 à 4095", "0 à 255"]
+      bonne: 2
+      explication: "L'ADC de l'ESP32 travaille sur 12 bits : 4096 valeurs ; celui de l'Uno sur 10 bits (0 à 1023)."
+    - question: "La veilleuse s'allume sous 30 % de lumière et s'éteint au-dessus de 40 %. Pourquoi deux seuils ?"
+      choix: ["Pour économiser l'énergie", "Pour éviter qu'elle clignote quand la lumière hésite autour d'une valeur", "Parce que le capteur est imprécis à 35 %", "Pour aller plus vite"]
+      bonne: 1
+      explication: "C'est l'hystérésis : entre les deux seuils, rien ne change."
+    - question: "Combien de fils de données faut-il pour brancher plusieurs sondes DS18B20 ?"
+      choix: ["Un seul, partagé", "Un par sonde", "Deux", "Quatre"]
+      bonne: 0
+      explication: "Le bus 1-Wire est partagé ; chaque sonde a une adresse unique."
+    - question: "Que renvoie la sonde DS18B20 quand elle est débranchée ?"
+      choix: ["0 °C", "-127 °C, une valeur impossible", "25 °C", "Une erreur qui arrête la carte"]
+      bonne: 1
+      explication: "-127 °C signale une sonde absente : le programme affiche « Sonde ? » au lieu d'une fausse mesure."
+    - question: "Un contact magnétique (ILS) sert à…"
+      choix: ["Mesurer la température", "Savoir si une porte est ouverte ou fermée", "Mesurer une distance", "Détecter la fumée"]
+      bonne: 1
+      explication: "L'aimant fixé sur la porte ferme le contact quand elle est fermée."
+    - question: "Le capteur de flamme donne une intensité de 0 à 100. Le programme alerte au-dessus de 50. Ce nombre 50 est…"
+      choix: ["Une adresse", "Un seuil de décision", "Une broche", "Une fréquence"]
+      bonne: 1
+      explication: "Un seuil transforme une mesure continue en décision : alarme ou pas."
+
+- etape: 3
+  questions:
+    - question: "Un écran OLED et un capteur BME280 partagent les fils SDA et SCL. Comment chacun sait-il qu'on lui parle ?"
+      choix: ["Par sa couleur", "Par son adresse I2C", "Par la longueur du fil", "Ils ne peuvent pas partager"]
+      bonne: 1
+      explication: "Chaque module I2C répond à son adresse : 0x3C pour l'écran, 0x76 ou 0x77 pour le BME280."
+    - question: "Combien de fils de données faut-il pour piloter un anneau de 12 LED WS2812 ?"
+      choix: ["12", "3", "1", "24"]
+      bonne: 2
+      explication: "Les LED adressables se transmettent les données de l'une à l'autre sur un seul fil."
+    - question: "Une image de la matrice 8 × 8 tient dans…"
+      choix: ["8 octets", "64 octets", "1 octet", "8 bits"]
+      bonne: 0
+      explication: "Un octet par ligne, un bit par LED : 8 lignes, 8 octets."
+    - question: "Pourquoi ajoute-t-on un gros condensateur près d'un ruban de LED adressables ?"
+      choix: ["Pour changer les couleurs", "Pour absorber les appels de courant à l'allumage", "Pour l'éteindre la nuit", "Pour la Wi-Fi"]
+      bonne: 1
+      explication: "Il stabilise l'alimentation quand toutes les LED s'allument d'un coup et protège la première."
+    - question: "L'horloge DS3231 garde l'heure quand la carte est éteinte grâce à…"
+      choix: ["Internet", "Sa pile bouton", "La mémoire du programme", "Le moniteur série"]
+      bonne: 1
+      explication: "Sa pile entretient son oscillateur, très précis, même hors tension."
+    - question: "Pour afficher 21,5 °C sur un afficheur à 4 chiffres qui n'affiche que des entiers, le thermostat envoie…"
+      choix: ["21", "215", "2150", "22"]
+      bonne: 1
+      explication: "La température est multipliée par 10 : 215 se lit 21,5 avec un chiffre après la virgule."
+
+- etape: 4
+  questions:
+    - question: "Comment commande-t-on l'angle d'un servomoteur ?"
+      choix: ["En changeant sa tension", "Par une impulsion PWM dont la durée fixe l'angle", "Par le bus I2C", "En inversant ses fils"]
+      bonne: 1
+      explication: "Une impulsion de 1 à 2 ms toutes les 20 ms : 1 ms = 0°, 2 ms = 180°."
+    - question: "map(potar, 0, 100, 0, 180) sert à…"
+      choix: ["Dessiner une carte", "Convertir un pourcentage en angle", "Arrondir une valeur", "Mesurer la distance"]
+      bonne: 1
+      explication: "map() transpose une valeur d'une plage vers une autre : 50 % devient 90°."
+    - question: "Pourquoi alimente-t-on les servos et moteurs à part, en reliant les masses ?"
+      choix: ["Pour qu'ils tournent dans les deux sens", "Parce qu'ils consomment plus que la carte ne peut fournir", "Pour la couleur des fils", "Ce n'est jamais nécessaire"]
+      bonne: 1
+      explication: "Un servo peut appeler plusieurs centaines de milliampères : la carte redémarrerait. Masses reliées pour une référence commune."
+    - question: "Le moteur 28BYJ-48 fait un tour complet en…"
+      choix: ["360 pas", "2048 pas", "100 pas", "12 pas"]
+      bonne: 1
+      explication: "Avec son réducteur, il fait 2048 pas par tour : un pas vaut environ 0,18°."
+    - question: "Pendant que moteur_steps(1000) tourne, le programme…"
+      choix: ["Continue à lire les capteurs", "Attend la fin du mouvement", "S'arrête définitivement", "Recule"]
+      bonne: 1
+      explication: "L'appel est bloquant : environ 3 ms par pas, soit 3 secondes pour 1000 pas."
+    - question: "Le joystick renvoie x = -100. La manette est poussée…"
+      choix: ["Au centre", "À fond d'un côté", "En haut", "Elle est débranchée"]
+      bonne: 1
+      explication: "-100 et 100 sont les deux extrêmes de l'axe, 0 le centre."
+
+- etape: 5
+  questions:
+    - question: "Pourquoi utiliser un relais pour commander une lampe ?"
+      choix: ["Pour la faire clignoter plus vite", "Parce que la broche ne peut pas fournir le courant ni la tension de la lampe", "Pour mesurer la lumière", "Pour économiser le code"]
+      bonne: 1
+      explication: "Le relais isole le circuit de puissance ; le 230 V reste réservé aux montages certifiés."
+    - question: "Un thermostat a une consigne de 20 °C et une hystérésis de 0,5 °C. Le chauffage démarre…"
+      choix: ["À 20 °C", "Sous 19,5 °C", "Au-dessus de 20,5 °C", "Toutes les minutes"]
+      bonne: 1
+      explication: "Il démarre sous 19,5 °C et s'arrête au-dessus de 20,5 °C : il ne s'allume pas et ne s'éteint pas sans cesse."
+    - question: "Pourquoi un MOSFET « logique » plutôt qu'un MOSFET quelconque en 3,3 V ?"
+      choix: ["Il est plus joli", "Il conduit pleinement dès que sa grille reçoit 3,3 V", "Il fait moins de bruit", "Il remplace la résistance"]
+      bonne: 1
+      explication: "Un MOSFET non logique reste à moitié passant à 3,3 V : il chauffe et la charge est mal alimentée."
+    - question: "À quoi sert une diode en parallèle d'une pompe ou d'un moteur ?"
+      choix: ["À l'allumer", "À absorber la surtension à la coupure", "À changer de sens", "À mesurer le courant"]
+      bonne: 1
+      explication: "C'est la diode de roue libre : sans elle, le pic de tension peut détruire le transistor."
+    - question: "L'interrupteur à clap ignore un second bruit dans les 400 ms. Pourquoi ?"
+      choix: ["Pour économiser la pile", "Pour qu'un seul clap ne soit pas compté plusieurs fois", "Parce que le micro est lent", "Pour faire de la musique"]
+      bonne: 1
+      explication: "Un clap dure quelques dizaines de millisecondes : sans temps mort, la lampe s'allumerait et s'éteindrait aussitôt."
+    - question: "Le ventilateur ne démarre pas sous 30 % de puissance. Le programme…"
+      choix: ["L'éteint", "Remonte la consigne à 30 % dès qu'il faut ventiler", "Change de carte", "Allume une LED"]
+      bonne: 1
+      explication: "Un moteur 12 V a besoin d'un minimum pour vaincre son frottement au démarrage."
+
+- etape: 6
+  questions:
+    - question: "Pour consulter la station météo depuis le téléphone, il faut…"
+      choix: ["Un câble USB", "Être sur le même réseau Wi-Fi et taper l'adresse de la carte", "Une carte SIM", "Le moniteur série"]
+      bonne: 1
+      explication: "La carte sert une page web sur le réseau local ; son adresse s'affiche au moniteur série au démarrage."
+    - question: "Que fournit le protocole NTP ?"
+      choix: ["La météo", "L'heure exacte par Internet", "L'adresse Wi-Fi", "La position GPS"]
+      bonne: 1
+      explication: "La carte demande l'heure à un serveur de temps : pas besoin de module d'horloge."
+    - question: "Pourquoi enregistrer les mesures en CSV sur la carte microSD ?"
+      choix: ["Pour les ouvrir dans un tableur", "Pour accélérer la carte", "Pour chiffrer les données", "Pour économiser le Wi-Fi"]
+      bonne: 0
+      explication: "Une ligne par mesure, des points-virgules entre les valeurs : un tableur en fait une courbe."
+    - question: "Sur un ESP32 avec le Wi-Fi actif, une entrée analogique doit être sur…"
+      choix: ["L'ADC2", "L'ADC1", "N'importe quelle broche", "Une broche d'alimentation"]
+      bonne: 1
+      explication: "Le Wi-Fi occupe l'ADC2 : MicroForge choisit automatiquement une broche de l'ADC1."
+    - question: "La page web du projet se rafraîchit toute seule grâce à…"
+      choix: ["Une balise meta refresh", "Un câble", "Le moniteur série", "Un relais"]
+      bonne: 0
+      explication: "<meta http-equiv='refresh' content='30'> recharge la page toutes les 30 secondes."
+    - question: "Pourquoi le capteur Home Assistant donne-t-il aussi ses valeurs en JSON ?"
+      choix: ["Pour être lu par un programme", "Pour être plus joli", "Pour économiser la pile", "Pour l'imprimer"]
+      bonne: 0
+      explication: "JSON est un format structuré : un autre programme (Home Assistant, un script) lit chaque valeur par son nom."
+
+- etape: 7
+  questions:
+    - question: "À quoi sert le pont en H (L298N, TB6612FNG) ?"
+      choix: ["À éclairer la route", "À faire tourner un moteur dans les deux sens et régler sa vitesse", "À mesurer la distance", "À recharger les piles"]
+      bonne: 1
+      explication: "Quatre interrupteurs inversent le sens du courant ; la PWM règle la vitesse."
+    - question: "Le robot suiveur voit la ligne sous son capteur gauche seulement. Il doit…"
+      choix: ["Tourner à gauche", "Tourner à droite", "S'arrêter", "Reculer"]
+      bonne: 0
+      explication: "La ligne part vers la gauche : roue gauche lente, roue droite rapide."
+    - question: "Le robot d'évitement mesure 15 cm devant lui. Il…"
+      choix: ["Accélère", "Recule puis pivote", "S'éteint", "Allume une LED"]
+      bonne: 1
+      explication: "Sous 20 cm, il recule 0,3 s puis pivote avant de repartir."
+    - question: "motors(-180, -180) fait…"
+      choix: ["Avancer", "Reculer les deux roues", "Tourner sur place", "Arrêter"]
+      bonne: 1
+      explication: "Une vitesse négative inverse le sens : les deux roues reculent."
+    - question: "Pourquoi les moteurs du robot ont-ils leur propre bloc de piles ?"
+      choix: ["Pour rouler plus loin", "Parce qu'ils consomment beaucoup et provoquent des chutes de tension", "Pour la couleur", "Ce n'est pas utile"]
+      bonne: 1
+      explication: "Au démarrage, un moteur appelle un fort courant : partagé avec la carte, il la ferait redémarrer."
+    - question: "Le capteur à ultrasons calcule la distance à partir…"
+      choix: ["De la couleur de l'obstacle", "Du temps que met l'écho à revenir", "De la température seulement", "Du bruit ambiant"]
+      bonne: 1
+      explication: "Temps de vol : distance = vitesse du son × temps d'aller-retour ÷ 2."
