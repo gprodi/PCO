@@ -187,6 +187,12 @@
           }
           ${name}_dev.show();
         }
+        // Une seule LED (numéro pris modulo 12) ; les autres gardent leur couleur.
+        void ${name}_pixel(int i, uint8_t r, uint8_t g, uint8_t b) {
+          int n = ${name}_dev.numPixels();
+          ${name}_dev.setPixelColor(((i % n) + n) % n, ${name}_dev.Color(r, g, b));
+          ${name}_dev.show();
+        }
   wokwi: { type: wokwi-led-ring, attrs: { pixels: "12" }, pins: { VCC: VCC, DIN: DIN, GND: GND } }
   kicad: { symbol: "LED:WS2812B", footprint: "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" }
   price_eur: 4.0

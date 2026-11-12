@@ -325,3 +325,33 @@ alarme-tiroir:
 alarme-sac:
   - { site: Instructables, title: "Arduino Thieve Distractor Alarm", url: "https://www.instructables.com/Arduino-Thieve-Distractor-Alarm" }
   - { site: Hackster, title: "Tiny Motion Detection Alarm", url: "https://www.hackster.io/Gokux/tiny-motion-detection-alarm-e394ac", proche: true }
+
+# Thèmes « Jeux & apprentissage » et « Temps & mesure » (12/11/2026) : repérés par recherche web
+# (sites non joignables depuis l'environnement de préparation).
+jeu-simon:
+  - { site: Instructables, title: "LED \"Simon Says\" Game", url: "https://www.instructables.com/LED-Simon-Says-Game" }
+  - { site: SparkFun, title: "SIK Experiment Guide for Arduino - V3.3, Experiment 16: Simon Says", url: "https://learn.sparkfun.com/tutorials/sik-experiment-guide-for-arduino---v33/experiment-16-simon-says" }
+de-matrice:
+  - { site: Instructables, title: "Dice Duo Matrix", url: "https://www.instructables.com/Dice-Duo-Matrix", proche: true }
+  - { site: Hackster, title: "DigDice", url: "https://www.hackster.io/Acidhub/digdice-032355", proche: true }
+quiz-deux-joueurs:
+  - { site: Instructables, title: "2 Players Competition / Quiz Buzzer Box System Using Arduino", url: "https://www.instructables.com/2-Players-Competition-Quiz-Buzzer-Box-System-Using/" }
+  - { site: Hackaday.io, title: "Quiz buzzer (premier appui, verrouillage, remise à zéro)", url: "https://hackaday.io/project/162649", proche: true }
+labyrinthe-bille:
+  - { site: GitHub, title: "Multi-Matrix (MAX7219 et MPU-6050, niveau à bulle)", url: "https://github.com/HyperBeast1551/Multi-Matrix", proche: true }
+  - { site: SunFounder, title: "Escape (jeu à inclinaison sur matrice de LED)", url: "https://docs.sunfounder.com/projects/elite-explorer-kit/de/latest/fun_projects/11_fun_escape.html", proche: true }
+jeu-fil-electrique:
+  - { site: Hackster, title: "Wire Loop Game", url: "https://www.hackster.io/mcfeaters2001/wire-loop-game-a47f23" }
+  - { site: Instructables, title: "Buzz Wire Game With LED Timer for Arduino UNO", url: "https://www.instructables.com/Buzz-Wire-Game-With-LED-Timer-for-Arduino-UNO", proche: true }
+chronometre-boutons:
+  - { site: IEEE UC Irvine, title: "Project 7 : chronomètre à deux boutons et TM1637", url: "https://ieee.ics.uci.edu/ops/project_7.html" }
+  - { site: Arduino Forum, title: "How to implement pushbuttons into a stopwatch", url: "https://forum.arduino.cc/t/how-to-implement-pushbuttons-into-a-stopwatch/1060672", proche: true }
+horloge-neopixel:
+  - { site: Hackster, title: "Unusual LED Ring Arduino Clock, Temperature and Humidity Meter", url: "https://www.hackster.io/mircemk/unusual-led-ring-arduino-clock-temperature-and-humidity-me-70bf0b", proche: true }
+  - { site: Coddy, title: "NeoPixel Clock: Mixing Hands", url: "https://coddy.tech/learn/arduino/projects/neopixel_clock_mixing_hands", proche: true }
+metre-ruban:
+  - { site: Hackster, title: "Smart Arduino Digital Meter with HC-SR04 and TM1637", url: "https://www.hackster.io/cstram/smart-arduino-digital-meter-with-hc-sr04-and-tm1637-5944b3" }
+  - { site: Instructables, title: "Digital Ultrasonic Tape Measure", url: "https://www.instructables.com/Digital-Ultrasonic-Tape-Measure", proche: true }
+rapporteur-angle:
+  - { site: Circuit Digest, title: "DIY Arduino Digital Protractor using MPU6050 Gyroscope", url: "https://circuitdigest.com/microcontroller-projects/arduino-based-digital-protractor-using-mpu6050-gyroscope", proche: true }
+  - { site: Hackaday, title: "Digital protractor makes angular measurements a snap", url: "https://hackaday.com/2019/03/03/digital-protractor-makes-angular-measurements-a-snap/", proche: true }

@@ -295,6 +295,7 @@
         String ${name}_date() { char b[] = "DD/MM/YYYY"; return String(${name}_dev.now().toString(b)); }
         int ${name}_hour() { return ${name}_dev.now().hour(); }
         int ${name}_minute() { return ${name}_dev.now().minute(); }
+        int ${name}_second() { return ${name}_dev.now().second(); }
         int ${name}_day() { return ${name}_dev.now().day(); }
         int ${name}_month() { return ${name}_dev.now().month(); }
   wokwi: null

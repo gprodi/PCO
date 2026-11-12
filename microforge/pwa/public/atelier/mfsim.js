@@ -354,12 +354,13 @@
   }));
   model("ds3231-rtc", (p) => ({
     view: "sensor",
-    absent: { time: "--:--:--", date: "--/--/----", hour: 0, minute: 0, day: 1, month: 1 },
+    absent: { time: "--:--:--", date: "--/--/----", hour: 0, minute: 0, second: 0, day: 1, month: 1 },
     api: {
       time: () => { const d = p.sim.clock(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; },
       date: () => { const d = p.sim.clock(); return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`; },
       hour: () => p.sim.clock().getHours(),
       minute: () => p.sim.clock().getMinutes(),
+      second: () => p.sim.clock().getSeconds(),
       day: () => p.sim.clock().getDate(),
       month: () => p.sim.clock().getMonth() + 1,
     },
@@ -417,6 +418,10 @@
           set((i) => { const r = amap(i, 0, n - 1, 0, 255) & 255; return i < k ? [r, 255 - r, 0] : [0, 0, 0]; });
         },
         wheel: (pos) => set((i) => colorHSV(((pos & 255) * 256 + Math.trunc((i * 65536) / n)) & 65535)),
+        pixel: (i, r, g, b) => {
+          const k = (((i | 0) % n) + n) % n;
+          p.s.pixels = p.s.pixels.map((px, j) => (j === k ? [r & 255, g & 255, b & 255] : px));
+        },
       },
     };
   });

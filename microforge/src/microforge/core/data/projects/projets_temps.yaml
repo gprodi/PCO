@@ -1,0 +1,104 @@
+# Modèles du thème « Temps & mesure » (12/11/2026).
+
+- id: chronometre-boutons
+  title: Chronomètre à deux boutons
+  description: Un bouton lance et arrête (on peut reprendre), l'autre remet à zéro quand le chrono est arrêté ; secondes et centièmes jusqu'à 99,99 s, puis minutes et secondes.
+  difficulty: 1
+  tags: [temps, afficheur, boutons, débutant]
+  learning: [millis(), temps cumulé, pause et reprise]
+  parts:
+    - { name: marche, component: pushbutton }
+    - { name: remise, component: pushbutton }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    bool en_marche = false;
+    unsigned long cumul = 0;   // temps des périodes déjà terminées
+    unsigned long depart = 0;  // début de la période en cours
+  logic: |
+    if (marche_clicked()) {
+      if (en_marche) {
+        cumul += millis() - depart;
+        en_marche = false;
+      } else {
+        depart = millis();
+        en_marche = true;
+      }
+    }
+    if (remise_clicked() && !en_marche) {
+      cumul = 0;
+    }
+    unsigned long t = cumul;
+    if (en_marche) { t += millis() - depart; }
+    if (t < 100000) {
+      afficheur_time(t / 1000, (t % 1000) / 10);  // ss:cc (les deux points font la virgule)
+    } else {
+      afficheur_time(t / 60000, (t / 1000) % 60);  // mm:ss
+    }
+    delay(10);
+
+- id: horloge-neopixel
+  title: Horloge NeoPixel
+  description: Une horloge sans chiffres sur l'anneau de 12 LED — rouge pour l'heure, vert pour les minutes, bleu pour les secondes (une LED par tranche de 5) ; la LED du haut est midi.
+  difficulty: 2
+  tags: [temps, horloge, lumière]
+  learning: [horloge temps réel, LED adressables une par une, division entière]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: anneau, component: ws2812-ring-12 }
+  globals_extra: |
+    int derniere_seconde = -1;
+  logic: |
+    int s = horloge_second();
+    if (s != derniere_seconde) {
+      derniere_seconde = s;
+      int h = horloge_hour() % 12;
+      int m = horloge_minute();
+      anneau_fill(0, 0, 0);
+      anneau_pixel(s / 5, 0, 0, 120);  // secondes
+      anneau_pixel(m / 5, 0, 150, 0);  // minutes
+      anneau_pixel(h, 255, 0, 0);      // heures (par-dessus si elles se croisent)
+    }
+    delay(100);
+
+- id: metre-ruban
+  title: Mètre ruban électronique
+  description: Pointé vers un mur, il affiche la distance en centimètres (longueur du boîtier comprise) ; un appui fige la mesure pour la noter, un second la libère.
+  difficulty: 1
+  tags: [temps, mesure, distance, afficheur]
+  learning: [mesure par ultrasons, valeur figée, correction d'origine]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: afficheur, component: tm1637-display }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    const int BOITIER_CM = 2;  // de l'arrière du boîtier au capteur
+    bool fige = false;
+  logic: |
+    if (bouton_clicked()) {
+      fige = !fige;
+      Serial.println(fige ? "Mesure figée" : "Mesure en direct");
+    }
+    if (!fige) {
+      float d = sonar_distance_cm();
+      if (d < 0) {
+        afficheur_number(0);  // hors de portée
+      } else {
+        afficheur_number((int)(d + 0.5) + BOITIER_CM);
+      }
+    }
+    delay(100);
+
+- id: rapporteur-angle
+  title: Rapporteur d'angle numérique
+  description: Posé sur une planche ou un pied de table, il affiche son inclinaison en degrés, arrondie, de −90 à 90.
+  difficulty: 2
+  tags: [temps, mesure, accéléromètre, afficheur]
+  learning: [inclinaison à partir de l'accélération, arrondi des nombres négatifs]
+  parts:
+    - { name: capteur, component: mpu6050 }
+    - { name: afficheur, component: tm1637-display }
+  logic: |
+    float a = capteur_tilt_x();
+    int degres = (int)(a < 0 ? a - 0.5 : a + 0.5);  // arrondi au plus proche, aussi sous zéro
+    afficheur_number(degres);
+    delay(200);

@@ -220,10 +220,10 @@ themes:
       - { titre: "Horloge autonome (RTC)", template: horloge-rtc-lcd, difficulte: 1, composants: [ds3231-rtc, lcd1602-i2c], description: "Garde l'heure même débranchée grâce à la pile." }
       - { titre: "Télémètre à ultrasons", template: telemetre-oled, difficulte: 1, composants: [hc-sr04, ssd1306-i2c], description: "Mesure une distance et l'affiche en grand." }
       - { titre: "Jauge de distance lumineuse", template: jauge-distance-neopixel, difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau se remplit à l'approche d'un obstacle." }
-      - { titre: "Chronomètre à deux boutons", difficulte: 1, composants: [pushbutton, tm1637-display], description: "Départ/arrêt et remise à zéro." }
-      - { titre: "Horloge NeoPixel", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Les heures et les minutes affichées par des couleurs sur l'anneau." }
-      - { titre: "Mètre ruban électronique", difficulte: 1, composants: [hc-sr04, tm1637-display, pushbutton], description: "Mesure figée à l'appui du bouton." }
-      - { titre: "Rapporteur d'angle numérique", difficulte: 2, composants: [mpu6050, tm1637-display], description: "Mesure l'angle d'une planche ou d'une scie." }
+      - { titre: "Chronomètre à deux boutons", template: chronometre-boutons, difficulte: 1, composants: [pushbutton, tm1637-display], description: "Départ/arrêt et remise à zéro." }
+      - { titre: "Horloge NeoPixel", template: horloge-neopixel, difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Les heures et les minutes affichées par des couleurs sur l'anneau." }
+      - { titre: "Mètre ruban électronique", template: metre-ruban, difficulte: 1, composants: [hc-sr04, tm1637-display, pushbutton], description: "Mesure figée à l'appui du bouton." }
+      - { titre: "Rapporteur d'angle numérique", template: rapporteur-angle, difficulte: 2, composants: [mpu6050, tm1637-display], description: "Mesure l'angle d'une planche ou d'une scie." }
 
   - id: animaux
     titre: Animaux
@@ -245,9 +245,9 @@ themes:
       - { titre: "Jeu de réflexes", template: jeu-reflexes, difficulte: 1, composants: [led, pushbutton, buzzer], description: "Appuie le plus vite possible quand la LED s'allume." }
       - { titre: "Feu tricolore avec appel piéton", template: feu-tricolore-pieton, difficulte: 1, composants: [led, pushbutton], description: "Séquences temporisées et bouton d'appel." }
       - { titre: "Compteur à molette", template: compteur-encodeur, difficulte: 1, composants: [rotary-encoder-ky040, tm1637-display], description: "Une molette crantée et un afficheur 4 chiffres." }
-      - { titre: "Jeu « Simon »", difficulte: 3, composants: [led, pushbutton, buzzer], description: "Mémorise et rejoue une séquence de couleurs et de sons de plus en plus longue." }
-      - { titre: "Dé électronique", difficulte: 1, composants: [pushbutton, max7219-matrix], description: "Secoue… appuie : la face du dé apparaît sur la matrice." }
-      - { titre: "Buzzer de quiz à 2 joueurs", difficulte: 2, composants: [pushbutton, led, buzzer], description: "Le premier qui appuie allume sa LED, l'autre est bloqué." }
-      - { titre: "Labyrinthe à bille virtuelle", difficulte: 3, composants: [mpu6050, max7219-matrix], description: "Incline le boîtier pour guider le point lumineux." }
-      - { titre: "Jeu du « fil électrique » (main stable)", difficulte: 1, composants: [buzzer, led], description: "Fais passer l'anneau le long du fil sans le toucher." }
+      - { titre: "Jeu « Simon »", template: jeu-simon, difficulte: 3, composants: [led, pushbutton, buzzer], description: "Mémorise et rejoue une séquence de couleurs et de sons de plus en plus longue." }
+      - { titre: "Dé électronique", template: de-matrice, difficulte: 1, composants: [pushbutton, max7219-matrix], description: "Secoue… appuie : la face du dé apparaît sur la matrice." }
+      - { titre: "Buzzer de quiz à 2 joueurs", template: quiz-deux-joueurs, difficulte: 2, composants: [pushbutton, led, buzzer], description: "Le premier qui appuie allume sa LED, l'autre est bloqué." }
+      - { titre: "Labyrinthe à bille virtuelle", template: labyrinthe-bille, difficulte: 3, composants: [mpu6050, max7219-matrix], description: "Incline le boîtier pour guider le point lumineux." }
+      - { titre: "Jeu du « fil électrique » (main stable)", template: jeu-fil-electrique, difficulte: 1, composants: [buzzer, led], description: "Fais passer l'anneau le long du fil sans le toucher." }
       - { titre: "Dé électronique à 7 LED", template: de-electronique, difficulte: 2, composants: [pushbutton, shift-register-74hc595, led], description: "Un appui, le dé roule et s'arrête sur une face de 1 à 6." }

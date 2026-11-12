@@ -933,6 +933,133 @@ def test_bag_alarm_arms_triggers_and_disarms(tmp_path):
     assert "Alarme : le sac a bougé" in out["serial"] and "Désarmée" in out["serial"]
 
 
+# ---------------------------------------------------------------- « Jeux » et « Temps »
+def _click(part: str, t0: int) -> list:
+    return [[t0, part, "press", "pressed"], [t0 + 80, part, "release", "pressed"]]
+
+
+@needs_node
+def test_simon_shows_a_colour_then_times_out(tmp_path):
+    out = run(simulation_payload(CAT, _spec("jeu-simon")), tmp_path, until=8_000)
+    assert "Tour 1" in out["serial"] and "Perdu au tour 1" in out["serial"]
+    assert out["sounds"] >= 2  # la note montrée, puis le son d'échec
+
+
+@needs_node
+def test_dice_lands_on_a_face(tmp_path):
+    faces = [
+        [0x00, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00],
+        [0xC0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03],
+        [0xC0, 0xC0, 0x00, 0x18, 0x18, 0x00, 0x03, 0x03],
+        [0xC3, 0xC3, 0x00, 0x00, 0x00, 0x00, 0xC3, 0xC3],
+        [0xC3, 0xC3, 0x00, 0x18, 0x18, 0x00, 0xC3, 0xC3],
+        [0xC3, 0xC3, 0x00, 0xC3, 0xC3, 0x00, 0xC3, 0xC3],
+    ]
+    out = run(simulation_payload(CAT, _spec("de-matrice")), tmp_path, 4_000, _click("bouton", 300))
+    valeur = int(out["serial"].split("Dé : ")[1].split()[0])
+    assert 1 <= valeur <= 6 and out["parts"]["matrice"]["state"]["rows"] == faces[valeur - 1]
+
+
+@needs_node
+def test_quiz_first_press_wins_until_reset(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("quiz-deux-joueurs")),
+        tmp_path,
+        until=3_000,
+        events=[
+            *_click("bouton_j2", 300),
+            *_click("bouton_j1", 400),
+            [1_000, None, "mark", "manche"],
+            *_click("bouton_anim", 2_000),
+        ],
+    )
+    manche = out["marks"]["manche"]["parts"]
+    assert manche["led_j2"]["state"]["on"] and not manche["led_j1"]["state"]["on"]
+    assert not out["parts"]["led_j2"]["state"]["on"] and "Prêts ?" in out["serial"]
+
+
+@needs_node
+def test_maze_ball_is_stopped_by_the_wall(tmp_path):
+    marks = [[3_000 + 100 * i, None, "mark", f"m{i}"] for i in range(6)]
+    out = run(
+        simulation_payload(CAT, _spec("labyrinthe-bille")),
+        tmp_path,
+        until=4_000,
+        events=[[0, "inclinaison", "set", "ty", 30], *marks],
+    )
+    rows = [out["marks"][f"m{i}"]["parts"]["matrice"]["state"]["rows"] for i in range(6)]
+    assert all(r[0] & 0x80 == 0 and r[1] & 0x80 == 0 for r in rows)  # elle a quitté le départ
+    assert any(r[2] == 0x90 for r in rows)  # arrêtée en (0, 2) par le mur de la ligne 3
+
+
+@needs_node
+def test_steady_hand_counts_each_touch_once(tmp_path):
+    events = []
+    for t0 in (300, 800, 1_300):
+        events += [[t0, "fil", "press", "pressed"], [t0 + 200, "fil", "release", "pressed"]]
+    out = run(simulation_payload(CAT, _spec("jeu-fil-electrique")), tmp_path, 2_000, events)
+    assert "Fautes : 3" in out["serial"] and "Fautes : 4" not in out["serial"]
+
+
+@needs_node
+def test_stopwatch_start_stop_and_reset(tmp_path):
+    payload = simulation_payload(CAT, _spec("chronometre-boutons"))
+    out = run(
+        payload,
+        tmp_path,
+        until=5_000,
+        events=[*_click("marche", 500), *_click("marche", 2_500), [3_000, None, "mark", "arret"]],
+    )
+    assert out["marks"]["arret"]["parts"]["afficheur"]["state"]["text"] in {"0199", "0200", "0201"}
+    remis = run(
+        payload,
+        tmp_path,
+        5_000,
+        [*_click("marche", 500), *_click("marche", 1_500), *_click("remise", 2_500)],
+    )
+    assert remis["parts"]["afficheur"]["state"]["text"] == "0000"
+
+
+@needs_node
+def test_neopixel_clock_hands(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("horloge-neopixel")),
+        tmp_path,
+        500,
+        start="2026-11-03T15:25:40",
+    )
+    px = out["parts"]["anneau"]["state"]["pixels"]
+    assert px[3] == [255, 0, 0] and px[5] == [0, 150, 0] and px[8] == [0, 0, 120]
+    assert _lit(out["parts"]["anneau"]) == 3
+
+
+@needs_node
+def test_tape_measure_and_hold(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("metre-ruban")),
+        tmp_path,
+        until=2_000,
+        events=[
+            [0, "sonar", "set", "distance", 48],
+            *_click("bouton", 500),
+            [1_000, "sonar", "set", "distance", 120],
+        ],
+    )
+    assert out["parts"]["afficheur"]["state"]["text"] == "  50" and "Mesure figée" in out["serial"]
+
+
+@needs_node
+@pytest.mark.parametrize(("tilt", "text"), [(30, "  30"), (-12.4, " -12"), (-12.6, " -13")])
+def test_protractor_rounds_angles(tmp_path, tilt, text):
+    out = run(
+        simulation_payload(CAT, _spec("rapporteur-angle")),
+        tmp_path,
+        until=1_000,
+        events=[[0, "capteur", "set", "tx", tilt]],
+    )
+    assert out["parts"]["afficheur"]["state"]["text"] == text
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

@@ -1,0 +1,215 @@
+# Modèles du thème « Jeux & apprentissage » (12/11/2026).
+
+- id: jeu-simon
+  title: Jeu « Simon »
+  description: Le jeu montre une suite de couleurs et de notes, de plus en plus longue ; il faut la rejouer sur les quatre boutons. Une erreur (ou 5 secondes sans réponse) et la partie recommence.
+  difficulty: 3
+  tags: [jeu, mémoire, son, boutons]
+  learning: [tableau qui grandit, attente d'un appui avec délai, hasard]
+  parts:
+    - { name: led_rouge, component: led, attrs: { color: red } }
+    - { name: led_verte, component: led, attrs: { color: green } }
+    - { name: led_jaune, component: led, attrs: { color: yellow } }
+    - { name: led_bleue, component: led, attrs: { color: blue } }
+    - { name: bouton_rouge, component: pushbutton }
+    - { name: bouton_vert, component: pushbutton }
+    - { name: bouton_jaune, component: pushbutton }
+    - { name: bouton_bleu, component: pushbutton }
+    - { name: son, component: buzzer }
+  globals_extra: |
+    const int MAX = 20;
+    int seq[20];
+    int longueur = 0;
+    const int NOTES[] = {262, 330, 392, 523};  // do, mi, sol, do aigu
+  setup_extra: |
+    randomSeed(micros());
+  logic: |
+    if (longueur == MAX) {
+      Serial.println("Bravo : 20 couleurs !");
+      longueur = 0;
+      delay(2000);
+    }
+    seq[longueur] = random(4);
+    longueur++;
+    Serial.print("Tour ");
+    Serial.println(longueur);
+    delay(600);
+    // 1. Le jeu montre la suite.
+    for (int i = 0; i < longueur; i++) {
+      int c = seq[i];
+      if (c == 0) { led_rouge_on(); } else if (c == 1) { led_verte_on(); } else if (c == 2) { led_jaune_on(); } else { led_bleue_on(); }
+      son_beep(NOTES[c], 300);
+      delay(400);
+      led_rouge_off();
+      led_verte_off();
+      led_jaune_off();
+      led_bleue_off();
+      delay(150);
+    }
+    // 2. Le joueur la rejoue.
+    bool perdu = false;
+    for (int i = 0; i < longueur && !perdu; i++) {
+      int appui = -1;
+      unsigned long debut = millis();
+      while (appui < 0 && millis() - debut < 5000) {
+        if (bouton_rouge_clicked()) { appui = 0; }
+        else if (bouton_vert_clicked()) { appui = 1; }
+        else if (bouton_jaune_clicked()) { appui = 2; }
+        else if (bouton_bleu_clicked()) { appui = 3; }
+        delay(5);
+      }
+      if (appui == seq[i]) {
+        son_beep(NOTES[appui], 150);
+        delay(200);
+      } else {
+        perdu = true;
+        Serial.print("Perdu au tour ");
+        Serial.println(longueur);
+        son_beep(150, 800);
+        delay(1000);
+        longueur = 0;
+      }
+    }
+
+- id: de-matrice
+  title: Dé électronique
+  description: Un appui fait rouler le dé — les faces défilent de plus en plus lentement sur la matrice, puis il s'arrête sur une face de 1 à 6.
+  difficulty: 1
+  tags: [jeu, matrice, hasard, débutant]
+  learning: [random(), dessins en tableaux d'octets, ralentissement progressif]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: matrice, component: max7219-matrix }
+  globals_extra: |
+    const byte F1[8] = {0x00, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00};
+    const byte F2[8] = {0xC0, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03};
+    const byte F3[8] = {0xC0, 0xC0, 0x00, 0x18, 0x18, 0x00, 0x03, 0x03};
+    const byte F4[8] = {0xC3, 0xC3, 0x00, 0x00, 0x00, 0x00, 0xC3, 0xC3};
+    const byte F5[8] = {0xC3, 0xC3, 0x00, 0x18, 0x18, 0x00, 0xC3, 0xC3};
+    const byte F6[8] = {0xC3, 0xC3, 0x00, 0xC3, 0xC3, 0x00, 0xC3, 0xC3};
+  setup_extra: |
+    randomSeed(micros());
+    matrice_show(F1);
+  logic: |
+    if (bouton_clicked()) {
+      int f = 1;
+      for (int i = 0; i < 12; i++) {
+        f = random(1, 7);
+        if (f == 1) { matrice_show(F1); }
+        else if (f == 2) { matrice_show(F2); }
+        else if (f == 3) { matrice_show(F3); }
+        else if (f == 4) { matrice_show(F4); }
+        else if (f == 5) { matrice_show(F5); }
+        else { matrice_show(F6); }
+        delay(60 + i * 15);  // le dé ralentit
+      }
+      Serial.print("Dé : ");
+      Serial.println(f);
+    }
+    delay(20);
+
+- id: quiz-deux-joueurs
+  title: Buzzer de quiz à 2 joueurs
+  description: Le premier qui appuie allume sa LED et fait sonner le buzzer ; l'autre est bloqué jusqu'à ce que l'animateur réarme avec son bouton.
+  difficulty: 2
+  tags: [jeu, boutons, son]
+  learning: [premier arrivé, verrouillage, remise à zéro]
+  parts:
+    - { name: bouton_j1, component: pushbutton }
+    - { name: bouton_j2, component: pushbutton }
+    - { name: bouton_anim, component: pushbutton }
+    - { name: led_j1, component: led, attrs: { color: red } }
+    - { name: led_j2, component: led, attrs: { color: blue } }
+    - { name: son, component: buzzer }
+  globals_extra: |
+    int gagnant = 0;  // 0 : personne n'a encore appuyé
+  logic: |
+    if (gagnant == 0) {
+      if (bouton_j1_pressed()) {
+        gagnant = 1;
+        led_j1_on();
+        son_beep(880, 500);
+        Serial.println("Joueur 1 !");
+      } else if (bouton_j2_pressed()) {
+        gagnant = 2;
+        led_j2_on();
+        son_beep(660, 500);
+        Serial.println("Joueur 2 !");
+      }
+    }
+    if (bouton_anim_clicked()) {
+      gagnant = 0;
+      led_j1_off();
+      led_j2_off();
+      Serial.println("Prêts ?");
+    }
+    delay(1);
+
+- id: labyrinthe-bille
+  title: Labyrinthe à bille virtuelle
+  description: Incline le boîtier pour guider le point lumineux dans le labyrinthe dessiné sur la matrice, du coin en haut à gauche jusqu'au coin en bas à droite ; les murs l'arrêtent.
+  difficulty: 3
+  tags: [jeu, matrice, accéléromètre]
+  learning: [inclinaison, collision avec un masque de bits, décalages de bits]
+  parts:
+    - { name: inclinaison, component: mpu6050 }
+    - { name: matrice, component: max7219-matrix }
+  globals_extra: |
+    // Murs : un bit à 1 par case occupée (colonne 0 = bit de poids fort).
+    const byte MUR[8] = {0x02, 0x72, 0x10, 0xD6, 0x04, 0x7C, 0x00, 0x00};
+    byte image[8];
+    int bx = 0;
+    int by = 0;
+    unsigned long depart = 0;
+  logic: |
+    int nx = bx;
+    int ny = by;
+    if (inclinaison_tilt_x() > 15) { nx = bx + 1; }
+    if (inclinaison_tilt_x() < -15) { nx = bx - 1; }
+    if (inclinaison_tilt_y() > 15) { ny = by + 1; }
+    if (inclinaison_tilt_y() < -15) { ny = by - 1; }
+    if (nx >= 0 && nx < 8 && (MUR[by] & (0x80 >> nx)) == 0) { bx = nx; }
+    if (ny >= 0 && ny < 8 && (MUR[ny] & (0x80 >> bx)) == 0) { by = ny; }
+    for (int r = 0; r < 8; r++) { image[r] = MUR[r]; }
+    if ((millis() / 200) % 2 == 0) { image[by] = image[by] | (0x80 >> bx); }  // la bille clignote
+    matrice_show(image);
+    if (bx == 7 && by == 7) {
+      Serial.print("Gagné en ");
+      Serial.print((millis() - depart) / 1000);
+      Serial.println(" s !");
+      matrice_bars(8);
+      delay(1500);
+      bx = 0;
+      by = 0;
+      depart = millis();
+    }
+    delay(150);
+
+- id: jeu-fil-electrique
+  title: Jeu du « fil électrique » (main stable)
+  description: Fais glisser l'anneau le long du fil tordu sans le toucher ; chaque contact fait buzzer, allume la LED et compte une faute. Le fil et l'anneau forment l'interrupteur.
+  difficulty: 1
+  tags: [jeu, son, débutant]
+  learning: [contact électrique comme entrée, compteur de fautes]
+  parts:
+    - { name: fil, component: pushbutton }
+    - { name: alarme, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: red } }
+  globals_extra: |
+    int fautes = 0;
+    bool contact = false;
+  logic: |
+    if (fil_pressed()) {
+      if (!contact) {
+        contact = true;
+        fautes++;
+        Serial.print("Touché ! Fautes : ");
+        Serial.println(fautes);
+      }
+      voyant_on();
+      alarme_beep(200, 60);
+    } else {
+      contact = false;
+      voyant_off();
+    }
+    delay(20);
