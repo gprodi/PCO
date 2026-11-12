@@ -15,7 +15,9 @@ if envoye and texte.strip():
     try:
         pred = client.predict(texte)
         client.save(texte, pred["sentiment"], pred["score"])
-        st.success(f"Sentiment : {pred['sentiment']} (confiance {pred['score']:.0%}, modèle {pred['modele']})")
+        st.success(
+            f"Sentiment : {pred['sentiment']} (confiance {pred['score']:.0%}, modèle {pred['modele']})"
+        )
     except client.ApiError as exc:
         st.error(f"Service indisponible : {exc}")
 

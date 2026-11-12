@@ -31,6 +31,34 @@ NEEDS = {
     "prometheus-grafana-uptimekuma": ["fastapi", "prometheus_client", "yaml"],
     "loki-alloy": ["fastapi", "loguru", "yaml"],
     "uv-package": [],
+    "collecte-multisource": [
+        "httpx",
+        "polars",
+        "rapidfuzz",
+        "bs4",
+        "sqlalchemy",
+        "pydantic_settings",
+        "loguru",
+    ],
+    "rag-llm-local": ["httpx", "pydantic_settings", "loguru", "rapidfuzz"],
+    "projet-ia-a-z": [
+        "fastapi",
+        "sqlmodel",
+        "jwt",
+        "argon2",
+        "slowapi",
+        "multipart",
+        "httpx",
+        "loguru",
+        "streamlit",
+        "pydantic_settings",
+        "prometheus_client",
+        "polars",
+        "rapidfuzz",
+        "bs4",
+        "langgraph",
+        "yaml",
+    ],
 }
 
 
@@ -61,7 +89,7 @@ def _referenced(node) -> set[str]:
 
 def test_every_referenced_boilerplate_exists():
     assert _referenced(referentiel()) <= set(BOILERPLATES)
-    assert len(BOILERPLATES) >= 9
+    assert len(BOILERPLATES) >= 12
 
 
 @pytest.mark.parametrize("name", BOILERPLATES)
@@ -79,6 +107,26 @@ def test_site_export_lists_files_and_metadata():
     jwt = exported["fastapi-jwt-sqlmodel"]
     assert "C5" in jwt["competences"] and "app/main.py" in jwt["fichiers"]
     assert "copier.yml" not in jwt["fichiers"]
+    # Noms tels qu'ils apparaissent dans le projet généré, options signalées, aperçu choisi.
+    starter = exported["projet-ia-a-z"]
+    assert "README.md" in starter["fichiers"] and ".github/workflows/ci.yml" in starter["fichiers"]
+    assert not any("{%" in f or f.endswith(".jinja") for f in starter["fichiers"])
+    assert starter["options"]["docs/conf.py"] == "avec_docs"
+    assert list(starter["apercu"])[:2] == ["README.md", "agents/pipeline.py"]
+
+
+def test_bricks_share_the_starter_files():
+    from revision.briques import ecarts
+
+    assert ecarts() == [], "lancer : uv run python -m revision.briques"
+
+
+def test_site_page_gives_a_working_copier_command():
+    page = (PATHS.root / "revision/site/src/pages/boilerplates/[id].astro").read_text(
+        encoding="utf-8"
+    )
+    assert "--subdirectory" not in page  # option inexistante dans copier
+    assert "uvx copier copy PCO/revision/boilerplates/{b.id}" in page
 
 
 def _render(name: str, dst: Path) -> Path:
@@ -120,12 +168,36 @@ def test_rendered_project_is_complete_and_valid(name, tmp_path):
             tomllib.loads(text)
 
 
-@pytest.mark.parametrize("name", BOILERPLATES)
-def test_generated_project_passes_its_own_tests_and_lint(name, tmp_path):
+#: variantes rendues en plus des réponses par défaut (options désactivées)
+VARIANTES = {
+    "projet-ia-a-z": {
+        "avec_orchestration": False,
+        "avec_supervision": False,
+        "avec_ci": False,
+        "avec_docs": False,
+    },
+}
+CAS = [(n, None) for n in BOILERPLATES] + [(n, v) for n, v in VARIANTES.items()]
+
+
+@pytest.mark.parametrize(
+    ("name", "data"), CAS, ids=[f"{n}{'-options' if d else ''}" for n, d in CAS]
+)
+def test_generated_project_passes_its_own_tests_and_lint(name, data, tmp_path):
     missing = [m for m in NEEDS[name] if importlib.util.find_spec(m) is None]
     if missing:
         pytest.skip(f"dépendances absentes de cet environnement : {missing}")
-    out = _render(name, tmp_path / name)
+    out = tmp_path / name
+    copier.run_copy(
+        str(PATHS.boilerplates / name),
+        str(out),
+        data=data or {},
+        defaults=True,
+        quiet=True,
+        unsafe=False,
+    )
+    if data:
+        assert not (out / "docs").exists() and not (out / ".github").exists()
     tests = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"],
         cwd=out,
@@ -140,3 +212,8 @@ def test_generated_project_passes_its_own_tests_and_lint(name, tmp_path):
         [ruff, "check", "."], cwd=out, capture_output=True, text=True, check=False
     )
     assert lint.returncode == 0, lint.stdout[-2000:]
+    # La CI des projets générés vérifie aussi la mise en forme : elle doit passer dès le départ.
+    forme = subprocess.run(
+        [ruff, "format", "--check", "."], cwd=out, capture_output=True, text=True, check=False
+    )
+    assert forme.returncode == 0, forme.stdout[-2000:]

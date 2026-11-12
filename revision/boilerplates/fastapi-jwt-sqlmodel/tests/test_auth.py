@@ -37,7 +37,10 @@ def test_refresh_rotation_and_reuse_detection(client):
     second = client.post("/auth/refresh", json={"refresh_token": first["refresh_token"]})
     assert second.status_code == 200
     # Réutiliser le jeton déjà échangé révoque toute la chaîne, y compris le jeton le plus récent.
-    assert client.post("/auth/refresh", json={"refresh_token": first["refresh_token"]}).status_code == 401
+    assert (
+        client.post("/auth/refresh", json={"refresh_token": first["refresh_token"]}).status_code
+        == 401
+    )
     latest = second.json()["refresh_token"]
     assert client.post("/auth/refresh", json={"refresh_token": latest}).status_code == 401
 
@@ -45,7 +48,10 @@ def test_refresh_rotation_and_reuse_detection(client):
 def test_token_types_are_not_interchangeable(client):
     register(client)
     tokens = login(client).json()
-    assert client.post("/auth/refresh", json={"refresh_token": tokens["access_token"]}).status_code == 401
+    assert (
+        client.post("/auth/refresh", json={"refresh_token": tokens["access_token"]}).status_code
+        == 401
+    )
     assert client.get("/me", headers=bearer(tokens["refresh_token"])).status_code == 401
     assert client.get("/me", headers=bearer("pas.un.jeton")).status_code == 401
 
@@ -53,8 +59,14 @@ def test_token_types_are_not_interchangeable(client):
 def test_logout_revokes_the_refresh_chain(client):
     register(client)
     tokens = login(client).json()
-    assert client.post("/auth/logout", json={"refresh_token": tokens["refresh_token"]}).status_code == 204
-    assert client.post("/auth/refresh", json={"refresh_token": tokens["refresh_token"]}).status_code == 401
+    assert (
+        client.post("/auth/logout", json={"refresh_token": tokens["refresh_token"]}).status_code
+        == 204
+    )
+    assert (
+        client.post("/auth/refresh", json={"refresh_token": tokens["refresh_token"]}).status_code
+        == 401
+    )
 
 
 def test_login_attempts_are_rate_limited(client):

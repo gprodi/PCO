@@ -38,6 +38,8 @@ def test_api_serves_champion_and_reloads_when_alias_moves():
         assert client.get("/model").json()["version"] == "2"
         r = client.post("/predict", json={"mesures": [5.1, 3.5, 1.4, 0.2]})
         assert r.json()["espece"] == "setosa"
-        MlflowClient().set_registered_model_alias(train.MODEL_NAME, "champion", "1")  # retour arrière
+        MlflowClient().set_registered_model_alias(
+            train.MODEL_NAME, "champion", "1"
+        )  # retour arrière
         assert client.post("/reload").json() == {"recharge": True, "version": "1"}
         assert client.post("/predict", json={"mesures": [1, 2, 3]}).status_code == 422

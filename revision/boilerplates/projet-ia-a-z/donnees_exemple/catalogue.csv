@@ -1,0 +1,12 @@
+ref_catalogue,title,release_date,author,genres,overview,vote_average
+OEU-001,Dracula,1897-05-26,Bram Stoker,Horreur|Gothique,"Le clerc de notaire Jonathan Harker se rend en Transylvanie chez le comte Dracula, qui projette de s'installer à Londres. Lettres et journaux intimes racontent ensuite la traque du vampire par le professeur Van Helsing et ses compagnons.",8.1
+OEU-002,Frankenstein ou le Prométhée moderne,1818-01-01,Mary Shelley,Horreur|Gothique|Science-fiction,"Le jeune savant Victor Frankenstein donne vie à une créature assemblée à partir de cadavres, puis l'abandonne. Rejetée par tous, la créature se venge sur ceux qu'il aime.",8.3
+OEU-003,Le Horla,1887,Guy de Maupassant,Fantastique|Épouvante,"Sous la forme d'un journal intime, un homme décrit la présence invisible qui boit son eau et son lait la nuit et qui prend peu à peu possession de sa volonté.",7.9
+OEU-004,Carmilla,1872,Joseph Sheridan Le Fanu,Horreur|Gothique,"Dans un château isolé de Styrie, la jeune Laura se lie d'amitié avec une mystérieuse invitée, Carmilla, tandis que les jeunes filles des environs dépérissent une à une.",7.6
+OEU-005,La Chute de la maison Usher,1839,Edgar Allan Poe,Horreur|Gothique,"Appelé par un ami d'enfance malade, le narrateur séjourne dans le manoir lugubre des Usher, où la sœur de son hôte meurt puis est mise au tombeau trop vite.",8.0
+OEU-006,L'Étrange Cas du docteur Jekyll et de M. Hyde,1886-01-05,Robert Louis Stevenson,Horreur|Fantastique,"L'avocat Utterson enquête sur les liens entre son ami, le respectable docteur Jekyll, et l'inquiétant M. Hyde, auteur d'actes de violence dans les rues de Londres.",8.2
+OEU-007,Le Fantôme de l'Opéra,1910,Gaston Leroux,Fantastique|Épouvante,"Une présence masquée hante les sous-sols de l'Opéra de Paris et s'éprend de la jeune cantatrice Christine Daaé, qu'elle veut faire triompher à tout prix.",7.7
+OEU-008,Le Château d'Otrante,1764,Horace Walpole,Gothique|Horreur,"Le prince Manfred, hanté par une prophétie, tente de garder son domaine par tous les moyens après la mort étrange de son fils, écrasé par un casque géant.",6.9
+OEU-009,La Patte de singe,1902,W. W. Jacobs,Horreur,"Une famille reçoit une patte de singe momifiée qui exauce trois vœux, chacun à un prix terrible.",7.8
+OEU-010,Orgueil et Préjugés,1813,Jane Austen,Roman sentimental,"Elizabeth Bennet et le fier M. Darcy apprennent à dépasser leurs premières impressions.",8.4
+OEU-001,Dracula,1897-05-26,Bram Stoker,Horreur|Gothique,"Doublon volontaire : retiré par la lecture du CSV (même titre, même date).",8.1

@@ -7,7 +7,10 @@ from .core import slugify
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="{{ project_name }}", description="{{ description }}")
+    parser = argparse.ArgumentParser(
+        prog="{{ project_name }}",
+        description="{{ description }}",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
     slug = sub.add_parser("slug", help="transforme un texte en identifiant d'URL")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -11,15 +12,30 @@ import yaml
 from revision.config import PATHS, referentiel, registry
 from revision.pipeline import all_courses
 
+_CONDITION = re.compile(r"\{%\s*if\s+(\w+)\s*%\}(.*?)\{%\s*endif\s*%\}")
+
+
+def _nom_rendu(chemin: str) -> tuple[str, str | None]:
+    """Chemin tel qu'il apparaît dans le projet généré, et l'option copier qui le conditionne."""
+    options = _CONDITION.findall(chemin)
+    nom = _CONDITION.sub(lambda m: m.group(2), chemin).removesuffix(".jinja")
+    return nom, (options[0][0] if options else None)
+
 
 def _boilerplates(root: Path) -> list[dict]:
     out = []
     for d in sorted(p for p in root.iterdir() if p.is_dir()) if root.exists() else []:
         meta_path = d / "copier.yml"
         meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-        files = sorted(
+        sources = sorted(
             str(p.relative_to(d)) for p in d.rglob("*") if p.is_file() and p.name != "copier.yml"
         )
+        rendus = {s: _nom_rendu(s) for s in sources}
+        files = sorted(nom for nom, _ in rendus.values())
+        options = {nom: opt for nom, opt in rendus.values() if opt}
+        # Aperçu : fichiers choisis dans copier.yml (_apercu), sinon les premiers de l'arborescence.
+        voulus = meta.get("_apercu") or [nom for nom, _ in sorted(rendus.values())[:12]]
+        par_nom = {nom: s for s, (nom, _) in rendus.items()}
         out.append(
             {
                 "id": d.name,
@@ -28,9 +44,11 @@ def _boilerplates(root: Path) -> list[dict]:
                 "cours": meta.get("_cours", []),
                 "competences": meta.get("_competences", []),
                 "fichiers": files,
+                "options": options,
                 "apercu": {
-                    f: (d / f).read_text(encoding="utf-8", errors="replace")[:4000]
-                    for f in files[:12]
+                    nom: (d / par_nom[nom]).read_text(encoding="utf-8", errors="replace")[:6000]
+                    for nom in voulus
+                    if nom in par_nom
                 },
             }
         )

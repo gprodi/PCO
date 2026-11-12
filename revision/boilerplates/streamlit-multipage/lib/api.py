@@ -18,7 +18,11 @@ def _local_model(text: str) -> dict:
     if pos == neg:
         return {"sentiment": "neutre", "score": 0.5, "source": "modèle local"}
     label = "positif" if pos > neg else "negatif"
-    return {"sentiment": label, "score": round(max(pos, neg) / (pos + neg), 2), "source": "modèle local"}
+    return {
+        "sentiment": label,
+        "score": round(max(pos, neg) / (pos + neg), 2),
+        "source": "modèle local",
+    }
 
 
 def predict(text: str) -> dict:

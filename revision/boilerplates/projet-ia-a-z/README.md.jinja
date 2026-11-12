@@ -1,0 +1,151 @@
+# {{ project_name }}
+
+{{ description }}
+
+Projet d'IA complet, de la collecte des données à la supervision en production, sur le modèle du fil
+rouge HorRAGor (parties 1 à 3) : un assistant qui répond sur {{ domaine }} en citant ses sources.
+Aucune API payante : Ollama en local, Gemini (offre gratuite) en secours, réponse extractive sinon.
+
+```
+ sources (API, web, CSV, SQL, gros volume)
+        │  collecte : normalisation, fusion, filtre
+        ▼
+ API de données ──► PostgreSQL            ← réseau privé, aucun port publié
+        ▲
+        │ clé de service
+ API d'IA : graphe LangGraph  rag → (scraper) → narration → juge      ← Ollama / Gemini, Wikipédia
+        ▲                     index des titres, RAG (pgvector ou mémoire, repli BM25)
+        │ jetons JWT (accès 15 min, rafraîchissement à rotation)
+ Interface Streamlit (chat)
+```
+
+| Étape du cours | Où dans ce projet |
+|---|---|
+| HorRAGor 1 — 5 sources, fusion, base Merise, RGPD | `collecte/` (`sources.toml`, `sources.py`, `fusion.py`), `donnees/` |
+| HorRAGor 2 — API FastAPI, outils de l'agent, interface | `agents/tools.py`, `api_ia/`, `streamlit_app.py`, `.streamlit/config.toml` |
+| HorRAGor 2 — mémoire rapide [titre : identifiant] | `rag/titres.py` (RapidFuzz ; FAISS possible, voir plus bas) |
+| HorRAGor 2 — recommandation par similarité (pgvector) | `rag/moteur.py` (`similaires`), `rag/index.py` (`IndexPgVector`) |
+| HorRAGor 3 — State, nodes, router, pipeline | `agents/state.py`, `agents/nodes.py`, `agents/router.py`, `agents/pipeline.py` |
+| HorRAGor 3 — Langfuse | `agents/observabilite.py` |
+| Épilogue — réseau privé, refresh tokens, Loguru, Prometheus/Grafana/Uptime Kuma, CI, couverture ≥ 80 %, Sphinx, Issues | `docker-compose.yml`, `api_ia/comptes.py`, `commun/logs.py`, `supervision/`, `.github/`, `docs/` |
+
+## Démarrer en local (sans Docker)
+
+Prérequis : [uv](https://docs.astral.sh/uv/) ; [Ollama](https://ollama.com) pour les réponses rédigées
+(sans lui, l'assistant répond par extraits cités).
+
+```bash
+uv sync --group dev
+cp .env.example .env        # remplir APP_DATA_API_KEY et APP_SECRET_KEY (commandes dans le fichier)
+ollama pull qwen3:4b && ollama pull bge-m3
+```
+
+Dans trois terminaux :
+
+```bash
+uv run uvicorn donnees.api:app --port 8000
+uv run python -m collecte --envoyer          # collecte les exemples et les importe
+uv run uvicorn api_ia.main:app --port 8001   # charge l'index au démarrage
+uv run streamlit run streamlit_app.py
+```
+
+Interface : http://localhost:8501 (créer un compte dans la barre latérale). API : http://localhost:8001/docs.
+
+## Avec Docker
+
+```bash
+cp .env.example .env        # remplir les secrets, dont POSTGRES_PASSWORD
+docker compose up -d --build
+docker compose --profile collecte run --rm collecte
+docker compose restart api_ia                # recharge l'index après la première collecte
+```
+
+- `db`, `vecteurs` et `api_data` ne sont que sur le réseau `prive` (`internal: true`) : ni port publié,
+  ni sortie vers Internet. Seule `api_ia` est sur les deux réseaux.
+- Ollama tourne sur la machine hôte (accès GPU, y compris Mac) : `host.docker.internal:11434`.
+- En production, placer un proxy TLS (Traefik, Caddy) devant `ui` et `api_ia` : la communication
+  entre l'interface et l'API d'IA est alors chiffrée.
+{%- if avec_supervision %}
+- Supervision : `docker compose --profile supervision up -d` puis Grafana sur http://localhost:3002
+  (tableau « Assistant »), Uptime Kuma sur http://localhost:3001 (créer les sondes
+  `http://api_ia:8001/health` et `http://ui:8501`). Prometheus collecte `/metrics` des deux API.
+{%- endif %}
+
+## Collecte (bloc E1)
+
+Les sources sont décrites dans `collecte/sources.toml` ; une source en panne est signalée sans
+arrêter les autres. Fournies en exemple : API Open Library (publique, sans clé), CSV, base SQLite
+(requête paramétrée avec jointure et seuil de votes), fichiers découpés (gros volume). La source web
+est désactivée : l'activer avec une page dont le `robots.txt` et les conditions d'utilisation
+autorisent la collecte (le robots.txt est vérifié avant chaque page). Pages construites en
+JavaScript : Playwright ou Selenium.
+
+- Gros volume avec Spark : `moteur = "spark"` dans `sources.toml` (`uv sync --extra spark`, Java requis),
+  ou sur une grappe `spark-submit collecte/spark_job.py "donnees/*.csv" sortie/`.
+{%- if avec_orchestration %}
+- Orchestration : `uv sync --extra orchestration` puis `uv run python -m collecte.flux_prefect`
+  (sources en parallèle, reprises, import).
+{%- endif %}
+- Fusion : priorité des sources, rapprochement par identifiant externe puis par titre proche
+  (RapidFuzz) et année ; la provenance de chaque champ est gardée en base.
+
+## RAG et agents
+
+- Index en mémoire par défaut, PostgreSQL + pgvector (HNSW, cosinus) si `APP_VECTOR_URL` est défini
+  (`uv sync --extra pgvector`). Sans modèle d'embeddings, la recherche passe en BM25.
+- L'index des titres joue le rôle de la mémoire FAISS du cours. Pour FAISS : `faiss-cpu`, un
+  `IndexFlatIP` sur les vecteurs des titres, même interface `trouver()`.
+- Ajouter un agent : une fonction `mon_node(state) -> dict` dans `nodes.py`, un aiguillage dans
+  `router.py`, deux lignes dans `pipeline.py`, un test dans `tests/test_agents.py`.
+- Le narrateur ne reçoit que la question et un dossier numéroté (fiche, passages, extrait web) :
+  pas de journaux techniques dans son contexte. Le juge vérifie que chaque réponse cite des sources
+  existantes ; une correction est demandée, puis l'assistant se replie sur les extraits.
+
+### Langfuse
+
+Suivre la procédure officielle (`git clone https://github.com/langfuse/langfuse.git`, puis
+`docker compose up -d` dans ce dossier ; interface sur http://localhost:3000), créer un projet,
+copier ses clés dans `.env` (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`), puis
+`uv sync --extra langfuse`. Chaque question devient une trace : nœuds traversés, durée, entrées et
+sorties. Sans clés, rien n'est envoyé.
+
+## Sécurité et RGPD
+
+- Secrets uniquement dans `.env` (jamais versionné) ; pour bloquer un secret écrit en clair, ajouter
+  gitleaks à la CI.
+- Mots de passe Argon2id, jeton d'accès de 15 minutes, jeton de rafraîchissement à rotation : un
+  jeton rejoué révoque toute sa famille. Tentatives de connexion limitées.
+- L'interface ne contient aucune logique métier et ne parle qu'à l'API d'IA ; le modèle n'écrit
+  jamais de SQL (outils Python à requêtes paramétrées).
+- Base des œuvres sans donnée personnelle ; comptes réduits à une adresse et un haché, effaçables
+  (`DELETE /auth/moi`).
+
+## Tests et qualité
+
+```bash
+uv run pytest            # couverture mesurée, échec sous 80 %
+uv run ruff check . && uv run ruff format --check .
+```
+
+Les tests n'utilisent ni réseau ni modèle : API de données en mémoire, modèles et Wikipédia simulés
+(`httpx.MockTransport`). Le test pgvector tourne si `APP_TEST_PGVECTOR_URL` est défini.
+{%- if avec_ci %} La CI (`.github/workflows/ci.yml`) rejoue tout sur Python 3.12 et 3.13, teste
+pgvector dans un service PostgreSQL et construit l'image. Anomalies : modèle de ticket « Incident ».
+{%- endif %}
+{%- if avec_docs %}
+
+## Documentation
+
+```bash
+uv run --group docs sphinx-build docs docs/_build/html
+```
+
+Architecture (conteneurs, graphe des agents vérifié par un test), modèle de données, API, exploitation.
+{%- endif %}
+
+## À faire pour votre projet
+
+- Remplacer les données d'exemple par vos sources et régler `[fusion]` dans `sources.toml`.
+- Mesurer la qualité des réponses sur un jeu de questions de référence (réponse attendue, sources).
+- Ajouter les migrations Alembic quand le schéma se stabilise (ici : `create_all`).
+- Mettre le proxy TLS et les sondes Uptime Kuma en place sur le serveur.

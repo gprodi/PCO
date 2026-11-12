@@ -1,0 +1,38 @@
+# {{ project_name }}
+
+Collecte de données depuis cinq types de sources, normalisation, fusion et filtre thématique :
+la brique « données » (bloc E1, HorRAGor 1) du starter `projet-ia-a-z`, utilisable seule.
+
+```bash
+uv sync --group dev
+uv run python -m collecte --sortie sortie/gold.json
+```
+
+| Type | Exemple fourni | Ce qu'il montre |
+|---|---|---|
+| API REST | Open Library (publique, sans clé) | pagination, reprises sur 429/503 en respectant `Retry-After` |
+| Page web | désactivée (à activer avec une page autorisée) | lecture du `robots.txt` avant la page, sélecteurs CSS |
+| CSV | `donnees_exemple/catalogue.csv` | Polars, doublons titre + date retirés |
+| SQL | `donnees_exemple/base_existante.sql` (SQLite créée au premier lancement) | jointure, filtre et seuil passés en paramètres liés |
+| Gros volume | `donnees_exemple/gros_volume/*.csv` | lecture paresseuse en flux (Polars) ou Spark (`moteur = "spark"`, `uv sync --extra spark`) |
+
+Tout se règle dans `collecte/sources.toml` : ajouter une entrée `[[source]]`, associer ses colonnes
+aux champs (`titre`, `annee`, `auteur`, `genre`, `resume`, `note`, `id:<nom>`), choisir la priorité
+des sources dans `[fusion]`. Une source en panne est signalée dans le rapport sans arrêter les autres.
+
+- **Normalisation** (`collecte/normalise.py`) : dates ISO 8601 (année seule → 1er janvier), notes sur
+  10, textes sans HTML ni espaces superflus, titres comparables (sans accents ni article).
+- **Fusion** (`collecte/fusion.py`) : rapprochement par identifiant externe commun, sinon par titre
+  proche (RapidFuzz) et année à un an près ; chaque champ vient de la source la plus prioritaire qui
+  le renseigne, et sa provenance est gardée.
+{%- if avec_orchestration %}
+- **Orchestration** : `uv sync --extra orchestration` puis `uv run python -m collecte.flux_prefect`.
+{%- endif %}
+- **Import** : `uv run python -m collecte --envoyer` poste les fiches par lots sur
+  `APP_DATA_API_URL/oeuvres/import` avec l'en-tête `X-API-Key` (`APP_DATA_API_KEY`).
+
+Pour la base, l'API de données, le RAG, les agents et l'interface : starter `projet-ia-a-z`.
+
+```bash
+uv run pytest     # couverture mesurée, échec sous 80 %
+```

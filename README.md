@@ -93,16 +93,30 @@ Version en ligne, sans installation (lecture, QCM, flashcards) : le lien privé 
 
 #### Boilerplates (gabarits copier)
 
-Neuf gabarits de projet, rédigés à partir des cours et reliés aux compétences du référentiel
-(page « Boilerplates » du site) : API FastAPI sécurisée (JWT à rotation, Argon2id), deux API + Streamlit,
-Streamlit multipage, registre MLflow avec alias, pipeline Prefect, CI/CD GitHub Actions, supervision
-Prometheus/Grafana/Uptime Kuma, journaux Loki/Alloy, paquet uv. Pour en créer un projet :
+Douze gabarits de projet, rédigés à partir des cours et reliés aux compétences du référentiel
+(page « Boilerplates » du site) :
+
+- **`projet-ia-a-z`**, le starter complet du fil rouge HorRAGor : collecte depuis cinq types de
+  sources et fusion, base derrière sa propre API sur un réseau Docker privé, RAG (pgvector ou
+  mémoire, repli BM25), graphe multi-agent LangGraph (chercheur, enquêteur web, narrateur, juge)
+  tracé par Langfuse, API d'IA à jetons de rafraîchissement à rotation, chat Streamlit,
+  Prometheus/Grafana/Uptime Kuma, CI avec couverture ≥ 80 %, Sphinx. Options : Prefect,
+  supervision, CI, documentation. Aucune API payante (Ollama, Gemini gratuit en secours).
+- Deux briques tirées du starter, utilisables seules : **`collecte-multisource`** (bloc E1) et
+  **`rag-llm-local`** (passerelle LLM et RAG).
+- Neuf gabarits ciblés : API FastAPI sécurisée (JWT à rotation, Argon2id), deux API + Streamlit,
+  Streamlit multipage, registre MLflow avec alias, pipeline Prefect, CI/CD GitHub Actions,
+  supervision Prometheus/Grafana/Uptime Kuma, journaux Loki/Alloy, paquet uv.
+
+Pour en créer un projet (les questions, nom et options, sont posées au lancement) :
 
 ```bash
-uvx copier copy revision/boilerplates/fastapi-jwt-sqlmodel mon-api
+uvx copier copy revision/boilerplates/projet-ia-a-z mon-projet
 ```
 
-Chaque gabarit est rendu et ses propres tests passent dans la CI (`revision/tests/test_boilerplates.py`).
+Chaque gabarit est rendu, puis ses propres tests, `ruff check` et `ruff format --check` passent
+dans la CI (`revision/tests/test_boilerplates.py`) ; le starter l'est aussi sans ses options. Les
+briques reprennent les fichiers du starter à l'identique (`uv run python -m revision.briques`).
 
 ### Tests
 

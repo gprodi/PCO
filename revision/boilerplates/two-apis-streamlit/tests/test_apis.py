@@ -12,7 +12,10 @@ def test_model_and_api_ia():
     assert model.predict("Reçu mardi") == ("neutre", 0.5)
     with TestClient(app) as c:
         assert c.post("/predict", json={"texte": "super"}).status_code == 401
-        assert c.post("/predict", json={"texte": "super"}, headers={"X-API-Key": ""}).status_code == 401
+        assert (
+            c.post("/predict", json={"texte": "super"}, headers={"X-API-Key": ""}).status_code
+            == 401
+        )
         r = c.post("/predict", json={"texte": "super produit"}, headers=KEY)
         assert r.status_code == 200 and r.json()["sentiment"] == "positif"
         assert c.post("/predict", json={"texte": ""}, headers=KEY).status_code == 422

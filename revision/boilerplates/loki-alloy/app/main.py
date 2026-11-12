@@ -23,11 +23,19 @@ async def access_log(request: Request, call_next):
             response = await call_next(request)
         except Exception:  # noqa: BLE001 - toute erreur est journalisée puis renvoyée en 500
             logger.exception("erreur non gérée", route=request.url.path)
-            response = JSONResponse({"detail": "Erreur interne", "request_id": request_id}, status_code=500)
+            response = JSONResponse(
+                {"detail": "Erreur interne", "request_id": request_id}, status_code=500
+            )
         duree_ms = round((time.perf_counter() - start) * 1000, 1)
         level = "WARNING" if response.status_code >= 400 else "INFO"
-        logger.log(level, "requête", methode=request.method, route=request.url.path,
-                   statut=response.status_code, duree_ms=duree_ms)
+        logger.log(
+            level,
+            "requête",
+            methode=request.method,
+            route=request.url.path,
+            statut=response.status_code,
+            duree_ms=duree_ms,
+        )
     response.headers["X-Request-ID"] = request_id
     return response
 

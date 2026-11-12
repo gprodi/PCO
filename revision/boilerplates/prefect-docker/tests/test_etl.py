@@ -26,7 +26,12 @@ def test_fetch_sends_department_and_fields():
 def test_clean_keeps_complete_rows():
     rows = core.clean(SAMPLE)
     assert [r["code"] for r in rows] == ["69123", "69266"]
-    assert rows[1] == {"code": "69266", "nom": "Villeurbanne", "population": 162501, "code_postal": "69100"}
+    assert rows[1] == {
+        "code": "69266",
+        "nom": "Villeurbanne",
+        "population": 162501,
+        "code_postal": "69100",
+    }
 
 
 def test_save_is_idempotent(tmp_path):
@@ -36,4 +41,7 @@ def test_save_is_idempotent(tmp_path):
     rows[0]["population"] = 600000
     core.save(rows, db)
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT COUNT(*), MAX(population) FROM commune").fetchone() == (2, 600000)
+        assert conn.execute("SELECT COUNT(*), MAX(population) FROM commune").fetchone() == (
+            2,
+            600000,
+        )

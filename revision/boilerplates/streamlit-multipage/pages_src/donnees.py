@@ -13,7 +13,11 @@ if uploaded is not None:
 if st.button("Charger un jeu d'exemple"):
     rng = np.random.default_rng(0)
     st.session_state.df = pd.DataFrame(
-        {"jour": range(1, 31), "ventes": rng.integers(20, 80, 30), "avis_positifs": rng.integers(5, 40, 30)}
+        {
+            "jour": range(1, 31),
+            "ventes": rng.integers(20, 80, 30),
+            "avis_positifs": rng.integers(5, 40, 30),
+        }
     )
 
 df = st.session_state.df

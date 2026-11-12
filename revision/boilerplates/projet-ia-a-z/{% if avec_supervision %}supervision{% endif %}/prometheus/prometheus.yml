@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+rule_files: [alertes.yml]
+scrape_configs:
+  - job_name: api_ia
+    static_configs: [{ targets: ["api_ia:8001"] }]
+  - job_name: api_data
+    static_configs: [{ targets: ["api_data:8000"] }]

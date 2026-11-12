@@ -1,0 +1,20 @@
+"""Flux Prefect : structure du flux et tâche de fusion (sans lancer de serveur Prefect)."""
+
+import pytest
+
+prefect = pytest.importorskip("prefect")
+
+from collecte.flux_prefect import collecte, extraire_source, fusionner_tout  # noqa: E402
+from collecte.modele import Enregistrement  # noqa: E402
+
+
+def test_flux_et_taches_declares():
+    assert collecte.name == "collecte"
+    assert extraire_source.retries == 2
+
+
+def test_fusion_des_lots():
+    lots = [[Enregistrement(source="csv", titre="Dracula", annee=1897, genre="Horreur")],
+            [Enregistrement(source="sql", titre="Dracula", annee=1897, genre="Horror", note=7.5)]]  # fmt: skip
+    fiches = fusionner_tout.fn(lots, {"priorite": ["csv", "sql"], "genres": ["horreur", "horror"]})
+    assert len(fiches) == 1 and fiches[0].note == 7.5

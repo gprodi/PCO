@@ -1,0 +1,15 @@
+"""La documentation décrit le graphe réellement compilé."""
+
+import re
+
+from agents.pipeline import construire
+from tests.faux import RACINE
+
+
+def test_schema_du_graphe_a_jour():
+    texte = (RACINE / "docs/architecture.md").read_text(encoding="utf-8")
+    bloc = re.search(r"```mermaid\ngraph TD\n(.*?)```", texte, re.DOTALL).group(1)
+    documentees = set(re.findall(r"(\w+) -\.?-> (\w+)", bloc))
+    noeuds = {nom: (lambda state: {}) for nom in ("rag", "scraper", "narration", "juge")}
+    reelles = {(a.source, a.target) for a in construire(noeuds).get_graph().edges}
+    assert documentees == reelles

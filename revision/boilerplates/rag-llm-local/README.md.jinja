@@ -1,0 +1,34 @@
+# {{ project_name }}
+
+Recherche augmentée (RAG) et accès aux modèles de langage, sans API payante : la brique
+« intelligence » du starter `projet-ia-a-z`, utilisable seule.
+
+```python
+from commun.config import Settings
+from llm.passerelle import Passerelle
+from rag.embeddings import EmbeddeurModele
+from rag.moteur import MoteurRAG
+
+passerelle = Passerelle.depuis_reglages(Settings())  # Ollama, puis Gemini si APP_GEMINI_API_KEY
+moteur = MoteurRAG(EmbeddeurModele(passerelle))
+moteur.indexer([{"id": 1, "titre": "Dracula", "annee": 1897, "auteur": "Bram Stoker", "resume": "…"}])
+for r in moteur.chercher("Qui traque le vampire ?"):
+    print(r.score, r.mode, r.passage.texte)
+print(passerelle.generer("Réponds en citant [n].", "Question et dossier…").texte)
+```
+
+| Fichier | Rôle |
+|---|---|
+| `llm/passerelle.py` | Ollama (`ollama pull qwen3:4b`) puis Gemini (offre gratuite) par l'API compatible OpenAI ; `LLMIndisponible` si aucun ne répond ; `generer_json` valide la réponse avec Pydantic et relance une fois ; embeddings du premier fournisseur seulement (mélanger deux modèles fausserait l'index) |
+| `rag/decoupage.py` | passages par phrases, avec recouvrement |
+| `rag/embeddings.py` | modèle d'embeddings (`ollama pull bge-m3`) ou hachage hors ligne (tests, démonstration) |
+| `rag/index.py` | index en mémoire, PostgreSQL + pgvector (HNSW, cosinus ; `uv sync --extra pgvector`, `APP_VECTOR_URL`), BM25 sans dépendance |
+| `rag/moteur.py` | indexation, recherche avec seuil, repli lexical automatique, éléments similaires |
+| `rag/titres.py` | reconnaître le titre cité dans une question, fautes de frappe comprises |
+
+```bash
+uv sync --group dev
+uv run pytest     # sans réseau ni modèle ; test pgvector si APP_TEST_PGVECTOR_URL est défini
+```
+
+Agents LangGraph, API sécurisée, interface et supervision : starter `projet-ia-a-z`.

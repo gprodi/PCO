@@ -7,6 +7,8 @@ readme = "README.md"
 
 [tool.uv]
 package = false
+# Dépendances de LangGraph : rien de publié après le 28/10/2026 (règle des 14 jours).
+exclude-newer-package = { langchain-core = "2026-10-28T00:00:00Z", langchain-protocol = "2026-10-28T00:00:00Z", langgraph-checkpoint = "2026-10-28T00:00:00Z", langgraph-prebuilt = "2026-10-28T00:00:00Z", langgraph-sdk = "2026-10-28T00:00:00Z", langsmith = "2026-10-28T00:00:00Z", ormsgpack = "2026-10-28T00:00:00Z", xxhash = "2026-10-28T00:00:00Z", uuid-utils = "2026-10-28T00:00:00Z" }
 
 [tool.uv.workspace]
 members = ["packages/llm_gateway", "microforge", "revision"]
@@ -26,6 +28,8 @@ dev = [
     "ruff>=0.8",
     "pre-commit>=4.0",
     "copier>=9.19",
+    # tests du gabarit « projet-ia-a-z » (graphe multi-agent) ; versions publiées depuis 14 jours au moins
+    "langgraph==1.2.18",
 ]
 docs = [
     "sphinx>=8.0",

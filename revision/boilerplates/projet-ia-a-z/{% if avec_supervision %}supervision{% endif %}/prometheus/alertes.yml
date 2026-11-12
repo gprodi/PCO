@@ -1,0 +1,27 @@
+groups:
+  - name: assistant
+    rules:
+      - alert: APIIndisponible
+        expr: up == 0
+        for: 2m
+        labels: { severity: critique }
+        annotations:
+          summary: "{{ $labels.job }} ne répond plus à Prometheus"
+      - alert: RepliExtractifFrequent
+        expr: sum(rate(assistant_questions_total{fournisseur="extractif"}[15m])) / clamp_min(sum(rate(assistant_questions_total[15m])), 1e-9) > 0.5
+        for: 10m
+        labels: { severity: avertissement }
+        annotations:
+          summary: "Plus d'une réponse sur deux sans modèle de langage : Ollama est-il lancé ?"
+      - alert: NoeudLent
+        expr: histogram_quantile(0.95, sum by (le, noeud) (rate(assistant_noeud_secondes_bucket[10m]))) > 30
+        for: 10m
+        labels: { severity: avertissement }
+        annotations:
+          summary: "Le nœud {{ $labels.noeud }} dépasse 30 s (95e centile)"
+      - alert: ErreursServeur
+        expr: sum(rate(assistant_http_requetes_total{code=~"5.."}[5m])) > 0.1
+        for: 5m
+        labels: { severity: critique }
+        annotations:
+          summary: "L'API d'IA renvoie des erreurs 5xx"

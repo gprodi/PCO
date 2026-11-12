@@ -24,8 +24,16 @@ def test_configuration_files_are_consistent():
     prom = yaml.safe_load((ROOT / "prometheus/prometheus.yml").read_text())
     assert prom["scrape_configs"][0]["static_configs"][0]["targets"] == ["api:8000"]
     rules = yaml.safe_load((ROOT / "prometheus/alerts.yml").read_text())["groups"][0]["rules"]
-    assert {r["alert"] for r in rules} >= {"TauxErreursEleve", "LatenceP95Elevee", "DeriveConfianceModele"}
+    assert {r["alert"] for r in rules} >= {
+        "TauxErreursEleve",
+        "LatenceP95Elevee",
+        "DeriveConfianceModele",
+    }
     dashboard = json.loads((ROOT / "grafana/dashboards/api-modele.json").read_text())
     exprs = " ".join(t["expr"] for p in dashboard["panels"] for t in p["targets"])
-    for metric in ("http_requests_total", "http_request_duration_seconds_bucket", "model_prediction_confidence_bucket"):
+    for metric in (
+        "http_requests_total",
+        "http_request_duration_seconds_bucket",
+        "model_prediction_confidence_bucket",
+    ):
         assert metric in exprs

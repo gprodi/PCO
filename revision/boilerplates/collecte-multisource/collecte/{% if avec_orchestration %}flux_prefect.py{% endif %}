@@ -1,0 +1,57 @@
+"""Orchestration Prefect de la collecte : sources en parallèle, reprises, puis fusion et import.
+
+uv run python -m collecte.flux_prefect            # exécution locale
+uv run prefect deploy collecte/flux_prefect.py:collecte   # planification (voir la doc Prefect)
+"""
+
+from pathlib import Path
+
+import httpx
+from prefect import flow, task
+from prefect.futures import wait
+
+from collecte.fusion import fusionner
+from collecte.modele import Enregistrement, Fiche
+from collecte.pipeline import CONFIG, ecrire, envoyer, extraire, lire_config
+from commun.config import get_settings
+
+
+@task(retries=2, retry_delay_seconds=30, task_run_name="extraire-{source[nom]}")
+def extraire_source(source: dict, racine: str, agent: str) -> list[Enregistrement]:
+    with httpx.Client(timeout=30, headers={"User-Agent": agent}, follow_redirects=True) as client:
+        return extraire(source, client, Path(racine), agent)
+
+
+@task
+def fusionner_tout(lots: list[list[Enregistrement]], reglages: dict) -> list[Fiche]:
+    tout = [e for lot in lots for e in lot]
+    genres = set(reglages["genres"]) if "genres" in reglages else None
+    fiches, _ = fusionner(tout, reglages.get("priorite", []), reglages.get("seuil_titre", 88), genres)
+    return fiches
+
+
+@task(retries=2, retry_delay_seconds=10)
+def importer(fiches: list[Fiche]) -> dict[str, int]:
+    s = get_settings()
+    with httpx.Client(base_url=s.data_api_url, headers={"X-API-Key": s.data_api_key}, timeout=60) as client:
+        return envoyer(fiches, client)
+
+
+@flow(name="collecte", log_prints=True)
+def collecte(
+    config: str = str(CONFIG), racine: str = ".", sortie: str = "sortie/gold.json", importer_api: bool = False
+):
+    reglages = lire_config(Path(config))
+    agent = get_settings().user_agent
+    actives = [s for s in reglages.get("source", []) if s.get("actif", True)]
+    futurs = [extraire_source.submit(s, racine, agent) for s in actives]
+    wait(futurs)
+    lots = [f.result() for f in futurs if f.state.is_completed()]
+    fiches = fusionner_tout(lots, reglages.get("fusion", {}))
+    ecrire(fiches, Path(sortie))
+    print(f"{len(fiches)} fiches ({len(lots)}/{len(actives)} sources réussies)")
+    return importer(fiches) if importer_api else len(fiches)
+
+
+if __name__ == "__main__":
+    collecte()

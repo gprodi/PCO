@@ -28,10 +28,15 @@ def promote_if_better(client: MlflowClient, version: str, f1: float) -> bool:
 
 def train(C: float = 1.0, max_iter: int = 300, experiment: str = "iris") -> dict:
     X, y = load_iris(return_X_y=True, as_frame=True)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42, stratify=y
+    )
     model = LogisticRegression(C=C, max_iter=max_iter).fit(X_train, y_train)
     pred = model.predict(X_test)
-    metrics = {"accuracy": accuracy_score(y_test, pred), "f1": f1_score(y_test, pred, average="macro")}
+    metrics = {
+        "accuracy": accuracy_score(y_test, pred),
+        "f1": f1_score(y_test, pred, average="macro"),
+    }
 
     mlflow.set_experiment(experiment)
     with mlflow.start_run():

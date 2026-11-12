@@ -1,0 +1,13 @@
+# Thème versionné : le même chez tout le monde (thème sombre du cours HorRAGor, contrastes vérifiés).
+[theme]
+base = "dark"
+primaryColor = "#c0392b"
+backgroundColor = "#111111"
+secondaryBackgroundColor = "#1b1f24"
+textColor = "#e2e8f0"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

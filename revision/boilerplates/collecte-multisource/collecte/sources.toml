@@ -1,0 +1,58 @@
+# Sources de la collecte. Chaque entrée : type (api, web, csv, sql, gros_volume), nom, réglages.
+# Vérifier les conditions d'utilisation et le robots.txt de chaque site avant d'activer une source web.
+
+[fusion]
+# Priorité décroissante : la première source qui renseigne un champ l'emporte.
+priorite = ["csv", "api", "sql", "gros_volume", "web"]
+seuil_titre = 88
+# Filtre thématique strict (comparaison sans accents ni casse).
+genres = ["horreur", "horror", "epouvante", "gothique", "gothic", "fantastique"]
+
+[[source]]
+type = "api"
+nom = "api"
+# Open Library : API publique sans clé (https://openlibrary.org/developers/api).
+url = "https://openlibrary.org/search.json"
+params = { subject = "horror", fields = "key,title,first_publish_year,author_name", limit = 100 }
+liste = "docs"
+pages = 1
+genre_par_defaut = "Horreur"
+champs = { titre = "title", annee = "first_publish_year", auteur = "author_name", "id:openlibrary" = "key" }
+
+[[source]]
+type = "web"
+nom = "web"
+actif = false  # à activer avec une page autorisée par son robots.txt et ses conditions d'utilisation
+url = "https://exemple.org/catalogue"
+genre_par_defaut = "Horreur"
+selecteurs = { ligne = "table.oeuvres tr.oeuvre", titre = "td.titre", annee = "td.annee", auteur = "td.auteur", resume = "td.resume" }
+
+[[source]]
+type = "csv"
+nom = "csv"
+chemin = "donnees_exemple/catalogue.csv"
+colonnes = { "id:ref_catalogue" = "ref_catalogue", titre = "title", annee = "release_date", auteur = "author", genre = "genres", resume = "overview", note = "vote_average" }
+
+[[source]]
+type = "sql"
+nom = "sql"
+url = "sqlite:///{racine}/donnees_exemple/base_existante.db"
+script = "donnees_exemple/base_existante.sql"
+# Jointure, genre et seuil de qualité (nombre de votes) passés en paramètres.
+requete = """
+SELECT b.tconst AS "id:imdb", b.primaryTitle AS titre, b.startYear AS annee,
+       b.genres AS genre, r.averageRating AS note
+FROM title_basics AS b
+JOIN title_ratings AS r ON r.tconst = b.tconst
+WHERE lower(b.genres) LIKE :genre AND r.numVotes >= :votes_min
+"""
+params = { genre = "%horror%", votes_min = 1000 }
+
+[[source]]
+type = "gros_volume"
+nom = "gros_volume"
+motif = "donnees_exemple/gros_volume/*.csv"
+moteur = "polars"  # ou "spark"
+genres = ["horror", "gothic"]
+colonne_genre = "genres"
+colonnes = { "id:ref_catalogue" = "ref_catalogue", titre = "primaryTitle", annee = "startYear", genre = "genres", note = "averageRating" }

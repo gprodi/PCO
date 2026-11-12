@@ -1,0 +1,19 @@
+_titre: "Collecte multi-sources : API, page web, CSV, SQL, gros volume, puis fusion"
+_description: "La brique données du starter « projet-ia-a-z » (bloc E1), utilisable seule : cinq types de sources décrits dans un fichier TOML (API REST paginée avec reprises, page web après lecture du robots.txt, CSV Polars, requête SQL paramétrée, fichiers découpés lus en flux par Polars ou par Spark), normalisation (dates ISO 8601, notes sur 10, textes nettoyés), fusion avec rapprochement par identifiant puis par titre proche (RapidFuzz), filtre thématique, fichier « gold » JSON, orchestration Prefect en option."
+_cours: [horragor-1, mlops-3-automation, pandas-seaborn, sqlalchemy]
+_competences: [C1, C2, C3]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+_apercu: [README.md, collecte/sources.toml, collecte/sources.py, collecte/fusion.py, collecte/normalise.py, collecte/pipeline.py, collecte/spark_job.py, tests/test_collecte.py]
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: collecte
+python_version:
+  type: str
+  default: "3.12"
+avec_orchestration:
+  type: bool
+  help: Flux Prefect (sources en parallèle, reprises)
+  default: true

@@ -11,11 +11,14 @@ MODEL_VERSION = "lexique-1"
 
 REQUESTS = Counter("http_requests_total", "Requêtes HTTP", ["route", "status"])
 LATENCY = Histogram(
-    "http_request_duration_seconds", "Durée des requêtes", ["route"],
+    "http_request_duration_seconds",
+    "Durée des requêtes",
+    ["route"],
     buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5),
 )
 CONFIDENCE = Histogram(
-    "model_prediction_confidence", "Confiance des prédictions",
+    "model_prediction_confidence",
+    "Confiance des prédictions",
     buckets=(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0),
 )
 MODEL_INFO = Gauge("model_info", "Modèle en service", ["version"])

@@ -10,11 +10,13 @@ const title = (slug: string) => courses.find((c) => c.slug === slug)?.titre ?? s
 <StarlightPage frontmatter={{ title: b.titre, description: b.description }}>
   <p>{b.description}</p>
   <h2>Utilisation</h2>
-  <pre tabindex="0" role="region" aria-label="Exemple de code"><code>uvx copier copy gh:gprodi/PCO --vcs-ref main --subdirectory revision/boilerplates/{b.id} mon-projet</code></pre>
+  <p>Depuis une copie du dépôt (les questions du gabarit, nom et options, sont posées au lancement ; <code>--defaults</code> garde les réponses par défaut) :</p>
+  <pre tabindex="0" role="region" aria-label="Exemple de code"><code>git clone https://github.com/gprodi/PCO.git
+uvx copier copy PCO/revision/boilerplates/{b.id} mon-projet</code></pre>
   {b.cours.length > 0 && (<p><strong>Cours liés :</strong> {b.cours.map((s: string, i: number) => (<>{i > 0 && ', '}<a href={`${base}cours/${s}/`}>{title(s)}</a></>))}</p>)}
   {b.competences.length > 0 && <p><strong>Compétences :</strong> {b.competences.join(', ')}</p>}
   <h2>Arborescence</h2>
-  <ul>{b.fichiers.map((f: string) => <li><code>{f}</code></li>)}</ul>
+  <ul>{b.fichiers.map((f: string) => <li><code>{f}</code>{b.options?.[f] && <> — option <code>{b.options[f]}</code></>}</li>)}</ul>
   <h2>Aperçu des fichiers</h2>
   {Object.entries(b.apercu).map(([f, content]) => (<details><summary><code>{f}</code></summary><pre tabindex="0" role="region" aria-label="Exemple de code"><code>{content as string}</code></pre></details>))}
 </StarlightPage>

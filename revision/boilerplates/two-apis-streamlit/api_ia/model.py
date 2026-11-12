@@ -2,8 +2,30 @@
 
 import re
 
-POSITIF = {"bien", "bon", "bonne", "excellent", "parfait", "rapide", "super", "génial", "recommande", "aime"}
-NEGATIF = {"mauvais", "mauvaise", "lent", "cassé", "nul", "déçu", "déçue", "retard", "panne", "horrible"}
+POSITIF = {
+    "bien",
+    "bon",
+    "bonne",
+    "excellent",
+    "parfait",
+    "rapide",
+    "super",
+    "génial",
+    "recommande",
+    "aime",
+}
+NEGATIF = {
+    "mauvais",
+    "mauvaise",
+    "lent",
+    "cassé",
+    "nul",
+    "déçu",
+    "déçue",
+    "retard",
+    "panne",
+    "horrible",
+}
 VERSION = "lexique-1"
 
 

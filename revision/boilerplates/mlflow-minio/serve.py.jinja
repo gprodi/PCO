@@ -62,7 +62,9 @@ app = FastAPI(title="Modèle servi depuis le registre", lifespan=lifespan)
 
 
 class Fleur(BaseModel):
-    mesures: list[float] = Field(min_length=4, max_length=4, description="sépale L, l, pétale L, l (cm)")
+    mesures: list[float] = Field(
+        min_length=4, max_length=4, description="sépale L, l, pétale L, l (cm)"
+    )
 
 
 @app.get("/model")

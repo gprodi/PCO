@@ -1,0 +1,60 @@
+# Intégration continue : qualité, tests (couverture ≥ 80 %, seuil dans pyproject.toml), image Docker.
+# Actions épinglées par empreinte (SHA) : une étiquette déplacée ne change pas ce qui s'exécute.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ '{{' }} github.ref }}
+  cancel-in-progress: true
+jobs:
+  qualite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ '{{' }} matrix.python }}
+      - run: uv sync --group dev --extra spark{% if avec_orchestration %} --extra orchestration{% endif %}
+      - run: uv run pytest
+  pgvector:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+    env:
+      APP_TEST_PGVECTOR_URL: postgresql+psycopg://postgres:ci@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv sync --group dev --extra pgvector
+      - run: uv run pytest -m pgvector --no-cov -rA
+  image:
+    needs: [qualite, tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t assistant:ci .
+      - run: docker compose config --quiet
+        env:
+          POSTGRES_PASSWORD: ci
+          GRAFANA_ADMIN_PASSWORD: ci

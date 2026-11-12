@@ -106,7 +106,7 @@ competences:
       - Un script par type de source + flow d'orchestration
       - Jeu de données brutes daté (Parquet) + manifeste
     cours: [horragor-1, horragor-2, sqlalchemy, pandas-seaborn, python-cookbook, mlops-3-automation]
-    boilerplates: [prefect-docker]
+    boilerplates: [prefect-docker, collecte-multisource, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/data_pipeline/extract/
       - microforge/src/microforge/data_pipeline/flows.py
@@ -128,7 +128,7 @@ competences:
       - Requêtes .sql versionnées (SGBD + Spark SQL)
       - Documentation des requêtes et optimisations (docs/E1/requetes.md)
     cours: [sqlalchemy, sqlmodel, horragor-1]
-    boilerplates: []
+    boilerplates: [collecte-multisource, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/data_pipeline/sql/
       - microforge/docs/E1/requetes.md
@@ -149,7 +149,7 @@ competences:
       - Script d'agrégation + règles documentées
       - Rapport de rejets (entrées corrompues par règle)
     cours: [pandas-seaborn, horragor-1, sas-ia-exercices]
-    boilerplates: []
+    boilerplates: [collecte-multisource, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/data_pipeline/aggregate/
       - microforge/docs/E1/agregation.md
@@ -177,7 +177,7 @@ competences:
       - Script d'import documenté
       - Registre des traitements + procédures de tri RGPD
     cours: [sqlalchemy, sqlmodel, horragor-1, securiser-api-fastapi]
-    boilerplates: [fastapi-jwt-sqlmodel]
+    boilerplates: [fastapi-jwt-sqlmodel, projet-ia-a-z]
     microforge:
       - microforge/docs/E1/merise.md
       - microforge/docs/E1/rgpd.md
@@ -200,7 +200,7 @@ competences:
       - API FastAPI (OpenAPI) sécurisée (OWASP API Top 10)
       - Documentation technique API + accès direct à la base
     cours: [securiser-api-fastapi, glossaire-securite-api, analyse-sentiment, dev-ia-slides, sqlmodel]
-    boilerplates: [fastapi-jwt-sqlmodel, two-apis-streamlit]
+    boilerplates: [fastapi-jwt-sqlmodel, two-apis-streamlit, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/api_data/
       - microforge/docs/E1/api.md
@@ -276,7 +276,7 @@ competences:
       - Monitoring (Prometheus/Grafana, Uptime Kuma)
       - Documentation d'installation et de test
     cours: [ia-agentic, mlops-1-orchestration, traefik, mlops-3-monitoring]
-    boilerplates: [prometheus-grafana-uptimekuma]
+    boilerplates: [prometheus-grafana-uptimekuma, rag-llm-local, projet-ia-a-z]
     microforge:
       - microforge/infra/compose.ai.yml
       - microforge/infra/litellm/config.yaml
@@ -300,7 +300,7 @@ competences:
       - api_ia (FastAPI) + tests d'intégration
       - Documentation OpenAPI + Sphinx
     cours: [analyse-sentiment, securiser-api-fastapi, mlops-2-factory, idees-projets-hf]
-    boilerplates: [fastapi-jwt-sqlmodel, mlflow-minio]
+    boilerplates: [fastapi-jwt-sqlmodel, mlflow-minio, rag-llm-local, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/api_ia/
       - microforge/docs/E3/api-ia.md
@@ -325,7 +325,7 @@ competences:
       - Écrans d'inventaire photo (Streamlit puis PWA)
       - Tests d'intégration front <-> api_ia
     cours: [streamlit, analyse-sentiment, horragor-2]
-    boilerplates: [two-apis-streamlit, streamlit-multipage]
+    boilerplates: [two-apis-streamlit, streamlit-multipage, rag-llm-local, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/app_streamlit/
       - microforge/app_pwa/
@@ -351,7 +351,7 @@ competences:
       - Dashboard Grafana + alertes
       - Bac à sable avec injection de dérive
     cours: [mlops-3-monitoring, loki-grafana, mlflow, projet-5-forge-mlops]
-    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy]
+    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy, projet-ia-a-z]
     microforge:
       - microforge/monitoring/
       - microforge/docs/E3/monitoring-modele.md
@@ -375,7 +375,7 @@ competences:
       - Tests données / préparation / entraînement / évaluation / inférence
       - Dataset versionné DVC
     cours: [pytest-loguru, mlops-0-intro, machine-learning]
-    boilerplates: [gha-ci-cd]
+    boilerplates: [gha-ci-cd, projet-ia-a-z]
     microforge:
       - microforge/ml/tests/
       - microforge/docs/E3/tests-modele.md
@@ -398,7 +398,7 @@ competences:
     livrables:
       - Workflow model-cd (tests données -> entraînement -> évaluation -> registre -> PR avec rapport)
     cours: [mlops-0-intro, mlops-2-factory, mlops-3-automation, mlflow]
-    boilerplates: [gha-ci-cd, mlflow-minio]
+    boilerplates: [gha-ci-cd, mlflow-minio, projet-ia-a-z]
     microforge:
       - .github/workflows/model-cd.yml
       - microforge/docs/E3/cd-modele.md
@@ -444,7 +444,7 @@ competences:
       - Spécifications techniques + diagrammes C4 + diagramme de flux de données
       - Preuve de concept en pré-production + conclusion go/no-go
     cours: [dev-ia-slides, mlops-1-orchestration, traefik]
-    boilerplates: [two-apis-streamlit]
+    boilerplates: [two-apis-streamlit, projet-ia-a-z]
     microforge:
       - microforge/docs/E4/architecture.md
 
@@ -489,7 +489,7 @@ competences:
       - Code applicatif + tests
       - Documentation technique
     cours: [streamlit, securiser-api-fastapi, pytest-loguru, python-cookbook]
-    boilerplates: [fastapi-jwt-sqlmodel, streamlit-multipage]
+    boilerplates: [fastapi-jwt-sqlmodel, streamlit-multipage, projet-ia-a-z]
     microforge:
       - microforge/src/microforge/core/
       - microforge/src/microforge/app_streamlit/
@@ -510,7 +510,7 @@ competences:
     livrables:
       - .github/workflows/ci.yml + documentation
     cours: [mlops-0-intro, pytest-loguru]
-    boilerplates: [gha-ci-cd]
+    boilerplates: [gha-ci-cd, projet-ia-a-z]
     microforge:
       - .github/workflows/ci.yml
       - microforge/docs/E4/ci.md
@@ -531,7 +531,7 @@ competences:
     livrables:
       - .github/workflows/cd.yml (images GHCR + PR de release) + documentation
     cours: [mlops-0-intro, mlops-0-packaging, mlops-1-orchestration]
-    boilerplates: [gha-ci-cd, uv-package]
+    boilerplates: [gha-ci-cd, uv-package, projet-ia-a-z]
     microforge:
       - .github/workflows/cd.yml
       - microforge/docs/E4/cd.md
@@ -555,7 +555,7 @@ competences:
       - Tableau métriques/seuils + dashboards + alertes
       - Journalisation loguru structurée sans données personnelles
     cours: [mlops-3-monitoring, loki-grafana, pytest-loguru, projet-5-forge-mlops]
-    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy]
+    boilerplates: [prometheus-grafana-uptimekuma, loki-alloy, projet-ia-a-z]
     microforge:
       - microforge/monitoring/
       - microforge/docs/E5/monitoring.md

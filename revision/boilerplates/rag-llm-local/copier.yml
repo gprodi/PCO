@@ -1,0 +1,15 @@
+_titre: "RAG local et passerelle LLM : Ollama, Gemini gratuit, pgvector, repli lexical"
+_description: "La brique « intelligence » du starter « projet-ia-a-z », utilisable seule : passerelle vers les modèles par l'API compatible OpenAI (Ollama en local, Gemini en offre gratuite en secours, aucune API payante), sortie JSON validée par Pydantic avec relance, découpage des textes, embeddings (modèle ou hachage hors ligne), index en mémoire ou PostgreSQL + pgvector (HNSW, cosinus), repli BM25 quand le modèle d'embeddings ne répond pas, recherche d'éléments similaires, index des titres tolérant aux fautes."
+_cours: [ia-agentic, ia-agentic-2026, horragor-2, nlp]
+_competences: [C8, C9, C10]
+_templates_suffix: .jinja
+_min_copier_version: "9.0"
+_apercu: [README.md, llm/passerelle.py, rag/moteur.py, rag/index.py, rag/embeddings.py, rag/titres.py, rag/decoupage.py, tests/test_rag.py, tests/test_llm.py]
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: rag-local
+python_version:
+  type: str
+  default: "3.12"

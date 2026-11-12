@@ -1,0 +1,41 @@
+_titre: "Projet IA de A à Z : données, RAG, agents LangGraph, deux API, interface, supervision, CI/CD"
+_description: "Le starter complet du fil rouge HorRAGor, rendu générique : collecte depuis cinq types de sources (API REST, page web avec robots.txt, CSV Polars, base SQL, gros volume Polars ou Spark), nettoyage et fusion avec rapprochement approximatif, base derrière sa propre API sur un réseau Docker privé, RAG (Ollama, pgvector ou index mémoire, repli lexical BM25), graphe multi-agent LangGraph (chercheur, enquêteur web, narrateur, juge) tracé par Langfuse, API d'IA à jetons de rafraîchissement à rotation, chat Streamlit, Prometheus, Grafana et Uptime Kuma, CI GitHub avec couverture d'au moins 80 %. Aucune API payante : Ollama en local, Gemini (offre gratuite) en secours, réponse extractive sinon."
+_cours: [horragor-1, horragor-2, horragor-3, ia-agentic, securiser-api-fastapi, sqlmodel, mlops-3-monitoring, mlops-3-automation, mlops-0-intro, pytest-loguru, sphinx]
+_competences: [C1, C2, C3, C4, C5, C8, C9, C10, C11, C12, C13, C15, C17, C18, C19, C20]
+_templates_suffix: .jinja
+# Fichiers montrés en aperçu sur le site de révision
+_apercu: [README.md, agents/pipeline.py, agents/nodes.py, agents/router.py, agents/state.py, agents/tools.py, collecte/sources.toml, collecte/fusion.py, rag/moteur.py, api_ia/main.py, docker-compose.yml, tests/test_agents.py]
+_min_copier_version: "9.0"
+
+project_name:
+  type: str
+  help: Nom du projet (minuscules et tirets)
+  default: assistant-ia
+description:
+  type: str
+  help: Description courte
+  default: Assistant qui répond sur un catalogue d'œuvres, sources à l'appui
+domaine:
+  type: str
+  help: Domaine de l'assistant (repris dans les consignes données au modèle)
+  default: la littérature d'épouvante
+python_version:
+  type: str
+  help: Version minimale de Python
+  default: "3.12"
+avec_orchestration:
+  type: bool
+  help: Flux Prefect pour la collecte (tâches en parallèle, reprises)
+  default: true
+avec_supervision:
+  type: bool
+  help: Supervision Prometheus, Grafana et Uptime Kuma (profil docker compose « supervision »)
+  default: true
+avec_ci:
+  type: bool
+  help: Intégration continue GitHub Actions (ruff, tests, couverture, images)
+  default: true
+avec_docs:
+  type: bool
+  help: Documentation Sphinx (API, base, graphe des agents)
+  default: true

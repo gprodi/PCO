@@ -1,0 +1,138 @@
+# Trois couches isolées :
+#  - réseau « prive » (internal : aucune sortie, aucun port publié) : bases et API de données ;
+#  - réseau « public » : API d'IA (seule passerelle entre les deux) et interface.
+# Lancer : docker compose up -d --build   |   collecte : docker compose --profile collecte run --rm collecte
+{%- if avec_supervision %}
+# Supervision : docker compose --profile supervision up -d
+{%- endif %}
+
+x-app: &app
+  build: .
+  env_file: [.env]
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: donnees
+      POSTGRES_USER: donnees
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définir POSTGRES_PASSWORD dans .env}
+    volumes: [db:/var/lib/postgresql/data]
+    networks: [prive]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U donnees -d donnees"]
+      interval: 5s
+      retries: 10
+
+  vecteurs:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: vecteurs
+      POSTGRES_USER: vecteurs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définir POSTGRES_PASSWORD dans .env}
+    volumes: [vecteurs:/var/lib/postgresql/data]
+    networks: [prive]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vecteurs -d vecteurs"]
+      interval: 5s
+      retries: 10
+
+  api_data:
+    <<: *app
+    command: ["uvicorn", "donnees.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      APP_DATABASE_URL: postgresql+psycopg://donnees:${POSTGRES_PASSWORD}@db:5432/donnees
+      APP_LOG_JSON: "true"
+    networks: [prive]
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      retries: 6
+
+  api_ia:
+    <<: *app
+    command: ["uvicorn", "api_ia.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      APP_DATA_API_URL: http://api_data:8000
+      APP_AUTH_DATABASE_URL: sqlite:////app/comptes/comptes.db
+      APP_VECTOR_URL: postgresql+psycopg://vecteurs:${POSTGRES_PASSWORD}@vecteurs:5432/vecteurs
+      APP_OLLAMA_URL: ${APP_OLLAMA_URL_CONTENEUR:-http://host.docker.internal:11434/v1}
+      APP_LOG_JSON: "true"
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: [comptes:/app/comptes]
+    ports: ["${IA_PORT:-8001}:8001"]
+    networks: [prive, public]
+    depends_on:
+      api_data: { condition: service_healthy }
+      vecteurs: { condition: service_healthy }
+
+  ui:
+    <<: *app
+    command: ["streamlit", "run", "streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    environment:
+      APP_IA_API_URL: http://api_ia:8001
+    ports: ["${UI_PORT:-8501}:8501"]
+    networks: [public]
+    depends_on: [api_ia]
+
+  collecte:
+    <<: *app
+    profiles: [collecte]
+    restart: "no"
+    command: ["python", "-m", "collecte", "--envoyer"]
+    environment:
+      APP_DATA_API_URL: http://api_data:8000
+    networks: [prive, public]
+    depends_on:
+      api_data: { condition: service_healthy }
+{%- if avec_supervision %}
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    profiles: [supervision]
+    volumes:
+      - ./supervision/prometheus:/etc/prometheus:ro
+      - prometheus:/prometheus
+    networks: [prive, supervision]
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    profiles: [supervision]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?définir GRAFANA_ADMIN_PASSWORD dans .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./supervision/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./supervision/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    ports: ["${GRAFANA_PORT:-3002}:3000"]
+    networks: [supervision]
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.9
+    profiles: [supervision]
+    volumes: [uptime-kuma:/app/data]
+    ports: ["${KUMA_PORT:-3001}:3001"]
+    networks: [prive, public, supervision]
+{%- endif %}
+
+networks:
+  prive:
+    internal: true
+  public:
+{%- if avec_supervision %}
+  supervision:
+{%- endif %}
+
+volumes:
+  db:
+  vecteurs:
+  comptes:
+{%- if avec_supervision %}
+  prometheus:
+  grafana:
+  uptime-kuma:
+{%- endif %}

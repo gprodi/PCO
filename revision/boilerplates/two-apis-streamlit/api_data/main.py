@@ -43,7 +43,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     global engine
     setup_logging("api_data")
     url = get_settings().database_url
-    engine = create_engine(url, connect_args={"check_same_thread": False} if url.startswith("sqlite") else {})
+    engine = create_engine(
+        url, connect_args={"check_same_thread": False} if url.startswith("sqlite") else {}
+    )
     SQLModel.metadata.create_all(engine)
     yield
 

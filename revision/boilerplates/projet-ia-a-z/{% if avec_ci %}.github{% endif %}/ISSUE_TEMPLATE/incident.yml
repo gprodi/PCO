@@ -1,0 +1,31 @@
+# Chaque anomalie ou comportement déviant fait l'objet d'un ticket (traçabilité, épreuve E5).
+name: Incident
+description: Anomalie, panne ou comportement déviant de l'assistant
+labels: [incident]
+body:
+  - type: textarea
+    id: symptome
+    attributes:
+      label: Symptôme
+      description: Ce qui a été observé (message, capture, question posée à l'assistant)
+    validations: { required: true }
+  - type: textarea
+    id: detection
+    attributes:
+      label: Détection
+      description: Alerte Prometheus, sonde Uptime Kuma, trace Langfuse, retour utilisateur… (lien ou extrait)
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause identifiée
+  - type: textarea
+    id: correctif
+    attributes:
+      label: Correctif et test de non-régression
+      description: Commit ou pull request, test ajouté
+  - type: dropdown
+    id: gravite
+    attributes:
+      label: Gravité
+      options: [bloquante, majeure, mineure]
+    validations: { required: true }
