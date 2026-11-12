@@ -151,11 +151,15 @@
   globals_extra: |
     const byte TRISTE[8] = {0x3C, 0x42, 0xA5, 0x81, 0x99, 0xA5, 0x42, 0x3C};
     const int SEUIL = 80;           // % du niveau maximal
-    unsigned long debut_fort = 0;   // 0 : pas de bruit fort en cours
+    bool fort = false;              // bruit fort en cours
+    unsigned long debut_fort = 0;
   logic: |
     int niveau = micro_level();  // 0 à 100 %
     if (niveau > SEUIL) {
-      if (debut_fort == 0) { debut_fort = millis() + 1; }
+      if (!fort) {
+        fort = true;
+        debut_fort = millis();
+      }
       if (millis() - debut_fort > 2000) {
         matrice_show(TRISTE);
         Serial.println("Trop de bruit !");
@@ -164,7 +168,7 @@
         matrice_bars(8);
       }
     } else {
-      debut_fort = 0;
+      fort = false;
       matrice_bars((niveau + 11) / 12);  // 0 à 8 colonnes
     }
     delay(100);

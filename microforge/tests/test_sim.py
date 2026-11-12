@@ -405,6 +405,23 @@ def test_music_box_plays_a_whole_tune_per_badge(tmp_path):
 
 
 @needs_node
+def test_sound_meter_waits_two_seconds_before_the_sad_face(tmp_path):
+    """Régression : le repère « millis() + 1 » rendait millis() - debut négatif, donc énorme en
+    non signé, et la tête triste apparaissait dès le premier bruit fort."""
+    out = run(
+        simulation_payload(CAT, _spec("sonometre-classe")),
+        tmp_path,
+        until=4_000,
+        events=[
+            [100, "micro", "set", "level", 95],
+            [1_000, None, "mark", "bruit"],
+        ],
+    )
+    assert out["marks"]["bruit"]["parts"]["matrice"]["state"]["rows"] == [0xFF] * 8
+    assert out["parts"]["matrice"]["state"]["rows"][2] == 0xA5  # tête triste après 2 s
+
+
+@needs_node
 def test_sound_meter_bars_follow_the_level(tmp_path):
     out = run(
         simulation_payload(CAT, _spec("sonometre-classe")),
@@ -654,6 +671,149 @@ def test_rain_barrel_level(tmp_path):
         events=[[0, "sonar", "set", "distance", 55]],  # (100 − 55) / 90 = 50 %
     )
     assert _lit(out["parts"]["jauge"]) == 6
+
+
+# ---------------------------------------------------------------- « Domotique » et « Maison »
+def _pass(part: str, t0: int, hold: int = 1_000) -> list:
+    return [[t0, part, "press", "pass"], [t0 + hold, part, "release", "pass"]]
+
+
+@needs_node
+def test_light_turns_itself_off_a_minute_after_the_last_motion(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("lumiere-auto-pir")),
+        tmp_path,
+        until=75_000,
+        events=[*_pass("detecteur", 500), [30_000, None, "mark", "allumee"]],
+    )
+    assert out["marks"]["allumee"]["parts"]["lampe"]["state"]["on"] is True
+    assert out["parts"]["lampe"]["state"]["on"] is False
+
+
+@needs_node
+def test_blind_opens_at_dawn_and_closes_at_dusk(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("volet-roulant")),
+        tmp_path,
+        until=50_000,
+        events=[
+            [500, "capteur", "set", "light", 90],
+            [20_000, None, "mark", "jour"],
+            [21_000, "capteur", "set", "light", 10],
+        ],
+    )
+    assert out["marks"]["jour"]["parts"]["moteur"]["state"]["position"] == 6144  # 3 tours
+    assert out["parts"]["moteur"]["state"]["position"] == 0
+
+
+@needs_node
+@pytest.mark.parametrize(("light", "lit"), [(10, 12), (80, 0)])
+def test_stairs_light_up_only_in_the_dark(tmp_path, light, lit):
+    out = run(
+        simulation_payload(CAT, _spec("escalier-automatique")),
+        tmp_path,
+        until=4_000,
+        events=[[0, "luminosite", "set", "light", light], *_pass("detecteur", 500)],
+    )
+    assert _lit(out["parts"]["marches"]) == lit
+
+
+@needs_node
+def test_open_window_cuts_the_heating_after_30_s(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("fenetre-chauffage")),
+        tmp_path,
+        until=40_000,
+        events=[[1_000, "fenetre", "set", "open", True], [10_000, None, "mark", "aeration"]],
+    )
+    assert out["marks"]["aeration"]["parts"]["chauffage"]["state"]["on"] is True
+    assert out["parts"]["chauffage"]["state"]["on"] is False
+    assert out["parts"]["voyant"]["state"]["on"] is True
+
+
+@needs_node
+def test_fridge_door_beeps_only_after_30_s(tmp_path):
+    payload = simulation_payload(CAT, _spec("porte-frigo"))
+    court = run(payload, tmp_path, 20_000, [[1_000, "porte", "set", "open", True]])
+    long_ = run(payload, tmp_path, 40_000, [[1_000, "porte", "set", "open", True]])
+    assert court["sounds"] == 0 and long_["sounds"] > 0
+
+
+@needs_node
+def test_dimmer_follows_the_knob(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("variateur-ruban")),
+        tmp_path,
+        until=1_000,
+        events=[[0, "reglage", "set", "position", 40]],
+    )
+    assert out["parts"]["ruban"]["state"]["level"] == 102  # 40 % de 255
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("humidity", "rgb"), [(50, [0, 255, 0]), (70, [255, 120, 0]), (85, [255, 0, 0])]
+)
+def test_bathroom_ventilation_indicator(tmp_path, humidity, rgb):
+    out = run(
+        simulation_payload(CAT, _spec("aeration-salle-de-bain")),
+        tmp_path,
+        until=6_000,
+        events=[[0, "air", "set", "humidity", humidity]],
+    )
+    assert out["parts"]["voyant"]["state"]["rgb"] == rgb
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("start", "lit"),
+    [("2026-11-03T06:45:00", 12), ("2026-11-03T07:10:00", 12), ("2026-11-03T12:00:00", 0)],
+)
+def test_sunrise_alarm(tmp_path, start, lit):
+    out = run(simulation_payload(CAT, _spec("reveil-lumineux")), tmp_path, 2_000, start=start)
+    assert _lit(out["parts"]["anneau"]) == lit
+
+
+@needs_node
+def test_sunrise_alarm_button_switches_it_off_for_the_day(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("reveil-lumineux")),
+        tmp_path,
+        until=4_000,
+        events=[[1_000, "bouton", "press", "pressed"], [1_100, "bouton", "release", "pressed"]],
+        start="2026-11-03T07:10:00",
+    )
+    assert _lit(out["parts"]["anneau"]) == 0 and "Bonjour" in out["serial"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("temperature", "humidity", "rgb"),
+    [(21, 50, [0, 255, 0]), (27, 50, [255, 0, 0]), (16, 50, [0, 0, 255]), (21, 25, [255, 200, 0])],
+)
+def test_comfort_indicator(tmp_path, temperature, humidity, rgb):
+    out = run(
+        simulation_payload(CAT, _spec("indicateur-confort")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [0, "capteur", "set", "temperature", temperature],
+            [0, "capteur", "set", "humidity", humidity],
+        ],
+    )
+    assert out["parts"]["voyant"]["state"]["rgb"] == rgb
+
+
+@needs_node
+def test_silent_doorbell_vibrates_three_times(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("sonnette-silencieuse")),
+        tmp_path,
+        until=4_000,
+        events=[[500, "bouton", "press", "pressed"], [600, "bouton", "release", "pressed"]],
+    )
+    assert out["parts"]["vibreur"]["state"]["count"] == 3
+    assert out["sounds"] == 0 and "On sonne ! (1)" in out["serial"]
 
 
 @needs_node

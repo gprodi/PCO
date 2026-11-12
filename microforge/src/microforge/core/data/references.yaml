@@ -265,3 +265,36 @@ lampe-croissance:
 niveau-recuperateur:
   - { site: Hackaday, title: "Pinging the depths of a rain barrel", url: "https://hackaday.com/2018/03/01/pinging-the-depths-of-a-rain-barrel", proche: true }
   - { site: Instructables, title: "Water Level Indicator Using a HC-SR04 and an Arduino", url: "https://www.instructables.com/Ultrasonic-Water-Level-Indicator-Using-HC-SR04-Ard", proche: true }
+
+# Thèmes « Domotique » et « Maison & confort » (12/11/2026) : repérés par recherche web (sites
+# non joignables depuis l'environnement de préparation ; titres et adresses de la recherche).
+lumiere-auto-pir:
+  - { site: Hackster, title: "Relay PIR Timer", url: "https://www.hackster.io/berlopdia/relay-pir-timer-db49bd" }
+  - { site: SunFounder, title: "Lesson 40: Motion Triggered Relay", url: "https://docs.sunfounder.com/projects/umsk/en/latest/02_arduino/uno_lesson40_motion_triggered_relay.html" }
+volet-roulant:
+  - { site: Instructables, title: "Arduino Light Sensitive Stepper Motor", url: "https://www.instructables.com/id/Arduino-Light-Sensitive-Stepper-Motor", proche: true }
+  - { site: Keyestudio, title: "10. Light Control Automatic Curtain", url: "https://keyestudio-temptest1.readthedocs.io/en/latest/docs/4.Arduino%20Projects/4.3%20Projects/Project%2010.html", proche: true }
+escalier-automatique:
+  - { site: Instructables, title: "Motion Activated Automatic LED Stair Lighting With Arduino (Updated)", url: "https://www.instructables.com/Motion-Activated-Automatic-LED-Stair-Lighting-With" }
+  - { site: Arduino Project Hub, title: "Automated Staircase RGB LED Lights", url: "https://projecthub.arduino.cc/notenoughtech/automated-staircase-rgb-led-lights-073633", proche: true }
+fenetre-chauffage:
+  - { site: ArduinoGetStarted, title: "Arduino - Door Sensor - Relay", url: "https://arduinogetstarted.com/tutorials/arduino-door-sensor-relay", proche: true }
+  - { site: Hackster, title: "Elara: A Smart Airflow Detector for Your Smart Home", url: "https://www.hackster.io/fike-rehman/elara-a-smart-airflow-detector-for-your-smart-home-415a11", proche: true }
+porte-frigo:
+  - { site: Instructables, title: "Refrigerator Door Alarm", url: "https://www.instructables.com/Refrigerator-Door-Alarm" }
+  - { site: Core Electronics, title: "Fridge Door Alarm", url: "https://core-electronics.com.au/projects/fridge-door-alarm/" }
+variateur-ruban:
+  - { site: Instructables, title: "How to Control LED Strips With Arduino – Part 1: Single-Color Strips", url: "https://www.instructables.com/How-to-Control-LED-Strips-With-Arduino-Part-1-Sing" }
+  - { site: DeepBlue Embedded, title: "Arduino LED Dimmer (Potentiometer + PWM)", url: "https://deepbluembedded.com/arduino-led-dimmer/", proche: true }
+aeration-salle-de-bain:
+  - { site: Instructables, title: "Automatic Bathroom Fan With Arduino Nano", url: "https://www.instructables.com/Automatic-Bathroom-Fan-With-Arduino-Nano", proche: true }
+  - { site: Hackster, title: "Automatic Fart Extractor - Bathroom Dehumidifier Fan", url: "https://www.hackster.io/viorelracoviteanu/automatic-fart-extractor-bathroom-dehumidifier-fan-0d2c01", proche: true }
+reveil-lumineux:
+  - { site: Instructables, title: "Arduino Powered Sunrise Alarm Clock With Neopixels", url: "https://www.instructables.com/Arduino-Powered-Sunrise-Alarm-Clock-With-Neopixels" }
+  - { site: ShillehTek, title: "Arduino Nano DS3231 sunrise alarm clock", url: "https://shillehtek.com/blogs/news/arduino-nano-ds3231-sunrise-alarm-clock", proche: true }
+indicateur-confort:
+  - { site: SunFounder, title: "TempHumid Monitor 2.0", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/tempmumid_monitor2.0.html", proche: true }
+  - { site: Hackster, title: "Temperature and Humidity Sensor with LED Lights", url: "https://www.hackster.io/r4lph127/temperature-and-humidity-sensor-with-led-lights-bf4ce6", proche: true }
+sonnette-silencieuse:
+  - { site: Arduino Forum, title: "Silent vibrating doorbell", url: "https://forum.arduino.cc/t/silent-vibrating-doorbell/1227004" }
+  - { site: SparkFun, title: "LilyPad Vibe Board Hookup Guide", url: "https://learn.sparkfun.com/tutorials/lilypad-vibe-board-hookup-guide/all", proche: true }

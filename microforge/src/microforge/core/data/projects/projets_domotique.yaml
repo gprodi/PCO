@@ -1,0 +1,168 @@
+# Modèles du thème « Domotique & automatismes » (12/11/2026).
+
+- id: lumiere-auto-pir
+  title: Lumière qui s'éteint seule
+  description: La lampe (sur relais) s'allume au passage et s'éteint d'elle-même une minute après le dernier mouvement ; chaque mouvement relance la minute.
+  difficulty: 1
+  tags: [domotique, mouvement, relais, débutant]
+  learning: [minuterie relancée, millis()]
+  parts:
+    - { name: detecteur, component: pir-hc-sr501 }
+    - { name: lampe, component: relay-module-1ch }
+  globals_extra: |
+    const unsigned long DUREE_MS = 60000;  // une minute sans mouvement
+    unsigned long dernier_mouvement = 0;
+    bool allumee = false;
+  logic: |
+    if (detecteur_motion()) {
+      dernier_mouvement = millis();
+      if (!allumee) {
+        allumee = true;
+        lampe_on();
+        Serial.println("Allumée");
+      }
+    }
+    if (allumee && millis() - dernier_mouvement > DUREE_MS) {
+      allumee = false;
+      lampe_off();
+      Serial.println("Éteinte : personne depuis une minute");
+    }
+    delay(100);
+
+- id: volet-roulant
+  title: Volet roulant miniature
+  description: Le moteur pas à pas monte le volet au lever du jour et le descend à la tombée de la nuit ; le bouton l'ouvre ou le ferme à la main à tout moment.
+  difficulty: 3
+  tags: [domotique, moteur pas à pas, lumière]
+  learning: [moteur pas à pas, changement d'état jour/nuit, commande manuelle prioritaire]
+  parts:
+    - { name: moteur, component: stepper-28byj48 }
+    - { name: capteur, component: ldr-module }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    const float COURSE_DEG = 1080;  // 3 tours de tambour : à ajuster à la hauteur de la fenêtre
+    bool ouvert = false;
+    int zone = 0;  // 1 : jour, -1 : nuit, 0 : entre les deux
+  logic: |
+    int l = capteur_light_percent();
+    int z = l > 60 ? 1 : (l < 20 ? -1 : 0);
+    bool cible = ouvert;
+    if (z != zone && z != 0) {
+      cible = (z == 1);  // seulement quand le jour se lève ou que la nuit tombe
+      Serial.println(z == 1 ? "Jour : ouverture" : "Nuit : fermeture");
+    }
+    zone = z;
+    if (bouton_clicked()) {
+      cible = !ouvert;
+    }
+    if (cible != ouvert) {
+      moteur_degrees(cible ? COURSE_DEG : -COURSE_DEG);
+      ouvert = cible;
+    }
+    delay(200);
+
+- id: escalier-automatique
+  title: Éclairage d'escalier automatique
+  description: La nuit, un passage allume les marches l'une après l'autre ; vingt secondes après le dernier mouvement, elles s'éteignent dans l'autre sens. Le jour, rien ne s'allume.
+  difficulty: 2
+  tags: [domotique, mouvement, lumière]
+  learning: [condition double (mouvement et obscurité), animation progressive]
+  parts:
+    - { name: detecteur, component: pir-hc-sr501 }
+    - { name: marches, component: ws2812-ring-12 }
+    - { name: luminosite, component: ldr-module }
+  globals_extra: |
+    unsigned long dernier = 0;
+    bool allume = false;
+  logic: |
+    if (detecteur_motion() && (allume || luminosite_light_percent() < 30)) {
+      dernier = millis();
+      if (!allume) {
+        for (int p = 0; p <= 100; p += 10) { marches_gauge(p); delay(100); }
+        allume = true;
+      }
+    }
+    if (allume && millis() - dernier > 20000) {
+      for (int p = 100; p >= 0; p -= 10) { marches_gauge(p); delay(100); }
+      allume = false;
+    }
+    delay(50);
+
+- id: fenetre-chauffage
+  title: Détecteur de fenêtre ouverte + chauffage
+  description: Fenêtre ouverte plus de 30 secondes, le relais coupe l'autorisation de chauffe et la LED s'allume ; refermée, le chauffage reprend. Pour un radiateur sur le secteur, un relais certifié en boîtier fermé (ou l'entrée « contact de fenêtre » du thermostat).
+  difficulty: 2
+  tags: [domotique, économie d'énergie, relais, aimant]
+  learning: [contact magnétique, délai avant action, sécurité des charges secteur]
+  parts:
+    - { name: fenetre, component: reed-switch }
+    - { name: chauffage, component: relay-module-1ch }
+    - { name: voyant, component: led, attrs: { color: blue } }
+  globals_extra: |
+    bool ouverte = false;
+    unsigned long ouverte_depuis = 0;
+  setup_extra: |
+    chauffage_on();
+  logic: |
+    if (fenetre_open()) {
+      if (!ouverte) {
+        ouverte = true;
+        ouverte_depuis = millis();
+      }
+      if (millis() - ouverte_depuis > 30000) {
+        chauffage_off();
+        voyant_on();
+      }
+    } else {
+      ouverte = false;
+      chauffage_on();
+      voyant_off();
+    }
+    delay(200);
+
+- id: porte-frigo
+  title: Rappel « porte du frigo ouverte »
+  description: Si la porte du réfrigérateur reste ouverte plus de 30 secondes, le buzzer bipe chaque seconde jusqu'à ce qu'on la referme.
+  difficulty: 1
+  tags: [domotique, aimant, son, débutant]
+  learning: [contact magnétique, temporisation]
+  parts:
+    - { name: porte, component: reed-switch }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    bool ouverte = false;
+    unsigned long ouverte_depuis = 0;
+  logic: |
+    if (porte_open()) {
+      if (!ouverte) {
+        ouverte = true;
+        ouverte_depuis = millis();
+      }
+      if (millis() - ouverte_depuis > 30000) {
+        bip_beep(2500, 150);
+        delay(1000);
+      }
+    } else {
+      ouverte = false;
+    }
+    delay(100);
+
+- id: variateur-ruban
+  title: Variateur pour ruban LED 12 V
+  description: Le potentiomètre règle la luminosité d'un ruban LED 12 V par modulation de largeur d'impulsion, à travers un module MOSFET (alimentation 12 V séparée, masse commune).
+  difficulty: 1
+  tags: [domotique, lumière, MOSFET, PWM]
+  learning: [PWM, transistor MOSFET en commutation, alimentation séparée]
+  parts:
+    - { name: reglage, component: potentiometer-10k }
+    - { name: ruban, component: mosfet-module }
+  globals_extra: |
+    int dernier = -1;
+  logic: |
+    int p = reglage_percent();
+    if (p < 3) { p = 0; }  // en butée basse : vraiment éteint
+    if (p != dernier) {
+      ruban_power(p);
+      dernier = p;
+    }
+    delay(20);

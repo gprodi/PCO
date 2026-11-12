@@ -1,0 +1,110 @@
+# Modèles du thème « Maison & confort » (12/11/2026).
+
+- id: aeration-salle-de-bain
+  title: Indicateur d'aération de salle de bain
+  description: Après la douche, la LED passe à l'orange au-dessus de 60 % d'humidité (penser à aérer) et au rouge au-dessus de 75 % (risque de moisissures) ; verte quand l'air est redevenu sec.
+  difficulty: 1
+  tags: [maison, humidité, débutant]
+  learning: [humidité relative, seuils, couleur RVB]
+  parts:
+    - { name: air, component: dht22 }
+    - { name: voyant, component: rgb-led }
+  logic: |
+    float h = air_humidity();
+    if (isnan(h)) {
+      voyant_color(0, 0, 255);  // capteur muet
+    } else if (h > 75) {
+      voyant_color(255, 0, 0);
+    } else if (h > 60) {
+      voyant_color(255, 120, 0);
+    } else {
+      voyant_color(0, 255, 0);
+    }
+    Serial.print("Humidité : ");
+    Serial.print(h);
+    Serial.println(" %");
+    delay(5000);
+
+- id: reveil-lumineux
+  title: Réveil lumineux
+  description: La couronne simule un lever de soleil pendant les 30 minutes qui précèdent le réveil (7 h), reste allumée une heure, et un appui sur le bouton l'éteint jusqu'au lendemain.
+  difficulty: 2
+  tags: [maison, horloge, lumière]
+  learning: [heure en minutes depuis minuit, montée progressive, arrêt jusqu'au lendemain]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: anneau, component: ws2812-ring-12 }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    const int REVEIL = 7 * 60;  // 7 h 00, en minutes depuis minuit
+    int arrete_le = 0;          // jour du mois où le réveil a été arrêté
+  logic: |
+    int maintenant = horloge_hour() * 60 + horloge_minute();
+    int avant = REVEIL - maintenant;  // minutes avant le réveil
+    if (bouton_clicked()) {
+      arrete_le = horloge_day();
+      Serial.println("Bonjour !");
+    }
+    if (arrete_le == horloge_day()) {
+      anneau_fill(0, 0, 0);
+    } else if (avant > 0 && avant <= 30) {
+      int k = 30 - avant;  // lever de soleil : de 0 à 30
+      anneau_fill(255 * k / 30, 120 * k / 30, 20 * k / 30);
+    } else if (avant <= 0 && avant > -60) {
+      anneau_fill(255, 180, 80);  // lumière du jour pendant une heure
+    } else {
+      anneau_fill(0, 0, 0);
+    }
+    delay(1000);
+
+- id: indicateur-confort
+  title: Indicateur de confort (trop chaud / trop sec)
+  description: La LED dit d'un coup d'œil si la pièce est confortable (vert, 19 à 24 °C et 40 à 60 % d'humidité), trop chaude (rouge), trop froide (bleu) ou trop sèche ou humide (jaune).
+  difficulty: 1
+  tags: [maison, température, humidité, débutant]
+  learning: [plages de confort, priorité entre conditions]
+  parts:
+    - { name: capteur, component: dht11 }
+    - { name: voyant, component: rgb-led }
+  logic: |
+    float t = capteur_temperature();
+    float h = capteur_humidity();
+    if (isnan(t) || isnan(h)) {
+      voyant_color(0, 0, 0);
+    } else if (t > 24) {
+      voyant_color(255, 0, 0);
+    } else if (t < 19) {
+      voyant_color(0, 0, 255);
+    } else if (h < 40 || h > 60) {
+      voyant_color(255, 200, 0);
+    } else {
+      voyant_color(0, 255, 0);
+    }
+    delay(2000);
+
+- id: sonnette-silencieuse
+  title: Sonnette silencieuse (bébé dort)
+  description: Le bouton de la porte fait vibrer le boîtier posé près de soi et clignoter sa LED, sans aucun bruit ; le moniteur série compte les visites.
+  difficulty: 1
+  tags: [maison, vibreur, débutant]
+  learning: [vibreur, signal sans son, compteur]
+  parts:
+    - { name: bouton, component: pushbutton }
+    - { name: vibreur, component: vibration-motor }
+    - { name: voyant, component: led, attrs: { color: yellow } }
+  globals_extra: |
+    int sonneries = 0;
+  logic: |
+    if (bouton_clicked()) {
+      sonneries++;
+      Serial.print("On sonne ! (");
+      Serial.print(sonneries);
+      Serial.println(")");
+      for (int i = 0; i < 3; i++) {
+        voyant_on();
+        vibreur_buzz(400);  // bloque 400 ms
+        voyant_off();
+        delay(300);
+      }
+    }
+    delay(20);

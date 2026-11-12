@@ -14,12 +14,12 @@ themes:
       - { titre: "Lampe commandée par télécommande TV", template: telecommande-lampe, difficulte: 2, composants: [ir-receiver, relay-module-1ch], description: "Recycle une vieille télécommande infrarouge." }
       - { titre: "Lampe tactile", template: lampe-tactile, difficulte: 1, composants: [ttp223-touch, relay-module-1ch], description: "Effleure le bois du meuble pour allumer." }
       - { titre: "Thermostat", template: thermostat-relais, difficulte: 2, composants: [ds18b20, relay-module-1ch, tm1637-display], description: "Maintient une température de consigne (chauffage basse tension)." }
-      - { titre: "Lumière qui s'éteint seule", difficulte: 1, composants: [pir-hc-sr501, relay-module-1ch], description: "Éteint l'éclairage quand plus personne n'est dans la pièce." }
-      - { titre: "Volet roulant miniature", difficulte: 3, composants: [stepper-28byj48, ldr-module, pushbutton], description: "Monte le matin, descend le soir, bouton manuel." }
-      - { titre: "Éclairage d'escalier automatique", difficulte: 2, composants: [pir-hc-sr501, ws2812-ring-12, ldr-module], description: "Les LED s'allument en cascade la nuit quand on approche." }
-      - { titre: "Détecteur de fenêtre ouverte + chauffage", difficulte: 2, composants: [reed-switch, relay-module-1ch, led], description: "Coupe le chauffage tant que la fenêtre est ouverte." }
-      - { titre: "Rappel « porte du frigo ouverte »", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip si la porte reste ouverte plus de 30 s." }
-      - { titre: "Variateur pour ruban LED 12 V", difficulte: 1, composants: [mosfet-module, potentiometer-10k], description: "Un bouton rotatif règle l'intensité d'un ruban LED." }
+      - { titre: "Lumière qui s'éteint seule", template: lumiere-auto-pir, difficulte: 1, composants: [pir-hc-sr501, relay-module-1ch], description: "Éteint l'éclairage quand plus personne n'est dans la pièce." }
+      - { titre: "Volet roulant miniature", template: volet-roulant, difficulte: 3, composants: [stepper-28byj48, ldr-module, pushbutton], description: "Monte le matin, descend le soir, bouton manuel." }
+      - { titre: "Éclairage d'escalier automatique", template: escalier-automatique, difficulte: 2, composants: [pir-hc-sr501, ws2812-ring-12, ldr-module], description: "Les LED s'allument en cascade la nuit quand on approche." }
+      - { titre: "Détecteur de fenêtre ouverte + chauffage", template: fenetre-chauffage, difficulte: 2, composants: [reed-switch, relay-module-1ch, led], description: "Coupe le chauffage tant que la fenêtre est ouverte." }
+      - { titre: "Rappel « porte du frigo ouverte »", template: porte-frigo, difficulte: 1, composants: [reed-switch, buzzer], description: "Bip si la porte reste ouverte plus de 30 s." }
+      - { titre: "Variateur pour ruban LED 12 V", template: variateur-ruban, difficulte: 1, composants: [mosfet-module, potentiometer-10k], description: "Un bouton rotatif règle l'intensité d'un ruban LED." }
       - { titre: "Lumière de couloir à radar", template: lumiere-couloir-radar, difficulte: 2, composants: [rcwl-0516, ldr-module, relay-module-1ch], description: "S'allume la nuit au moindre passage, même derrière une porte." }
 
   - id: interieur
@@ -32,10 +32,10 @@ themes:
       - { titre: "Veilleuse automatique", template: veilleuse-auto, difficulte: 1, composants: [ldr-module, led], description: "S'allume toute seule quand il fait nuit." }
       - { titre: "Lampe d'ambiance arc-en-ciel", template: lampe-ambiance-neopixel, difficulte: 1, composants: [potentiometer-10k, ws2812-ring-12], description: "Choisis la teinte de l'anneau LED avec un bouton." }
       - { titre: "Sonnette mélodique", template: sonnette-melodie, difficulte: 1, composants: [pushbutton, buzzer], description: "Un appui joue une petite mélodie." }
-      - { titre: "Indicateur d'aération de salle de bain", difficulte: 1, composants: [dht22, rgb-led], description: "LED rouge quand l'humidité dépasse 70 % : il faut aérer." }
-      - { titre: "Réveil lumineux", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12, pushbutton], description: "La lumière monte progressivement avant l'heure du réveil." }
-      - { titre: "Indicateur de confort (trop chaud / trop sec)", difficulte: 1, composants: [dht11, rgb-led], description: "Une seule LED qui résume le confort de la pièce." }
-      - { titre: "Sonnette silencieuse (bébé dort)", difficulte: 1, composants: [pushbutton, vibration-motor, led], description: "Le visiteur sonne, toi seul sens la vibration." }
+      - { titre: "Indicateur d'aération de salle de bain", template: aeration-salle-de-bain, difficulte: 1, composants: [dht22, rgb-led], description: "LED rouge quand l'humidité dépasse 70 % : il faut aérer." }
+      - { titre: "Réveil lumineux", template: reveil-lumineux, difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12, pushbutton], description: "La lumière monte progressivement avant l'heure du réveil." }
+      - { titre: "Indicateur de confort (trop chaud / trop sec)", template: indicateur-confort, difficulte: 1, composants: [dht11, rgb-led], description: "Une seule LED qui résume le confort de la pièce." }
+      - { titre: "Sonnette silencieuse (bébé dort)", template: sonnette-silencieuse, difficulte: 1, composants: [pushbutton, vibration-motor, led], description: "Le visiteur sonne, toi seul sens la vibration." }
       - { titre: "Ventilateur qui accélère avec la chaleur", template: ventilateur-pwm-mosfet, difficulte: 3, composants: [dht22, mosfet-irlz44n, diode-1n4007, fan-12v], description: "Arrêté sous 25 °C, pleine vitesse à 35 °C, progressif entre les deux." }
       - { titre: "Baromètre à tendance", template: barometre-bmp280, difficulte: 2, composants: [bmp280, ssd1306-i2c], description: "La pression monte ou baisse depuis 3 h : beau temps ou pluie en approche." }
 

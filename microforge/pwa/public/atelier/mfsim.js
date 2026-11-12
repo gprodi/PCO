@@ -401,7 +401,8 @@
   model("vibration-motor", (p) => ({
     view: "vibe",
     state: { until: 0 },
-    api: { buzz: (ms) => { p.s.until = now(p) + ms; } },
+    // buzz() est bloquant sur la carte (delay(ms) dans le composant) : le temps virtuel avance aussi.
+    api: { buzz: (ms) => { p.s.until = now(p) + ms; p.s.count = (p.s.count || 0) + 1; p.sim.advance(ms); } },
   }));
   model("ws2812-ring-12", (p) => {
     const n = Number(p.attrs.pixels || 12);

@@ -149,10 +149,12 @@
     - { name: bip, component: buzzer }
   globals_extra: |
     const int SEC = 30;  // %, à étalonner
+    bool deja_bipe = false;
     unsigned long dernier_bip = 0;
   logic: |
-    if (sol_percent() < SEC && (dernier_bip == 0 || millis() - dernier_bip > 10000)) {
-      dernier_bip = millis() + 1;
+    if (sol_percent() < SEC && (!deja_bipe || millis() - dernier_bip > 10000)) {
+      deja_bipe = true;
+      dernier_bip = millis();
       Serial.println("J'ai soif !");
       bip_beep(1800, 120);
       delay(250);
