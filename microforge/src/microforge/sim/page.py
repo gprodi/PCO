@@ -23,6 +23,7 @@ def atelier_assets() -> dict[str, str]:
     """Scripts et feuille de style de l'atelier, pour les intégrer dans une autre page."""
     return {
         "mfsim.js": _static("mfsim.js"),
+        "missions.js": _static("missions.js"),
         "atelier.js": _static("atelier.js"),
         "atelier.css": _static("atelier.css"),
     }
@@ -72,6 +73,7 @@ h1 {{ font-size: 1.15rem; margin: 0 0 10px; }}
 <div id="atelier"></div>
 <script type="application/json" id="mf-payload">{payload_json(payload)}</script>
 <script>{assets["mfsim.js"]}</script>
+<script>{assets["missions.js"]}</script>
 <script>{assets["atelier.js"]}</script>
 <script>
 (function () {{

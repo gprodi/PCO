@@ -11,6 +11,7 @@ from importlib import resources
 from typing import Any
 
 from microforge.core.catalog import Catalog
+from microforge.core.missions import charge_atelier
 from microforge.core.models import BuildResult, ProjectSpec
 from microforge.sim.page import atelier_html
 from microforge.sim.transpile import TranspileError, transpile
@@ -19,6 +20,7 @@ __all__ = [
     "TranspileError",
     "atelier_html",
     "atelier_payload",
+    "missions_js",
     "runtime_js",
     "simulation_payload",
     "transpile",
@@ -30,6 +32,14 @@ __all__ = [
 def runtime_js() -> str:
     """Moteur de simulation (navigateur et Node)."""
     return resources.files("microforge.sim").joinpath("static/mfsim.js").read_text(encoding="utf-8")
+
+
+@cache
+def missions_js() -> str:
+    """Suivi des missions de l'atelier (navigateur et Node)."""
+    return (
+        resources.files("microforge.sim").joinpath("static/missions.js").read_text(encoding="utf-8")
+    )
 
 
 def simulation_payload(catalog: Catalog, spec: ProjectSpec) -> dict[str, Any]:
@@ -58,6 +68,7 @@ def simulation_payload(catalog: Catalog, spec: ProjectSpec) -> dict[str, Any]:
             for e in spec.bom_extra
         ],
         "code": transpile(catalog, spec),
+        "missions": charge_atelier(spec.template_id),
     }
 
 

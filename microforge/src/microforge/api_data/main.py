@@ -18,7 +18,15 @@ from sqlmodel import Session, func, select
 from microforge.api_data.catalog_sync import sync_catalog
 from microforge.api_data.db import Feedback, get_engine, init_db
 from microforge.api_data.limiter import limiter
-from microforge.api_data.routers import admin, auth, catalog, inventory, projects, users
+from microforge.api_data.routers import (
+    admin,
+    auth,
+    catalog,
+    inventory,
+    progression,
+    projects,
+    users,
+)
 from microforge.common.security import signing_keys
 from microforge.common.settings import get_settings, setup_logging
 
@@ -111,6 +119,7 @@ def create_app() -> FastAPI:
         catalog.router,
         inventory.router,
         projects.router,
+        progression.router,
         admin.router,
     ):
         app.include_router(router)

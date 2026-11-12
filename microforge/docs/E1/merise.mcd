@@ -1,6 +1,10 @@
 % MCD MicroForge (Merise) au format Mocodo 4 : source des images img/mcd.png et img/mld.png.
 % Régénérer : voir docs/E1/merise.md (section « Régénérer les diagrammes »).
 
+:
+MISSION_RÉUSSIE: id mission réussie, modèle, mission, réussie le
+RÉUSSIT, 0N UTILISATEUR, 11 MISSION_RÉUSSIE
+
 JETON_RAFRAICHISSEMENT: jti, famille, expire le, utilisé le, révoqué
 DÉTIENT, 0N UTILISATEUR, 11 JETON_RAFRAICHISSEMENT
 UTILISATEUR: id utilisateur, pseudo, e-mail chiffré, index e-mail, mot de passe haché, ville, rôle, consentement entraînement, actif, créé le, dernière connexion

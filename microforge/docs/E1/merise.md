@@ -6,7 +6,7 @@ projets), accès concurrents des deux API, rôles SQL (lecture seule pour l'acc�
 vectorielle pour le RAG des datasheets. SQLite reste utilisé en développement et en test.
 
 ## MCD
-Source au format Mocodo : [`merise.mcd`](merise.mcd). 13 entités et 14 associations, dont une
+Source au format Mocodo : [`merise.mcd`](merise.mcd). 14 entités et 15 associations, dont une
 association n,n (UTILISE). Les identifiants de composant prédit et corrigé de RETOUR_DETECTION sont des
 attributs, pas des associations : un retour peut citer une classe du détecteur absente du catalogue.
 
@@ -18,8 +18,8 @@ COMPOSANT est fabriqué par 0,1 FABRICANT (fabricant parfois absent des sources)
 porte sur 0,1 PHOTO (retour possible sans photo conservée, cf. RGPD).
 
 ## MLD
-Produit par Mocodo à partir du MCD (`-t markdown`) : 14 relations, exactement les 14 tables de la
-migration Alembic `0001` (+ `0002` pour la valeur des articles, `0003` et `0004` pour les index de recherche). Clé primaire soulignée, clés
+Produit par Mocodo à partir du MCD (`-t markdown`) : 15 relations, exactement les 15 tables des
+migrations Alembic `0001` (14 tables) et `0005` (missions réussies), plus `0002` pour la valeur des articles, `0003` et `0004` pour les index de recherche. Clé primaire soulignée, clés
 étrangères préfixées par `#`.
 
 ![MLD MicroForge (Mocodo)](img/mld.png)
@@ -32,6 +32,7 @@ migration Alembic `0001` (+ `0002` pour la valeur des articles, `0003` et `0004`
 - **FABRICANT** (<u>id fabricant</u>, nom) — nom unique
 - **FOURNISSEUR** (<u>id fournisseur</u>, nom, url, pays, méthode de collecte) — nom unique
 - **JETON_RAFRAICHISSEMENT** (<u>jti</u>, famille, expire le, utilisé le, révoqué, _#id utilisateur_)
+- **MISSION_RÉUSSIE** (<u>id mission réussie</u>, modèle, mission, réussie le, _#id utilisateur_) — unicité (utilisateur, modèle, mission) ; effacée avec le compte
 - **OFFRE** (<u>id offre</u>, sku, prix unitaire EUR, prix d'origine, devise d'origine, stock, url, collecté le, _#id fournisseur_, _#id composant_)
 - **PHOTO** (<u>id photo</u>, empreinte SHA-256, largeur, hauteur, version modèle, créé le, supprimer après, _#id utilisateur_)
 - **PROJET** (<u>id projet</u>, titre, modèle, spécification JSON, créé le, _#id utilisateur_, _#id composant_)

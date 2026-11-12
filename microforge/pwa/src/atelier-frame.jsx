@@ -7,8 +7,14 @@ import { useEffect, useRef, useState } from 'react';
 const MIN_H = 240;
 const MAX_H = 6000;
 
-export default function AtelierFrame({ payload, title }) {
+export default function AtelierFrame({ payload, title, faites = [], onMission }) {
   const frame = useRef(null);
+  // Missions déjà réussies : lues au montage de l'atelier seulement (les envoyer à chaque
+  // réussite remonterait l'atelier et relancerait la simulation).
+  const faitesRef = useRef(faites);
+  faitesRef.current = faites;
+  const onMissionRef = useRef(onMission);
+  onMissionRef.current = onMission;
   const [ready, setReady] = useState(0); // incrémenté à chaque (re)chargement du cadre
   const [height, setHeight] = useState(520);
 
@@ -17,6 +23,7 @@ export default function AtelierFrame({ payload, title }) {
       if (!frame.current || event.source !== frame.current.contentWindow) return;
       const msg = event.data;
       if (msg?.type === 'mf-atelier-ready') setReady((n) => n + 1);
+      if (msg?.type === 'mf-mission' && typeof msg.id === 'string' && /^[a-z0-9-]{1,60}$/.test(msg.id)) onMissionRef.current?.(msg.id);
       if (msg?.type === 'mf-atelier-height' && Number.isFinite(msg.height)) {
         setHeight(Math.min(MAX_H, Math.max(MIN_H, Math.ceil(msg.height))));
       }
@@ -27,7 +34,7 @@ export default function AtelierFrame({ payload, title }) {
 
   useEffect(() => {
     // Origine opaque : aucune origine cible nommable, d'où '*'. Rien de secret dans la charge.
-    if (ready && payload) frame.current?.contentWindow?.postMessage({ type: 'mf-atelier', payload }, '*');
+    if (ready && payload) frame.current?.contentWindow?.postMessage({ type: 'mf-atelier', payload, faites: faitesRef.current }, '*');
   }, [ready, payload]);
 
   return (

@@ -1,7 +1,7 @@
 // Projet généré, comme la démo : câblage aux couleurs des fils Dupont, atelier virtuel (cadre isolé),
 // schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources.
 // Au-dessus des onglets : notions, difficulté, contrôle électrique, choix de la carte, archive .zip.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AtelierFrame from '../atelier-frame.jsx';
 import { renderMarkdown } from '../markdown.js';
 import { Dots, Icon, euros, message, plural, wireColor } from '../ui.jsx';
@@ -66,10 +66,50 @@ function Achats({ list }) {
   );
 }
 
-export default function Projet({ build, client, onBoard }) {
-  const [tab, setTab] = useState('cablage');
+/** Bandeau de progression au-dessus de l'atelier : niveau, points, dernière mission réussie. */
+function Progression({ prog, last, libre }) {
+  if (libre) return <p className="small muted">Projet libre : les missions se jouent, mais ne comptent pas dans ta progression.</p>;
+  if (!prog) return null;
+  const n = prog.niveau;
+  const part = n.xp_prochain ? Math.round((100 * (prog.xp - n.xp_niveau)) / (n.xp_prochain - n.xp_niveau)) : 100;
+  return (
+    <div className="xp" role="group" aria-label="Ta progression">
+      <span><b>{n.nom}</b> · {prog.xp} XP</span>
+      <span className="xp-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={part}
+        aria-label={n.prochain ? `Vers le niveau ${n.prochain}` : 'Niveau maximal'}><span style={{ width: `${part}%` }} /></span>
+      {n.prochain && <span className="small muted">{n.xp_prochain - prog.xp} XP avant « {n.prochain} »</span>}
+      <p className="small xp-last" role="status" aria-live="polite">{last}</p>
+    </div>
+  );
+}
+
+export default function Projet({ build, client, onBoard, initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'cablage');
   const [zip, setZip] = useState(null);
   const [saved, setSaved] = useState(null);
+  const [prog, setProg] = useState(null);
+  const [progReady, setProgReady] = useState(false);
+  const [last, setLast] = useState('');
+  const templateId = build?.spec.template_id ?? null;
+  useEffect(() => {
+    if (!templateId) return;
+    // Progression indisponible (API, hors ligne) : l'atelier s'ouvre quand même, sans enregistrement.
+    client.progression().then(setProg).catch(() => setProg(null)).finally(() => setProgReady(true));
+  }, [client, templateId]);
+  async function mission(id) {
+    if (!templateId) return;
+    const titre = build.atelier?.missions?.find((m) => m.id === id)?.titre ?? id;
+    try {
+      const avant = prog?.badges?.filter((b) => b.obtenu).map((b) => b.id) ?? [];
+      const apres = await client.saveMission(templateId, id);
+      const nouveaux = apres.badges.filter((b) => b.obtenu && !avant.includes(b.id)).map((b) => b.titre);
+      setProg(apres);
+      setLast(`Mission « ${titre} » enregistrée${nouveaux.length ? ` — badge obtenu : ${nouveaux.join(', ')} !` : '.'}`);
+    } catch (err) {
+      setLast(`Mission « ${titre} » réussie, mais non enregistrée : ${message(err)}`);
+    }
+  }
+  const faites = (prog?.missions ?? []).filter((m) => m.template_id === templateId).map((m) => m.mission_id);
   if (!build) {
     return (
       <div className="card empty">
@@ -232,8 +272,9 @@ export default function Projet({ build, client, onBoard }) {
 
         {tab === 'atelier' && (build.atelier ? (
           <>
-            <p className="lede">Branche chaque composant sur la bonne broche de la carte (une erreur est expliquée), puis règle les capteurs : le montage réagit comme le vrai.</p>
-            <AtelierFrame payload={build.atelier} title={spec.title} />
+            <p className="lede">Branche chaque composant sur la bonne broche de la carte (une erreur est expliquée), puis règle les capteurs : le montage réagit comme le vrai. Les missions te lancent des défis, validés par la simulation.</p>
+            <Progression prog={prog} last={last} libre={!templateId} />
+            {(!templateId || progReady) && <AtelierFrame payload={build.atelier} title={spec.title} faites={faites} onMission={mission} />}
           </>
         ) : <p>La logique de ce projet ne se simule pas dans l'atelier : utilise l'onglet Simulation Wokwi.</p>)}
 

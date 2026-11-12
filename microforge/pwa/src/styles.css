@@ -313,3 +313,50 @@ pre.code { background: var(--bg); border: 1px solid var(--line); border-radius: 
 /* Zone de statut vide : présente pour les lecteurs d'écran, sans creuser d'espace dans la page. */
 main > .status:empty { position: absolute; min-height: 0; }
 .meta .pill { white-space: normal; overflow-wrap: anywhere; }
+
+/* -- progression (missions de l'atelier) */
+.progression { display: grid; gap: 10px; }
+.prog-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.prog-head h2 { margin: 0; }
+.prog-head .lede { margin: 4px 0 0; }
+.xp { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 10px; }
+.xp-last { margin: 0; min-height: 1.2em; color: var(--accent); font-weight: 600; }
+.xp-bar { display: block; height: 8px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; min-width: 80px; }
+.xp-bar > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .4s ease; }
+@media (prefers-reduced-motion: reduce) { .xp-bar > span { transition: none; } }
+.step-prog { display: grid; grid-template-columns: minmax(80px, 200px) auto; gap: 8px; align-items: center; margin: 0; }
+.step.done .step-n { background: var(--accent); color: var(--accent-ink); }
+.badges { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.badge .small { font-size: 0.8rem; line-height: 1.35; }
+.all-badges > summary { cursor: pointer; margin: 4px 0 8px; color: var(--accent); font-weight: 600; }
+.badge { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--line); color: var(--muted); }
+.badge.on { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.badge.on b::before { content: "★ "; color: var(--accent); }
+
+/* -- onglet Apprendre */
+.apprendre { display: grid; gap: 22px; }
+.apprendre h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.montage { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.montage li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.montage li.fait { background: var(--accent-soft); border-color: var(--accent-line); }
+.montage label { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; cursor: pointer; }
+.montage p { margin: 4px 0 0 26px; font-size: 0.92rem; color: var(--muted); }
+.fil { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; font-size: 0.78rem; border: 1px solid var(--line); }
+.fil-noir { background: #222; color: #fff; } .fil-rouge { background: #c62828; color: #fff; } .fil-orange { background: #e8730c; color: #111; }
+.fil-bleu { background: #1e5bbf; color: #fff; } .fil-jaune { background: #f2c200; color: #111; } .fil-violet { background: #6a3fb5; color: #fff; }
+.fil-vert { background: #2e7d32; color: #fff; }
+.programme { list-style: none; margin: 8px 0 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-x: auto; font-family: var(--mono); font-size: 0.85rem; }
+.programme > li { white-space: pre; }
+.programme > li.explique { white-space: normal; margin: 4px 0; }
+.programme > li.explique > code { white-space: pre; display: block; font-weight: 600; }
+.programme .notes { margin: 2px 0 6px; padding: 4px 8px 4px 22px; border-left: 3px solid var(--accent); font-family: var(--sans, inherit); font-size: 0.85rem; color: var(--ink); background: var(--accent-soft); border-radius: 0 6px 6px 0; }
+.notions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 8px; margin: 0; }
+.notions > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.notions dt { font-weight: 700; } .notions dd { margin: 2px 0 0; font-size: 0.92rem; }
+.quiz { display: grid; gap: 12px; }
+.quiz fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; gap: 4px; }
+.quiz legend { font-weight: 600; padding: 0 4px; }
+.quiz label { display: flex; gap: 8px; align-items: baseline; padding: 2px 4px; border-radius: 6px; }
+.quiz label.bonne { background: var(--accent-soft); font-weight: 600; }
+.quiz label.fausse { text-decoration: line-through; }
+.quiz-msg { min-height: 1.2em; font-weight: 600; color: var(--accent); margin: 0; }

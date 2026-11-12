@@ -146,3 +146,10 @@ class ShoppingIn(BaseModel):
     project_id: int | None = None
     template_id: str | None = None
     board_id: str | None = None
+
+
+class MissionIn(BaseModel):
+    """Mission de l'atelier réussie, envoyée par la page Projet."""
+
+    template_id: str = Field(pattern=r"^[a-z0-9-]{1,80}$")
+    mission_id: str = Field(pattern=r"^[a-z0-9-]{1,60}$")

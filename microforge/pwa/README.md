@@ -7,13 +7,13 @@ L'application Streamlit (`src/microforge/app_streamlit`) reste la preuve de conc
 | Vue | Ce qu'elle fait | API appelée |
 |---|---|---|
 | Connexion | création de compte, connexion, à côté de l'établi animé | `api_data` `/v1/auth/*` |
-| Accueil | établi animé (Arduino Uno et chenillard de 3 LED, dessins Wokwi), état de l'atelier (pièces, projets réalisables), parcours en 7 étapes, vitrine de vrais projets | `api_ia` `/v1/ideas/inspiration`, `/v1/builds/suggest` |
+| Accueil | établi animé (Arduino Uno et chenillard de 3 LED, dessins Wokwi), état de l'atelier (pièces, projets réalisables), **ta progression** (niveau, points, badges, bouton « Continuer » vers la prochaine mission), parcours en 7 étapes avec l'avancement de chaque étape, vitrine de vrais projets | `api_ia` `/v1/ideas/inspiration`, `/v1/builds/suggest` ; `api_data` `/v1/progression` |
 | Explorer | 145 idées en 17 thèmes, chaque idée annotée avec le stock (pièces possédées ou manquantes, réalisable ou non), projets les plus proches du stock ; les 145 idées ont un modèle vérifié et se génèrent directement (une idée ajoutée sans modèle se conçoit avec l'IA : montage contrôlé par le moteur ; sans IA disponible, modèle le plus proche, signalé sur la page du projet) | `api_ia` `/v1/ideas/explore`, `/v1/builds/suggest`, `/v1/builds/from-goal` |
 | Créer | comme la page Streamlit « Je veux construire… » : décrire son idée (l'IA choisit les composants, le moteur câble et contrôle ; sans IA, modèle le plus proche, signalé) ou choisir l'un des 145 modèles ; carte imposée ou choisie par MicroForge ; projets enregistrés (rouvrir, supprimer) | `api_ia` `/v1/builds/from-goal`, `/v1/builds/generate` ; `api_data` `/v1/templates`, `/v1/projects*` |
 | Atelier | comme la page Streamlit « Atelier virtuel » : un projet, une carte compatible, brancher chaque composant puis simuler ; code JavaScript de la simulation consultable | `api_ia` `/v1/builds/generate` |
 | Mon stock | pièces rangées par catégorie, ajout, retrait | `api_data` `/v1/inventory*` |
 | Photo | photo prise par l'appareil (`capture="environment"`), pièces reconnues ajoutées en un geste | `api_ia` `/v1/vision/scan` |
-| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet (y compris conçu par l'IA), enregistrement dans « Mes projets » et liste d'achat (ce qui manque au stock, chiffré avec les offres collectées) ; provenance affichée pour un projet demandé à l'IA | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` ; `api_data` `/v1/projects`, `/v1/shopping-list` |
+| Projet | 9 onglets comme la démo : câblage (couleur de chaque fil Dupont), **atelier virtuel** (brancher puis simuler ; **missions** validées par le simulateur, enregistrées dans le compte), schéma, code, guide de soudure, simulation Wokwi, nomenclature, KiCad, fiabilité et sources ; notions, difficulté et contrôle électrique en tête ; choix de la carte (cartes compatibles), archive .zip du projet (y compris conçu par l'IA), enregistrement dans « Mes projets » et liste d'achat (ce qui manque au stock, chiffré avec les offres collectées) ; provenance affichée pour un projet demandé à l'IA | `api_ia` `/v1/builds/generate`, `/v1/builds/bundle` ; `api_data` `/v1/projects`, `/v1/shopping-list` |
 | Copilote | conversation : questions sur les composants et les cartes, réponses avec leurs sources | `api_ia` `/v1/copilot/ask` |
 
 Navigation : barre en haut sur ordinateur, barre d'onglets en bas sur téléphone (Accueil, Explorer,
@@ -38,6 +38,10 @@ projet depuis Explorer, Créer ou l'Atelier.
   script en ligne, `connect-src` limité aux deux API, `frame-ancestors 'none'`. Seuls les attributs
   `style` sont permis en ligne (`style-src-attr`), pour les dessins Wokwi de l'établi. Le parcours E2E
   tourne avec ces en-têtes : une ressource bloquée fait échouer le test.
+- **Missions** : `missions.js` (copie de `sim/static`) observe le simulateur en temps virtuel et
+  valide chaque défi ; le cadre isolé n'a accès à aucune API, il signale la réussite à la page par
+  `postMessage` (identifiant contrôlé), la page l'enregistre (`POST /v1/progression`). La
+  progression est déclarée par le navigateur : outil d'apprentissage, pas une certification.
 - **Atelier virtuel isolé** : le simulateur (`mfsim.js`) exécute la logique du projet avec
   `new Function`, interdit par la CSP de l'application. Il tourne donc dans un cadre à part,
   `public/atelier/`, chargé avec `<iframe sandbox="allow-scripts">` : origine opaque, donc ni jetons,
@@ -98,7 +102,9 @@ uv run pytest -m e2e microforge/tests/test_e2e_parcours.py -k pwa
 Le test démarre `api_data` et `api_ia` (SQLite, clés JWT éphémères, modèle de langage simulé), sert
 `dist/` avec les en-têtes de l'image nginx, puis `e2e/parcours-pwa.cjs` enchaîne au format
 téléphone : inscription → stock → idées → projet (9 onglets ; dans l'atelier, « Tout brancher » puis
-la simulation avance ; archive .zip téléchargée ; changement de carte) → copilote → photo, audit axe
+la simulation avance ; archive .zip téléchargée ; changement de carte) → missions (alarme de porte :
+porte ouverte dans l'atelier, mission « Intrusion ! » enregistrée, une minute de simulation en
+accéléré, badge « Premier pas » et points à l'accueil) → copilote → photo, audit axe
 de chaque vue et du cadre de l'atelier, puis rechargement hors ligne depuis le service worker.
 
 La même PWA est aussi testée dans sa **vraie image nginx** : le job CI « Pile complète » construit

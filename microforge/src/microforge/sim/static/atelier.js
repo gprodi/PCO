@@ -3,13 +3,14 @@
  * MFAtelier.mount(element, payload, options) affiche une carte par composant (dessin Wokwi si la
  * bibliothèque @wokwi/elements est chargée, sinon un dessin simple), ses réglages (curseurs, boutons),
  * le mode « Je branche » (chaque broche choisie est vérifiée et expliquée), le moniteur série et les
- * commandes de la simulation (lecture, pause, ×1 / ×10 / ×60, réinitialisation).
+ * commandes de la simulation (lecture, pause, ×1 / ×10 / ×60, réinitialisation) et les missions
+ * (défis validés par le simulateur, si missions.js est chargé : options { missions, faites, onMission }).
  * Dépend de MFSim (mfsim.js). Aucune donnée n'est envoyée nulle part.
  */
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory(require("./mfsim.js"));
-  else root.MFAtelier = factory(root.MFSim);
-})(typeof self !== "undefined" ? self : this, function (MFSim) {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./mfsim.js"), require("./missions.js"));
+  else root.MFAtelier = factory(root.MFSim, root.MFMissions);
+})(typeof self !== "undefined" ? self : this, function (MFSim, MFMissions) {
   "use strict";
 
   const ROLE_LABELS = {
@@ -314,8 +315,9 @@
     const opts = Object.assign({ startPlugged: false, autostart: true }, options || {});
     const wiring = payload.wiring || { pins: [], board: { labels: [], buses: {} } };
     const board = wiring.board;
-    const state = { speed: 1, paused: false, plugged: {}, choices: {}, values: {}, sound: false, soundIndex: 0, serialLen: 0 };
+    const state = { speed: 1, paused: false, plugged: {}, choices: {}, values: {}, sound: false, soundIndex: 0, serialLen: 0, aide: false };
     let sim = null;
+    let suivi = null;
     let raf = 0;
     let audio = null;
 
@@ -335,6 +337,55 @@
       h("button", { type: "button", class: "mfa-btn", text: "Recommencer", onclick: () => restart() }),
       soundBtn, timeEl);
     const errorBox = h("p", { class: "mfa-error", role: "alert", hidden: true });
+
+    // -- missions : défis validés par le simulateur
+    const missions = MFMissions ? (opts.missions || payload.missions || []) : [];
+    const annonce = h("p", { class: "mfa-annonce", role: "status", "aria-live": "polite" });
+    const missionItems = {};
+    const missionCount = h("span", { class: "mfa-mcount" });
+    const missionList = h("ol", { class: "mfa-mlist" });
+    for (const m of missions) {
+      const statut = h("span", { class: "mfa-mstate" });
+      const item = h("li", { class: "mfa-mission", "data-mission": m.id },
+        statut,
+        h("div", {},
+          h("strong", { text: m.titre }),
+          h("p", { text: m.consigne }),
+          m.indice ? h("details", {}, h("summary", { text: "Indice" }), h("p", { text: m.indice })) : null));
+      missionItems[m.id] = { item, statut, m };
+      missionList.append(item);
+    }
+    const missionBox = missions.length
+      ? h("details", { class: "mfa-missions", open: true },
+          h("summary", {}, h("span", { text: "Missions" }), missionCount),
+          missionList)
+      : null;
+    function refreshMissions() {
+      if (!suivi) return;
+      const faites = new Set(suivi.reussies());
+      for (const { item, statut, m } of Object.values(missionItems)) {
+        const ok = faites.has(m.id);
+        const verrou = !ok && m.apres && !faites.has(m.apres);
+        item.classList.toggle("done", ok);
+        item.classList.toggle("locked", !!verrou);
+        statut.textContent = ok ? "réussie" : verrou ? "après « " + missionItems[m.apres].m.titre + " »" : "à faire";
+      }
+      missionCount.textContent = ` · ${faites.size}/${missions.length} réussie${faites.size > 1 ? "s" : ""}`;
+    }
+    if (missions.length) {
+      suivi = new MFMissions.Suivi(missions, {
+        faites: opts.faites || [],
+        contexte: () => ({ branche: Object.keys(cards).length > 0 && Object.values(state.plugged).every(Boolean), aide: state.aide }),
+        onReussite: (m) => {
+          refreshMissions();
+          const { item } = missionItems[m.id];
+          item.classList.add("win");
+          setTimeout(() => item.classList.remove("win"), 1500);
+          annonce.textContent = `Mission réussie : ${m.titre}`;
+          if (opts.onMission) opts.onMission(m.id);
+        },
+      });
+    }
     const boardArt = hasWokwi() && board.wokwi && customElements.get(board.wokwi) ? h("div", { class: "mfa-board-art" }, h(board.wokwi)) : null;
     const boardBox = h("div", { class: "mfa-board" },
       boardArt,
@@ -347,7 +398,7 @@
     webBox.append(h("button", { type: "button", class: "mfa-btn", text: "Ouvrir la page du projet sur le téléphone", onclick: () => sim && sim.request() }), h("div", { class: "mfa-phone" }, webFrame));
 
     host.append(
-      toolbar, errorBox, boardBox, grid,
+      toolbar, errorBox, missionBox, annonce, boardBox, grid,
       h("div", { class: "mfa-bottom" }, h("div", { class: "mfa-serial-box" }, h("h4", { text: "Moniteur série" }), serial), webBox),
       h("p", { class: "mfa-note", text: "Simulation du comportement : la logique du projet (son code C++ traduit en JavaScript) et un modèle de chaque composant. Le microcontrôleur lui-même n'est pas émulé (timings, bus I2C, mémoire) : pour cela, ouvre le projet dans Wokwi." }),
     );
@@ -429,9 +480,12 @@
       }
       const total = Object.keys(cards).length;
       countEl.textContent = ` · ${plugged}/${total} composant${total > 1 ? "s" : ""} branché${total > 1 ? "s" : ""}`;
+      if (suivi) suivi.branchement();
     }
 
     function plugAll(on) {
+      // « Tout brancher » : pratique, mais la mission « Câbler sans aide » demande de tout débrancher d'abord.
+      state.aide = on;
       for (const c of Object.values(cards)) for (const r of c.pinRows) state.choices[`${c.def.name}.${r.pin.pin}`] = on ? r.pin.expected : "";
       refreshWiring();
     }
@@ -446,6 +500,7 @@
       sim.paused = state.paused;
       for (const [name, values] of Object.entries(state.values)) for (const [k, v] of Object.entries(values)) sim.parts[name].v[k] = v;
       for (const [name, ok] of Object.entries(state.plugged)) if (sim.parts[name]) sim.parts[name].plugged = ok;
+      if (suivi) suivi.attacher(sim);
       const current = sim;
       sim.run({ realtime: true, speed: state.speed }).catch((err) => {
         if (current !== sim) return;
@@ -505,6 +560,7 @@
       }));
     }
     if (opts.startPlugged) plugAll(true); else refreshWiring();
+    refreshMissions();
     if (opts.autostart) restart();
     raf = requestAnimationFrame(frame);
 
@@ -513,7 +569,8 @@
       plugAll,
       restart,
       choose(part, pin, label) { state.choices[`${part}.${pin}`] = label; refreshWiring(); },
-      destroy() { cancelAnimationFrame(raf); if (sim) sim.stop(); host.textContent = ""; },
+      missions: () => (suivi ? suivi.reussies() : []),
+      destroy() { cancelAnimationFrame(raf); if (suivi) suivi.detacher(); if (sim) sim.stop(); host.textContent = ""; },
     };
   }
 

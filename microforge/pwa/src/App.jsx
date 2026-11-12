@@ -86,6 +86,7 @@ export default function App() {
   const client = useMemo(() => createClient({ dataUrl: DATA_URL, iaUrl: IA_URL }), []);
   const [logged, setLogged] = useState(client.loggedIn);
   const [build, setBuild] = useState(null);
+  const [startTab, setStartTab] = useState(null);
   const [busy, setBusy] = useState(null);
   const route = useRoute();
   const online = useOnline();
@@ -98,7 +99,8 @@ export default function App() {
   }
 
   /** Génère un modèle de projet : carte demandée, sinon une carte possédée, sinon la carte de référence. */
-  async function generate(templateId, wifi, title, board) {
+  async function generate(templateId, wifi, title, board, tab = null) {
+    setStartTab(tab);
     const owned = workshop.ownedBoards.filter((b) => !wifi || /esp|pico-w|wifi|nano-33-iot|mkr/i.test(b));
     const candidates = [...new Set([board, ...owned, wifi ? 'esp32-devkit-v1' : 'arduino-uno', 'esp32-devkit-v1'].filter(Boolean))];
     setBusy({ text: `Génération de « ${title ?? templateId} »…` });
@@ -190,7 +192,7 @@ export default function App() {
         {logged && route === 'stock' && <Stock client={client} workshop={workshop} onChange={workshop.refresh} />}
         {logged && route === 'photo' && <Photo client={client} onChange={workshop.refresh} />}
         {logged && route === 'projet' && (
-          <Projet key={build?.spec.template_id ?? build?.spec.title ?? 'vide'} build={build} client={client}
+          <Projet key={build?.spec.template_id ?? build?.spec.title ?? 'vide'} build={build} client={client} initialTab={startTab}
             onBoard={(board) => generate(build.spec.template_id, build.spec.uses_wifi, build.spec.title, board)} />
         )}
         {logged && route === 'copilote' && <Copilote client={client} workshop={workshop} />}

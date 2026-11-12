@@ -131,6 +131,27 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.screenshot({ path: path.join(shots, 'pwa-atelier-bureau.png'), fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
     });
+    await step('missions', async () => {
+      // Missions de l'atelier : un défi réussi au simulateur est enregistré dans le compte.
+      await page.goto(`${base}#accueil`, { waitUntil: 'networkidle' });
+      await page.getByRole('heading', { name: 'Ta progression' }).waitFor({ timeout: 30000 });
+      await page.getByRole('button', { name: /Alarme d'ouverture de porte/ }).click();
+      await page.getByRole('tab', { name: 'Atelier virtuel' }).click();
+      const frame = page.frameLocator('iframe[title^="Atelier virtuel"]');
+      await frame.getByRole('button', { name: 'Tout brancher' }).click({ timeout: 30000 });
+      await frame.getByText('Intrusion !', { exact: true }).waitFor();
+      await frame.getByRole('checkbox', { name: 'Porte ouverte' }).check();
+      await page.getByText(/Mission « Intrusion ! » enregistrée/).waitFor({ timeout: 20000 });
+      await frame.locator('.mfa-mission.done', { hasText: 'Intrusion !' }).waitFor();
+      await frame.getByRole('button', { name: '×60' }).click();
+      await page.getByText(/Mission « Une minute sans panne » enregistrée/).waitFor({ timeout: 30000 });
+      await page.screenshot({ path: path.join(shots, 'pwa-missions.png') });
+      await page.goto(`${base}#accueil`, { waitUntil: 'networkidle' });
+      await page.locator('.badge.on', { hasText: 'Premier pas' }).waitFor({ timeout: 30000 });
+      const resume = await page.locator('.progression .lede').innerText();
+      expect(/[1-9][0-9]* XP/.test(resume) && /2 missions réussies/.test(resume), `progression affichée (${resume})`);
+      await page.locator('.progression').screenshot({ path: path.join(shots, 'pwa-progression.png') });
+    });
     await step('thème complet', async () => {
       // Les 145 idées ont un modèle vérifié : chaque carte se génère, aucune ne renvoie à l'IA.
       await page.getByRole('link', { name: 'Explorer', exact: true }).click();

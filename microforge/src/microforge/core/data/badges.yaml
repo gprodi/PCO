@@ -1,0 +1,17 @@
+# Badges de la progression. Règles : missions (nombre total), mission + projets (une mission
+# automatique réussie sur N projets différents), etape (toutes les missions écrites d'une étape
+# du parcours), themes (missions réussies dans N thèmes), xp (points).
+
+- { id: premier-pas, titre: Premier pas, description: Réussir une première mission., regle: { missions: 1 } }
+- { id: cableur, titre: Câbleur, description: Câbler 3 projets sans l'aide « Tout brancher »., regle: { mission: brancher-sans-aide, projets: 3 } }
+- { id: maitre-cableur, titre: Maître câbleur, description: Câbler 10 projets sans aide., regle: { mission: brancher-sans-aide, projets: 10 } }
+- { id: endurant, titre: Endurant, description: Faire tourner 5 projets une minute sans panne., regle: { mission: simulation-60s, projets: 5 } }
+- { id: etape-1, titre: Premiers pas maîtrisés, description: "Toutes les missions de l'étape 1 : sorties et entrées.", regle: { etape: 1 } }
+- { id: etape-2, titre: Capteurs maîtrisés, description: "Toutes les missions de l'étape 2 : capteurs.", regle: { etape: 2 } }
+- { id: etape-3, titre: Afficheurs maîtrisés, description: "Toutes les missions de l'étape 3 : écrans et LED adressables.", regle: { etape: 3 } }
+- { id: etape-4, titre: Mouvement maîtrisé, description: "Toutes les missions de l'étape 4 : servos et moteurs.", regle: { etape: 4 } }
+- { id: etape-5, titre: Maison automatique, description: "Toutes les missions de l'étape 5 : automatiser la maison.", regle: { etape: 5 } }
+- { id: etape-6, titre: Connecté, description: "Toutes les missions de l'étape 6 : Wi-Fi et données.", regle: { etape: 6 } }
+- { id: etape-7, titre: Roboticien, description: "Toutes les missions de l'étape 7 : robots autonomes.", regle: { etape: 7 } }
+- { id: explorateur, titre: Explorateur, description: Réussir des missions dans 5 thèmes différents., regle: { themes: 5 } }
+- { id: centurion, titre: Centurion, description: Atteindre 500 points d'expérience., regle: { xp: 500 } }

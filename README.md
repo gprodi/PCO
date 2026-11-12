@@ -19,6 +19,7 @@ Ce dépôt réunit deux projets et les supports de l'année :
 - 103 composants et 40 cartes en 11 familles (ESP32 classique/S2/S3/C3/C6/H2, ESP8266, Arduino Uno R3/R4, Nano, Mega, Leonardo, Nano Every, Nano 33, MKR, Due, Pico/Pico 2, STM32, Teensy) ;
 - un copilote qui répond aux questions sur le matériel en citant le catalogue (379 passages indexés dans PostgreSQL + pgvector) ;
 - un atelier virtuel : on branche chaque composant sur une broche de la carte (une erreur est expliquée), puis le projet tourne dans le navigateur (sa logique C++ traduite en JavaScript, un modèle de comportement par composant) ;
+- des missions dans l'atelier (« ouvre la porte : la sirène sonne », « obstacle à 15 cm : le robot recule ») : 50 défis pour les projets du parcours, 2 pour chaque projet, validés par le simulateur ; points, niveaux et 13 badges enregistrés dans le compte ;
 - un parcours de progression en 7 étapes, de la première LED au robot autonome, et une vitrine de vrais projets open source (WLED, ESPHome, OpenBikeSensor, Otto, InMoov…).
 
 ### Ce qui est vérifié, et comment

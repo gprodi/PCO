@@ -111,12 +111,15 @@
     set(key, value) {
       this.v[key] = value;
       this.sim._touched();
+      this.sim._notify(true);
     }
     /** Bouton momentané : appui (front montant mémorisé pour clicked()/tapped()). */
     press(key) {
       if (!this.v[key]) this._edges[key] = true;
       this.v[key] = true;
+      this.presses = (this.presses || 0) + 1; // compté pour les missions de l'atelier
       this.sim._touched();
+      this.sim._notify(true); // avant que le programme ne réagisse
     }
     release(key) {
       this.v[key] = false;
@@ -125,7 +128,9 @@
     /** Événement ponctuel : touche de clavier, code IR, badge RFID. */
     fire(key, value) {
       if (this._onEvent) this._onEvent(key, value);
+      this.fired = (this.fired || 0) + 1;
       this.sim._touched();
+      this.sim._notify(true);
     }
     edge(key) {
       const e = !!this._edges[key];
@@ -540,7 +545,9 @@
       this.startDate = opts.startDate ? new Date(opts.startDate) : new Date();
       this.now = 0;
       this.serial = "";
+      this.serialTotal = 0; // caractères écrits depuis le début (le tampon, lui, est tronqué)
       this.sounds = [];
+      this._observers = [];
       this.events = [];
       this.speed = 1;
       this.realtime = false;
@@ -551,7 +558,7 @@
       this._spins = 0;
       this._debt = 0;
       this._random = rng(1);
-      this.web = { handlers: {}, page: null, requests: 0, queue: [] };
+      this.web = { handlers: {}, page: null, requests: 0, queue: [], total: 0 };
       this.parts = {};
       for (const def of opts.parts) {
         const p = new Part(this, def);
@@ -626,6 +633,7 @@
 
     _serial(text) {
       this.serial += text;
+      this.serialTotal += text.length;
       if (this.serial.length > 20000) this.serial = this.serial.slice(-15000);
     }
 
@@ -637,6 +645,23 @@
     at(ms, fn) {
       this.events.push({ ms, fn });
       this.events.sort((a, b) => a.ms - b.ms);
+    }
+
+    /** Appelle ``fn(sim)`` au plus toutes les ``everyMs`` ms virtuelles (missions de l'atelier). */
+    observe(fn, everyMs = 10) {
+      const o = { fn, everyMs, last: -Infinity };
+      this._observers.push(o);
+      return () => { this._observers = this._observers.filter((x) => x !== o); };
+    }
+
+    /** ``force`` : action de l'utilisateur, à signaler avant que le programme n'y réagisse. */
+    _notify(force) {
+      for (const o of this._observers) {
+        if (force || this.now - o.last >= o.everyMs) {
+          o.last = this.now;
+          o.fn(this);
+        }
+      }
     }
 
     /** Temps consommé par une opération bloquante (moteur pas à pas…). */
@@ -662,8 +687,10 @@
         const ev = this.events.shift();
         this.now = Math.max(this.now, ev.ms);
         ev.fn(this);
+        if (this._observers.length) this._notify();
       }
       this.now = end;
+      if (this._observers.length) this._notify();
       if (this.realtime) {
         this._debt += ms / this.speed;
         while (this.paused && !this.stopped) await sleep(50);
@@ -712,6 +739,8 @@
     request(path = "/") {
       this.web.queue.push(path);
       this.web.requests += 1;
+      this.web.total += 1;
+      this._notify(true);
     }
 
     /** Charges (moteurs, ventilateur, pompe) alimentées par un pilote, un transistor ou un relais. */

@@ -178,6 +178,16 @@ describe('client MicroForge', () => {
     });
   });
 
+  it('progression : lecture et mission réussie envoyée à api_data', async () => {
+    const fetchImpl = fakeFetch([{ body: { xp: 0, missions: [] } }, { body: { xp: 20, missions: [{ template_id: 'alarme-porte', mission_id: 'ouvrir' }] }, status: 201 }]);
+    const c = createClient({ dataUrl: DATA, iaUrl: IA, fetchImpl, storage: memoryStorage() });
+    expect((await c.progression()).xp).toBe(0);
+    expect(fetchImpl.calls[0].url).toBe(`${DATA}/v1/progression`);
+    expect((await c.saveMission('alarme-porte', 'ouvrir')).xp).toBe(20);
+    expect(fetchImpl.calls[1].method).toBe('POST');
+    expect(JSON.parse(fetchImpl.calls[1].body)).toEqual({ template_id: 'alarme-porte', mission_id: 'ouvrir' });
+  });
+
   it('stockage indisponible : aucune exception', () => {
     const broken = { getItem() { throw new Error('bloqué'); }, setItem() { throw new Error('bloqué'); }, removeItem() { throw new Error('bloqué'); } };
     const s = safeStorage(broken);

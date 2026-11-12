@@ -156,6 +156,10 @@ export function createClient({ dataUrl, iaUrl, fetchImpl = globalThis.fetch.bind
       call(iaUrl, '/v1/builds/bundle', { method: 'POST', json: spec ? { spec } : { template_id: templateId, board } }, (res) => res.blob()),
     /** Modèles de projets du catalogue (identifiant, titre, difficulté, Wi-Fi requis…). */
     templates: () => call(dataUrl, '/v1/templates'),
+    /** Progression de l'atelier : points, niveau, badges, avancement du parcours. */
+    progression: () => call(dataUrl, '/v1/progression'),
+    saveMission: (templateId, missionId) =>
+      call(dataUrl, '/v1/progression', { method: 'POST', json: { template_id: templateId, mission_id: missionId } }),
     projects: () => call(dataUrl, '/v1/projects'),
     project: (id) => call(dataUrl, `/v1/projects/${id}`),
     saveProject: (spec) => call(dataUrl, '/v1/projects', {

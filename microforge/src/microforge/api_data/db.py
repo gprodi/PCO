@@ -218,6 +218,20 @@ class Project(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class MissionReussie(SQLModel, table=True):
+    """Mission de l'atelier virtuel réussie (progression, badges). Effacée avec le compte."""
+
+    __tablename__ = "mission_reussie"
+    __table_args__ = (
+        UniqueConstraint("user_id", "template_id", "mission_id", name="uq_mission_reussie"),
+    )
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="utilisateur.id", index=True)
+    template_id: str = Field(max_length=80)
+    mission_id: str = Field(max_length=60)
+    reussie_le: datetime = Field(default_factory=utcnow)
+
+
 class IngestionRun(SQLModel, table=True):
     """Trace des exécutions du pipeline E1 (et de la purge RGPD)."""
 

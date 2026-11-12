@@ -4,8 +4,59 @@ import { useEffect, useState } from 'react';
 import Bench from '../bench.jsx';
 import { Dots, Icon, Status, message, plural } from '../ui.jsx';
 
+function BadgeList({ badges }) {
+  return (
+    <ul className="badges">
+      {badges.map((b) => (
+        <li key={b.id} className={b.obtenu ? 'badge on' : 'badge'}>
+          <b>{b.titre}</b>
+          <span className="small">{b.description}</span>
+          <span className="sr">{b.obtenu ? '(obtenu)' : '(à obtenir)'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Niveau, points et badges : ce qui a déjà été réussi dans l'atelier virtuel. */
+function MaProgression({ prog, insp, onGenerate }) {
+  if (!prog) return null;
+  const n = prog.niveau;
+  const part = n.xp_prochain ? Math.round((100 * (prog.xp - n.xp_niveau)) / (n.xp_prochain - n.xp_niveau)) : 100;
+  const suite = prog.prochaine;
+  const titreSuite = suite && insp?.parcours.flatMap((e) => e.projets).find((p) => p.id === suite.template_id)?.titre;
+  const obtenus = prog.badges.filter((b) => b.obtenu).length;
+  return (
+    <section className="card progression" aria-labelledby="t-progression">
+      <div className="prog-head">
+        <div>
+          <h2 id="t-progression">Ta progression</h2>
+          <p className="lede"><b>{n.nom}</b> · {prog.xp} XP · {plural(prog.missions.length, 'mission réussie', 'missions réussies')}</p>
+        </div>
+        {suite && titreSuite && (
+          <button type="button" className="btn" onClick={() => onGenerate(suite.template_id, false, titreSuite, undefined, 'atelier')}>
+            Continuer : {titreSuite} <Icon name="fleche" size={16} />
+          </button>
+        )}
+      </div>
+      <span className="xp-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={part}
+        aria-label={n.prochain ? `Vers le niveau ${n.prochain}` : 'Niveau maximal'}><span style={{ width: `${part}%` }} /></span>
+      <p className="small muted">{n.prochain ? `${n.xp_prochain - prog.xp} XP avant le niveau « ${n.prochain} ».` : 'Niveau maximal atteint.'} Les missions se jouent dans l'onglet « Atelier virtuel » de chaque projet.</p>
+      <h3>Badges <span className="small muted">({obtenus}/{prog.badges.length})</span></h3>
+      <BadgeList badges={[...prog.badges.filter((b) => b.obtenu), ...prog.badges.filter((b) => !b.obtenu).slice(0, 4)]} />
+      {prog.badges.length > obtenus + 4 && (
+        <details className="all-badges">
+          <summary>Tous les badges</summary>
+          <BadgeList badges={prog.badges.filter((b) => !b.obtenu).slice(4)} />
+        </details>
+      )}
+    </section>
+  );
+}
+
 export default function Accueil({ client, workshop, onGenerate }) {
   const [insp, setInsp] = useState(null);
+  const [prog, setProg] = useState(null);
   const [ready, setReady] = useState(null);
   const [state, setState] = useState(null);
   const inv = workshop.summary;
@@ -18,6 +69,9 @@ export default function Accueil({ client, workshop, onGenerate }) {
         setState({ text: message(err), error: true });
       }
     })();
+  }, [client]);
+  useEffect(() => {
+    client.progression().then(setProg).catch(() => setProg(null));
   }, [client]);
   useEffect(() => {
     if (!inv) return;
@@ -73,17 +127,27 @@ export default function Accueil({ client, workshop, onGenerate }) {
         </a>
       </section>
       <Status state={state} />
+      <MaProgression prog={prog} insp={insp} onGenerate={onGenerate} />
 
       {insp && (
         <section aria-labelledby="t-parcours">
           <h2 id="t-parcours">Le parcours, de la première LED au robot</h2>
           <p className="lede">Sept étapes ; chaque projet ouvre son câblage et son code.</p>
           <ol className="path">
-            {insp.parcours.map((e) => (
-              <li key={e.etape} className="step">
+            {insp.parcours.map((e) => {
+              const av = prog?.etapes.find((x) => x.etape === e.etape);
+              return (
+              <li key={e.etape} className={av && av.total && av.faites === av.total ? 'step done' : 'step'}>
                 <span className="step-n" aria-hidden="true">{e.etape}</span>
                 <div className="step-body">
                   <h3>{e.titre}</h3>
+                  {av && av.total > 0 && (
+                    <p className="step-prog small">
+                      <span className="xp-bar" role="progressbar" aria-valuemin={0} aria-valuemax={av.total} aria-valuenow={av.faites}
+                        aria-label={`Missions de l'étape ${e.etape}`}><span style={{ width: `${(100 * av.faites) / av.total}%` }} /></span>
+                      {av.faites}/{av.total} missions
+                    </p>
+                  )}
                   <p>{e.objectif}</p>
                   <ul className="chips" aria-label="Notions">
                     {e.notions.map((n) => <li key={n} className="chip">{n}</li>)}
@@ -97,7 +161,8 @@ export default function Accueil({ client, workshop, onGenerate }) {
                   </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ol>
         </section>
       )}

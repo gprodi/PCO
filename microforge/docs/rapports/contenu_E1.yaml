@@ -100,7 +100,7 @@ sections:
   Optimisation de la mémoire:
     - "Types au plus juste (SMALLINT pour les quantités, NUMERIC(10,4) pour les prix, VARCHAR bornés), énumérations pour les rôles et statuts, index uniquement sur les colonnes de recherche et de jointure, données volumineuses (photos) hors base dans le stockage objet."
   MLD:
-    - "MLD dérivé du MCD par Mocodo : 14 relations, exactement les 14 tables de la migration Alembic initiale. Clé primaire soulignée, clés étrangères préfixées par #."
+    - "MLD dérivé du MCD par Mocodo : 15 relations, exactement les 15 tables des migrations Alembic (14 dans la migration initiale, la 15e, missions réussies de l'atelier, dans la migration 0005). Clé primaire soulignée, clés étrangères préfixées par #."
     - "![MLD MicroForge (Mocodo)](E1/img/mld.png)"
     - "Contraintes ajoutées au MLD : unicité (utilisateur, composant, valeur, emplacement) d'un article d'inventaire, unicité du pseudo, de l'index d'e-mail, du nom de fabricant et de fournisseur."
   Modèle Physique des Données > Définition:
@@ -114,7 +114,7 @@ sections:
     - "| Critère | PostgreSQL 17 | SQLite | MongoDB |\n|---|---|---|---|\n| Données relationnelles | ++ | + | − |\n| Accès concurrents, rôles | ++ | − | + |\n| Vecteurs (datasheets) | pgvector | − | Atlas (cloud) |\n| Coût / sobriété | libre, une seule base | libre | libre |"
     - "Choix : PostgreSQL 17 + pgvector en production, SQLite pour le développement et les tests."
   Créer la base de données et implémenter le schéma de données:
-    - "Schéma défini dans api_data/db.py (14 tables, noms en français) et versionné par Alembic (microforge/migrations/, migration initiale 0001) ; un test vérifie que les migrations produisent exactement le schéma des modèles et que le retour arrière fonctionne."
+    - "Schéma défini dans api_data/db.py (15 tables, noms en français) et versionné par Alembic (microforge/migrations/, migrations 0001 à 0005) ; un test vérifie que les migrations produisent exactement le schéma des modèles et que le retour arrière fonctionne."
   Documenter le processus d'installation et le script d'import des données:
     - "```bash\nuv sync --all-packages --extra data\ndocker compose -f microforge/infra/docker-compose.yml --profile core up -d\ncd microforge && uv run alembic upgrade head && cd ..\nuv run mf-pipeline run          # collecte, nettoyage et import\n```"
     - "L'import (load/importer.py) est idempotent (upsert sur la clé d'unification) et trace chaque exécution dans execution_collecte. Documentation : docs/installation.md."

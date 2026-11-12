@@ -40,7 +40,12 @@
     wait.hidden = true;
     if (!valid(msg.payload)) { fail('Atelier indisponible pour ce projet.'); reportHeight(); return; }
     try {
-      current = window.MFAtelier.mount(host, msg.payload);
+      // Missions : la page envoie celles déjà réussies ; chaque nouvelle réussite lui est signalée
+      // (elle l'enregistre dans le compte : le cadre, lui, n'a accès à aucune API).
+      current = window.MFAtelier.mount(host, msg.payload, {
+        faites: Array.isArray(msg.faites) ? msg.faites.filter(function (x) { return typeof x === 'string'; }) : [],
+        onMission: function (id) { tell({ type: 'mf-mission', id: id }); },
+      });
     } catch (err) {
       fail('Atelier indisponible : ' + String(err && err.message || err));
     }

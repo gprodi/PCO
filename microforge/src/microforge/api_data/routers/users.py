@@ -10,6 +10,7 @@ from sqlmodel import Session, delete, select
 from microforge.api_data.db import (
     Feedback,
     InventoryItem,
+    MissionReussie,
     Photo,
     Project,
     RefreshToken,
@@ -58,13 +59,17 @@ def export_me(
             f.model_dump(mode="json")
             for f in session.exec(select(Feedback).where(Feedback.user_id == user.id))
         ],
+        "missions_reussies": [
+            m.model_dump(mode="json")
+            for m in session.exec(select(MissionReussie).where(MissionReussie.user_id == user.id))
+        ],
     }
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_me(user: User = Depends(current_user), session: Session = Depends(get_session)) -> None:
     """Droit à l'effacement (RGPD art. 17) : suppression définitive du compte et des données liées."""
-    for model in (Feedback, Photo, InventoryItem, Project, RefreshToken):
+    for model in (Feedback, Photo, InventoryItem, Project, MissionReussie, RefreshToken):
         session.exec(delete(model).where(model.user_id == user.id))  # type: ignore[arg-type]
     session.delete(user)
     session.commit()

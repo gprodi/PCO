@@ -1,0 +1,413 @@
+# Missions de l'atelier virtuel (modèles du parcours). Chaque mission est validée par le simulateur :
+#   action  : ce que fait l'utilisateur — regle (curseur ou interrupteur : part, regle, op, valeur),
+#             appui (bouton : part, appui, fois), evenement (badge, télécommande), requete (page web),
+#             tous (plusieurs à la fois) ;
+#   attendu : ce que le montage doit faire dans fenetre_ms — état d'un composant (part, etat, op,
+#             valeur ou contient), sons (nombre de bips), silence_ms, serie (texte) ou motif
+#             (expression régulière) au moniteur série, charge (moteur, pompe), page (page web), tous.
+#   apres   : mission à réussir d'abord ; essai : valeur réglée par les tests automatiques ;
+#   test_ms : instant de l'action dans les tests ; repete_ms : appuis répétés (tests).
+# Un test vérifie que chaque mission réussit avec son action et échoue sans elle.
+
+feu-tricolore-pieton:
+  - id: appel-pieton
+    titre: "Demander à traverser"
+    consigne: "Pendant que le feu est vert, appuie sur le bouton d'appel ; il doit passer à l'orange sans attendre la fin des 5 secondes."
+    indice: "La boucle « while » surveille le bouton toutes les 10 ms."
+    action: { part: appel, appui: pressed }
+    attendu: { part: orange, etat: "on", valeur: true }
+    fenetre_ms: 1000
+    test_ms: 1000
+  - id: rouge-pietons
+    titre: "Le rouge pour les voitures"
+    consigne: "Après l'appel, le feu passe au rouge 1,5 seconde plus tard. Vérifie-le."
+    indice: "orange_on(), delay(1500), puis rouge_on()."
+    action: { part: appel, appui: pressed }
+    attendu: { part: rouge, etat: "on", valeur: true }
+    fenetre_ms: 2500
+    test_ms: 1000
+
+veilleuse-rgb:
+  - id: vert
+    titre: "Changer de couleur"
+    consigne: "Un appui sur le bouton fait passer la veilleuse du rouge au vert."
+    indice: "Chaque clic ajoute 1 à « mode »."
+    action: { part: bouton, appui: pressed }
+    attendu: { part: lampe, etat: rgb, valeur: [0, 255, 0] }
+    fenetre_ms: 1000
+  - id: eteindre
+    titre: "Éteindre la veilleuse"
+    consigne: "Trouve combien d'appuis éteignent la veilleuse."
+    indice: "Rouge, vert, bleu… puis le mode 3."
+    action: { part: bouton, appui: pressed, fois: 3 }
+    attendu: { part: lampe, etat: rgb, valeur: [0, 0, 0] }
+    fenetre_ms: 1500
+
+sonnette-melodie:
+  - id: melodie
+    titre: "Faire sonner"
+    consigne: "Appuie sur le bouton et écoute les 7 notes de la mélodie (active le son)."
+    indice: "La boucle « for » joue NOTES[i] pendant DUREES[i]."
+    action: { part: bouton, appui: pressed }
+    attendu: { part: hp, sons: 7 }
+    fenetre_ms: 8000
+
+jeu-reflexes:
+  - id: reflexe
+    titre: "Réagir à temps"
+    consigne: "Appuie dès que la LED s'allume ; ton temps de réaction doit rester sous 3 secondes."
+    indice: "Le temps s'affiche au moniteur série."
+    action: { part: bouton, appui: pressed }
+    attendu: { motif: "Temps de reaction : ([0-9]{1,3}|[12][0-9]{3}) ms" }
+    fenetre_ms: 8000
+    test_ms: 500
+    repete_ms: 100
+  - id: eclair
+    titre: "Réflexe éclair"
+    consigne: "Fais moins de 500 ms."
+    indice: "Garde le doigt prêt au-dessus du bouton."
+    action: { part: bouton, appui: pressed }
+    attendu: { motif: "Temps de reaction : ([0-9]{1,2}|[1-4][0-9]{2}) ms" }
+    fenetre_ms: 8000
+    test_ms: 500
+    repete_ms: 100
+
+veilleuse-auto:
+  - id: nuit
+    titre: "La nuit tombe"
+    consigne: "Baisse la lumière sous 30 % : la LED doit s'allumer."
+    indice: "Règle le curseur « Lumière » du capteur."
+    action: { part: lumiere, regle: light, op: "<", valeur: 30, essai: 20 }
+    attendu: { part: led, etat: "on", valeur: true }
+    fenetre_ms: 1000
+  - id: jour
+    titre: "Le jour revient"
+    consigne: "Remonte la lumière : la LED ne s'éteint qu'au-dessus de 40 %, pas à 31 % (hystérésis)."
+    indice: "Entre 30 et 40 %, le programme ne change rien."
+    apres: nuit
+    action: { part: lumiere, regle: light, op: ">", valeur: 40, essai: 70 }
+    attendu: { part: led, etat: "on", valeur: false }
+    fenetre_ms: 1000
+    test_ms: 4000
+
+alarme-porte:
+  - id: ouvrir
+    titre: "Intrusion !"
+    consigne: "Ouvre la porte : la sirène sonne et le voyant s'allume."
+    indice: "L'interrupteur « Porte ouverte » du contact magnétique."
+    action: { part: porte, regle: open, valeur: true }
+    attendu: { tous: [{ part: sirene, sons: 1 }, { part: voyant, etat: "on", valeur: true }] }
+    fenetre_ms: 1000
+  - id: refermer
+    titre: "Retour au calme"
+    consigne: "Referme la porte : le silence revient et le voyant s'éteint."
+    apres: ouvrir
+    action: { part: porte, regle: open, valeur: false }
+    attendu: { tous: [{ part: voyant, etat: "on", valeur: false }, { part: sirene, silence_ms: 1000 }] }
+    fenetre_ms: 3000
+    test_ms: 4000
+
+thermometre-ds18b20:
+  - id: chauffer
+    titre: "Coup de chaud"
+    consigne: "Chauffe la sonde à 40 °C : l'écran doit afficher « 40.0 C »."
+    indice: "Le curseur « Température » de la sonde."
+    action: { part: sonde, regle: temperature, op: ">=", valeur: 40, essai: 40 }
+    attendu: { part: ecran, etat: lines, contient: "40.0 C" }
+    fenetre_ms: 1500
+  - id: geler
+    titre: "Grand froid"
+    consigne: "Descends à -10 °C : le signe moins s'affiche."
+    action: { part: sonde, regle: temperature, op: "<=", valeur: -10, essai: -10 }
+    attendu: { part: ecran, etat: lines, contient: "-10.0 C" }
+    fenetre_ms: 1500
+
+alerte-inondation:
+  - id: inonder
+    titre: "Dégât des eaux"
+    consigne: "Monte le niveau d'eau au-dessus de 10 % : sirène et voyant."
+    action: { part: eau, regle: level, op: ">", valeur: 10, essai: 50 }
+    attendu: { tous: [{ part: sirene, sons: 1 }, { part: voyant, etat: "on", valeur: true }] }
+    fenetre_ms: 1500
+  - id: assecher
+    titre: "Tout est sec"
+    consigne: "Redescends le niveau à zéro : l'alarme s'arrête d'elle-même."
+    apres: inonder
+    action: { part: eau, regle: level, op: "<=", valeur: 10, essai: 0 }
+    attendu: { tous: [{ part: voyant, etat: "on", valeur: false }, { part: sirene, silence_ms: 1500 }] }
+    fenetre_ms: 3500
+    test_ms: 4000
+
+detecteur-flamme:
+  - id: flamme
+    titre: "Feu repéré"
+    consigne: "Approche une flamme (plus de 50 %) : la sirène sonne et le moniteur série l'écrit."
+    action: { part: flamme, regle: intensity, op: ">", valeur: 50, essai: 80 }
+    attendu: { tous: [{ part: sirene, sons: 1 }, { serie: "Flamme !" }] }
+    fenetre_ms: 1000
+  - id: maitrise
+    titre: "Feu maîtrisé"
+    consigne: "Baisse l'intensité sous 50 % : retour au calme."
+    apres: flamme
+    action: { part: flamme, regle: intensity, op: "<=", valeur: 50, essai: 10 }
+    attendu: { tous: [{ part: voyant, etat: "on", valeur: false }, { part: sirene, silence_ms: 1000 }] }
+    fenetre_ms: 3000
+    test_ms: 4000
+
+station-meteo-oled:
+  - id: canicule
+    titre: "Canicule"
+    consigne: "Monte la température à 35 °C : l'écran se met à jour (mesure toutes les 2 s)."
+    action: { part: dht, regle: temperature, op: ">=", valeur: 35, essai: 35 }
+    attendu: { part: ecran, etat: lines, contient: "35.0 C" }
+    fenetre_ms: 2500
+  - id: brouillard
+    titre: "Air humide"
+    consigne: "Monte l'humidité à 85 %."
+    action: { part: dht, regle: humidity, op: ">=", valeur: 85, essai: 85 }
+    attendu: { part: ecran, etat: lines, contient: "Humidite : 85 %" }
+    fenetre_ms: 2500
+
+telemetre-oled:
+  - id: mesurer
+    titre: "Mesurer un objet"
+    consigne: "Place un objet à 12 cm du capteur."
+    action: { part: sonar, regle: distance, op: "<=", valeur: 15, essai: 12 }
+    attendu: { part: ecran, etat: lines, contient: "12 cm" }
+    fenetre_ms: 1000
+  - id: hors-portee
+    titre: "Hors de portée"
+    consigne: "Éloigne l'objet au-delà de 4 m : l'écran affiche « --- » (aucun écho)."
+    action: { part: sonar, regle: distance, op: ">", valeur: 400, essai: 450 }
+    attendu: { part: ecran, etat: lines, contient: "---" }
+    fenetre_ms: 1000
+
+matrice-emotions:
+  - id: coeur
+    titre: "Un cœur"
+    consigne: "Un appui affiche le cœur."
+    indice: "Chaque image est un tableau de 8 octets, un par ligne."
+    action: { part: bouton, appui: pressed }
+    attendu: { part: matrice, etat: rows, valeur: [0, 102, 255, 255, 255, 126, 60, 24] }
+    fenetre_ms: 1000
+  - id: triste
+    titre: "Coup de blues"
+    consigne: "Trouve l'appui qui affiche le visage triste."
+    action: { part: bouton, appui: pressed, fois: 2 }
+    attendu: { part: matrice, etat: rows, valeur: [60, 66, 165, 129, 153, 165, 66, 60] }
+    fenetre_ms: 1500
+
+guirlande-animee:
+  - id: veillee
+    titre: "Mode veillée"
+    consigne: "Trouve le mode « lumière chaude » (orangée, fixe)."
+    indice: "Le troisième mode remplit l'anneau avec (255, 160, 60)."
+    action: { part: bouton, appui: pressed, fois: 2 }
+    attendu: { part: anneau, etat: pixels, contient: [255, 160, 60] }
+    fenetre_ms: 1500
+
+servo-potentiometre:
+  - id: a-fond
+    titre: "À fond"
+    consigne: "Tourne le bouton au maximum : le servo va à 180°."
+    indice: "map(potar, 0, 100, 0, 180)."
+    action: { part: potar, regle: position, op: "==", valeur: 100 }
+    attendu: { part: servo, etat: angle, valeur: 180 }
+    fenetre_ms: 500
+  - id: a-zero
+    titre: "Position zéro"
+    consigne: "Ramène le bouton à 0 : le servo revient à 0°."
+    action: { part: potar, regle: position, op: "==", valeur: 0 }
+    attendu: { part: servo, etat: angle, valeur: 0 }
+    fenetre_ms: 500
+
+barriere-servo:
+  - id: ouvrir
+    titre: "Lever la barrière"
+    consigne: "Un appui ouvre la barrière (90°) et l'écrit au moniteur série."
+    action: { part: bouton, appui: pressed }
+    attendu: { tous: [{ part: barriere, etat: angle, valeur: 90 }, { serie: "Ouverte" }] }
+    fenetre_ms: 1000
+  - id: fermer
+    titre: "Baisser la barrière"
+    consigne: "Un second appui la referme."
+    apres: ouvrir
+    action: { part: bouton, appui: pressed }
+    attendu: { tous: [{ part: barriere, etat: angle, valeur: 0 }, { serie: "Fermee" }] }
+    fenetre_ms: 1000
+    test_ms: 4000
+
+tourelle-joystick:
+  - id: haut-droite
+    titre: "Viser en haut à droite"
+    consigne: "Pousse la manette en haut à droite : les deux servos vont à 180°."
+    action: { tous: [{ part: manette, regle: x, valeur: 100 }, { part: manette, regle: "y", valeur: 100 }] }
+    attendu: { tous: [{ part: pan, etat: angle, valeur: 180 }, { part: tilt, etat: angle, valeur: 180 }] }
+    fenetre_ms: 500
+  - id: bas-gauche
+    titre: "Viser en bas à gauche"
+    consigne: "Puis en bas à gauche : 0° et 0°."
+    action: { tous: [{ part: manette, regle: x, valeur: -100 }, { part: manette, regle: "y", valeur: -100 }] }
+    attendu: { tous: [{ part: pan, etat: angle, valeur: 0 }, { part: tilt, etat: angle, valeur: 0 }] }
+    fenetre_ms: 500
+
+moteur-pas-a-pas-potar:
+  - id: tour-complet
+    titre: "Un tour complet"
+    consigne: "Tourne le bouton à 100 % : le moteur atteint 2048 pas (un tour)."
+    indice: "Le 28BYJ-48 fait 2048 pas par tour ; chaque pas prend environ 3 ms."
+    action: { part: potar, regle: position, op: "==", valeur: 100 }
+    attendu: { part: moteur, etat: position, op: ">=", valeur: 2040 }
+    fenetre_ms: 8000
+    test_ms: 5000
+  - id: retour
+    titre: "Retour à l'origine"
+    consigne: "Ramène le bouton à 0 % : le moteur revient au pas 0."
+    action: { part: potar, regle: position, op: "==", valeur: 0 }
+    attendu: { part: moteur, etat: position, op: "<=", valeur: 8 }
+    fenetre_ms: 8000
+    test_ms: 5000
+
+radar-balayage:
+  - id: obstacle
+    titre: "Détecter un obstacle"
+    consigne: "Place un obstacle à 30 cm : chaque ligne « angle;distance » du moniteur série l'indique."
+    action: { part: sonar, regle: distance, op: "==", valeur: 30 }
+    attendu: { motif: ";30(\\.0+)?\\s" }
+    fenetre_ms: 1500
+
+lampe-tactile:
+  - id: allumer
+    titre: "Allumer d'un doigt"
+    consigne: "Touche le capteur : le relais allume la lampe."
+    action: { part: touche, appui: touch }
+    attendu: { part: lampe, etat: "on", valeur: true }
+    fenetre_ms: 1000
+  - id: eteindre
+    titre: "Éteindre d'un doigt"
+    consigne: "Touche encore : elle s'éteint."
+    apres: allumer
+    action: { part: touche, appui: touch }
+    attendu: { part: lampe, etat: "on", valeur: false }
+    fenetre_ms: 1000
+    test_ms: 4000
+
+interrupteur-clap:
+  - id: clap
+    titre: "Clap !"
+    consigne: "Un clap allume la lampe."
+    action: { part: micro, appui: clap }
+    attendu: { tous: [{ part: lampe, etat: "on", valeur: true }, { serie: "Allumé" }] }
+    fenetre_ms: 1000
+  - id: reclap
+    titre: "Clap de fin"
+    consigne: "Un second clap l'éteint (au moins 0,4 s plus tard)."
+    apres: clap
+    action: { part: micro, appui: clap }
+    attendu: { tous: [{ part: lampe, etat: "on", valeur: false }, { serie: "Éteint" }] }
+    fenetre_ms: 1000
+    test_ms: 4000
+
+thermostat-relais:
+  - id: froid
+    titre: "Il fait froid"
+    consigne: "Fais descendre la température à 18 °C : le chauffage se met en marche."
+    indice: "Consigne 20 °C, hystérésis 0,5 °C."
+    action: { part: sonde, regle: temperature, op: "<", valeur: 19.5, essai: 18 }
+    attendu: { part: chauffage, etat: "on", valeur: true }
+    fenetre_ms: 2500
+  - id: chaud
+    titre: "Il fait bon"
+    consigne: "Remonte à 22 °C : le chauffage s'arrête."
+    apres: froid
+    action: { part: sonde, regle: temperature, op: ">", valeur: 20.5, essai: 22 }
+    attendu: { part: chauffage, etat: "on", valeur: false }
+    fenetre_ms: 2500
+    test_ms: 5000
+
+arrosage-automatique:
+  - id: secheresse
+    titre: "Terre sèche"
+    consigne: "Fais descendre l'humidité du sol sous 35 % : la pompe arrose 3 secondes."
+    action: { part: sol, regle: moisture, op: "<", valeur: 35, essai: 20 }
+    attendu: { charge: pompe, op: ">", valeur: 0 }
+    fenetre_ms: 6000
+
+ventilateur-auto:
+  - id: chaleur
+    titre: "Ça chauffe"
+    consigne: "Monte à 30 °C : le ventilateur tourne à mi-régime."
+    indice: "25 °C → 0 %, 35 °C → 100 %."
+    action: { part: dht, regle: temperature, op: ">=", valeur: 30, essai: 30 }
+    attendu: { tous: [{ part: ventilo, etat: level, op: ">", valeur: 100 }, { charge: helice, op: ">", valeur: 0 }] }
+    fenetre_ms: 3000
+  - id: plein-regime
+    titre: "Plein régime"
+    consigne: "Au-dessus de 35 °C, le ventilateur tourne à fond."
+    action: { part: dht, regle: temperature, op: ">=", valeur: 35, essai: 36 }
+    attendu: { part: ventilo, etat: level, valeur: 255 }
+    fenetre_ms: 3000
+  - id: fraicheur
+    titre: "Retour au frais"
+    consigne: "Redescends sous 25 °C : il s'arrête."
+    apres: chaleur
+    action: { part: dht, regle: temperature, op: "<", valeur: 25, essai: 22 }
+    attendu: { part: ventilo, etat: level, valeur: 0 }
+    fenetre_ms: 3000
+    test_ms: 6000
+
+station-meteo-web:
+  - id: ouvrir-page
+    titre: "Consulter depuis le téléphone"
+    consigne: "Ouvre la page du projet sur le téléphone simulé."
+    action: { requete: "/" }
+    attendu: { page: Station meteo }
+    fenetre_ms: 1000
+  - id: actualiser
+    titre: "Page à jour"
+    consigne: "Monte la température à 30 °C puis recharge la page : elle affiche 30.0."
+    apres: ouvrir-page
+    action: { tous: [{ part: dht, regle: temperature, valeur: 30 }, { requete: "/" }] }
+    attendu: { page: "30.0" }
+    fenetre_ms: 3000
+    test_ms: 4000
+
+enregistreur-sd:
+  - id: journal
+    titre: "Tenir le journal"
+    consigne: "Monte la température à 30 °C : la prochaine ligne du journal (une par minute) l'enregistre."
+    indice: "Accélère la simulation ×60."
+    action: { part: dht, regle: temperature, op: ">=", valeur: 30, essai: 30 }
+    attendu: { serie: ";30.0;" }
+    fenetre_ms: 61000
+
+robot-suiveur-ligne:
+  - id: virage
+    titre: "Virage à gauche"
+    consigne: "Mets seulement le capteur de gauche sur la ligne noire : le robot tourne à gauche."
+    indice: "Roue gauche lente (40), roue droite rapide (190)."
+    action: { part: gauche, regle: line, valeur: true }
+    attendu: { tous: [{ part: moteurs, etat: left, valeur: 40 }, { part: moteurs, etat: right, valeur: 190 }] }
+    fenetre_ms: 500
+  - id: intersection
+    titre: "Intersection"
+    consigne: "Les deux capteurs sur la ligne : le robot s'arrête."
+    action: { tous: [{ part: gauche, regle: line, valeur: true }, { part: droite, regle: line, valeur: true }] }
+    attendu: { tous: [{ part: moteurs, etat: left, valeur: 0 }, { part: moteurs, etat: right, valeur: 0 }] }
+    fenetre_ms: 500
+
+robot-evitement:
+  - id: obstacle
+    titre: "Obstacle !"
+    consigne: "Approche un obstacle à 15 cm : le robot recule."
+    action: { part: sonar, regle: distance, op: "<", valeur: 20, essai: 15 }
+    attendu: { part: moteurs, etat: left, valeur: -180 }
+    fenetre_ms: 1000
+  - id: voie-libre
+    titre: "Voie libre"
+    consigne: "Retire l'obstacle : le robot repart tout droit."
+    apres: obstacle
+    action: { part: sonar, regle: distance, op: ">", valeur: 20, essai: 100 }
+    attendu: { tous: [{ part: moteurs, etat: left, valeur: 200 }, { part: moteurs, etat: right, valeur: 200 }], duree_ms: 300 }
+    fenetre_ms: 2000
+    test_ms: 4000

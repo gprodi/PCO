@@ -27,7 +27,8 @@ def parse() -> tuple[set[str], list[tuple[str, list[tuple[str, str]]]]]:
     entities, associations = set(), []
     for raw in MCD.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line or line.startswith("%"):
+        # « : » seul = case vide de la grille Mocodo (mise en page)
+        if not line or line.startswith("%") or not line.strip(":"):
             continue
         head = line.split(":", 1)[0]
         if "," not in head:  # « ENTITÉ: attributs »
@@ -44,7 +45,7 @@ def test_mcd_tables_match_sqlmodel():
     many_to_many = {name for name, legs in associations if all(c[1] == "N" for c, _ in legs)}
     assert many_to_many == {"utilise"}
     assert entities | many_to_many == set(SQLModel.metadata.tables)
-    assert len(SQLModel.metadata.tables) == 14
+    assert len(SQLModel.metadata.tables) == 15
 
 
 def test_mcd_associations_match_foreign_keys():

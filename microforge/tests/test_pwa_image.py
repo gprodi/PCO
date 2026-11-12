@@ -52,7 +52,7 @@ def test_location_atelier_dans_nginx():
     assert ATELIER_PREFIX == "/atelier/"
 
 
-@pytest.mark.parametrize("name", ["mfsim.js", "atelier.js", "atelier.css"])
+@pytest.mark.parametrize("name", ["mfsim.js", "missions.js", "atelier.js", "atelier.css"])
 def test_atelier_copies_identiques_au_simulateur(name):
     """public/atelier/ reprend les fichiers de microforge/src/microforge/sim/static (source unique)."""
     source = PWA.parent / "src" / "microforge" / "sim" / "static" / name
