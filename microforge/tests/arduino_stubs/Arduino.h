@@ -168,6 +168,12 @@ class HardwareSerial : public Print {
 };
 extern HardwareSerial Serial;
 
+#if defined(ESP32) || defined(ESP8266)
+// c_types.h des SDK Espressif (inclus par Arduino.h) : ces noms sont déjà pris ;
+// un « const int OK = 64; » dans un croquis ne compile pas (CI 134, robot-infrarouge).
+typedef enum { OK = 0, FAIL, PENDING, BUSY, CANCEL } STATUS;
+#endif
+
 #if defined(ESP32)
 #include <ctime>
 bool getLocalTime(struct tm*, uint32_t ms = 5000);

@@ -121,20 +121,21 @@
     - { name: piles, component: battery-holder-4aa }
   globals_extra: |
     // Codes de la télécommande à 17 touches courante (à lire dans le moniteur série).
-    const int HAUT = 70;
-    const int BAS = 21;
-    const int GAUCHE = 68;
-    const int DROITE = 67;
-    const int OK = 64;
+    // Préfixe TOUCHE_ : « OK » est déjà pris par les SDK Espressif (enum STATUS).
+    const int TOUCHE_HAUT = 70;
+    const int TOUCHE_BAS = 21;
+    const int TOUCHE_GAUCHE = 68;
+    const int TOUCHE_DROITE = 67;
+    const int TOUCHE_OK = 64;
   logic: |
     int code = recepteur_command();
     if (code != 0) {
       Serial.print("Code : ");
       Serial.println(code);
-      if (code == HAUT) { moteurs_motors(200, 200); }
-      else if (code == BAS) { moteurs_motors(-200, -200); }
-      else if (code == GAUCHE) { moteurs_motors(-160, 160); }
-      else if (code == DROITE) { moteurs_motors(160, -160); }
-      else if (code == OK) { moteurs_stop(); }
+      if (code == TOUCHE_HAUT) { moteurs_motors(200, 200); }
+      else if (code == TOUCHE_BAS) { moteurs_motors(-200, -200); }
+      else if (code == TOUCHE_GAUCHE) { moteurs_motors(-160, 160); }
+      else if (code == TOUCHE_DROITE) { moteurs_motors(160, -160); }
+      else if (code == TOUCHE_OK) { moteurs_stop(); }
     }
     delay(20);
