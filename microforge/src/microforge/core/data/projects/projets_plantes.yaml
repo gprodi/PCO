@@ -1,0 +1,210 @@
+# Modèles du thème « Plantes & jardin » (12/11/2026).
+
+- id: humidite-sol-led
+  title: Moniteur d'humidité du sol à LED
+  description: Planté dans le pot, le capteur capacitif fait passer la LED du vert (terre humide) au jaune puis au rouge (arroser).
+  difficulty: 1
+  tags: [plantes, sol, débutant]
+  learning: [capteur capacitif, seuils, couleur RVB]
+  parts:
+    - { name: sol, component: soil-moisture-capacitive }
+    - { name: voyant, component: rgb-led }
+  globals_extra: |
+    const int SEC = 30;     // % : en dessous, arroser (à étalonner : terre sèche puis mouillée)
+    const int HUMIDE = 60;  // % : au-dessus, inutile d'arroser
+  logic: |
+    int p = sol_percent();
+    if (p < SEC) {
+      voyant_color(255, 0, 0);
+    } else if (p < HUMIDE) {
+      voyant_color(255, 160, 0);
+    } else {
+      voyant_color(0, 255, 0);
+    }
+    Serial.print("Humidité du sol : ");
+    Serial.print(p);
+    Serial.println(" %");
+    delay(1000);
+
+- id: serre-connectee
+  title: Serre connectée
+  description: La serre aère d'elle-même au-dessus de 28 °C (ventilateur sur relais) ; l'écran et une page web consultable depuis le téléphone affichent température, humidité et ventilation.
+  difficulty: 3
+  tags: [plantes, wifi, web, relais, écran]
+  learning: [serveur HTTP embarqué, régulation avec hystérésis, mesures périodiques sans bloquer]
+  requires_wifi: true
+  parts:
+    - { name: air, component: dht22 }
+    - { name: ventilation, component: relay-module-1ch }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    MFWebServer serveur(80);  // WebServer (ESP32, Pico W) ou ESP8266WebServer
+    float t_air = 0;
+    float h_air = 0;
+    bool ventile = false;
+    unsigned long mesure = 0;  // instant de la dernière mesure
+  setup_extra: |
+    serveur.on("/", []() {
+      String page = "<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+                    "<meta name='viewport' content='width=device-width'><title>Serre</title></head>"
+                    "<body><h1>Serre</h1><p>Temperature : " + String(t_air, 1) +
+                    " &deg;C</p><p>Humidite : " + String(h_air, 0) + " %</p><p>Ventilation : " +
+                    (ventile ? "oui" : "non") + "</p></body></html>";
+      serveur.send(200, "text/html", page);
+    });
+    serveur.begin();
+    Serial.print("Page : http://");
+    Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    if (millis() - mesure > 2000) {
+      mesure = millis();
+      t_air = air_temperature();
+      h_air = air_humidity();
+      if (!isnan(t_air)) {
+        if (t_air > 28) { ventile = true; }
+        if (t_air < 25) { ventile = false; }
+      }
+      if (ventile) { ventilation_on(); } else { ventilation_off(); }
+      ecran_print(String(t_air, 1) + " C  " + String(h_air, 0) + " %", ventile ? "Ventilation : oui" : "Ventilation : non");
+    }
+    delay(2);
+
+- id: lucarne-automatique
+  title: Ouverture automatique de lucarne
+  description: La lucarne de la serre s'ouvre progressivement entre 20 et 30 °C (servo de 0 à 90°) et se referme quand il fait frais ; sonde absente, elle reste fermée.
+  difficulty: 2
+  tags: [plantes, température, servo]
+  learning: [correspondance linéaire avec map(), bornes avec constrain()]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: lucarne, component: sg90-servo }
+  logic: |
+    float t = sonde_temperature();
+    int angle = 0;
+    if (!isnan(t) && t > -50) {
+      angle = constrain(map((int)(t * 10), 200, 300, 0, 90), 0, 90);  // 20 °C fermée, 30 °C grande ouverte
+    }
+    lucarne_angle(angle);
+    Serial.print("Température : ");
+    Serial.print(t);
+    Serial.print(" °C, ouverture : ");
+    Serial.println(angle);
+    delay(2000);
+
+- id: luxmetre-plantes
+  title: Luxmètre pour plantes d'intérieur
+  description: Promené près d'une fenêtre, il affiche la lumière reçue en pourcentage (indication relative, pas des lux) et dit dans le moniteur série si l'endroit convient aux plantes d'ombre, de mi-ombre ou de soleil.
+  difficulty: 1
+  tags: [plantes, lumière, afficheur, débutant]
+  learning: [photorésistance, lecture analogique, seuils]
+  parts:
+    - { name: lumiere, component: ldr-module }
+    - { name: afficheur, component: tm1637-display }
+  logic: |
+    int l = lumiere_light_percent();
+    afficheur_number(l);
+    if (l < 20) {
+      Serial.println("Ombre : fougères, plantes vertes d'ombre");
+    } else if (l < 50) {
+      Serial.println("Mi-ombre : la plupart des plantes d'intérieur");
+    } else {
+      Serial.println("Plein soleil : cactus, plantes grasses");
+    }
+    delay(1000);
+
+- id: thermometre-compost
+  title: Thermomètre de compost
+  description: La sonde étanche plantée au cœur du tas affiche la température, la phase du compostage et le maximum atteint ; au-delà de 70 °C, il conseille de retourner le tas.
+  difficulty: 1
+  tags: [plantes, jardin, température, écran]
+  learning: [sonde 1-Wire étanche, maximum glissant, seuils de phases]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    float maximum = -100;
+  logic: |
+    float t = sonde_temperature();
+    if (isnan(t) || t < -50) {
+      ecran_print("Sonde absente");
+    } else {
+      if (t > maximum) { maximum = t; }
+      String phase = "Demarrage";
+      if (t >= 25) { phase = "Mesophile"; }
+      if (t >= 45) { phase = "Thermophile"; }
+      if (t > 70) { phase = "Trop chaud : retourner"; }
+      ecran_print(String(t, 1) + " C", phase, "Max " + String(maximum, 1) + " C");
+    }
+    delay(5000);
+
+- id: rappel-arrosage
+  title: Rappel d'arrosage sonore
+  description: Quand la terre du pot devient trop sèche, le buzzer émet deux bips toutes les dix secondes jusqu'à l'arrosage.
+  difficulty: 1
+  tags: [plantes, sol, son, débutant]
+  learning: [seuil, alarme espacée avec millis()]
+  parts:
+    - { name: sol, component: soil-moisture-capacitive }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    const int SEC = 30;  // %, à étalonner
+    unsigned long dernier_bip = 0;
+  logic: |
+    if (sol_percent() < SEC && (dernier_bip == 0 || millis() - dernier_bip > 10000)) {
+      dernier_bip = millis() + 1;
+      Serial.println("J'ai soif !");
+      bip_beep(1800, 120);
+      delay(250);
+      bip_beep(1800, 120);
+    }
+    delay(500);
+
+- id: lampe-croissance
+  title: Lampe de croissance programmée
+  description: La couronne éclaire les semis de 7 h à 21 h (14 h de lumière) en rouge et bleu, avec une aube progressive pendant la première heure ; la nuit, elle s'éteint.
+  difficulty: 2
+  tags: [plantes, horloge, lumière]
+  learning: [photopériode, horloge temps réel, montée progressive]
+  parts:
+    - { name: horloge, component: ds3231-rtc }
+    - { name: lampe, component: ws2812-ring-12 }
+  globals_extra: |
+    const int DEBUT = 7;  // heure d'allumage
+    const int FIN = 21;   // heure d'extinction
+  logic: |
+    int h = horloge_hour();
+    if (h == DEBUT) {
+      int k = horloge_minute();  // aube : de 0 à 59
+      lampe_fill(255 * k / 59, 0, 160 * k / 59);
+    } else if (h > DEBUT && h < FIN) {
+      lampe_fill(255, 0, 160);  // rouge et bleu : les longueurs d'onde utiles à la photosynthèse
+    } else {
+      lampe_fill(0, 0, 0);
+    }
+    delay(10000);
+
+- id: niveau-recuperateur
+  title: Niveau du récupérateur d'eau de pluie
+  description: Le capteur fixé sous le couvercle mesure la distance jusqu'à l'eau ; la couronne montre le remplissage de la cuve, de 0 à 12 LED.
+  difficulty: 2
+  tags: [plantes, jardin, eau, distance, lumière]
+  learning: [mesure par ultrasons, conversion en pourcentage, étalonnage]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: jauge, component: ws2812-ring-12 }
+  globals_extra: |
+    const int VIDE_CM = 100;  // distance capteur → fond (cuve vide), à mesurer
+    const int PLEIN_CM = 10;  // distance capteur → eau quand la cuve est pleine
+  logic: |
+    float d = sonar_distance_cm();
+    if (d < 0) {
+      jauge_fill(40, 0, 0);  // pas d'écho : capteur mal orienté
+    } else {
+      int niveau = constrain((int)((VIDE_CM - d) * 100 / (VIDE_CM - PLEIN_CM)), 0, 100);
+      jauge_gauge(niveau);
+      Serial.print("Remplissage : ");
+      Serial.print(niveau);
+      Serial.println(" %");
+    }
+    delay(2000);

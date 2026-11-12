@@ -561,6 +561,101 @@ def test_pan_overflow_alarm(tmp_path):
     assert out["sounds"] > 0 and "déborde" in out["serial"]
 
 
+# ---------------------------------------------------------------- thème « Plantes & jardin »
+@needs_node
+@pytest.mark.parametrize(
+    ("moisture", "rgb"), [(10, [255, 0, 0]), (45, [255, 160, 0]), (80, [0, 255, 0])]
+)
+def test_soil_led_colour(tmp_path, moisture, rgb):
+    out = run(
+        simulation_payload(CAT, _spec("humidite-sol-led")),
+        tmp_path,
+        until=2_000,
+        events=[[0, "sol", "set", "moisture", moisture]],
+    )
+    assert out["parts"]["voyant"]["state"]["rgb"] == rgb
+
+
+@needs_node
+def test_greenhouse_vents_when_hot_and_serves_its_page(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("serre-connectee")),
+        tmp_path,
+        until=6_000,
+        events=[[0, "air", "set", "temperature", 30], [5_000, None, "request", None]],
+    )
+    assert out["parts"]["ventilation"]["state"]["on"] is True
+    assert "Temperature : 30.0" in out["web"]["body"] and "Ventilation : oui" in out["web"]["body"]
+
+
+@needs_node
+@pytest.mark.parametrize(("temperature", "angle"), [(15, 0), (25, 45), (35, 90)])
+def test_roof_vent_opens_with_the_heat(tmp_path, temperature, angle):
+    out = run(
+        simulation_payload(CAT, _spec("lucarne-automatique")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "sonde", "set", "temperature", temperature]],
+    )
+    assert out["parts"]["lucarne"]["state"]["angle"] == angle
+
+
+@needs_node
+def test_plant_light_meter(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("luxmetre-plantes")),
+        tmp_path,
+        until=2_000,
+        events=[[0, "lumiere", "set", "light", 75]],
+    )
+    assert out["parts"]["afficheur"]["state"]["text"] == "  75"
+    assert "Plein soleil" in out["serial"]
+
+
+@needs_node
+def test_compost_phase_and_maximum(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("thermometre-compost")),
+        tmp_path,
+        until=12_000,
+        events=[[0, "sonde", "set", "temperature", 62], [6_000, "sonde", "set", "temperature", 40]],
+    )
+    ecran = json.dumps(out["parts"]["ecran"]["state"], ensure_ascii=False)
+    assert "Mesophile" in ecran and "Max 62.0" in ecran
+
+
+@needs_node
+@pytest.mark.parametrize(("moisture", "beeps"), [(10, True), (80, False)])
+def test_watering_reminder(tmp_path, moisture, beeps):
+    out = run(
+        simulation_payload(CAT, _spec("rappel-arrosage")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "sol", "set", "moisture", moisture]],
+    )
+    assert (out["sounds"] > 0) is beeps
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("start", "lit"), [("2026-11-03T12:00:00", 12), ("2026-11-03T22:30:00", 0)]
+)
+def test_grow_light_schedule(tmp_path, start, lit):
+    out = run(simulation_payload(CAT, _spec("lampe-croissance")), tmp_path, 2_000, start=start)
+    assert _lit(out["parts"]["lampe"]) == lit
+
+
+@needs_node
+def test_rain_barrel_level(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("niveau-recuperateur")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "sonar", "set", "distance", 55]],  # (100 − 55) / 90 = 50 %
+    )
+    assert _lit(out["parts"]["jauge"]) == 6
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

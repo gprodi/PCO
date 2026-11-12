@@ -238,3 +238,30 @@ pate-qui-leve:
 alerte-casserole:
   - { site: Hackster, title: "Water Level Sensor Interfacing with Arduino (LED et buzzer)", url: "https://www.hackster.io/rachnajain/water-level-sensor-interfacing-with-arduino-ae6f98", proche: true }
   - { site: ArduinoGetStarted, title: "Arduino - Water Sensor", url: "https://arduinogetstarted.com/tutorials/arduino-water-sensor", proche: true }
+
+# Thème « Plantes & jardin » (12/11/2026) : repérés par recherche web (sites non joignables
+# depuis l'environnement de préparation ; titres et adresses tels que renvoyés par la recherche).
+humidite-sol-led:
+  - { site: Instructables, title: "Plant Soil Moisture Tool (LED RVB)", url: "https://www.instructables.com/id/Plant-Soil-Moisture-Tool/" }
+  - { site: The DIY Life, title: "DIY Smart Indoor Plant Base – Know When Your Plant Needs Watering", url: "https://www.the-diy-life.com/diy-smart-indoor-plant-base-know-when-your-plant-needs-watering", proche: true }
+serre-connectee:
+  - { site: ShillehTek, title: "ESP32 DHT22 soil relay greenhouse control", url: "https://shillehtek.com/blogs/news/esp32-dht22-soil-relay-greenhouse-control", proche: true }
+  - { site: Instructables, title: "ESP32 – Web Server – DHT22 Temperature – Humidity Monitoring", url: "https://www.instructables.com/ESP32-Web-Server-DHT22-Temperature-Humidity-Monito", proche: true }
+lucarne-automatique:
+  - { site: Hackster, title: "Automatic Temperature Sensing Window Opener and Closer", url: "https://www.hackster.io/amostafa/automatic-temperature-sensing-window-opener-and-closer-c4a6d7", proche: true }
+  - { site: Université d'Helsinki, title: "Greenhouse project (DHT22, servo de fenêtre)", url: "https://blogs.helsinki.fi/greenhouseproject/?p=136", proche: true }
+luxmetre-plantes:
+  - { site: SunFounder, title: "Light Sensing (photorésistance et TM1637)", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/light_sensing.html" }
+  - { site: All About Circuits, title: "Design a Luxmeter Using a Light Dependent Resistor", url: "https://www.allaboutcircuits.com/projects/design-a-luxmeter-using-a-light-dependent-resistor/", proche: true }
+thermometre-compost:
+  - { site: Ryan Snyder, title: "Compost monitoring (sondes DS18B20)", url: "https://sites.google.com/site/ryanpatricksnyder0/projects/compost-monitoring", proche: true }
+  - { site: ArduinoGetStarted, title: "Arduino - Temperature Sensor - OLED", url: "https://arduinogetstarted.com/tutorials/arduino-temperature-sensor-oled", proche: true }
+rappel-arrosage:
+  - { site: Hackster, title: "Plant Watering Alarm System with Arduino", url: "https://www.hackster.io/ioarvanit/plant-watering-alarm-system-with-arduino-1b15cc" }
+  - { site: Keyestudio, title: "Project 11 I'm Thirsty", url: "https://docs.keyestudio.com/projects/KS0158/en/latest/docs/2.%20Arduino/Project/Project11.html", proche: true }
+lampe-croissance:
+  - { site: Tindie, title: "gpod - a NeoPixel grow light controller", url: "https://www.tindie.com/products/rossgk/gpod-a-neopixel-grow-light-controller", proche: true }
+  - { site: Instructables, title: "LED Light Fixture on a Timer for Planted Tanks and Aquariums", url: "https://www.instructables.com/LED-Light-Fixture-on-a-Timer-for-Planted-Tanks-and", proche: true }
+niveau-recuperateur:
+  - { site: Hackaday, title: "Pinging the depths of a rain barrel", url: "https://hackaday.com/2018/03/01/pinging-the-depths-of-a-rain-barrel", proche: true }
+  - { site: Instructables, title: "Water Level Indicator Using a HC-SR04 and an Arduino", url: "https://www.instructables.com/Ultrasonic-Water-Level-Indicator-Using-HC-SR04-Ard", proche: true }

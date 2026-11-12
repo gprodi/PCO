@@ -46,14 +46,14 @@ themes:
     idees:
       - { titre: "Arrosage automatique", template: arrosage-automatique, difficulte: 2, composants: [soil-moisture-capacitive, relay-module-1ch, water-pump-5v], description: "La pompe se déclenche quand la terre est trop sèche." }
       - { titre: "Ventilation de serre thermostatique", template: ventilateur-auto, difficulte: 2, composants: [dht22, mosfet-module, fan-12v], description: "Le ventilateur accélère quand la serre chauffe." }
-      - { titre: "Moniteur d'humidité du sol à LED", difficulte: 1, composants: [soil-moisture-capacitive, rgb-led], description: "La LED passe du vert au rouge quand la plante a soif." }
-      - { titre: "Serre connectée", difficulte: 3, wifi: true, composants: [dht22, relay-module-1ch, ssd1306-i2c], description: "Mesure température/humidité, déclenche un ventilateur et affiche l'état sur une page web." }
-      - { titre: "Ouverture automatique de lucarne", difficulte: 2, composants: [ds18b20, sg90-servo], description: "Un servo ouvre la lucarne de la serre au-delà de 28 °C." }
-      - { titre: "Luxmètre pour plantes d'intérieur", difficulte: 1, composants: [ldr-module, tm1637-display], description: "Affiche le niveau de lumière pour trouver le meilleur emplacement." }
-      - { titre: "Thermomètre de compost", difficulte: 1, composants: [ds18b20, ssd1306-i2c], description: "Sonde étanche plantée dans le compost pour suivre sa montée en température." }
-      - { titre: "Rappel d'arrosage sonore", difficulte: 1, composants: [soil-moisture-capacitive, buzzer], description: "Un bip discret quand l'humidité descend sous le seuil." }
-      - { titre: "Lampe de croissance programmée", difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Éclaire les semis 12 h par jour à heures fixes." }
-      - { titre: "Niveau du récupérateur d'eau de pluie", difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau indique le remplissage de la cuve vu du dessus." }
+      - { titre: "Moniteur d'humidité du sol à LED", template: humidite-sol-led, difficulte: 1, composants: [soil-moisture-capacitive, rgb-led], description: "La LED passe du vert au rouge quand la plante a soif." }
+      - { titre: "Serre connectée", template: serre-connectee, difficulte: 3, wifi: true, composants: [dht22, relay-module-1ch, ssd1306-i2c], description: "Mesure température/humidité, déclenche un ventilateur et affiche l'état sur une page web." }
+      - { titre: "Ouverture automatique de lucarne", template: lucarne-automatique, difficulte: 2, composants: [ds18b20, sg90-servo], description: "Un servo ouvre la lucarne de la serre au-delà de 28 °C." }
+      - { titre: "Luxmètre pour plantes d'intérieur", template: luxmetre-plantes, difficulte: 1, composants: [ldr-module, tm1637-display], description: "Affiche le niveau de lumière pour trouver le meilleur emplacement." }
+      - { titre: "Thermomètre de compost", template: thermometre-compost, difficulte: 1, composants: [ds18b20, ssd1306-i2c], description: "Sonde étanche plantée dans le compost pour suivre sa montée en température." }
+      - { titre: "Rappel d'arrosage sonore", template: rappel-arrosage, difficulte: 1, composants: [soil-moisture-capacitive, buzzer], description: "Un bip discret quand l'humidité descend sous le seuil." }
+      - { titre: "Lampe de croissance programmée", template: lampe-croissance, difficulte: 2, composants: [ds3231-rtc, ws2812-ring-12], description: "Éclaire les semis 12 h par jour à heures fixes." }
+      - { titre: "Niveau du récupérateur d'eau de pluie", template: niveau-recuperateur, difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "L'anneau indique le remplissage de la cuve vu du dessus." }
       - { titre: "Arrosage silencieux sur MOSFET", template: arrosage-mosfet, difficulte: 2, composants: [soil-moisture-capacitive, mosfet-irlz44n, diode-1n4007, water-pump-5v], description: "Arrosage par impulsions, sans le clic ni l'usure d'un relais." }
 
   - id: exterieur
