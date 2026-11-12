@@ -1,0 +1,126 @@
+# Modèles du thème « Sécurité & alarmes » (12/11/2026).
+
+- id: coffre-code
+  title: Coffre à code
+  description: Le bon code suivi de « # » ouvre le coffre (servo) et allume la LED ; « * » efface la saisie ou referme. Trois codes faux bloquent le clavier 30 secondes.
+  difficulty: 2
+  tags: [sécurité, clavier, servo]
+  learning: [saisie au clavier, comparaison de chaînes, blocage après erreurs]
+  parts:
+    - { name: clavier, component: keypad-4x4 }
+    - { name: serrure, component: sg90-servo }
+    - { name: voyant, component: led, attrs: { color: green } }
+  globals_extra: |
+    const String CODE = "2580";  // à changer
+    String saisie = "";
+    int erreurs = 0;
+    bool ouvert = false;
+    unsigned long bloque_jusqua = 0;
+  setup_extra: |
+    serrure_angle(0);
+  logic: |
+    char k = clavier_key();
+    if (k != 0 && millis() >= bloque_jusqua) {
+      if (k == '*') {
+        saisie = "";
+        if (ouvert) {
+          serrure_angle(0);
+          voyant_off();
+          ouvert = false;
+          Serial.println("Coffre refermé");
+        }
+      } else if (k == '#') {
+        if (saisie == CODE) {
+          serrure_angle(90);
+          voyant_on();
+          ouvert = true;
+          erreurs = 0;
+          Serial.println("Coffre ouvert");
+        } else {
+          erreurs++;
+          Serial.println("Code faux");
+          if (erreurs >= 3) {
+            bloque_jusqua = millis() + 30000;
+            erreurs = 0;
+            Serial.println("Clavier bloqué 30 s");
+          }
+        }
+        saisie = "";
+      } else if (saisie.length() < 8) {
+        saisie += k;
+      }
+    }
+    delay(20);
+
+- id: alarme-tiroir
+  title: Alarme d'ouverture de tiroir
+  description: Dans un tiroir fermé il fait noir ; s'il s'ouvre, la lumière entre et le buzzer sonne cinq secondes. Ne détecte rien dans une pièce plongée dans le noir.
+  difficulty: 1
+  tags: [sécurité, lumière, son, débutant]
+  learning: [photorésistance en détecteur d'ouverture, limite d'un capteur]
+  parts:
+    - { name: lumiere, component: ldr-module }
+    - { name: sirene, component: buzzer }
+  globals_extra: |
+    bool ouvert = false;
+  logic: |
+    bool clair = lumiere_light_percent() > 20;
+    if (clair && !ouvert) {
+      ouvert = true;
+      Serial.println("Tiroir ouvert !");
+      for (int i = 0; i < 10; i++) {
+        sirene_beep(2800, 250);
+        delay(500);
+      }
+    }
+    if (!clair) {
+      ouvert = false;  // refermé : alarme réarmée
+    }
+    delay(100);
+
+- id: alarme-sac
+  title: Alarme anti-vol de sac
+  description: Un appui arme l'alarme (5 secondes pour poser le sac) ; ensuite, si le sac bouge de plus de 10°, la sirène sonne jusqu'à ce qu'on appuie de nouveau pour désarmer.
+  difficulty: 2
+  tags: [sécurité, mouvement, son]
+  learning: [accéléromètre, position de référence, états armé / alarme]
+  parts:
+    - { name: mouvement, component: mpu6050 }
+    - { name: sirene, component: buzzer }
+    - { name: bouton, component: pushbutton }
+  globals_extra: |
+    bool arme = false;
+    bool reference = false;  // position de repos mémorisée
+    bool alarme = false;
+    float ref_x = 0;
+    float ref_y = 0;
+    unsigned long arme_a = 0;
+  logic: |
+    if (bouton_clicked()) {
+      if (arme) {
+        arme = false;
+        reference = false;
+        alarme = false;
+        sirene_stop();
+        Serial.println("Désarmée");
+      } else {
+        arme = true;
+        arme_a = millis();
+        Serial.println("Armement dans 5 s");
+      }
+    }
+    if (arme && !reference && millis() - arme_a > 5000) {
+      ref_x = mouvement_tilt_x();
+      ref_y = mouvement_tilt_y();
+      reference = true;
+      Serial.println("Armée");
+    }
+    if (reference && !alarme && (abs(mouvement_tilt_x() - ref_x) > 10 || abs(mouvement_tilt_y() - ref_y) > 10)) {
+      alarme = true;
+      Serial.println("Alarme : le sac a bougé !");
+    }
+    if (alarme) {
+      sirene_beep(3000, 150);
+      delay(250);
+    }
+    delay(50);

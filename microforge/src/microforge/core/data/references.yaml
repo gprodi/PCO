@@ -298,3 +298,30 @@ indicateur-confort:
 sonnette-silencieuse:
   - { site: Arduino Forum, title: "Silent vibrating doorbell", url: "https://forum.arduino.cc/t/silent-vibrating-doorbell/1227004" }
   - { site: SparkFun, title: "LilyPad Vibe Board Hookup Guide", url: "https://learn.sparkfun.com/tutorials/lilypad-vibe-board-hookup-guide/all", proche: true }
+
+# Thèmes « Extérieur & météo » et « Sécurité & alarmes » (12/11/2026) : repérés par recherche
+# web (sites non joignables depuis l'environnement de préparation).
+alerte-gel:
+  - { site: Espruino, title: "Freezer Alarm", url: "https://www.espruino.com/Freezer+Alarm", proche: true }
+  - { site: Hackaday, title: "This freezer failure alarm keeps your spoils unspoiled", url: "https://hackaday.com/2020/07/08/this-freezer-failure-alarm-keeps-your-spoils-unspoiled", proche: true }
+eclairage-jardin:
+  - { site: Random Nerd Tutorials, title: "Build a Night Security Light with Arduino", url: "https://randomnerdtutorials.com/build-a-night-security-light-with-arduino/" }
+  - { site: Instructables, title: "Motion Activated Light Switch With Light Sensor", url: "https://www.instructables.com/Motion-Activated-Light-Switch-With-Light-Sensor" }
+barometre-prevision:
+  - { site: Hackster, title: "Tiny Weather Forecaster", url: "https://www.hackster.io/limpfish/tiny-weather-forecaster-36c99f", proche: true }
+  - { site: Instructables, title: "ESP32/ESP8266 Weather Forecaster/Predictor", url: "https://www.instructables.com/ESP32ESP8266-Weather-ForecasterPredictor", proche: true }
+pluie-linge:
+  - { site: ArduinoGetStarted, title: "Arduino - Rain Sensor - Buzzer", url: "https://arduinogetstarted.com/tutorials/arduino-rain-sensor-buzzer", proche: true }
+  - { site: Instructables, title: "Rain Detector Alarm Using Arduino Uno", url: "https://www.instructables.com/Rain-Detector-Alarm-Using-Arduino-Uno", proche: true }
+lampe-solaire-balcon:
+  - { site: Zbotic, title: "Solar street light controller (Arduino, dusk to dawn)", url: "https://zbotic.in/solar-street-light-controller-arduino-automatic-dusk-to-dawn/", proche: true }
+  - { site: Electronics For You, title: "Garden Solar Light", url: "https://www.electronicsforu.com/electronics-projects/garden-solar-light", proche: true }
+coffre-code:
+  - { site: Hackster, title: "Arduino Controlled Safe Locker", url: "https://www.hackster.io/engineerkid/arduino-controlled-safe-locker-344caf" }
+  - { site: Luis Llamas, title: "Arduino servo safe box", url: "https://www.luisllamas.es/en/arduino-servo-safe-box/" }
+alarme-tiroir:
+  - { site: Instructables, title: "Arduino Light Sensor and Alarm (tiroir)", url: "https://www.instructables.com/Arduino-Drawer-AlarmDiet-Helper" }
+  - { site: Instructables, title: "How to Make Secret Drawer Alarm", url: "https://www.instructables.com/How-to-Make-Secret-Drawer-Alarm", proche: true }
+alarme-sac:
+  - { site: Instructables, title: "Arduino Thieve Distractor Alarm", url: "https://www.instructables.com/Arduino-Thieve-Distractor-Alarm" }
+  - { site: Hackster, title: "Tiny Motion Detection Alarm", url: "https://www.hackster.io/Gokux/tiny-motion-detection-alarm-e394ac", proche: true }

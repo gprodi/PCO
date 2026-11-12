@@ -63,11 +63,11 @@ themes:
     idees:
       - { titre: "Mini-station BME280 (pression)", template: mini-station-bme280, difficulte: 2, composants: [bme280, ssd1306-i2c], description: "Température, humidité, pression et tendance météo." }
       - { titre: "Thermomètre de piscine", template: thermometre-ds18b20, difficulte: 1, composants: [ds18b20, ssd1306-i2c], description: "Sonde étanche et affichage lisible." }
-      - { titre: "Alerte gel", difficulte: 1, composants: [ds18b20, buzzer, led], description: "Bip et voyant quand la température passe sous 2 °C." }
-      - { titre: "Éclairage de jardin intelligent", difficulte: 2, composants: [ldr-module, pir-hc-sr501, relay-module-1ch], description: "S'allume la nuit, seulement quand quelqu'un passe." }
-      - { titre: "Baromètre « prévision »", difficulte: 2, composants: [bme280, rgb-led], description: "Couleur selon la tendance de pression : beau, variable, pluie." }
-      - { titre: "Détecteur de pluie pour linge", difficulte: 1, composants: [water-level-sensor, buzzer], description: "Bip dès les premières gouttes : rentre le linge !" }
-      - { titre: "Lampe solaire de balcon", difficulte: 2, composants: [ldr-module, ws2812-ring-12, battery-holder-4aa], description: "Ambiance douce sur piles, seulement à la tombée de la nuit." }
+      - { titre: "Alerte gel", template: alerte-gel, difficulte: 1, composants: [ds18b20, buzzer, led], description: "Bip et voyant quand la température passe sous 2 °C." }
+      - { titre: "Éclairage de jardin intelligent", template: eclairage-jardin, difficulte: 2, composants: [ldr-module, pir-hc-sr501, relay-module-1ch], description: "S'allume la nuit, seulement quand quelqu'un passe." }
+      - { titre: "Baromètre « prévision »", template: barometre-prevision, difficulte: 2, composants: [bme280, rgb-led], description: "Couleur selon la tendance de pression : beau, variable, pluie." }
+      - { titre: "Détecteur de pluie pour linge", template: pluie-linge, difficulte: 1, composants: [water-level-sensor, buzzer], description: "Bip dès les premières gouttes : rentre le linge !" }
+      - { titre: "Lampe solaire de balcon", template: lampe-solaire-balcon, difficulte: 2, composants: [ldr-module, ws2812-ring-12, battery-holder-4aa], description: "Ambiance douce sur piles, seulement à la tombée de la nuit." }
 
   - id: securite
     titre: Sécurité & alarmes
@@ -81,9 +81,9 @@ themes:
       - { titre: "Détecteur de gaz / fumée", template: detecteur-gaz, difficulte: 2, composants: [mq2-gas, buzzer, led], description: "Alerte sonore au-delà d'un seuil (complète un vrai détecteur, ne le remplace pas)." }
       - { titre: "Serrure à badge RFID", template: serrure-rfid, difficulte: 3, composants: [rc522-rfid, sg90-servo, led, buzzer], description: "Seul le bon badge ouvre le verrou." }
       - { titre: "Digicode", template: digicode, difficulte: 2, composants: [keypad-4x4, relay-module-1ch, buzzer], description: "Code secret au clavier pour activer une gâche." }
-      - { titre: "Coffre à code", difficulte: 2, composants: [keypad-4x4, sg90-servo, led], description: "Le servo verrouille une petite boîte ; ouverture au bon code." }
-      - { titre: "Alarme d'ouverture de tiroir", difficulte: 1, composants: [ldr-module, buzzer], description: "La lumière qui entre quand on ouvre le tiroir déclenche l'alarme." }
-      - { titre: "Alarme anti-vol de sac (mouvement)", difficulte: 2, composants: [mpu6050, buzzer, pushbutton], description: "Armée par un bouton, elle hurle si on déplace le sac." }
+      - { titre: "Coffre à code", template: coffre-code, difficulte: 2, composants: [keypad-4x4, sg90-servo, led], description: "Le servo verrouille une petite boîte ; ouverture au bon code." }
+      - { titre: "Alarme d'ouverture de tiroir", template: alarme-tiroir, difficulte: 1, composants: [ldr-module, buzzer], description: "La lumière qui entre quand on ouvre le tiroir déclenche l'alarme." }
+      - { titre: "Alarme anti-vol de sac (mouvement)", template: alarme-sac, difficulte: 2, composants: [mpu6050, buzzer, pushbutton], description: "Armée par un bouton, elle hurle si on déplace le sac." }
 
   - id: robotique
     titre: Robots & mouvement

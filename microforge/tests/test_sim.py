@@ -816,6 +816,123 @@ def test_silent_doorbell_vibrates_three_times(tmp_path):
     assert out["sounds"] == 0 and "On sonne ! (1)" in out["serial"]
 
 
+# ---------------------------------------------------------------- « Extérieur » et « Sécurité »
+@needs_node
+def test_frost_alert_blinks_then_rings(tmp_path):
+    marks = [[1_000 + 250 * i, None, "mark", f"m{i}"] for i in range(6)]
+    risque = run(
+        simulation_payload(CAT, _spec("alerte-gel")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "sonde", "set", "temperature", 2], *marks],
+    )
+    assert {risque["marks"][f"m{i}"]["parts"]["voyant"]["state"]["on"] for i in range(6)} == {
+        True,
+        False,
+    }
+    assert risque["sounds"] == 0
+    gel = run(
+        simulation_payload(CAT, _spec("alerte-gel")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "sonde", "set", "temperature", -2]],
+    )
+    assert gel["parts"]["voyant"]["state"]["on"] is True and gel["sounds"] == 1
+
+
+@needs_node
+@pytest.mark.parametrize(("light", "on"), [(5, True), (80, False)])
+def test_garden_light_only_at_night(tmp_path, light, on):
+    out = run(
+        simulation_payload(CAT, _spec("eclairage-jardin")),
+        tmp_path,
+        until=3_000,
+        events=[[0, "luminosite", "set", "light", light], *_pass("detecteur", 500)],
+    )
+    assert out["parts"]["eclairage"]["state"]["on"] is on
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("pressure", "rgb"), [(1008, [255, 0, 0]), (1013.25, [255, 200, 0]), (1018, [0, 255, 0])]
+)
+def test_barometer_trend_over_the_hours(tmp_path, pressure, rgb):
+    out = run(
+        simulation_payload(CAT, _spec("barometre-prevision")),
+        tmp_path,
+        until=4_200_000,  # 70 minutes : 8 mesures
+        events=[[2_400_000, "capteur", "set", "pressure", pressure]],
+    )
+    assert out["parts"]["voyant"]["state"]["rgb"] == rgb
+
+
+@needs_node
+def test_rain_alarm_for_the_washing(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("pluie-linge")),
+        tmp_path,
+        until=3_000,
+        events=[[500, "gouttes", "set", "level", 60]],
+    )
+    assert out["sounds"] == 3 and "rentrer le linge" in out["serial"]
+
+
+@needs_node
+def test_balcony_lamp_lights_four_hours_after_dusk(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("lampe-solaire-balcon")),
+        tmp_path,
+        until=14_405_000,
+        events=[[0, "luminosite", "set", "light", 5], [3_000, None, "mark", "soir"]],
+    )
+    assert _lit(out["marks"]["soir"]["parts"]["lampe"]) == 12
+    assert _lit(out["parts"]["lampe"]) == 0 and "économie des piles" in out["serial"]
+
+
+def _keys(part: str, t0: int, keys: str) -> list:
+    return [[t0 + 100 * i, part, "fire", "key", k] for i, k in enumerate(keys)]
+
+
+@needs_node
+def test_safe_opens_with_the_code_and_locks_after_three_errors(tmp_path):
+    payload = simulation_payload(CAT, _spec("coffre-code"))
+    ok = run(payload, tmp_path, 2_000, _keys("clavier", 200, "2580#"))
+    assert ok["parts"]["serrure"]["state"]["angle"] == 90 and ok["parts"]["voyant"]["state"]["on"]
+    bloque = run(payload, tmp_path, 4_000, _keys("clavier", 200, "1#2#3#2580#"))
+    assert bloque["parts"]["serrure"]["state"]["angle"] == 0
+    assert "Clavier bloqué 30 s" in bloque["serial"]
+
+
+@needs_node
+def test_drawer_alarm_rings_when_light_gets_in(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("alarme-tiroir")),
+        tmp_path,
+        until=7_000,
+        events=[[0, "lumiere", "set", "light", 0], [500, "lumiere", "set", "light", 60]],
+    )
+    assert out["sounds"] == 10
+
+
+@needs_node
+def test_bag_alarm_arms_triggers_and_disarms(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("alarme-sac")),
+        tmp_path,
+        until=12_000,
+        events=[
+            [200, "bouton", "press", "pressed"],
+            [300, "bouton", "release", "pressed"],
+            [7_000, "mouvement", "set", "tx", 30],
+            [8_000, None, "mark", "alarme"],
+            [9_000, "bouton", "press", "pressed"],
+            [9_100, "bouton", "release", "pressed"],
+        ],
+    )
+    assert out["marks"]["alarme"]["parts"]["sirene"]["state"]["freq"] == 3000
+    assert "Alarme : le sac a bougé" in out["serial"] and "Désarmée" in out["serial"]
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

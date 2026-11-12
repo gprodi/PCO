@@ -1,0 +1,172 @@
+# Modèles du thème « Extérieur & météo » (12/11/2026).
+
+- id: alerte-gel
+  title: Alerte gel
+  description: La sonde dehors surveille la température ; sous 3 °C la LED clignote (risque de gel), sous 0,5 °C elle reste allumée et le buzzer bipe toutes les 30 secondes (rentrer les plantes, protéger le robinet).
+  difficulty: 1
+  tags: [extérieur, température, son, débutant]
+  learning: [deux seuils, alarme espacée]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: bip, component: buzzer }
+    - { name: voyant, component: led, attrs: { color: blue } }
+  globals_extra: |
+    bool deja_bipe = false;
+    unsigned long dernier_bip = 0;
+  logic: |
+    float t = sonde_temperature();
+    if (isnan(t) || t < -50) {
+      voyant_off();
+      Serial.println("Sonde absente");
+      delay(1000);
+    } else if (t < 0.5) {
+      voyant_on();
+      if (!deja_bipe || millis() - dernier_bip > 30000) {
+        deja_bipe = true;
+        dernier_bip = millis();
+        bip_beep(2000, 300);
+        Serial.println("Gel !");
+      }
+      delay(500);
+    } else if (t < 3) {
+      voyant_toggle();  // risque de gel : clignotement
+      delay(500);
+    } else {
+      voyant_off();
+      deja_bipe = false;
+      delay(1000);
+    }
+
+- id: eclairage-jardin
+  title: Éclairage de jardin intelligent
+  description: La nuit seulement, un passage allume l'éclairage du jardin (sur relais) pour deux minutes, relancées à chaque mouvement. Le jour, le détecteur est ignoré.
+  difficulty: 2
+  tags: [extérieur, mouvement, lumière, relais]
+  learning: [condition double, minuterie relancée]
+  parts:
+    - { name: luminosite, component: ldr-module }
+    - { name: detecteur, component: pir-hc-sr501 }
+    - { name: eclairage, component: relay-module-1ch }
+  globals_extra: |
+    const unsigned long DUREE_MS = 120000;  // deux minutes
+    unsigned long dernier = 0;
+    bool allume = false;
+  logic: |
+    if (detecteur_motion() && (allume || luminosite_light_percent() < 20)) {
+      dernier = millis();
+      if (!allume) {
+        allume = true;
+        eclairage_on();
+        Serial.println("Passage de nuit : éclairage");
+      }
+    }
+    if (allume && millis() - dernier > DUREE_MS) {
+      allume = false;
+      eclairage_off();
+    }
+    delay(100);
+
+- id: barometre-prevision
+  title: Baromètre « prévision »
+  description: Une mesure de pression toutes les 10 minutes, gardée trois heures ; la LED annonce la tendance — vert, la pression monte (beau temps) ; jaune, stable ; rouge, elle baisse (pluie probable) ; bleu pendant la première demi-heure de mesures. Une indication, pas une prévision météo officielle.
+  difficulty: 2
+  tags: [extérieur, météo, pression]
+  learning: [tableau circulaire, tendance sur trois heures, prévision de Zambretti simplifiée]
+  parts:
+    - { name: capteur, component: bme280 }
+    - { name: voyant, component: rgb-led }
+  globals_extra: |
+    const unsigned long INTERVALLE_MS = 600000;  // une mesure toutes les 10 minutes
+    const int N = 18;                            // 18 mesures = 3 heures
+    float hist[18];
+    int n = 0;    // mesures gardées
+    int pos = 0;  // prochaine case à écrire
+    bool premiere = true;
+    unsigned long derniere = 0;
+  logic: |
+    float p = capteur_pressure_hpa();
+    if (premiere || millis() - derniere >= INTERVALLE_MS) {
+      premiere = false;
+      derniere = millis();
+      hist[pos] = p;
+      pos = (pos + 1) % N;
+      if (n < N) { n++; }
+    }
+    float ancienne = hist[n < N ? 0 : pos];  // la plus ancienne mesure gardée
+    float tendance = p - ancienne;
+    if (n < 4) {
+      voyant_color(0, 0, 255);  // pas encore assez d'historique
+    } else if (tendance > 1.5) {
+      voyant_color(0, 255, 0);
+    } else if (tendance < -1.5) {
+      voyant_color(255, 0, 0);
+    } else {
+      voyant_color(255, 200, 0);
+    }
+    Serial.print("Pression : ");
+    Serial.print(p);
+    Serial.print(" hPa, tendance : ");
+    Serial.println(tendance);
+    delay(10000);
+
+- id: pluie-linge
+  title: Détecteur de pluie pour linge
+  description: Posé près de l'étendoir, le capteur sonne dès les premières gouttes (trois bips), puis rappelle toutes les minutes tant qu'il pleut.
+  difficulty: 1
+  tags: [extérieur, pluie, son, débutant]
+  learning: [capteur de niveau en détecteur de gouttes, rappel espacé]
+  parts:
+    - { name: gouttes, component: water-level-sensor }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    bool pluie = false;
+    unsigned long dernier_rappel = 0;
+  logic: |
+    if (gouttes_wet()) {
+      if (!pluie || millis() - dernier_rappel > 60000) {
+        Serial.println(pluie ? "Il pleut toujours" : "Il pleut : rentrer le linge !");
+        pluie = true;
+        dernier_rappel = millis();
+        for (int i = 0; i < 3; i++) {
+          bip_beep(1500, 150);
+          delay(250);
+        }
+      }
+    } else {
+      pluie = false;
+    }
+    delay(500);
+
+- id: lampe-solaire-balcon
+  title: Lampe solaire de balcon
+  description: À la tombée de la nuit, la couronne s'allume en blanc chaud tamisé pendant quatre heures puis s'éteint pour ménager les piles ; elle attend le jour suivant. Alimentation par 4 piles AA (rechargées par un petit panneau solaire et un contrôleur de charge, à ajouter).
+  difficulty: 2
+  tags: [extérieur, lumière, batterie]
+  learning: [cycle jour/nuit, économie d'énergie, hystérésis de luminosité]
+  parts:
+    - { name: luminosite, component: ldr-module }
+    - { name: lampe, component: ws2812-ring-12 }
+    - { name: piles, component: battery-holder-4aa }
+  globals_extra: |
+    const unsigned long DUREE_MS = 14400000UL;  // quatre heures
+    bool nuit = false;
+    bool allumee = false;
+    unsigned long debut = 0;
+  logic: |
+    int l = luminosite_light_percent();
+    if (!nuit && l < 15) {
+      nuit = true;
+      allumee = true;
+      debut = millis();
+      Serial.println("Nuit : allumage pour 4 h");
+    }
+    if (nuit && l > 30) {
+      nuit = false;  // le jour revient (seuils différents : pas de clignotement au crépuscule)
+      allumee = false;
+    }
+    if (allumee && millis() - debut > DUREE_MS) {
+      allumee = false;
+      Serial.println("Extinction : économie des piles");
+    }
+    if (allumee) { lampe_fill(80, 50, 15); } else { lampe_fill(0, 0, 0); }
+    delay(1000);
