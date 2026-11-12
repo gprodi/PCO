@@ -14,7 +14,7 @@ for (const [ms, part, action, key, value] of scenario.events || []) {
     else if (action === "press") p.press(key);
     else if (action === "release") p.release(key);
     else if (action === "fire") p.fire(key, value);
-    else if (action === "request") s.request();
+    else if (action === "request") s.request(key || value || "/");
   });
 }
 sim.run({ until: scenario.until || 60000 }).then(

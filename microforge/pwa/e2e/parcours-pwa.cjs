@@ -131,18 +131,15 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.screenshot({ path: path.join(shots, 'pwa-atelier-bureau.png'), fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
     });
-    await step('idée sans modèle', async () => {
-      // Thème sans modèle vérifié : « Concevoir avec l'IA ». Sans vraie IA (modèle simulé en test,
-      // pas d'Ollama dans la pile de la CI), le modèle le plus proche est renvoyé, et c'est écrit.
+    await step('thème complet', async () => {
+      // Les 145 idées ont un modèle vérifié : chaque carte se génère, aucune ne renvoie à l'IA.
       await page.getByRole('link', { name: 'Explorer', exact: true }).click();
       await page.getByRole('button', { name: /Objets connectés/ }).click({ timeout: 30000 });
       await page.getByRole('heading', { name: /Objets connectés/, level: 2 }).waitFor();
-      await page.getByRole('button', { name: "Concevoir avec l'IA" }).first().click();
-      const note = page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' });
-      await note.waitFor({ timeout: 120000 });
-      expect(/Aucune IA n'a répondu|pas proposé de montage valide/.test(await note.innerText()), 'raison du repli');
-      await page.getByRole('tab', { name: 'Câblage' }).waitFor();
-      await page.screenshot({ path: path.join(shots, 'pwa-idee-ia.png') });
+      const cartes = page.locator('.card.idea');
+      await page.getByRole('button', { name: 'Générer ce projet' }).first().waitFor();
+      expect(await page.getByRole('button', { name: "Concevoir avec l'IA" }).count() === 0, 'aucune idée sans modèle');
+      expect(await cartes.count() > 0, 'idées du thème affichées');
     });
     await step('créer', async () => {
       // Comme la page Streamlit « Je veux construire… » : modèle du catalogue, puis idée libre.
@@ -160,7 +157,10 @@ const expect = (cond, what) => { if (!cond) throw new Error(`attendu : ${what}`)
       await page.getByLabel('Décrire mon idée').check();
       await page.getByLabel('Décris ce que tu veux construire').fill('Une veilleuse qui s\'allume quand il fait noir dans le couloir');
       await page.getByRole('button', { name: 'Concevoir le projet' }).click();
-      await page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' }).waitFor({ timeout: 120000 });
+      const note = page.getByRole('note').filter({ hasText: 'modèle du catalogue le plus proche' });
+      await note.waitFor({ timeout: 120000 });
+      // Sans vraie IA (modèle simulé en test, pas d'Ollama dans la pile de la CI) : repli annoncé.
+      expect(/Aucune IA n'a répondu|pas proposé de montage valide/.test(await note.innerText()), 'raison du repli');
       await page.getByRole('link', { name: 'Créer', exact: true }).click();
       await page.screenshot({ path: path.join(shots, 'pwa-creer.png') });
       // Projet enregistré rouvert : reconstruit à partir de sa spécification.

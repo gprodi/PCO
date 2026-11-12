@@ -15,7 +15,7 @@ Ce dépôt réunit deux projets et les supports de l'année :
 
 ## MicroForge en chiffres
 
-- 80 projets générables (domotique, sécurité, robots, lumière, musique, fêtes, animaux, cuisine…) et 145 idées réparties en 17 thèmes ;
+- 145 projets générables, un pour chacune des 145 idées réparties en 17 thèmes (domotique, plantes, sécurité, robots, véhicules, lumière, musique, fêtes, animaux, cuisine, sciences, objets connectés…) ;
 - 103 composants et 40 cartes en 11 familles (ESP32 classique/S2/S3/C3/C6/H2, ESP8266, Arduino Uno R3/R4, Nano, Mega, Leonardo, Nano Every, Nano 33, MKR, Due, Pico/Pico 2, STM32, Teensy) ;
 - un copilote qui répond aux questions sur le matériel en citant le catalogue (379 passages indexés dans PostgreSQL + pgvector) ;
 - un atelier virtuel : on branche chaque composant sur une broche de la carte (une erreur est expliquée), puis le projet tourne dans le navigateur (sa logique C++ traduite en JavaScript, un modèle de comportement par composant) ;
@@ -26,10 +26,10 @@ Ce dépôt réunit deux projets et les supports de l'année :
 | Vérification | Où |
 |---|---|
 | Allocation des broches et contrôle électrique, à chaque génération | `microforge/src/microforge/core/` |
-| Syntaxe C++ des 859 firmwares (80 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
+| Syntaxe C++ des 1 519 firmwares (145 projets × familles compatibles) | `microforge/tests/test_core.py` (g++ + en-têtes Arduino simulés) |
 | Compilation réelle avec arduino-cli sur les 11 familles et les variantes de puce (ESP32-S3, C3, C6, H2, Pico 2 W) | job `firmware` de [la CI](.github/workflows/ci.yml) (16 jobs) |
 | Copilote RAG : réponses citées, « je ne sais pas » sous le seuil, repli sans LLM, index PostgreSQL + pgvector | `microforge/tests/test_copilot.py`, job `pgvector` de la CI |
-| Atelier virtuel : les 80 projets transpilés et exécutés 120 s virtuelles, capteurs sollicités, sans erreur ; sémantique du C (division entière, débordements) ; erreurs de branchement expliquées ; page testée dans Chromium | `microforge/tests/test_sim.py` |
+| Atelier virtuel : les 145 projets transpilés et exécutés 120 s virtuelles, capteurs sollicités, sans erreur ; sémantique du C (division entière, débordements) ; erreurs de branchement expliquées ; page testée dans Chromium | `microforge/tests/test_sim.py` |
 | Chaque projet renvoie vers des tutoriels publics du même montage | `microforge/src/microforge/core/data/references.yaml` |
 | Montage sur du vrai matériel | **à faire** : champ `hardware_tested` de chaque modèle, à remplir après essai |
 

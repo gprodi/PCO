@@ -1328,6 +1328,149 @@ def test_ir_robot_drives_and_stops(tmp_path):
     assert out["parts"]["moteurs"]["state"]["left"] == 0 and "Code : 70" in out["serial"]
 
 
+# ---------------------------------------------------------------- « Sciences » et « Objets connectés »
+@needs_node
+@pytest.mark.parametrize(("distance", "vitesse"), [(50, "343"), (49, "350")])
+def test_speed_of_sound_from_a_known_distance(tmp_path, distance, vitesse):
+    out = run(
+        simulation_payload(CAT, _spec("vitesse-du-son")),
+        tmp_path,
+        until=2_500,
+        events=[[0, "sonar", "set", "distance", distance], [0, "sonde", "set", "temperature", 20]],
+    )
+    ecran = json.dumps(out["parts"]["ecran"]["state"], ensure_ascii=False)
+    assert f"Mesure : {vitesse} m/s" in ecran and "Theorie : 343 m/s" in ecran
+
+
+@needs_node
+def test_seismograph_logs_and_flags_a_shake(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("sismographe-bureau")),
+        tmp_path,
+        until=2_000,
+        events=[[1_000, "capteur", "set", "tx", 8]],
+    )
+    lignes = out["parts"]["carte"]["state"]["files"]["/sismo.csv"].strip().splitlines()
+    assert len(lignes) >= 9 and lignes[-1].endswith(";8.00;0.00")
+    assert out["serial"].count("Secousse") == 1
+
+
+@needs_node
+def test_cooling_curve_csv(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("courbe-refroidissement")),
+        tmp_path,
+        until=25_000,
+        events=[
+            [0, "sonde", "set", "temperature", 70],
+            [12_000, "sonde", "set", "temperature", 62],
+        ],
+    )
+    lignes = out["parts"]["carte"]["state"]["files"]["/tasse.csv"].strip().splitlines()
+    assert lignes[0] == "secondes;temperature" and lignes[-1] == "20;62.00"
+
+
+@needs_node
+def test_magnet_detector_counts_approaches(tmp_path):
+    events = []
+    for t0 in (300, 900):
+        events += [
+            [t0, "capteur", "set", "open", True],
+            [t0 + 300, "capteur", "set", "open", False],
+        ]
+    out = run(simulation_payload(CAT, _spec("detecteur-magnetique")), tmp_path, 1_500, events)
+    # Contact fermé au repos (aimant proche) : une détection au départ, puis une à chaque retour.
+    assert "Aimant détecté (3)" in out["serial"] and out["sounds"] > 0
+
+
+@needs_node
+def test_gas_sensor_preheats_then_compares_to_the_start(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("qualite-air-gaz")),
+        tmp_path,
+        until=70_000,
+        events=[[30_000, None, "mark", "chauffe"], [65_000, "capteur", "set", "level", 90]],
+    )
+    assert "Prechauffage" in json.dumps(out["marks"]["chauffe"]["parts"]["ecran"]["state"])
+    assert "Aerer !" in json.dumps(out["parts"]["ecran"]["state"])
+
+
+@needs_node
+def test_wifi_socket_routes(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("prise-wifi")),
+        tmp_path,
+        until=2_000,
+        events=[
+            [300, None, "request", "/on"],
+            [600, None, "mark", "on"],
+            [900, None, "request", "/"],
+        ],
+    )
+    assert out["marks"]["on"]["parts"]["prise"]["state"]["on"] is True
+    assert "Prise : allumee" in out["web"]["body"]
+
+
+@needs_node
+def test_mailbox_counts_and_resets(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("boite-aux-lettres")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [300, "volet", "set", "open", True],
+            [500, "volet", "set", "open", False],
+            [800, "volet", "set", "open", True],
+            [1_000, "volet", "set", "open", False],
+            [1_200, None, "request", "/"],
+            [1_400, None, "mark", "page"],
+            [1_600, None, "request", "/vu"],
+        ],
+    )
+    assert "Courrier : 2" in out["marks"]["page"]["web"]["body"]
+    assert "Courrier : 0" in json.dumps(out["parts"]["ecran"]["state"])
+
+
+@needs_node
+def test_rooms_dashboard_json(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("tableau-bord-pieces")),
+        tmp_path,
+        until=1_000,
+        events=[[300, None, "request", "/json"]],
+    )
+    donnees = json.loads(out["web"]["body"])
+    assert donnees["salon"]["temperature"] == 22.0 and donnees["chambre"]["pression"] == 1013.3
+
+
+@needs_node
+def test_home_assistant_json_endpoint(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("capteur-home-assistant")),
+        tmp_path,
+        until=1_000,
+        events=[[300, None, "request", "/json"]],
+    )
+    assert out["web"]["type"] == "application/json"
+    assert json.loads(out["web"]["body"]) == {
+        "temperature": 21.0,
+        "humidity": 45.0,
+        "pressure": 1013.3,
+    }
+
+
+@needs_node
+def test_flood_page_turns_red(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("inondation-telephone")),
+        tmp_path,
+        until=2_000,
+        events=[[300, "niveau", "set", "level", 70], [1_000, None, "request", "/"]],
+    )
+    assert "Eau detectee" in out["web"]["body"] and "#b42318" in out["web"]["body"]
+    assert out["sounds"] > 0
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))

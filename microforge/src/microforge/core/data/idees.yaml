@@ -178,11 +178,11 @@ themes:
     idees:
       - { titre: "Niveau à bulle électronique", template: niveau-a-bulle, difficulte: 2, composants: [mpu6050, ssd1306-i2c], description: "Inclinaison sur deux axes à l'écran." }
       - { titre: "Enregistreur de données sur carte SD", template: enregistreur-sd, difficulte: 3, composants: [dht22, ds3231-rtc, microsd-module], description: "Un relevé horodaté chaque minute dans un fichier CSV (à ouvrir avec Python)." }
-      - { titre: "Mesure de la vitesse du son", difficulte: 2, composants: [hc-sr04, ds18b20, ssd1306-i2c], description: "Compare la mesure à la théorie selon la température." }
-      - { titre: "Sismographe de bureau", difficulte: 3, composants: [mpu6050, microsd-module], description: "Enregistre les vibrations (pas, porte, machine à laver)." }
-      - { titre: "Courbe de refroidissement d'une tasse", difficulte: 2, composants: [ds18b20, microsd-module], description: "Vérifie la loi de Newton avec tes propres mesures." }
-      - { titre: "Détecteur de champ magnétique", difficulte: 1, composants: [reed-switch, buzzer], description: "Bip quand un aimant passe : idéal pour expliquer le magnétisme." }
-      - { titre: "Sonde de qualité de l'air (gaz)", difficulte: 2, composants: [mq2-gas, ssd1306-i2c], description: "Observe l'effet d'une fenêtre ouverte ou d'une cuisson." }
+      - { titre: "Mesure de la vitesse du son", template: vitesse-du-son, difficulte: 2, composants: [hc-sr04, ds18b20, ssd1306-i2c], description: "Compare la mesure à la théorie selon la température." }
+      - { titre: "Sismographe de bureau", template: sismographe-bureau, difficulte: 3, composants: [mpu6050, microsd-module], description: "Enregistre les vibrations (pas, porte, machine à laver)." }
+      - { titre: "Courbe de refroidissement d'une tasse", template: courbe-refroidissement, difficulte: 2, composants: [ds18b20, microsd-module], description: "Vérifie la loi de Newton avec tes propres mesures." }
+      - { titre: "Détecteur de champ magnétique", template: detecteur-magnetique, difficulte: 1, composants: [reed-switch, buzzer], description: "Bip quand un aimant passe : idéal pour expliquer le magnétisme." }
+      - { titre: "Sonde de qualité de l'air (gaz)", template: qualite-air-gaz, difficulte: 2, composants: [mq2-gas, ssd1306-i2c], description: "Observe l'effet d'une fenêtre ouverte ou d'une cuisson." }
       - { titre: "Lire 8 interrupteurs avec 3 broches (74HC165)", template: lecteur-8-interrupteurs, difficulte: 2, composants: [shift-register-74hc165, pushbutton], description: "Comprendre les registres à décalage en entrée." }
       - { titre: "Luxmètre de poche", template: luxmetre-bh1750, difficulte: 1, composants: [bh1750, ssd1306-i2c], description: "Assez de lumière pour lire ? Mesure-le en lux." }
       - { titre: "Télémètre laser au millimètre", template: telemetre-laser-vl53l0x, difficulte: 2, composants: [vl53l0x, ssd1306-i2c, pushbutton], description: "Mesure par temps de vol d'un laser, valeur figée d'un appui." }
@@ -195,11 +195,11 @@ themes:
     idees:
       - { titre: "Station météo Wi-Fi", template: station-meteo-web, difficulte: 3, wifi: true, composants: [dht22], description: "Page web consultable depuis le téléphone." }
       - { titre: "Horloge Wi-Fi (NTP)", template: horloge-ntp-oled, difficulte: 2, wifi: true, composants: [ssd1306-i2c], description: "L'heure exacte récupérée sur Internet." }
-      - { titre: "Prise commandée en Wi-Fi (basse tension)", difficulte: 2, wifi: true, composants: [relay-module-1ch], description: "Une page web pour allumer/éteindre un ruban LED 12 V." }
-      - { titre: "Boîte aux lettres connectée", difficulte: 2, wifi: true, composants: [reed-switch, ssd1306-i2c], description: "Le contact de la trappe signale le passage du facteur." }
-      - { titre: "Tableau de bord des pièces", difficulte: 3, wifi: true, composants: [dht22, bme280], description: "Plusieurs capteurs, une page web récapitulative." }
-      - { titre: "Capteur pour Home Assistant (ESPHome)", difficulte: 2, wifi: true, composants: [bme280], description: "Ton capteur apparaît tout seul dans Home Assistant." }
-      - { titre: "Alerte inondation sur téléphone", difficulte: 3, wifi: true, composants: [water-level-sensor, buzzer], description: "Sirène locale + notification sur le réseau Wi-Fi." }
+      - { titre: "Prise commandée en Wi-Fi (basse tension)", template: prise-wifi, difficulte: 2, wifi: true, composants: [relay-module-1ch], description: "Une page web pour allumer/éteindre un ruban LED 12 V." }
+      - { titre: "Boîte aux lettres connectée", template: boite-aux-lettres, difficulte: 2, wifi: true, composants: [reed-switch, ssd1306-i2c], description: "Le contact de la trappe signale le passage du facteur." }
+      - { titre: "Tableau de bord des pièces", template: tableau-bord-pieces, difficulte: 3, wifi: true, composants: [dht22, bme280], description: "Plusieurs capteurs, une page web récapitulative." }
+      - { titre: "Capteur pour Home Assistant", template: capteur-home-assistant, difficulte: 2, wifi: true, composants: [bme280], description: "Ton capteur apparaît tout seul dans Home Assistant." }
+      - { titre: "Alerte inondation sur téléphone", template: inondation-telephone, difficulte: 3, wifi: true, composants: [water-level-sensor, buzzer], description: "Sirène locale + notification sur le réseau Wi-Fi." }
 
   - id: cuisine
     titre: Cuisine

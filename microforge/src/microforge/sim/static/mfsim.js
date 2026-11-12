@@ -551,7 +551,7 @@
       this._spins = 0;
       this._debt = 0;
       this._random = rng(1);
-      this.web = { handlers: {}, page: null, requests: 0 };
+      this.web = { handlers: {}, page: null, requests: 0, queue: [] };
       this.parts = {};
       for (const def of opts.parts) {
         const p = new Part(this, def);
@@ -584,7 +584,8 @@
         async handleClient() {
           if (sim.web.requests > 0) {
             sim.web.requests -= 1;
-            const h = sim.web.handlers["/"];
+            const path = sim.web.queue.shift() || "/";
+            const h = sim.web.handlers[path] || sim.web.handlers["/"];
             if (h) await h();
           }
         }
@@ -708,7 +709,8 @@
     }
 
     /** Ouvre la page web du projet (station météo Wi-Fi…) : le prochain handleClient() y répond. */
-    request() {
+    request(path = "/") {
+      this.web.queue.push(path);
       this.web.requests += 1;
     }
 

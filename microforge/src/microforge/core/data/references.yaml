@@ -421,3 +421,36 @@ tete-robot:
 robot-infrarouge:
   - { site: ArduinoGetStarted, title: "Arduino - Car (L298N, télécommande infrarouge)", url: "https://arduinogetstarted.com/tutorials/arduino-car" }
   - { site: Instructables, title: "Simple CAR Arduino IR Controlled", url: "https://www.instructables.com/Simple-CAR-Arduino-IR-Controlled" }
+
+# Thèmes « Sciences & expériences » et « Objets connectés » (12/11/2026) : repérés par recherche
+# web (sites non joignables depuis l'environnement de préparation).
+vitesse-du-son:
+  - { site: Instructables, title: "Measuring the Speed of Sound With Arduino Microcontroller and Ultrasonic Sensor", url: "https://www.instructables.com/Measuring-the-speed-of-sound-with-Arduino-microcon" }
+  - { site: AmateurRadio.com, title: "Temperature compensation for an Arduino ultrasonic distance sensor", url: "https://www.amateurradio.com/temperature-compensation-for-an-arduino-ultrasonic-distance-sensor/", proche: true }
+sismographe-bureau:
+  - { site: Hackster, title: "Sensitive MPU6050 Seismometer with Data Logger", url: "https://www.hackster.io/mircemk/sensitive-mpu6050-seismometer-with-data-logger-9e6bf5" }
+  - { site: Instructables, title: "Simple Arduino 3-Axis Accelerometer Datalogger", url: "https://www.instructables.com/Simple-Arduino-3-Axis-Accelerometer-Datalogger", proche: true }
+courbe-refroidissement:
+  - { site: The Physics Teacher, title: "An Arduino Investigation of Newton's Law of Cooling (C. Galeriu, 2018, DS18B20)", url: "https://doi.org/10.1119/1.5080580" }
+  - { site: GitHub, title: "ds18b20-datalogger", url: "https://github.com/pointandyshoot/ds18b20-datalogger", proche: true }
+detecteur-magnetique:
+  - { site: Keyestudio, title: "Project 21 Magnetic Field Detector", url: "https://docs.keyestudio.com/projects/KS0158/en/latest/docs/2.%20Arduino/Project/Project21.html" }
+  - { site: Microcontrollers Lab, title: "Reed Switch Interfacing with Arduino – Magnetic Field Detection", url: "https://microcontrollerslab.com/reed-switch-arduino-field-dectection/" }
+qualite-air-gaz:
+  - { site: Instructables, title: "Smoke and Carbon Monoxide Detector Using Arduino, the MQ2 Gas Sensor and a OLED Display", url: "https://www.instructables.com/Smoke-and-Carbon-Monoxide-Detector-Using-Arduino-t" }
+  - { site: Circuit Digest, title: "How Does MQ-2 Flammable Gas and Smoke Sensor Work with Arduino?", url: "https://circuitdigest.com/microcontroller-projects/interfacing-mq2-gas-sensor-with-arduino", proche: true }
+prise-wifi:
+  - { site: Random Nerd Tutorials, title: "ESP32/ESP8266 Relay Module Web Server", url: "https://randomnerdtutorials.com/esp32-esp8266-relay-web-server" }
+  - { site: Microcontrollers Lab, title: "ESP32 Web Server Control Relay 220 volt lamp", url: "https://microcontrollerslab.com/esp32-web-server-control-relay-220-volt-lamp/", proche: true }
+boite-aux-lettres:
+  - { site: Adafruit, title: "WiFi Mailbox Notifier", url: "https://learn.adafruit.com/wifi-mailbox-notifier/overview", proche: true }
+  - { site: GitHub, title: "esp8266-mailbox (page web interne, journal)", url: "https://www.github.com/denis-stepanov/esp8266-mailbox", proche: true }
+tableau-bord-pieces:
+  - { site: Random Nerd Tutorials, title: "ESP32 Web Server with BME280", url: "https://randomnerdtutorials.com/esp32-web-server-with-bme280/", proche: true }
+  - { site: Microcontrollers Lab, title: "BME280 Web Server with ESP32 (weather station)", url: "https://microcontrollerslab.com/bme280-web-server-esp32-weather-station/", proche: true }
+capteur-home-assistant:
+  - { site: Microcontrollers Lab, title: "ESP32 REST API Web Server (GET, POST, Postman)", url: "https://microcontrollerslab.com/esp32-rest-api-web-server-get-post-postman/", proche: true }
+  - { site: Let's Control It, title: "ESP → Home Assistant avec un capteur RESTful (forum)", url: "https://www.letscontrolit.com/forum/viewtopic.php?p=10088", proche: true }
+inondation-telephone:
+  - { site: zero.altervista.org, title: "Showing temperature, humidity and water leak in the Web", url: "https://zero.altervista.org/esp_web_thermo", proche: true }
+  - { site: ESPHome, title: "ESP32 Water Leak Detector (with notification)", url: "https://esphome.io/cookbook/leak-detector-m5stickC/", proche: true }

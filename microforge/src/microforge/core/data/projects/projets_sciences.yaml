@@ -1,0 +1,127 @@
+# Modèles du thème « Sciences & expériences » (12/11/2026).
+
+- id: vitesse-du-son
+  title: Mesure de la vitesse du son
+  description: Un obstacle posé à 50 cm (mesurés à la règle) ; l'aller-retour de l'ultrason donne la vitesse du son, comparée sur l'écran à la valeur théorique à la température mesurée (331,3 + 0,606 × T m/s).
+  difficulty: 2
+  tags: [sciences, son, température, écran]
+  learning: [temps de vol, vitesse = distance / temps, influence de la température]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: sonde, component: ds18b20 }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    const float CIBLE_CM = 50.0;  // distance réelle de l'obstacle, mesurée à la règle
+  logic: |
+    // Le capteur convertit le temps d'aller-retour avec 343 m/s : on retrouve la vitesse réelle
+    // en comparant la distance affichée à la distance vraie.
+    float d = sonar_distance_cm();
+    float t = sonde_temperature();
+    if (d > 0 && !isnan(t) && t > -50) {
+      float v_mesure = 343.0 * CIBLE_CM / d;
+      float v_theorie = 331.3 + 0.606 * t;
+      ecran_print("Mesure : " + String(v_mesure, 0) + " m/s", "Theorie : " + String(v_theorie, 0) + " m/s", String(t, 1) + " C");
+      Serial.print(t);
+      Serial.print(";");
+      Serial.println(v_mesure);
+    } else {
+      ecran_print("Placer l'obstacle", "a 50 cm du capteur");
+    }
+    delay(1000);
+
+- id: sismographe-bureau
+  title: Sismographe de bureau
+  description: Posé sur la table, il enregistre l'inclinaison cinq fois par seconde sur la carte microSD (CSV) et signale les secousses (variation de plus de 2° d'une mesure à l'autre). Les vibrations d'une porte qui claque suffisent ; un vrai séisme demande un capteur bien plus sensible.
+  difficulty: 3
+  tags: [sciences, accéléromètre, enregistrement]
+  learning: [échantillonnage régulier, journal CSV, détection de variation]
+  parts:
+    - { name: capteur, component: mpu6050 }
+    - { name: carte, component: microsd-module }
+  globals_extra: |
+    float ancien_x = 0;
+    float ancien_y = 0;
+    bool premier = true;
+    int secousses = 0;
+  logic: |
+    float x = capteur_tilt_x();
+    float y = capteur_tilt_y();
+    carte_append("/sismo.csv", String(millis()) + ";" + String(x, 2) + ";" + String(y, 2));
+    if (!premier && (abs(x - ancien_x) > 2 || abs(y - ancien_y) > 2)) {
+      secousses++;
+      Serial.print("Secousse n° ");
+      Serial.println(secousses);
+    }
+    premier = false;
+    ancien_x = x;
+    ancien_y = y;
+    delay(200);
+
+- id: courbe-refroidissement
+  title: Courbe de refroidissement d'une tasse
+  description: La sonde plongée dans une tasse de thé chaud enregistre la température toutes les 10 secondes sur la carte microSD ; dans un tableur, la courbe suit la loi de refroidissement de Newton (décroissance exponentielle vers la température de la pièce).
+  difficulty: 2
+  tags: [sciences, température, enregistrement]
+  learning: [acquisition de données, loi de Newton, export CSV]
+  parts:
+    - { name: sonde, component: ds18b20 }
+    - { name: carte, component: microsd-module }
+  setup_extra: |
+    carte_append("/tasse.csv", "secondes;temperature");
+  logic: |
+    float t = sonde_temperature();
+    if (!isnan(t) && t > -50) {
+      String ligne = String(millis() / 1000) + ";" + String(t, 2);
+      if (!carte_append("/tasse.csv", ligne)) { Serial.println("Ecriture SD impossible"); }
+      Serial.println(ligne);
+    }
+    delay(10000);
+
+- id: detecteur-magnetique
+  title: Détecteur de champ magnétique
+  description: Promène le détecteur près d'objets — dès qu'un aimant (ou un haut-parleur, une porte de frigo) ferme le contact, il bipe ; le moniteur série compte les détections.
+  difficulty: 1
+  tags: [sciences, aimant, son, débutant]
+  learning: [interrupteur à lames souples, front de détection]
+  parts:
+    - { name: capteur, component: reed-switch }
+    - { name: bip, component: buzzer }
+  globals_extra: |
+    bool proche_avant = false;
+    int detections = 0;
+  logic: |
+    bool proche = !capteur_open();  // un aimant proche ferme le contact
+    if (proche && !proche_avant) {
+      detections++;
+      Serial.print("Aimant détecté (");
+      Serial.print(detections);
+      Serial.println(")");
+    }
+    if (proche) { bip_beep(1000, 80); }
+    proche_avant = proche;
+    delay(100);
+
+- id: qualite-air-gaz
+  title: Sonde de qualité de l'air (gaz)
+  description: Après une minute de préchauffage du capteur MQ-2, l'écran affiche le niveau de gaz combustibles et de fumée par rapport à l'air du départ — normal, à surveiller ou « aérer ». Indication relative, pas une mesure en ppm ni un détecteur de sécurité.
+  difficulty: 2
+  tags: [sciences, air, gaz, écran]
+  learning: [préchauffage d'un capteur, référence de départ, seuils relatifs]
+  parts:
+    - { name: capteur, component: mq2-gas }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    const unsigned long PRECHAUFFAGE_MS = 60000;
+    int reference = -1;  // niveau de l'air au départ
+  logic: |
+    if (millis() < PRECHAUFFAGE_MS) {
+      ecran_print("Prechauffage...", String((PRECHAUFFAGE_MS - millis()) / 1000) + " s");
+    } else {
+      int n = capteur_level_percent();
+      if (reference < 0) { reference = n; }
+      String etat = "Air normal";
+      if (n > reference + 10) { etat = "A surveiller"; }
+      if (n > reference + 30) { etat = "Aerer !"; }
+      ecran_print("Gaz : " + String(n) + " %", etat, "Depart : " + String(reference) + " %");
+    }
+    delay(1000);

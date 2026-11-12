@@ -1,0 +1,168 @@
+# Modèles du thème « Objets connectés (Wi-Fi) » (12/11/2026). Pages servies sur le réseau local.
+
+- id: prise-wifi
+  title: Prise commandée en Wi-Fi (basse tension)
+  description: Une page web, ouverte depuis le téléphone sur le réseau de la maison, allume ou éteint le relais (lampe 12 V, ruban LED, ventilateur basse tension). Pour le 230 V, une prise connectée certifiée.
+  difficulty: 2
+  tags: [wifi, web, relais]
+  learning: [serveur HTTP à plusieurs adresses, état partagé]
+  requires_wifi: true
+  parts:
+    - { name: prise, component: relay-module-1ch }
+  globals_extra: |
+    MFWebServer serveur(80);
+    bool allumee = false;
+  setup_extra: |
+    serveur.on("/", []() {
+      serveur.send(200, "text/html", String("<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width'><title>Prise</title></head><body>"
+        "<h1>Prise : ") + (allumee ? "allumee" : "eteinte") +
+        "</h1><p><a href='/on'>Allumer</a> - <a href='/off'>Eteindre</a></p></body></html>");
+    });
+    serveur.on("/on", []() {
+      allumee = true;
+      prise_on();
+      serveur.send(200, "text/html", "<p>Prise allumee. <a href='/'>Retour</a></p>");
+    });
+    serveur.on("/off", []() {
+      allumee = false;
+      prise_off();
+      serveur.send(200, "text/html", "<p>Prise eteinte. <a href='/'>Retour</a></p>");
+    });
+    serveur.begin();
+    Serial.print("Page : http://");
+    Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    delay(2);
+
+- id: boite-aux-lettres
+  title: Boîte aux lettres connectée
+  description: Le contact magnétique sur le volet compte le courrier ; l'écran l'affiche et une page web aussi, consultable depuis la maison. « J'ai relevé » (adresse /vu) remet le compteur à zéro.
+  difficulty: 2
+  tags: [wifi, web, aimant, écran]
+  learning: [front d'ouverture, serveur HTTP, remise à zéro à distance]
+  requires_wifi: true
+  parts:
+    - { name: volet, component: reed-switch }
+    - { name: ecran, component: ssd1306-i2c }
+  globals_extra: |
+    MFWebServer serveur(80);
+    int lettres = 0;
+    bool ouvert_avant = false;
+  setup_extra: |
+    serveur.on("/", []() {
+      serveur.send(200, "text/html", "<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width'><title>Courrier</title></head><body><h1>Courrier : " +
+        String(lettres) + "</h1><p><a href='/vu'>J'ai releve</a></p></body></html>");
+    });
+    serveur.on("/vu", []() {
+      lettres = 0;
+      serveur.send(200, "text/html", "<p>Compteur remis a zero. <a href='/'>Retour</a></p>");
+    });
+    serveur.begin();
+    Serial.print("Page : http://");
+    Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    bool ouvert = volet_open();
+    if (ouvert && !ouvert_avant) {
+      lettres++;
+      Serial.println("Du courrier !");
+    }
+    ouvert_avant = ouvert;
+    ecran_print("Courrier : " + String(lettres), "", "", true);
+    delay(50);
+
+- id: tableau-bord-pieces
+  title: Tableau de bord des pièces
+  description: Deux pièces suivies — le DHT22 au salon, le BME280 dans la chambre (avec la pression) ; une page web les affiche côte à côte et l'adresse /json donne les mêmes valeurs pour un tableur ou un autre programme.
+  difficulty: 3
+  tags: [wifi, web, température, humidité]
+  learning: [plusieurs capteurs, page HTML et JSON, bus I2C et 1 fil]
+  requires_wifi: true
+  parts:
+    - { name: salon, component: dht22 }
+    - { name: chambre, component: bme280 }
+  globals_extra: |
+    MFWebServer serveur(80);
+  setup_extra: |
+    serveur.on("/", []() {
+      serveur.send(200, "text/html", "<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width'><meta http-equiv='refresh' content='30'>"
+        "<title>Maison</title></head><body><h1>Maison</h1><h2>Salon</h2><p>" + String(salon_temperature(), 1) +
+        " &deg;C, " + String(salon_humidity(), 0) + " %</p><h2>Chambre</h2><p>" + String(chambre_temperature(), 1) +
+        " &deg;C, " + String(chambre_humidity(), 0) + " %, " + String(chambre_pressure_hpa(), 0) + " hPa</p></body></html>");
+    });
+    serveur.on("/json", []() {
+      serveur.send(200, "application/json", "{\"salon\":{\"temperature\":" + String(salon_temperature(), 1) +
+        ",\"humidite\":" + String(salon_humidity(), 0) + "},\"chambre\":{\"temperature\":" +
+        String(chambre_temperature(), 1) + ",\"humidite\":" + String(chambre_humidity(), 0) +
+        ",\"pression\":" + String(chambre_pressure_hpa(), 1) + "}}");
+    });
+    serveur.begin();
+    Serial.print("Page : http://");
+    Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    delay(2);
+
+- id: capteur-home-assistant
+  title: Capteur pour Home Assistant
+  description: Le BME280 publie température, humidité et pression à l'adresse /json ; Home Assistant les lit avec son intégration « RESTful sensor » (resource http://<adresse>/json, value_template {{ value_json.temperature }}). Une alternative légère à ESPHome, dans l'Arduino que génère MicroForge.
+  difficulty: 2
+  tags: [wifi, web, domotique, json]
+  learning: [API JSON minimale, interrogation périodique par un serveur domotique]
+  requires_wifi: true
+  parts:
+    - { name: capteur, component: bme280 }
+  globals_extra: |
+    MFWebServer serveur(80);
+  setup_extra: |
+    serveur.on("/json", []() {
+      serveur.send(200, "application/json", "{\"temperature\":" + String(capteur_temperature(), 1) +
+        ",\"humidity\":" + String(capteur_humidity(), 1) + ",\"pressure\":" + String(capteur_pressure_hpa(), 1) + "}");
+    });
+    serveur.on("/", []() {
+      serveur.send(200, "text/html", "<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>Capteur</title></head>"
+        "<body><p>Valeurs pour Home Assistant : <a href='/json'>/json</a></p></body></html>");
+    });
+    serveur.begin();
+    Serial.print("JSON : http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("/json");
+  logic: |
+    serveur.handleClient();
+    delay(2);
+
+- id: inondation-telephone
+  title: Alerte inondation sur téléphone
+  description: Posé au sol près du chauffe-eau, il sonne dès que l'eau arrive ; la page web, ouverte sur le téléphone, se rafraîchit toutes les 10 secondes et passe au rouge en cas d'eau. Pour être prévenu hors de la maison, un service de notification (ntfy, Home Assistant) est à ajouter.
+  difficulty: 3
+  tags: [wifi, web, eau, son]
+  learning: [page qui se rafraîchit, alarme locale et à distance]
+  requires_wifi: true
+  parts:
+    - { name: niveau, component: water-level-sensor }
+    - { name: sirene, component: buzzer }
+  globals_extra: |
+    MFWebServer serveur(80);
+    bool eau = false;
+  setup_extra: |
+    serveur.on("/", []() {
+      serveur.send(200, "text/html", String("<!doctype html><html lang='fr'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width'><meta http-equiv='refresh' content='10'>"
+        "<title>Inondation</title></head><body style='background:") + (eau ? "#b42318" : "#186a30") +
+        ";color:#fff'><h1>" + (eau ? "Eau detectee !" : "Rien a signaler") + "</h1></body></html>");
+    });
+    serveur.begin();
+    Serial.print("Page : http://");
+    Serial.println(WiFi.localIP());
+  logic: |
+    serveur.handleClient();
+    eau = niveau_wet();
+    if (eau) {
+      sirene_beep(2500, 200);
+      delay(300);
+    }
+    delay(2);

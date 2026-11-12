@@ -243,7 +243,7 @@ def test_parcours_pwa_dans_un_navigateur(pwa, tmp_path):
         "stock",
         "explorer",
         "projet",
-        "idée sans modèle",
+        "thème complet",
         "créer",
         "atelier",
         "copilote",
