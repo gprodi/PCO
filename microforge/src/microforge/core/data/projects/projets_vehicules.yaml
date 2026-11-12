@@ -1,0 +1,149 @@
+# Modèles du thème « Véhicules, vélo & trottinette » (12/11/2026).
+
+- id: aide-stationnement
+  title: Aide au stationnement à LED
+  description: Fixée au fond du garage face à la voiture, la couronne se remplit du vert au rouge à mesure qu'on approche ; sous 10 cm elle clignote en rouge — stop.
+  difficulty: 2
+  tags: [véhicules, distance, lumière]
+  learning: [correspondance distance → jauge, alerte clignotante]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: jauge, component: ws2812-ring-12 }
+  globals_extra: |
+    bool allume = false;
+  logic: |
+    float d = sonar_distance_cm();
+    if (d < 0 || d > 150) {
+      jauge_fill(0, 0, 0);  // personne : éteint
+    } else if (d < 10) {
+      allume = !allume;
+      if (allume) { jauge_fill(255, 0, 0); } else { jauge_fill(0, 0, 0); }
+    } else {
+      jauge_gauge(map((int)d, 150, 10, 0, 100));  // plus près = plus de LED, du vert au rouge
+    }
+    delay(150);
+
+- id: depassement-velo
+  title: Mesure de dépassement à vélo
+  description: Le capteur, tourné vers la gauche du vélo, mesure chaque dépassement ; la distance la plus courte de chaque passage est notée sur la carte microSD (CSV) et l'écran compte ceux à moins de 1,5 m. Le bouton ajoute un repère dans le fichier.
+  difficulty: 3
+  tags: [vélo, sécurité, distance, enregistrement]
+  learning: [minimum d'un évènement, journal CSV, détection de début et de fin]
+  parts:
+    - { name: sonar, component: hc-sr04 }
+    - { name: ecran, component: ssd1306-i2c }
+    - { name: repere, component: pushbutton }
+    - { name: carte, component: microsd-module }
+  globals_extra: |
+    const int SEUIL_CM = 150;  // 1,5 m hors agglomération (1 m en ville)
+    bool en_passage = false;
+    float minimum = 999;
+    int passages = 0;
+    int trop_pres = 0;
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < 300) {
+      en_passage = true;
+      if (d < minimum) { minimum = d; }
+    } else if (en_passage) {
+      // Fin du passage : on garde la distance la plus courte.
+      passages++;
+      if (minimum < SEUIL_CM) { trop_pres++; }
+      String ligne = String(millis()) + ";" + String(minimum, 0);
+      if (!carte_append("/passages.csv", ligne)) { Serial.println("Ecriture SD impossible"); }
+      ecran_print("Dernier : " + String(minimum, 0) + " cm", "Passages : " + String(passages), "Trop pres : " + String(trop_pres));
+      en_passage = false;
+      minimum = 999;
+    }
+    if (repere_clicked()) {
+      carte_append("/passages.csv", String(millis()) + ";repere");
+    }
+    delay(30);
+
+- id: clignotants-sac
+  title: Clignotants de sac à dos
+  description: Deux boutons sur les bretelles affichent une flèche clignotante à gauche ou à droite sur la matrice au dos ; un second appui l'éteint.
+  difficulty: 2
+  tags: [vélo, sécurité, matrice]
+  learning: [dessins en tableaux d'octets, clignotement avec millis(), état partagé entre deux boutons]
+  parts:
+    - { name: gauche, component: pushbutton }
+    - { name: droite, component: pushbutton }
+    - { name: matrice, component: max7219-matrix }
+  globals_extra: |
+    const byte FLECHE_G[8] = {0x10, 0x30, 0x7F, 0xFF, 0xFF, 0x7F, 0x30, 0x10};
+    const byte FLECHE_D[8] = {0x08, 0x0C, 0xFE, 0xFF, 0xFF, 0xFE, 0x0C, 0x08};
+    int sens = 0;  // -1 gauche, 1 droite, 0 rien
+  logic: |
+    if (gauche_clicked()) { sens = (sens == -1) ? 0 : -1; }
+    if (droite_clicked()) { sens = (sens == 1) ? 0 : 1; }
+    if (sens != 0 && (millis() / 400) % 2 == 0) {
+      if (sens < 0) { matrice_show(FLECHE_G); } else { matrice_show(FLECHE_D); }
+    } else {
+      matrice_clear();
+    }
+    delay(20);
+
+- id: feu-freinage
+  title: Feu arrière qui détecte le freinage
+  description: Feu arrière rouge tamisé ; au freinage, la décélération fait basculer la mesure de l'accéléromètre vers l'avant et le feu s'intensifie pendant une seconde. À régler selon la position du boîtier ; il ne remplace pas l'éclairage obligatoire.
+  difficulty: 3
+  tags: [vélo, sécurité, accéléromètre, lumière]
+  learning: [accélération apparente, position de repos, seuil et maintien]
+  parts:
+    - { name: capteur, component: mpu6050 }
+    - { name: feu, component: ws2812-ring-12 }
+    - { name: piles, component: battery-holder-4aa }
+  globals_extra: |
+    float repos = 0;  // inclinaison mesurée à l'arrêt, au démarrage
+    unsigned long freinage = 0;
+    bool freine = false;
+  setup_extra: |
+    delay(500);
+    repos = capteur_tilt_y();
+  logic: |
+    if (capteur_tilt_y() - repos > 8) {  // décélération : la gravité apparente penche vers l'avant
+      freine = true;
+      freinage = millis();
+    }
+    if (freine && millis() - freinage > 1000) {
+      freine = false;
+    }
+    if (freine) { feu_fill(255, 0, 0); } else { feu_fill(40, 0, 0); }
+    delay(20);
+
+- id: compteur-tours-roue
+  title: Compteur de tours de roue
+  description: Un aimant sur un rayon passe devant le contact magnétique à chaque tour ; l'afficheur donne la vitesse en km/h (roue de 2,1 m de tour) et le moniteur série la distance parcourue.
+  difficulty: 2
+  tags: [vélo, aimant, vitesse, afficheur]
+  learning: [front d'un contact, période entre deux impulsions, conversion d'unités]
+  parts:
+    - { name: aimant, component: reed-switch }
+    - { name: afficheur, component: tm1637-display }
+  globals_extra: |
+    const float TOUR_M = 2.1;  // circonférence de la roue (700×28C ≈ 2,1 m), à mesurer
+    bool ferme_avant = false;
+    unsigned long dernier_tour = 0;
+    long tours = 0;
+  setup_extra: |
+    afficheur_number(0);
+  logic: |
+    bool ferme = !aimant_open();  // l'aimant ferme le contact en passant
+    if (ferme && !ferme_avant) {
+      unsigned long maintenant = millis();
+      if (tours > 0 && maintenant - dernier_tour > 50) {
+        float kmh = TOUR_M / ((maintenant - dernier_tour) / 1000.0) * 3.6;
+        afficheur_number((int)(kmh + 0.5));
+        Serial.print("Distance : ");
+        Serial.print(tours * TOUR_M / 1000.0);
+        Serial.println(" km");
+      }
+      tours++;
+      dernier_tour = maintenant;
+    }
+    ferme_avant = ferme;
+    if (tours > 0 && millis() - dernier_tour > 3000) {
+      afficheur_number(0);  // arrêté
+    }
+    delay(2);

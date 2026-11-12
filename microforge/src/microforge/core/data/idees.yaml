@@ -96,11 +96,11 @@ themes:
       - { titre: "Tourelle pan/tilt au joystick", template: tourelle-joystick, difficulte: 2, composants: [joystick-analog, sg90-servo], description: "Deux servos pilotés par un joystick." }
       - { titre: "Servo piloté par potentiomètre", template: servo-potentiometre, difficulte: 1, composants: [potentiometer-10k, sg90-servo], description: "Premier pas avec les servomoteurs." }
       - { titre: "Positionneur pas à pas", template: moteur-pas-a-pas-potar, difficulte: 2, composants: [stepper-28byj48, potentiometer-10k], description: "Le moteur suit la position du bouton." }
-      - { titre: "Suiveur de lumière", difficulte: 2, composants: [ldr-module, sg90-servo], description: "Un panneau (ou une tête de robot) qui se tourne vers la lumière." }
-      - { titre: "Bras robotique à 2 axes", difficulte: 3, composants: [sg90-servo, potentiometer-10k], description: "Deux servos commandés par deux potentiomètres." }
-      - { titre: "Robot sumo", difficulte: 3, composants: [l298n-driver, dc-motor-tt, hc-sr04, tcrt5000-line, battery-holder-4aa], description: "Trouve l'adversaire au sonar et reste dans l'arène grâce au capteur de ligne." }
-      - { titre: "Tête de robot expressive", difficulte: 2, composants: [max7219-matrix, sg90-servo, hc-sr04], description: "Les yeux sur matrice LED suivent et réagissent quand on s'approche." }
-      - { titre: "Robot télécommandé infrarouge", difficulte: 3, composants: [ir-receiver, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Pilote le châssis avec une télécommande de TV." }
+      - { titre: "Suiveur de lumière", template: suiveur-lumiere, difficulte: 2, composants: [ldr-module, sg90-servo], description: "Un panneau (ou une tête de robot) qui se tourne vers la lumière." }
+      - { titre: "Bras robotique à 2 axes", template: bras-deux-axes, difficulte: 3, composants: [sg90-servo, potentiometer-10k], description: "Deux servos commandés par deux potentiomètres." }
+      - { titre: "Robot sumo", template: robot-sumo, difficulte: 3, composants: [l298n-driver, dc-motor-tt, hc-sr04, tcrt5000-line, battery-holder-4aa], description: "Trouve l'adversaire au sonar et reste dans l'arène grâce au capteur de ligne." }
+      - { titre: "Tête de robot expressive", template: tete-robot, difficulte: 2, composants: [max7219-matrix, sg90-servo, hc-sr04], description: "Les yeux sur matrice LED suivent et réagissent quand on s'approche." }
+      - { titre: "Robot télécommandé infrarouge", template: robot-infrarouge, difficulte: 3, composants: [ir-receiver, l298n-driver, dc-motor-tt, battery-holder-4aa], description: "Pilote le châssis avec une télécommande de TV." }
       - { titre: "Moteur à vitesse réglable (TIP120)", template: moteur-vitesse-tip120, difficulte: 2, composants: [dc-motor-tt, darlington-tip120, diode-1n4007, potentiometer-10k], description: "La base de tout robot : un moteur piloté en PWM par un transistor." }
       - { titre: "Robot qui suit ta main", template: robot-suiveur-tb6612, difficulte: 3, composants: [tb6612fng-driver, hc-sr04, dc-motor-tt, battery-holder-4aa], description: "Garde 15 cm d'écart : il avance quand ta main s'éloigne." }
 
@@ -111,11 +111,11 @@ themes:
     idees:
       - { titre: "Radar de recul", template: radar-de-recul, difficulte: 1, composants: [hc-sr04, buzzer, led], description: "Bips de plus en plus rapides près d'un obstacle (garage)." }
       - { titre: "Barrière de parking", template: barriere-servo, difficulte: 1, composants: [pushbutton, sg90-servo], description: "Un bouton lève et baisse la barrière (maquette de parking, portail miniature)." }
-      - { titre: "Aide au stationnement à LED", difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "Vert, orange, rouge : la voiture s'arrête pile au bon endroit." }
-      - { titre: "Mesure de dépassement à vélo", difficulte: 3, composants: [hc-sr04, ssd1306-i2c, pushbutton, microsd-module], description: "Comme OpenBikeSensor : mesure à quelle distance les voitures te doublent." }
-      - { titre: "Clignotants de sac à dos", difficulte: 2, composants: [max7219-matrix, pushbutton], description: "Deux boutons au guidon, une flèche qui clignote dans le dos." }
-      - { titre: "Feu arrière qui détecte le freinage", difficulte: 3, composants: [mpu6050, ws2812-ring-12, battery-holder-4aa], description: "S'illumine plus fort quand le vélo ralentit." }
-      - { titre: "Compteur de tours de roue", difficulte: 2, composants: [reed-switch, tm1637-display], description: "Un aimant sur un rayon : vitesse et distance parcourue." }
+      - { titre: "Aide au stationnement à LED", template: aide-stationnement, difficulte: 2, composants: [hc-sr04, ws2812-ring-12], description: "Vert, orange, rouge : la voiture s'arrête pile au bon endroit." }
+      - { titre: "Mesure de dépassement à vélo", template: depassement-velo, difficulte: 3, composants: [hc-sr04, ssd1306-i2c, pushbutton, microsd-module], description: "Comme OpenBikeSensor : mesure à quelle distance les voitures te doublent." }
+      - { titre: "Clignotants de sac à dos", template: clignotants-sac, difficulte: 2, composants: [max7219-matrix, pushbutton], description: "Deux boutons au guidon, une flèche qui clignote dans le dos." }
+      - { titre: "Feu arrière qui détecte le freinage", template: feu-freinage, difficulte: 3, composants: [mpu6050, ws2812-ring-12, battery-holder-4aa], description: "S'illumine plus fort quand le vélo ralentit." }
+      - { titre: "Compteur de tours de roue", template: compteur-tours-roue, difficulte: 2, composants: [reed-switch, tm1637-display], description: "Un aimant sur un rayon : vitesse et distance parcourue." }
 
   - id: musique
     titre: Musique & son

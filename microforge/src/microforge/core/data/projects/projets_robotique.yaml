@@ -1,0 +1,140 @@
+# Modèles du thème « Robots & mouvement » (12/11/2026).
+
+- id: suiveur-lumiere
+  title: Suiveur de lumière
+  description: Deux photorésistances séparées par une petite cloison comparent la lumière à gauche et à droite ; le servo tourne vers le côté le plus éclairé (principe des suiveurs solaires à un axe).
+  difficulty: 2
+  tags: [robot, lumière, servo]
+  learning: [comparaison de deux capteurs, zone morte, asservissement simple]
+  parts:
+    - { name: ldr_gauche, component: ldr-module }
+    - { name: ldr_droite, component: ldr-module }
+    - { name: tourelle, component: sg90-servo }
+  globals_extra: |
+    int angle = 90;
+    const int TOLERANCE = 5;  // % : en dessous, on ne bouge pas (évite les tremblements)
+  setup_extra: |
+    tourelle_angle(angle);
+  logic: |
+    int ecart = ldr_gauche_light_percent() - ldr_droite_light_percent();
+    if (ecart > TOLERANCE && angle < 180) { angle += 2; }
+    if (ecart < -TOLERANCE && angle > 0) { angle -= 2; }
+    tourelle_angle(angle);
+    delay(40);
+
+- id: bras-deux-axes
+  title: Bras robotique à 2 axes
+  description: Deux potentiomètres pilotent l'épaule et le coude du bras ; les servos suivent en douceur (quelques degrés à la fois). Servos alimentés à part en 5 V, masse commune.
+  difficulty: 3
+  tags: [robot, servo, potentiomètre]
+  learning: [commande proportionnelle, mouvement lissé, alimentation des servos]
+  parts:
+    - { name: commande_epaule, component: potentiometer-10k }
+    - { name: commande_coude, component: potentiometer-10k }
+    - { name: epaule, component: sg90-servo }
+    - { name: coude, component: sg90-servo }
+  globals_extra: |
+    int a_epaule = 90;
+    int a_coude = 90;
+  logic: |
+    int c1 = map(commande_epaule_percent(), 0, 100, 0, 180);
+    int c2 = map(commande_coude_percent(), 0, 100, 0, 180);
+    a_epaule += constrain(c1 - a_epaule, -3, 3);  // 3° au plus par pas : mouvement doux
+    a_coude += constrain(c2 - a_coude, -3, 3);
+    epaule_angle(a_epaule);
+    coude_angle(a_coude);
+    delay(15);
+
+- id: robot-sumo
+  title: Robot sumo
+  description: Sur un ring noir bordé de blanc, le robot tourne sur lui-même pour chercher l'adversaire, fonce dès qu'il le voit à moins de 40 cm et recule puis pivote quand son capteur du dessous quitte le noir (bord du ring).
+  difficulty: 3
+  tags: [robot, moteurs, distance, compétition]
+  learning: [priorités de comportement, pont en H, capteur de ligne]
+  parts:
+    - { name: moteurs, component: l298n-driver }
+    - { name: roue_gauche, component: dc-motor-tt }
+    - { name: roue_droite, component: dc-motor-tt }
+    - { name: radar, component: hc-sr04 }
+    - { name: sol, component: tcrt5000-line }
+    - { name: piles, component: battery-holder-4aa }
+  setup_extra: |
+    delay(3000);  // règle du sumo : 3 secondes avant de bouger
+  logic: |
+    if (!sol_on_line()) {
+      // Bord blanc : priorité absolue, on rentre dans le ring.
+      moteurs_motors(-220, -220);
+      delay(300);
+      moteurs_motors(200, -200);
+      delay(250);
+    } else {
+      float d = radar_distance_cm();
+      if (d > 0 && d < 40) {
+        moteurs_motors(255, 255);  // attaque
+      } else {
+        moteurs_motors(150, -150);  // recherche en tournant
+      }
+    }
+    delay(20);
+
+- id: tete-robot
+  title: Tête de robot expressive
+  description: Les yeux de la matrice clignent et la tête (servo) regarde lentement à gauche et à droite ; quand quelqu'un approche à moins de 50 cm, elle se tourne vers lui avec de grands yeux étonnés.
+  difficulty: 2
+  tags: [robot, matrice, servo, distance]
+  learning: [expressions en tableaux d'octets, balayage, réaction à la distance]
+  parts:
+    - { name: yeux, component: max7219-matrix }
+    - { name: cou, component: sg90-servo }
+    - { name: sonar, component: hc-sr04 }
+  globals_extra: |
+    const byte OUVERTS[8] = {0x00, 0x66, 0x66, 0x66, 0x00, 0x00, 0x00, 0x00};
+    const byte FERMES[8] = {0x00, 0x00, 0x00, 0x66, 0x00, 0x00, 0x00, 0x00};
+    const byte ETONNES[8] = {0xE7, 0xA5, 0xA5, 0xE7, 0x00, 0x18, 0x18, 0x00};
+    int angle = 90;
+    int pas = 1;
+  logic: |
+    float d = sonar_distance_cm();
+    if (d > 0 && d < 50) {
+      yeux_show(ETONNES);
+      cou_angle(90);  // il fait face
+      angle = 90;
+    } else {
+      angle += pas;
+      if (angle >= 140 || angle <= 40) { pas = -pas; }
+      cou_angle(angle);
+      if ((millis() / 100) % 40 == 0) { yeux_show(FERMES); } else { yeux_show(OUVERTS); }  // clignement
+    }
+    delay(40);
+
+- id: robot-infrarouge
+  title: Robot télécommandé infrarouge
+  description: Avec une télécommande infrarouge à flèches — haut pour avancer, bas pour reculer, gauche et droite pour pivoter, OK pour s'arrêter. Les codes s'affichent dans le moniteur série pour adapter une autre télécommande.
+  difficulty: 3
+  tags: [robot, moteurs, infrarouge]
+  learning: [codes infrarouges NEC, pont en H, commande par évènements]
+  parts:
+    - { name: recepteur, component: ir-receiver }
+    - { name: moteurs, component: l298n-driver }
+    - { name: roue_gauche, component: dc-motor-tt }
+    - { name: roue_droite, component: dc-motor-tt }
+    - { name: piles, component: battery-holder-4aa }
+  globals_extra: |
+    // Codes de la télécommande à 17 touches courante (à lire dans le moniteur série).
+    const int HAUT = 70;
+    const int BAS = 21;
+    const int GAUCHE = 68;
+    const int DROITE = 67;
+    const int OK = 64;
+  logic: |
+    int code = recepteur_command();
+    if (code != 0) {
+      Serial.print("Code : ");
+      Serial.println(code);
+      if (code == HAUT) { moteurs_motors(200, 200); }
+      else if (code == BAS) { moteurs_motors(-200, -200); }
+      else if (code == GAUCHE) { moteurs_motors(-160, 160); }
+      else if (code == DROITE) { moteurs_motors(160, -160); }
+      else if (code == OK) { moteurs_stop(); }
+    }
+    delay(20);

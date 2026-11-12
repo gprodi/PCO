@@ -388,3 +388,36 @@ coherence-cardiaque:
 corde-a-sauter:
   - { site: Random Nerd Tutorials, title: "Arduino Guide for MPU-6050 Accelerometer and Gyroscope Sensor", url: "https://randomnerdtutorials.com/arduino-mpu-6050-accelerometer-gyroscope/", proche: true }
   - { site: Arduino Forum, title: "Using ADXL345 accelerometer to count bounces of a pogo stick", url: "https://forum.arduino.cc/t/using-adxl345-3-axis-accelerometer-arduino-nano-to-count-bounces-of-a-pogo-stick/221615", proche: true }
+
+# Thèmes « Véhicules » et « Robots & mouvement » (12/11/2026) : repérés par recherche web (sites
+# non joignables depuis l'environnement de préparation).
+aide-stationnement:
+  - { site: Instructables, title: "LED Ring Distance Sensor", url: "https://www.instructables.com/LED-Ring-Distance-Sensor" }
+  - { site: MySensors, title: "Parking Sensor", url: "https://mysensors.org/build/parking" }
+depassement-velo:
+  - { site: Dr Ian Walker, title: "Build an overtaking sensor (distance minimale par passage, CSV sur carte SD)", url: "https://drianwalker.com/overtaking/buildasensor.html" }
+  - { site: Hackaday, title: "OpenBikeSensor Measures Close Calls", url: "https://hackaday.com/2022/02/05/openbikesensor-measures-close-calls", proche: true }
+clignotants-sac:
+  - { site: Hackaday, title: "Animated Bluetooth Bike Turn Signals (MAX7219)", url: "https://hackaday.com/2018/05/24/animated-bluetooth-bike-turn-signals", proche: true }
+  - { site: Instructables, title: "Bicycle Backlight With Arduino", url: "https://www.instructables.com/Bicycle-Backlight-With-Arduino", proche: true }
+feu-freinage:
+  - { site: Instructables, title: "Bicycle Automatic Brake Lights", url: "https://www.instructables.com/Bicycle-Automatic-Brake-Lights", proche: true }
+  - { site: Adafruit, title: "Circuit Playground Bluefruit Automatic Bike Brake Light", url: "https://learn.adafruit.com/circuit-playground-bluefruit-brake-light", proche: true }
+compteur-tours-roue:
+  - { site: Arduino Project Hub, title: "Arduino + LCD Display as a Bicycle Speedometer", url: "https://projecthub.arduino.cc/CesareBrizio/arduino-lcd-display-as-a-bicycle-speedometer-dba808", proche: true }
+  - { site: Instructables, title: "DIY Bike Speedometer W/ Reed Switch & Wifi Kit 8", url: "https://www.instructables.com/DIY-Bike-Speedometer-W-Reed-Switch-Wifi-Kit-8", proche: true }
+suiveur-lumiere:
+  - { site: Circuit Digest, title: "Sun Tracking Solar Panel using Arduino", url: "https://circuitdigest.com/microcontroller-projects/arduino-solar-panel-tracker" }
+  - { site: SunFounder, title: "Light Tracker 2.0", url: "https://docs.sunfounder.com/projects/summary-of-fun-projects/en/latest/arduino/light_tracker2.0.html" }
+bras-deux-axes:
+  - { site: Instructables, title: "2 Potentiometers & 2 Servos: Controlled Motion With Arduino", url: "https://www.instructables.com/2-Potentiometers-2-Servos-Controlled-Motion-With-A" }
+  - { site: Instructables, title: "Robotic Arm Controlled by Potentiometers and Arduino (Servo Motor Control)", url: "https://www.instructables.com/Robotic-Arm-Controlled-by-Potentiometers-and-Ardui", proche: true }
+robot-sumo:
+  - { site: Instructables, title: "Arduino Sumo Robot", url: "https://www.instructables.com/How-to-Make-Arduino-Sumo-Robot/" }
+  - { site: RobotShop Community, title: "Arduino Sumo Robot", url: "https://community.robotshop.com/robots/show/arduino-sumo-robot", proche: true }
+tete-robot:
+  - { site: Instructables, title: "Brobot: the Emotionally Responsive Robot", url: "https://www.instructables.com/Emotionally-Responsive-Robot", proche: true }
+  - { site: Arduino Blog, title: "This motion-tracking face follows you across the room", url: "https://blog.arduino.cc/2019/06/05/this-motion-tracking-face-follows-you-across-the-room/", proche: true }
+robot-infrarouge:
+  - { site: ArduinoGetStarted, title: "Arduino - Car (L298N, télécommande infrarouge)", url: "https://arduinogetstarted.com/tutorials/arduino-car" }
+  - { site: Instructables, title: "Simple CAR Arduino IR Controlled", url: "https://www.instructables.com/Simple-CAR-Arduino-IR-Controlled" }

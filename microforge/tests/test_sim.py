@@ -1182,6 +1182,152 @@ def test_jump_rope_counts_turns(tmp_path):
     assert out["parts"]["afficheur"]["state"]["text"] == "   3"
 
 
+# ---------------------------------------------------------------- « Véhicules » et « Robots »
+@needs_node
+def test_parking_aid(tmp_path):
+    payload = simulation_payload(CAT, _spec("aide-stationnement"))
+    mi = run(payload, tmp_path, 1_000, [[0, "sonar", "set", "distance", 80]])
+    assert _lit(mi["parts"]["jauge"]) == 6
+    marks = [[1_000 + 150 * i, None, "mark", f"m{i}"] for i in range(4)]
+    stop = run(payload, tmp_path, 2_000, [[0, "sonar", "set", "distance", 5], *marks])
+    assert {_lit(stop["marks"][f"m{i}"]["parts"]["jauge"]) for i in range(4)} == {0, 12}
+
+
+@needs_node
+def test_overtaking_logger_keeps_the_closest_distance(tmp_path):
+    seq = [(0, 450), (1_000, 120), (1_100, 90), (1_200, 130), (1_300, 450)]
+    out = run(
+        simulation_payload(CAT, _spec("depassement-velo")),
+        tmp_path,
+        until=2_000,
+        events=[[ms, "sonar", "set", "distance", d] for ms, d in seq],
+    )
+    assert out["parts"]["carte"]["state"]["files"]["/passages.csv"].strip().endswith(";90")
+    # La première mesure (50 cm par défaut, avant le premier évènement) compte comme un passage.
+    assert "Dernier : 90 cm" in json.dumps(out["parts"]["ecran"]["state"], ensure_ascii=False)
+
+
+@needs_node
+def test_backpack_indicator_blinks_the_left_arrow(tmp_path):
+    marks = [[500 + 100 * i, None, "mark", f"m{i}"] for i in range(10)]
+    out = run(
+        simulation_payload(CAT, _spec("clignotants-sac")),
+        tmp_path,
+        until=1_600,
+        events=[*_click("gauche", 100), *marks],
+    )
+    rows = [tuple(out["marks"][f"m{i}"]["parts"]["matrice"]["state"]["rows"]) for i in range(10)]
+    assert (0x10, 0x30, 0x7F, 0xFF, 0xFF, 0x7F, 0x30, 0x10) in rows and (0,) * 8 in rows
+
+
+@needs_node
+def test_brake_light_brightens_when_braking(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("feu-freinage")),
+        tmp_path,
+        until=3_000,
+        events=[
+            [1_000, "capteur", "set", "ty", 12],
+            [1_100, None, "mark", "frein"],
+            [1_200, "capteur", "set", "ty", 0],
+        ],
+    )
+    assert out["marks"]["frein"]["parts"]["feu"]["state"]["pixels"][0] == [255, 0, 0]
+    assert out["parts"]["feu"]["state"]["pixels"][0] == [40, 0, 0]
+
+
+@needs_node
+def test_wheel_speed_from_the_magnet(tmp_path):
+    events = []
+    for k, t0 in enumerate(range(100, 1_100, 250)):
+        events.append([t0, "aimant", "set", "open", k % 2 == 0])  # un tour toutes les 500 ms
+    out = run(
+        simulation_payload(CAT, _spec("compteur-tours-roue")),
+        tmp_path,
+        until=1_200,
+        events=[*events, [1_150, None, "mark", "roule"]],
+    )
+    assert out["marks"]["roule"]["parts"]["afficheur"]["state"]["text"] == "  15"  # 2,1 m / 0,5 s
+
+
+@needs_node
+@pytest.mark.parametrize(("gauche", "droite", "angle"), [(80, 20, 180), (20, 80, 0)])
+def test_light_follower_turns_to_the_brighter_side(tmp_path, gauche, droite, angle):
+    out = run(
+        simulation_payload(CAT, _spec("suiveur-lumiere")),
+        tmp_path,
+        until=4_000,
+        events=[
+            [0, "ldr_gauche", "set", "light", gauche],
+            [0, "ldr_droite", "set", "light", droite],
+        ],
+    )
+    assert out["parts"]["tourelle"]["state"]["angle"] == angle
+
+
+@needs_node
+def test_two_axis_arm_follows_the_knobs(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("bras-deux-axes")),
+        tmp_path,
+        until=2_000,
+        events=[
+            [0, "commande_epaule", "set", "position", 100],
+            [0, "commande_coude", "set", "position", 0],
+        ],
+    )
+    assert (
+        out["parts"]["epaule"]["state"]["angle"] == 180
+        and out["parts"]["coude"]["state"]["angle"] == 0
+    )
+
+
+@needs_node
+def test_sumo_attacks_then_retreats_from_the_edge(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("robot-sumo")),
+        tmp_path,
+        until=4_000,
+        events=[
+            [0, "sol", "set", "line", True],
+            [0, "radar", "set", "distance", 30],
+            [3_500, None, "mark", "attaque"],
+            [3_550, "sol", "set", "line", False],
+            [3_700, None, "mark", "bord"],
+        ],
+    )
+    assert out["marks"]["attaque"]["parts"]["moteurs"]["state"]["left"] == 255
+    assert out["marks"]["bord"]["parts"]["moteurs"]["state"]["left"] == -220
+
+
+@needs_node
+def test_robot_head_looks_surprised_when_someone_comes_close(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("tete-robot")),
+        tmp_path,
+        until=1_000,
+        events=[[0, "sonar", "set", "distance", 30]],
+    )
+    assert out["parts"]["yeux"]["state"]["rows"] == [0xE7, 0xA5, 0xA5, 0xE7, 0x00, 0x18, 0x18, 0x00]
+    assert out["parts"]["cou"]["state"]["angle"] == 90
+
+
+@needs_node
+def test_ir_robot_drives_and_stops(tmp_path):
+    out = run(
+        simulation_payload(CAT, _spec("robot-infrarouge")),
+        tmp_path,
+        until=1_500,
+        events=[
+            [300, "recepteur", "fire", "code", "70"],
+            [600, None, "mark", "avance"],
+            [900, "recepteur", "fire", "code", "64"],
+        ],
+    )
+    assert out["marks"]["avance"]["parts"]["moteurs"]["state"]["left"] == 200
+    assert out["parts"]["moteurs"]["state"]["left"] == 0 and "Code : 70" in out["serial"]
+
+
 @needs_node
 def test_reaction_game_busy_wait_advances_virtual_time(tmp_path):
     payload = simulation_payload(CAT, _spec("jeu-reflexes"))
